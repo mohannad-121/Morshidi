@@ -1,0 +1,65 @@
+"""Ownership-safe orchestration for self-service student operations."""
+
+from typing import Any
+from uuid import UUID
+
+from app.rules.evaluator import CanTakeResult
+from app.rules.models import AttemptOutcome
+from app.services.eligibility import EligibilityService
+from app.student.errors import StudentAttemptNotFound, StudentProfileValidationError
+from app.student.models import StudentAcademicState, StudentCourseAttemptRecord
+from app.student.supabase_repository import SupabaseStudentAcademicRepository
+
+
+class StudentConfigurationError(RuntimeError):
+    """The server-side student repository has not been configured."""
+
+
+class StudentService:
+    def __init__(self, repository: SupabaseStudentAcademicRepository, eligibility: EligibilityService) -> None:
+        self._repository = repository
+        self._eligibility = eligibility
+
+    async def get_profile(self, owner: str) -> StudentAcademicState:
+        return await self._repository.load_student_academic_state(owner)
+
+    async def create_profile(self, owner: str, **values: Any) -> StudentAcademicState:
+        return await self._repository.create_profile(owner, **values)
+
+    async def update_profile(self, owner: str, changes: dict[str, Any]) -> StudentAcademicState:
+        current = await self.get_profile(owner)
+        merged = {"reported_cumulative_gpa": current.reported_cumulative_gpa,
+            "reported_gpa_scale": current.reported_gpa_scale,
+            "reported_earned_credit_hours": current.reported_earned_credit_hours, **changes}
+        if (merged["reported_cumulative_gpa"] is None) != (merged["reported_gpa_scale"] is None):
+            raise StudentProfileValidationError("Reported GPA and scale must be supplied together")
+        return await self._repository.update_profile(owner, **merged)
+
+    async def delete_profile(self, owner: str) -> None:
+        await self._repository.delete_profile(owner)
+
+    async def list_attempts(self, owner: str) -> tuple[StudentCourseAttemptRecord, ...]:
+        return await self._repository.load_attempt_records(owner)
+
+    async def create_attempt(self, owner: str, course_code: str, status: AttemptOutcome, **values: Any) -> StudentCourseAttemptRecord:
+        return await self._repository.create_attempt(owner, course_code, status, **values)
+
+    async def update_attempt(self, owner: str, attempt_id: UUID, changes: dict[str, Any]) -> StudentCourseAttemptRecord:
+        current = next((row for row in await self.list_attempts(owner) if row.attempt_id == str(attempt_id)), None)
+        if current is None:
+            raise StudentAttemptNotFound("Student course attempt was not found")
+        merged = {"outcome": current.outcome, "attempt_sequence": current.attempt_sequence,
+            "term_label": current.term_label, "attempted_on": current.attempted_on,
+            "reported_grade_text": current.reported_grade_text, "record_source": current.record_source}
+        changes = dict(changes)
+        if "status" in changes: changes["outcome"] = changes.pop("status")
+        if "raw_grade_text" in changes: changes["reported_grade_text"] = changes.pop("raw_grade_text")
+        merged.update(changes)
+        return await self._repository.update_attempt(owner, attempt_id, **merged)
+
+    async def delete_attempt(self, owner: str, attempt_id: UUID) -> None:
+        await self._repository.delete_attempt(owner, attempt_id)
+
+    async def evaluate_can_take(self, owner: str, target_course_code: str) -> CanTakeResult:
+        state = await self.get_profile(owner)
+        return await self._eligibility.evaluate_can_take(UUID(state.study_plan_id), target_course_code, state.attempts)

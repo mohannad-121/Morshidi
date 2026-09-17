@@ -7,6 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.routes.eligibility import router as eligibility_router
 from app.api.routes.health import router as health_router
+from app.api.routes.student import router as student_router
 from app.catalog.errors import (
     CatalogIntegrityError,
     CatalogTransportError,
@@ -17,6 +18,13 @@ from app.catalog.errors import (
 from app.catalog.supabase_repository import SupabaseAcademicCatalogRepository
 from app.core.config import settings
 from app.services.eligibility import EligibilityConfigurationError, EligibilityService
+from app.services.student import StudentConfigurationError, StudentService
+from app.student.errors import (
+    StudentAttemptNotFound, StudentCourseNotFound, StudentCourseUniversityMismatch,
+    StudentProfileAlreadyExists, StudentProfileIntegrityError, StudentProfileNotFound,
+    StudentProfileTransportError, StudentProfileValidationError, StudentStudyPlanNotFound,
+)
+from app.student.supabase_repository import SupabaseStudentAcademicRepository
 
 
 @asynccontextmanager
@@ -25,7 +33,9 @@ async def lifespan(application: FastAPI):
 
     client = httpx.AsyncClient()
     application.state.catalog_http_client = client
+    application.state.auth_http_client = client
     application.state.eligibility_service = None
+    application.state.student_service = None
     if settings.supabase_url and settings.supabase_secret_key:
         repository = SupabaseAcademicCatalogRepository(
             settings.supabase_url,
@@ -33,6 +43,15 @@ async def lifespan(application: FastAPI):
             client,
         )
         application.state.eligibility_service = EligibilityService(repository)
+        student_repository = SupabaseStudentAcademicRepository(
+            settings.supabase_url,
+            settings.supabase_secret_key.get_secret_value(),
+            client,
+        )
+        application.state.student_service = StudentService(
+            student_repository,
+            application.state.eligibility_service,
+        )
     try:
         yield
     finally:
@@ -56,6 +75,7 @@ app.add_middleware(
 
 app.include_router(health_router)
 app.include_router(eligibility_router)
+app.include_router(student_router)
 
 
 def _catalog_error_response(error_code: str, detail: str, status_code: int) -> JSONResponse:
@@ -101,3 +121,37 @@ async def handle_catalog_configuration(_: Request, __: EligibilityConfigurationE
         "Catalog service is not configured",
         503,
     )
+
+
+@app.exception_handler(StudentProfileNotFound)
+@app.exception_handler(StudentAttemptNotFound)
+@app.exception_handler(StudentCourseNotFound)
+@app.exception_handler(StudentStudyPlanNotFound)
+async def handle_student_not_found(_: Request, __: Exception) -> JSONResponse:
+    return _catalog_error_response("STUDENT_RESOURCE_NOT_FOUND", "Student resource was not found", 404)
+
+
+@app.exception_handler(StudentProfileAlreadyExists)
+async def handle_profile_conflict(_: Request, __: StudentProfileAlreadyExists) -> JSONResponse:
+    return _catalog_error_response("STUDENT_PROFILE_ALREADY_EXISTS", "Student profile already exists", 409)
+
+
+@app.exception_handler(StudentCourseUniversityMismatch)
+async def handle_course_mismatch(_: Request, __: StudentCourseUniversityMismatch) -> JSONResponse:
+    return _catalog_error_response("STUDENT_COURSE_UNIVERSITY_MISMATCH", "Course does not belong to the profile university", 409)
+
+
+@app.exception_handler(StudentProfileIntegrityError)
+async def handle_student_integrity(_: Request, __: StudentProfileIntegrityError) -> JSONResponse:
+    return _catalog_error_response("STUDENT_INTEGRITY_ERROR", "Student data integrity error", 500)
+
+
+@app.exception_handler(StudentProfileTransportError)
+@app.exception_handler(StudentConfigurationError)
+async def handle_student_unavailable(_: Request, __: Exception) -> JSONResponse:
+    return _catalog_error_response("STUDENT_SERVICE_UNAVAILABLE", "Student service unavailable", 503)
+
+
+@app.exception_handler(StudentProfileValidationError)
+async def handle_student_validation(_: Request, __: StudentProfileValidationError) -> JSONResponse:
+    return _catalog_error_response("STUDENT_PROFILE_INVALID", "Student profile facts are invalid", 422)
