@@ -27,6 +27,10 @@ from app.student.errors import (
 from app.student.supabase_repository import SupabaseStudentAcademicRepository
 from app.progress.models import ProgressIntegrityError
 from app.planner.models import PlannerIntegrityError
+from app.degree_path.models import (
+    DegreePathConstraintError,
+    DegreePathIntegrityError,
+)
 
 
 @asynccontextmanager
@@ -110,8 +114,14 @@ async def handle_target_not_in_plan(_: Request, __: TargetCourseNotInStudyPlan) 
 @app.exception_handler(CatalogIntegrityError)
 @app.exception_handler(ProgressIntegrityError)
 @app.exception_handler(PlannerIntegrityError)
+@app.exception_handler(DegreePathIntegrityError)
 async def handle_catalog_integrity(_: Request, __: Exception) -> JSONResponse:
     return _catalog_error_response("CATALOG_INTEGRITY_ERROR", "Catalog integrity error", 500)
+
+
+@app.exception_handler(DegreePathConstraintError)
+async def handle_degree_path_constraint(_: Request, exc: DegreePathConstraintError) -> JSONResponse:
+    return _catalog_error_response("DEGREE_PATH_CONSTRAINT_INVALID", str(exc), 422)
 
 
 @app.exception_handler(CatalogTransportError)

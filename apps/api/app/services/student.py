@@ -4,6 +4,11 @@ from decimal import Decimal
 from typing import Any
 from uuid import UUID
 
+from app.degree_path.engine import plan_degree_paths
+from app.degree_path.models import (
+    DegreePathConstraints,
+    DegreePathResult,
+)
 from app.planner.engine import plan_semester
 from app.planner.models import (
     DEFAULT_CANDIDATE_WINDOW_SIZE,
@@ -166,6 +171,42 @@ class StudentService:
             full_recommendations,
             constraints,
             candidate_window_size=candidate_window_size,
+            reported_cumulative_gpa=state.reported_cumulative_gpa,
+            reported_gpa_scale=state.reported_gpa_scale,
+            reported_earned_credit_hours=state.reported_earned_credit_hours,
+        )
+
+    async def get_degree_paths(
+        self,
+        owner: str,
+        *,
+        max_credit_hours_per_semester: Decimal,
+        max_courses_per_semester: int | None = None,
+        max_semesters_ahead: int = 8,
+        max_paths: int = 3,
+    ) -> DegreePathResult:
+        """Deterministically generate multi-semester degree paths for the authenticated student.
+
+        Loads student academic state once, loads progress and eligibility catalogs once,
+        constructs DegreePathConstraints from user parameters, and invokes the pure engine.
+        Internal engine parameters (beam_width, semester_branch_width) remain engine defaults.
+        """
+        state = await self.get_profile(owner)
+        progress_catalog = await self._catalog_repository.load_progress_catalog(state.study_plan_id)
+        eligibility_catalog = await self._catalog_repository.load_plan_eligibility_catalog(state.study_plan_id)
+
+        constraints = DegreePathConstraints(
+            max_credit_hours_per_semester=max_credit_hours_per_semester,
+            max_courses_per_semester=max_courses_per_semester,
+            max_semesters_ahead=max_semesters_ahead,
+            max_paths=max_paths,
+        )
+
+        return plan_degree_paths(
+            progress_catalog,
+            eligibility_catalog,
+            state.attempts,
+            constraints,
             reported_cumulative_gpa=state.reported_cumulative_gpa,
             reported_gpa_scale=state.reported_gpa_scale,
             reported_earned_credit_hours=state.reported_earned_credit_hours,

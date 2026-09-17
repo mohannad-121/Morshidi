@@ -17,6 +17,10 @@ from app.api.schemas.semester_planner import (
     SemesterPlanRequest,
     SemesterPlannerResponse,
 )
+from app.api.schemas.degree_path import (
+    DegreePathRequest,
+    DegreePathResponse,
+)
 from app.core.auth import CurrentUser, get_current_user
 from app.rules.models import CanTakeDecision
 from app.services.student import StudentConfigurationError, StudentService
@@ -24,6 +28,7 @@ from app.student.models import StudentAcademicState, StudentCourseAttemptRecord
 from app.progress.models import AcademicProgress
 from app.recommendations.models import RecommendationResult
 from app.planner.models import SemesterPlannerResult
+from app.degree_path.models import DegreePathResult
 
 router = APIRouter(prefix="/api/v1/me", tags=["student"], dependencies=[Depends(get_current_user)])
 AuthenticatedUser = Annotated[CurrentUser, Depends(get_current_user)]
@@ -157,3 +162,23 @@ async def create_semester_plans(
 
 def _planner_response(result: SemesterPlannerResult) -> SemesterPlannerResponse:
     return SemesterPlannerResponse.model_validate(result, from_attributes=True)
+
+
+@router.post("/degree-paths", response_model=DegreePathResponse)
+async def create_degree_paths(
+    request: DegreePathRequest,
+    user: AuthenticatedUser,
+    service: StudentServiceDependency,
+) -> DegreePathResponse:
+    result = await service.get_degree_paths(
+        user.user_id,
+        max_credit_hours_per_semester=request.max_credit_hours_per_semester,
+        max_courses_per_semester=request.max_courses_per_semester,
+        max_semesters_ahead=request.max_semesters_ahead,
+        max_paths=request.max_paths,
+    )
+    return _degree_path_response(result)
+
+
+def _degree_path_response(result: DegreePathResult) -> DegreePathResponse:
+    return DegreePathResponse.model_validate(result, from_attributes=True)
