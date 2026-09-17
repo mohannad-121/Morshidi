@@ -3,7 +3,7 @@
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Request, Response, status
+from fastapi import APIRouter, Depends, Query, Request, Response, status
 
 from app.api.routes.eligibility import _decision_response
 from app.api.schemas.eligibility import CanTakeDecisionResponse
@@ -12,11 +12,13 @@ from app.api.schemas.student import (
     CourseAttemptResponse, ProfileCreateRequest, ProfileUpdateRequest,
 )
 from app.api.schemas.progress import AcademicProgressResponse
+from app.api.schemas.recommendations import RecommendationResponse
 from app.core.auth import CurrentUser, get_current_user
 from app.rules.models import CanTakeDecision
 from app.services.student import StudentConfigurationError, StudentService
 from app.student.models import StudentAcademicState, StudentCourseAttemptRecord
 from app.progress.models import AcademicProgress
+from app.recommendations.models import RecommendationResult
 
 router = APIRouter(prefix="/api/v1/me", tags=["student"], dependencies=[Depends(get_current_user)])
 AuthenticatedUser = Annotated[CurrentUser, Depends(get_current_user)]
@@ -110,3 +112,24 @@ def _attempt_response(row: StudentCourseAttemptRecord) -> CourseAttemptResponse:
 
 def _progress_response(progress: AcademicProgress) -> AcademicProgressResponse:
     return AcademicProgressResponse.model_validate(progress, from_attributes=True)
+
+
+@router.get("/course-recommendations", response_model=RecommendationResponse)
+async def get_course_recommendations(
+    user: AuthenticatedUser,
+    service: StudentServiceDependency,
+    limit: Annotated[
+        int | None,
+        Query(
+            ge=1,
+            le=100,
+            description="Optional maximum number of ranked recommendations to return.",
+        ),
+    ] = None,
+) -> RecommendationResponse:
+    result = await service.get_course_recommendations(user.user_id, limit=limit)
+    return _recommendation_response(result)
+
+
+def _recommendation_response(result: RecommendationResult) -> RecommendationResponse:
+    return RecommendationResponse.model_validate(result, from_attributes=True)

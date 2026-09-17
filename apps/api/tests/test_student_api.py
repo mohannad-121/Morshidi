@@ -113,7 +113,13 @@ def api() -> Iterator[tuple[TestClient, FakeStudentService]]:
 def test_all_student_routes_require_auth() -> None:
     app.dependency_overrides.clear()
     with TestClient(app) as client:
-        for method, path in [("GET", "/api/v1/me/academic-profile"), ("GET", "/api/v1/me/academic-progress"), ("GET", "/api/v1/me/academic-profile/attempts"), ("GET", "/api/v1/me/eligibility/1501112")]:
+        for method, path in [
+            ("GET", "/api/v1/me/academic-profile"),
+            ("GET", "/api/v1/me/academic-progress"),
+            ("GET", "/api/v1/me/course-recommendations"),
+            ("GET", "/api/v1/me/academic-profile/attempts"),
+            ("GET", "/api/v1/me/eligibility/1501112"),
+        ]:
             assert client.request(method, path).status_code == 401
 
 

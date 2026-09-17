@@ -28,3 +28,9 @@ class AcademicCatalogRepository(Protocol):
         study_plan_id: UUID | str,
     ) -> AcademicProgressCatalog:
         """Return one complete, explicitly ordered plan snapshot for progress."""
+
+    async def load_plan_eligibility_catalog(
+        self,
+        study_plan_id: UUID | str,
+    ) -> CanTakeCatalog:
+        """Return all resolved plan-course rules and dependency identities for CAN TAKE simulation."""

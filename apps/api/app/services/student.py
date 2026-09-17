@@ -8,6 +8,8 @@ from app.rules.models import AttemptOutcome
 from app.catalog.repository import AcademicCatalogRepository
 from app.progress.engine import calculate_academic_progress
 from app.progress.models import AcademicProgress
+from app.recommendations.engine import recommend_courses
+from app.recommendations.models import RecommendationResult
 from app.services.eligibility import EligibilityService
 from app.student.errors import StudentAttemptNotFound, StudentProfileValidationError
 from app.student.models import StudentAcademicState, StudentCourseAttemptRecord
@@ -83,3 +85,34 @@ class StudentService:
             reported_gpa_scale=state.reported_gpa_scale,
             reported_earned_credit_hours=state.reported_earned_credit_hours,
         )
+
+    async def get_course_recommendations(
+        self,
+        owner: str,
+        *,
+        limit: int | None = None,
+    ) -> RecommendationResult:
+        if limit is not None and limit < 1:
+            raise ValueError("limit must be greater than or equal to 1")
+        state = await self.get_profile(owner)
+        progress_catalog = await self._catalog_repository.load_progress_catalog(state.study_plan_id)
+        eligibility_catalog = await self._catalog_repository.load_plan_eligibility_catalog(state.study_plan_id)
+        result = recommend_courses(
+            progress_catalog,
+            eligibility_catalog,
+            state.attempts,
+            reported_cumulative_gpa=state.reported_cumulative_gpa,
+            reported_gpa_scale=state.reported_gpa_scale,
+            reported_earned_credit_hours=state.reported_earned_credit_hours,
+        )
+        if limit is not None:
+            result = RecommendationResult(
+                study_plan_id=result.study_plan_id,
+                recommendation_policy_version=result.recommendation_policy_version,
+                ranked_recommendations=result.ranked_recommendations[:limit],
+                review_required_courses=result.review_required_courses,
+                excluded_in_progress=result.excluded_in_progress,
+                methodology_note=result.methodology_note,
+                limitations=result.limitations,
+            )
+        return result

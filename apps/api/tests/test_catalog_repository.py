@@ -56,10 +56,22 @@ class FixtureData:
                 "id": PLAN_COURSE_ID,
                 "prerequisite_logic_status": "verified",
                 "raw_prerequisite_text": "1501110",
+                "courses": {
+                    "id": TARGET_ID,
+                    "course_code": "1501112",
+                    "name_ar": "برمجة الحاسوب (2)",
+                    "catalog_status": "known",
+                    "university_id": UNIVERSITY_ID,
+                },
             }
         ]
         self.group_rows: list[dict[str, Any]] = [
-            {"id": GROUP_ID, "dependency_type": "prerequisite", "group_number": 1}
+            {
+                "id": GROUP_ID,
+                "study_plan_course_id": PLAN_COURSE_ID,
+                "dependency_type": "prerequisite",
+                "group_number": 1,
+            }
         ]
         self.option_rows: list[dict[str, Any]] = [
             {
@@ -353,3 +365,55 @@ def test_repository_non_executable_catalog_passes_directly_to_engine(
     )
     assert result.decision is Decision.REVIEW_REQUIRED
     assert reason in result.reasons
+
+
+def load_plan(data: FixtureData, plan_id: str = PLAN_ID):
+    async def operation():
+        async with httpx.AsyncClient(transport=httpx.MockTransport(data.handler)) as client:
+            repository = SupabaseAcademicCatalogRepository(
+                "https://catalog.example",
+                SERVER_KEY,
+                client,
+            )
+            return await repository.load_plan_eligibility_catalog(plan_id)
+
+    return asyncio.run(operation())
+
+
+def test_plan_eligibility_catalog_loads_all_courses_and_dependencies() -> None:
+    data = FixtureData()
+    catalog = load_plan(data)
+    assert catalog.study_plan_id == PLAN_ID
+    assert len(catalog.plan_courses) == 1
+    rule = catalog.plan_courses[0]
+    assert rule.course_code == "1501112"
+    assert rule.prerequisite_logic_status == PrerequisiteLogicStatus.VERIFIED
+    assert len(rule.dependency_groups) == 1
+    assert rule.dependency_groups[0].option_course_codes == ("1501110",)
+    assert {c.course_code for c in catalog.courses} == {"1501110", "1501112"}
+    assert {request.method for request in data.calls} == {"GET"}
+    assert all("*" not in request.url.params["select"] for request in data.calls)
+
+
+def test_plan_eligibility_catalog_empty_courses() -> None:
+    data = FixtureData()
+    data.plan_course_rows = []
+    catalog = load_plan(data)
+    assert catalog.study_plan_id == PLAN_ID
+    assert catalog.plan_courses == ()
+    assert catalog.courses == ()
+
+
+def test_plan_eligibility_catalog_not_applicable_with_groups_raises_integrity() -> None:
+    data = FixtureData()
+    data.plan_course_rows[0]["prerequisite_logic_status"] = "not_applicable"
+    # group_rows still has an entry for this plan course
+    with pytest.raises(CatalogIntegrityError):
+        load_plan(data)
+
+
+def test_plan_eligibility_catalog_foreign_option_raises_integrity() -> None:
+    data = FixtureData()
+    data.option_rows[0]["courses"]["university_id"] = "foreign-univ-id"
+    with pytest.raises(CatalogIntegrityError):
+        load_plan(data)

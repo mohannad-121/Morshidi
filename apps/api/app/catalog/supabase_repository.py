@@ -214,6 +214,179 @@ class SupabaseAcademicCatalogRepository:
             plan_courses=plan_courses,
         )
 
+    async def load_plan_eligibility_catalog(
+        self,
+        study_plan_id: UUID | str,
+    ) -> CanTakeCatalog:
+        """Load all plan-course rules and dependency identities for in-memory simulation."""
+
+        plan_id = str(study_plan_id)
+        plan = await self._load_study_plan(plan_id)
+        university_id = self._university_id(plan)
+
+        plan_course_rows = await self._get_rows(
+            "study_plan_courses",
+            {
+                "select": (
+                    "id,prerequisite_logic_status,raw_prerequisite_text,display_order,"
+                    "courses(id,course_code,name_ar,catalog_status,university_id)"
+                ),
+                "study_plan_id": f"eq.{plan_id}",
+                "order": "display_order.asc,id.asc",
+            },
+        )
+        if not plan_course_rows:
+            return CanTakeCatalog(study_plan_id=plan_id, plan_courses=(), courses=())
+
+        plan_course_ids = [
+            _required_text(row, "id", "study_plan_course") for row in plan_course_rows
+        ]
+
+        # Load dependency groups in chunks to keep query string lengths safe
+        group_rows: list[Mapping[str, Any]] = []
+        chunk_size = 50
+        for i in range(0, len(plan_course_ids), chunk_size):
+            chunk = plan_course_ids[i : i + chunk_size]
+            rows = await self._get_rows(
+                "course_dependency_groups",
+                {
+                    "select": "id,study_plan_course_id,dependency_type,group_number",
+                    "study_plan_course_id": f"in.({','.join(chunk)})",
+                },
+            )
+            group_rows.extend(rows)
+
+        # Load dependency options if any groups exist
+        group_ids = [_required_text(row, "id", "dependency group") for row in group_rows]
+        options_by_group: dict[str, list[CourseIdentity]] = {gid: [] for gid in group_ids}
+        option_identities: list[CourseIdentity] = []
+        if group_ids:
+            for i in range(0, len(group_ids), chunk_size):
+                chunk = group_ids[i : i + chunk_size]
+                option_rows = await self._get_rows(
+                    "course_dependency_options",
+                    {
+                        "select": "dependency_group_id,courses(course_code,catalog_status,university_id)",
+                        "dependency_group_id": f"in.({','.join(chunk)})",
+                    },
+                )
+                for row in option_rows:
+                    gid = _required_text(row, "dependency_group_id", "dependency option")
+                    if gid not in options_by_group:
+                        raise CatalogIntegrityError("Dependency option belongs to an unexpected group")
+                    nested_course = row.get("courses")
+                    if not isinstance(nested_course, Mapping):
+                        raise CatalogIntegrityError("Dependency option is missing its referenced course")
+                    opt_univ = _required_text(nested_course, "university_id", "dependency course")
+                    if opt_univ != university_id:
+                        raise CatalogIntegrityError("Dependency course belongs to another university")
+                    identity = self._course_identity(nested_course)
+                    options_by_group[gid].append(identity)
+                    option_identities.append(identity)
+
+        # Index groups by study_plan_course_id
+        groups_by_pc: dict[str, list[Mapping[str, Any]]] = {pid: [] for pid in plan_course_ids}
+        for grow in group_rows:
+            spc_id = _required_text(grow, "study_plan_course_id", "dependency group")
+            if spc_id not in groups_by_pc:
+                raise CatalogIntegrityError("Dependency group belongs to an unexpected study plan course")
+            groups_by_pc[spc_id].append(grow)
+
+        # Build plan course rules
+        plan_rules: list[PlanCourseRule] = []
+        plan_course_identities: list[CourseIdentity] = []
+
+        for row in plan_course_rows:
+            pc_id = _required_text(row, "id", "study_plan_course")
+            nested_course = row.get("courses")
+            if not isinstance(nested_course, Mapping):
+                raise CatalogIntegrityError("Plan course is missing its course relationship")
+            course_univ = _required_text(nested_course, "university_id", "course")
+            if course_univ != university_id:
+                raise CatalogIntegrityError("Plan course belongs to another university")
+            course_code = _required_text(nested_course, "course_code", "course")
+            target_identity = self._course_identity(nested_course)
+            plan_course_identities.append(target_identity)
+
+            status = _enum_value(
+                PrerequisiteLogicStatus,
+                _required_text(row, "prerequisite_logic_status", "study_plan_course"),
+                "prerequisite_logic_status",
+            )
+            raw_text = row.get("raw_prerequisite_text")
+            if raw_text is not None and not isinstance(raw_text, str):
+                raise CatalogIntegrityError("raw_prerequisite_text is not text")
+            name_ar = nested_course.get("name_ar")
+            if name_ar is not None and not isinstance(name_ar, str):
+                raise CatalogIntegrityError("course name_ar is not text")
+
+            pc_groups = groups_by_pc[pc_id]
+            if status is PrerequisiteLogicStatus.NOT_APPLICABLE:
+                if pc_groups:
+                    raise CatalogIntegrityError("not_applicable target has dependency groups")
+                dep_groups: tuple[DependencyGroup, ...] = ()
+            elif status in (
+                PrerequisiteLogicStatus.UNRESOLVED,
+                PrerequisiteLogicStatus.SOURCE_CONFLICT,
+            ):
+                if pc_groups:
+                    raise CatalogIntegrityError("non-executable target has dependency groups")
+                dep_groups = ()
+            else:
+                if not pc_groups:
+                    raise CatalogIntegrityError("verified target has no dependency group representation")
+                normalized_groups: list[tuple[str, DependencyType, int]] = []
+                group_numbers: set[int] = set()
+                for grow in pc_groups:
+                    gid = _required_text(grow, "id", "dependency group")
+                    dep_type = _enum_value(
+                        DependencyType,
+                        _required_text(grow, "dependency_type", "dependency group"),
+                        "dependency_type",
+                    )
+                    number = _required_positive_int(grow, "group_number", "dependency group")
+                    if number in group_numbers:
+                        raise CatalogIntegrityError("Duplicate dependency group_number in target")
+                    group_numbers.add(number)
+                    normalized_groups.append((gid, dep_type, number))
+
+                result_groups: list[DependencyGroup] = []
+                for gid, dep_type, group_number in sorted(normalized_groups, key=lambda item: item[2]):
+                    identities = options_by_group[gid]
+                    if not identities:
+                        raise CatalogIntegrityError("Dependency group has no options")
+                    codes = [identity.course_code for identity in identities]
+                    if len(codes) != len(set(codes)):
+                        raise CatalogIntegrityError("Dependency group has duplicate option courses")
+                    ordered_codes = tuple(sorted(codes))
+                    result_groups.append(
+                        DependencyGroup(
+                            group_number=group_number,
+                            dependency_type=dep_type,
+                            option_course_codes=ordered_codes,
+                        )
+                    )
+                dep_groups = tuple(result_groups)
+
+            plan_rules.append(
+                PlanCourseRule(
+                    course_code=course_code,
+                    prerequisite_logic_status=status,
+                    dependency_groups=dep_groups,
+                    raw_prerequisite_text=raw_text,
+                    target_name_ar=name_ar,
+                )
+            )
+
+        all_identities = _sorted_unique_course_identities(
+            (*plan_course_identities, *option_identities)
+        )
+        return CanTakeCatalog(
+            study_plan_id=plan_id,
+            plan_courses=tuple(plan_rules),
+            courses=all_identities,
+        )
+
     async def _load_study_plan(self, plan_id: str) -> Mapping[str, Any]:
         rows = await self._get_rows(
             "study_plans",
