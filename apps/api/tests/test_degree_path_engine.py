@@ -168,6 +168,16 @@ def _rule_review(code: str, name_ar: str | None = None) -> PlanCourseRule:
     )
 
 
+def _rule_unresolved(code: str, name_ar: str | None = None) -> PlanCourseRule:
+    return PlanCourseRule(
+        course_code=code,
+        prerequisite_logic_status=PrerequisiteLogicStatus.UNRESOLVED,
+        dependency_groups=(),
+        raw_prerequisite_text="unresolved prerequisite logic",
+        target_name_ar=name_ar,
+    )
+
+
 def _catalogs(
     plan_courses: tuple[ProgressPlanCourse, ...],
     rules: tuple[PlanCourseRule, ...],
@@ -1547,7 +1557,7 @@ class TestRealPlan12:
 
     def test_98_1505311_never_selected(self) -> None:
         pcs = (_pc("1505311", credits="3"),)
-        rules = (_rule_review("1505311", "تعلم الالة"),)
+        rules = (_rule_unresolved("1505311", "تعلم الالة"),)
         p_cat, e_cat = _catalogs(pcs, rules, total_credits="3")
         res = plan_degree_paths(
             p_cat,

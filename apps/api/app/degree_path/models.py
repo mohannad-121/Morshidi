@@ -50,7 +50,7 @@ class PathStatus(str, Enum):
     """The path reached max_semesters_ahead without fully satisfying all requirements."""
 
     BLOCKED_BY_REVIEW_REQUIRED = "BLOCKED_BY_REVIEW_REQUIRED"
-    """When depth < max_semesters_ahead: remaining required courses cannot be planned due to source conflicts."""
+    """When depth < max_semesters_ahead: remaining modeled requirements include prerequisite logic requiring review."""
 
     BLOCKED_BY_CURRENT_IN_PROGRESS = "BLOCKED_BY_CURRENT_IN_PROGRESS"
     """When depth < max_semesters_ahead: remaining courses cannot be planned because they depend on an active in-progress course."""
@@ -63,7 +63,7 @@ class BlockerType(str, Enum):
     """Diagnostic codes describing unresolved academic conditions in final states."""
 
     REVIEW_REQUIRED_BLOCKER = "REVIEW_REQUIRED_BLOCKER"
-    """Course prerequisite rules contain conflicting sources (e.g. 1505311, 1505320)."""
+    """Remaining required courses have unresolved or source-conflict prerequisite logic requiring review."""
 
     CURRENT_IN_PROGRESS_BLOCKER = "CURRENT_IN_PROGRESS_BLOCKER"
     """Prerequisite course is currently active (IN_PROGRESS) and outcome is unresolved."""
@@ -239,4 +239,3 @@ class DegreePathResult:
     total_parent_states_expanded: int = 0
     methodology_note: str = ""
     limitations: tuple[str, ...] = ()
-
