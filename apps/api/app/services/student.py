@@ -1,8 +1,15 @@
 """Ownership-safe orchestration for self-service student operations."""
 
+from decimal import Decimal
 from typing import Any
 from uuid import UUID
 
+from app.planner.engine import plan_semester
+from app.planner.models import (
+    DEFAULT_CANDIDATE_WINDOW_SIZE,
+    PlannerConstraints,
+    SemesterPlannerResult,
+)
 from app.rules.evaluator import CanTakeResult
 from app.rules.models import AttemptOutcome
 from app.catalog.repository import AcademicCatalogRepository
@@ -116,3 +123,50 @@ class StudentService:
                 limitations=result.limitations,
             )
         return result
+
+    async def get_semester_plans(
+        self,
+        owner: str,
+        *,
+        max_credit_hours: Decimal,
+        max_courses: int | None = None,
+        max_options: int = 5,
+        candidate_window_size: int = DEFAULT_CANDIDATE_WINDOW_SIZE,
+    ) -> SemesterPlannerResult:
+        """Deterministically generate optimal semester plans for the authenticated student.
+
+        Loads student academic state once, loads progress and eligibility catalogs once,
+        computes full Phase 7 recommendation candidates without presentation limits,
+        and invokes the pure planner engine.
+        """
+        state = await self.get_profile(owner)
+        progress_catalog = await self._catalog_repository.load_progress_catalog(state.study_plan_id)
+        eligibility_catalog = await self._catalog_repository.load_plan_eligibility_catalog(state.study_plan_id)
+
+        # Compute full Phase 7 recommendations without any presentation limit
+        full_recommendations = recommend_courses(
+            progress_catalog,
+            eligibility_catalog,
+            state.attempts,
+            reported_cumulative_gpa=state.reported_cumulative_gpa,
+            reported_gpa_scale=state.reported_gpa_scale,
+            reported_earned_credit_hours=state.reported_earned_credit_hours,
+        )
+
+        constraints = PlannerConstraints(
+            max_credit_hours=max_credit_hours,
+            max_courses=max_courses,
+            max_options=max_options,
+        )
+
+        return plan_semester(
+            progress_catalog,
+            eligibility_catalog,
+            state.attempts,
+            full_recommendations,
+            constraints,
+            candidate_window_size=candidate_window_size,
+            reported_cumulative_gpa=state.reported_cumulative_gpa,
+            reported_gpa_scale=state.reported_gpa_scale,
+            reported_earned_credit_hours=state.reported_earned_credit_hours,
+        )

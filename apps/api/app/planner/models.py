@@ -77,13 +77,11 @@ class PlanReasonCode(str, Enum):
 
 @dataclass(frozen=True)
 class PlannerConstraints:
-    """Immutable user planning preferences and computation configuration."""
     """Immutable user planning preferences and presentation constraints."""
 
     max_credit_hours: Decimal
     max_courses: int | None = None
     max_options: int = 5
-    candidate_window_size: int = DEFAULT_CANDIDATE_WINDOW_SIZE
 
     def __post_init__(self) -> None:
         # Validate max_credit_hours
@@ -128,12 +126,6 @@ class PlannerConstraints:
             raise PlannerConstraintError("max_options must be an integer")
         if self.max_options < 1 or self.max_options > 10:
             raise PlannerConstraintError("max_options must be between 1 and 10")
-
-        # Validate candidate_window_size
-        if isinstance(self.candidate_window_size, bool) or not isinstance(self.candidate_window_size, int):
-            raise PlannerConstraintError("candidate_window_size must be an integer")
-        if self.candidate_window_size < 1:
-            raise PlannerConstraintError("candidate_window_size must be at least 1")
 
 
 # ---------------------------------------------------------------------------

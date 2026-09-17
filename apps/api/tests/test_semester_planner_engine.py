@@ -1516,7 +1516,6 @@ def test_95_invalid_candidate_window_size_rejected():
     rec_res = _recommendation_result((_candidate("C1"),))
 
     with pytest.raises(PlannerConstraintError, match="at least 1"):
-        PlannerConstraints(max_credit_hours=Decimal("15"), candidate_window_size=0)
         plan_semester(prog_cat, elig_cat, (), rec_res, PlannerConstraints(max_credit_hours=Decimal("15")), candidate_window_size=0)
 
     with pytest.raises(PlannerConstraintError, match="must be an integer"):

@@ -13,12 +13,17 @@ from app.api.schemas.student import (
 )
 from app.api.schemas.progress import AcademicProgressResponse
 from app.api.schemas.recommendations import RecommendationResponse
+from app.api.schemas.semester_planner import (
+    SemesterPlanRequest,
+    SemesterPlannerResponse,
+)
 from app.core.auth import CurrentUser, get_current_user
 from app.rules.models import CanTakeDecision
 from app.services.student import StudentConfigurationError, StudentService
 from app.student.models import StudentAcademicState, StudentCourseAttemptRecord
 from app.progress.models import AcademicProgress
 from app.recommendations.models import RecommendationResult
+from app.planner.models import SemesterPlannerResult
 
 router = APIRouter(prefix="/api/v1/me", tags=["student"], dependencies=[Depends(get_current_user)])
 AuthenticatedUser = Annotated[CurrentUser, Depends(get_current_user)]
@@ -133,3 +138,22 @@ async def get_course_recommendations(
 
 def _recommendation_response(result: RecommendationResult) -> RecommendationResponse:
     return RecommendationResponse.model_validate(result, from_attributes=True)
+
+
+@router.post("/semester-plans", response_model=SemesterPlannerResponse)
+async def create_semester_plans(
+    request: SemesterPlanRequest,
+    user: AuthenticatedUser,
+    service: StudentServiceDependency,
+) -> SemesterPlannerResponse:
+    result = await service.get_semester_plans(
+        user.user_id,
+        max_credit_hours=request.max_credit_hours,
+        max_courses=request.max_courses,
+        max_options=request.max_options,
+    )
+    return _planner_response(result)
+
+
+def _planner_response(result: SemesterPlannerResult) -> SemesterPlannerResponse:
+    return SemesterPlannerResponse.model_validate(result, from_attributes=True)

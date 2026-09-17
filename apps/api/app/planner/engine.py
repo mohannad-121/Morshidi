@@ -391,7 +391,6 @@ def plan_semester(
         elif item.newly_satisfied_requirement_group_count >= 2:
             codes.append(PlanReasonCode.COMPLETES_MULTIPLE_REQUIREMENT_GROUPS)
 
-        if item.modeled_credit_delta > Decimal("0") and item.modeled_credit_delta == max_modeled_credit_delta:
         if item.modeled_credit_delta == max_modeled_credit_delta:
             codes.append(PlanReasonCode.MAXIMIZES_MODELED_CREDIT_PROGRESS)
 
