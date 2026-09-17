@@ -115,6 +115,31 @@ through the end-user Data API by default. Deliberate API grants and policies
 will be designed later; backend/database-owner access is separate from
 end-user Data API access.
 
+## Student academic state (Phase 6.2)
+
+`student_academic_profiles` is a private, one-per-authenticated-user profile.
+It owns a restrictive `study_plan_id`, optional non-negative cumulative GPA and
+earned-credit facts, and a positive GPA scale whenever GPA is supplied. The
+profile and scale must be supplied together. A profile may not move to another
+study plan after it has attempts.
+
+`student_course_attempts` stores repeatable, raw reported outcomes for a
+profile and canonical course. Outcomes are limited to `PASSED`, `FAILED`,
+`IN_PROGRESS`, and `WITHDRAWN`; optional numbered attempts are unique per
+profile/course only when a sequence is supplied. Optional source, term, date,
+and raw grade fields preserve reporting facts without interpreting grades.
+
+The attempt trigger derives the profile plan's university through the catalog
+hierarchy and requires it to equal the attempted course's university. This
+permits same-university `referenced_only` courses but prevents cross-university
+attempts without storing a redundant university identifier. Profile deletion
+cascades to attempts; catalog plans and courses remain restrictive.
+
+RLS is enabled on both student tables. `authenticated` users receive only
+owner-scoped CRUD policies (`auth.uid()` for profiles and the owning profile
+for attempts); `anon` receives no grant or policy. Both tables use the shared
+`set_updated_at` trigger.
+
 ## Phase 4.1 Validation
 
 | Validation | Result | Basis |
