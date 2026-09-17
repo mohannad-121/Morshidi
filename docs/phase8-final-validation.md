@@ -106,9 +106,9 @@ The system answers:
 
 - **Total Plan Credits:** 132 credit hours across 6 requirement groups and 68 `study_plan_courses`.
 - **Elective Saturation:** University Electives (9 required / 33 listed) and Major Electives (9 required / 39 listed).
-- **Zero-Credit Required Courses:** `0200115` (National Education) and `1509999` (Military Science) consume 0 credits, contribute to $P_1$, count toward `max_courses`, and form valid plans when `max_credit_hours = Decimal("0")`.
-- **Review-Required Courses:** `1505311` (Advanced AI) and `1505320` (Machine Learning Lab) remain in `review_required_courses` and never enter plans.
-- **Referenced-Only Courses:** `0300103` (Remedial Computer Skills) is external to the study plan, earns 0 plan credits, and affects eligibility only if verified as a prerequisite.
+- **Zero-Credit Required Courses:** `0200115` (`تنمية المجتمع والعمل التطوعي` / Community Development and Volunteer Work, `UNIVERSITY_REQUIRED`) and `1509999` (`حلقة بحث لطلبة كلية تكنولوجيا المعلومات` / Research Seminar for IT College Students, `FACULTY_REQUIRED`) consume 0 credits, contribute to $P_1$, count toward `max_courses`, and form valid plans when `max_credit_hours = Decimal("0")`.
+- **Review-Required Courses:** `1505311` (`تعلم الالة` / Machine Learning, `unresolved`) and `1505320` (`تعلم الآلة المتقدم` / Advanced Machine Learning, `source_conflict`) remain in `review_required_courses` and never enter plans.
+- **Referenced-Only Courses:** `0300103` (`الإحصاء والاحتمالات`, `referenced_only`) is external to the study plan, earns 0 plan credits, and affects eligibility only if verified as a prerequisite.
 - **Verified Prerequisite Chain:** `0300153 -> 1501110 -> 1501112`.
 
 ---

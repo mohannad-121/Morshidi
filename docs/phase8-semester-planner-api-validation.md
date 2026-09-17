@@ -169,7 +169,7 @@ class SemesterPlannerResponse(BaseModel):
 
 - **Same-Semester Prerequisite Chain:** When `0300153` is completed, `1501110` is baseline `ELIGIBLE` and `1501112` is baseline `NOT_ELIGIBLE`. Both courses never appear together in the same semester option. In plans containing `1501110`, `1501112` is reported in `newly_eligible_course_codes`.
 - **Zero-Credit Courses:** Courses `0200115` and `1509999` are valid with `max_credit_hours = Decimal("0")`. They contribute to `mandatory_course_count` ($P_1$) and consume `max_courses` without consuming credit budget.
-- **Review-Required Exclusion:** Courses `1505311` and `1505320` with unresolved prerequisite logic are strictly excluded from plan options and reported in `review_required_courses`.
+- **Review-Required Exclusion:** Course `1505311` has `unresolved` prerequisite logic, while `1505320` has `source_conflict` prerequisite logic. Both are strictly excluded from plan options and reported in `review_required_courses`.
 - **Referenced-Only Courses:** Course `0300103` is never a plan course, earns no degree credits, and only impacts downstream eligibility when completed.
 - **In-Progress Courses:** Courses marked `IN_PROGRESS` are excluded from plan options, do not consume the upcoming semester's credit budget, and are reported in `excluded_in_progress`.
 
