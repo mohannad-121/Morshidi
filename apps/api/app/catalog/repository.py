@@ -6,6 +6,7 @@ from typing import Protocol
 from uuid import UUID
 
 from app.rules.models import CanTakeCatalog
+from app.progress.models import AcademicProgressCatalog
 
 
 class AcademicCatalogRepository(Protocol):
@@ -21,3 +22,9 @@ class AcademicCatalogRepository(Protocol):
         target_course_code: str,
     ) -> CanTakeCatalog:
         """Return the resolved target and dependency identities for CAN TAKE."""
+
+    async def load_progress_catalog(
+        self,
+        study_plan_id: UUID | str,
+    ) -> AcademicProgressCatalog:
+        """Return one complete, explicitly ordered plan snapshot for progress."""

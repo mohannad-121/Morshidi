@@ -5,6 +5,9 @@ from uuid import UUID
 
 from app.rules.evaluator import CanTakeResult
 from app.rules.models import AttemptOutcome
+from app.catalog.repository import AcademicCatalogRepository
+from app.progress.engine import calculate_academic_progress
+from app.progress.models import AcademicProgress
 from app.services.eligibility import EligibilityService
 from app.student.errors import StudentAttemptNotFound, StudentProfileValidationError
 from app.student.models import StudentAcademicState, StudentCourseAttemptRecord
@@ -16,9 +19,15 @@ class StudentConfigurationError(RuntimeError):
 
 
 class StudentService:
-    def __init__(self, repository: SupabaseStudentAcademicRepository, eligibility: EligibilityService) -> None:
+    def __init__(
+        self,
+        repository: SupabaseStudentAcademicRepository,
+        eligibility: EligibilityService,
+        catalog_repository: AcademicCatalogRepository,
+    ) -> None:
         self._repository = repository
         self._eligibility = eligibility
+        self._catalog_repository = catalog_repository
 
     async def get_profile(self, owner: str) -> StudentAcademicState:
         return await self._repository.load_student_academic_state(owner)
@@ -63,3 +72,14 @@ class StudentService:
     async def evaluate_can_take(self, owner: str, target_course_code: str) -> CanTakeResult:
         state = await self.get_profile(owner)
         return await self._eligibility.evaluate_can_take(UUID(state.study_plan_id), target_course_code, state.attempts)
+
+    async def get_academic_progress(self, owner: str) -> AcademicProgress:
+        state = await self.get_profile(owner)
+        catalog = await self._catalog_repository.load_progress_catalog(state.study_plan_id)
+        return calculate_academic_progress(
+            catalog,
+            state.attempts,
+            reported_cumulative_gpa=state.reported_cumulative_gpa,
+            reported_gpa_scale=state.reported_gpa_scale,
+            reported_earned_credit_hours=state.reported_earned_credit_hours,
+        )

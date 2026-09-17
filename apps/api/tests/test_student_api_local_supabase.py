@@ -2,6 +2,7 @@
 
 import os
 import uuid
+from decimal import Decimal
 
 import httpx
 import pytest
@@ -47,6 +48,11 @@ def test_local_authenticated_student_api_end_to_end() -> None:
                 assert passed.status_code == 201
                 passed_id = passed.json()["id"]
                 assert client.get("/api/v1/me/eligibility/1501112", headers=auth_a).json()["decision"] == "ELIGIBLE"
+                progress = client.get("/api/v1/me/academic-progress", headers=auth_a)
+                assert progress.status_code == 200
+                assert Decimal(progress.json()["plan_total_required_credits"]) == 132
+                assert Decimal(progress.json()["completed_plan_credits"]) == 3
+                assert Decimal(progress.json()["reported_earned_credit_hours"]) == 15
 
                 referenced = client.post("/api/v1/me/academic-profile/attempts", headers=auth_a,
                     json={"course_code": "0300103", "status": "PASSED"})
@@ -64,6 +70,7 @@ def test_local_authenticated_student_api_end_to_end() -> None:
                 assert client.delete(f"/api/v1/me/academic-profile/attempts/{failed_id}", headers=auth_a).status_code == 204
 
                 assert client.get("/api/v1/me/academic-profile", headers=auth_b).status_code == 404
+                assert client.get("/api/v1/me/academic-progress", headers=auth_b).status_code == 404
                 assert client.patch(f"/api/v1/me/academic-profile/attempts/{passed_id}", headers=auth_b,
                     json={"status": "FAILED"}).status_code == 404
 

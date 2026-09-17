@@ -25,6 +25,7 @@ from app.student.errors import (
     StudentProfileTransportError, StudentProfileValidationError, StudentStudyPlanNotFound,
 )
 from app.student.supabase_repository import SupabaseStudentAcademicRepository
+from app.progress.models import ProgressIntegrityError
 
 
 @asynccontextmanager
@@ -51,6 +52,7 @@ async def lifespan(application: FastAPI):
         application.state.student_service = StudentService(
             student_repository,
             application.state.eligibility_service,
+            repository,
         )
     try:
         yield
@@ -105,6 +107,7 @@ async def handle_target_not_in_plan(_: Request, __: TargetCourseNotInStudyPlan) 
 
 
 @app.exception_handler(CatalogIntegrityError)
+@app.exception_handler(ProgressIntegrityError)
 async def handle_catalog_integrity(_: Request, __: CatalogIntegrityError) -> JSONResponse:
     return _catalog_error_response("CATALOG_INTEGRITY_ERROR", "Catalog integrity error", 500)
 

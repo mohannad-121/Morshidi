@@ -11,10 +11,12 @@ from app.api.schemas.student import (
     AcademicProfileResponse, AttemptCreateRequest, AttemptUpdateRequest,
     CourseAttemptResponse, ProfileCreateRequest, ProfileUpdateRequest,
 )
+from app.api.schemas.progress import AcademicProgressResponse
 from app.core.auth import CurrentUser, get_current_user
 from app.rules.models import CanTakeDecision
 from app.services.student import StudentConfigurationError, StudentService
 from app.student.models import StudentAcademicState, StudentCourseAttemptRecord
+from app.progress.models import AcademicProgress
 
 router = APIRouter(prefix="/api/v1/me", tags=["student"], dependencies=[Depends(get_current_user)])
 AuthenticatedUser = Annotated[CurrentUser, Depends(get_current_user)]
@@ -33,6 +35,14 @@ StudentServiceDependency = Annotated[StudentService, Depends(get_student_service
 @router.get("/academic-profile", response_model=AcademicProfileResponse)
 async def get_profile(user: AuthenticatedUser, service: StudentServiceDependency) -> AcademicProfileResponse:
     return _profile_response(await service.get_profile(user.user_id))
+
+
+@router.get("/academic-progress", response_model=AcademicProgressResponse)
+async def get_academic_progress(
+    user: AuthenticatedUser,
+    service: StudentServiceDependency,
+) -> AcademicProgressResponse:
+    return _progress_response(await service.get_academic_progress(user.user_id))
 
 
 @router.post("/academic-profile", response_model=AcademicProfileResponse, status_code=status.HTTP_201_CREATED)
@@ -96,3 +106,7 @@ def _attempt_response(row: StudentCourseAttemptRecord) -> CourseAttemptResponse:
         attempt_sequence=row.attempt_sequence, term_label=row.term_label, attempted_on=row.attempted_on,
         raw_grade_text=row.reported_grade_text, record_source=row.record_source,
         created_at=row.created_at, updated_at=row.updated_at)
+
+
+def _progress_response(progress: AcademicProgress) -> AcademicProgressResponse:
+    return AcademicProgressResponse.model_validate(progress, from_attributes=True)

@@ -24,6 +24,13 @@ from app.rules.models import (
     PlanCourseRule,
     PrerequisiteLogicStatus,
 )
+from app.progress.models import (
+    AcademicProgressCatalog,
+    ProgressPlanCourse,
+    ProgressRequirementGroup,
+    ProgressStudyPlan,
+    RequirementType,
+)
 
 
 class SupabaseAcademicCatalogRepository:
@@ -152,6 +159,59 @@ class SupabaseAcademicCatalogRepository:
                 ),
             ),
             courses=course_identities,
+        )
+
+    async def load_progress_catalog(
+        self,
+        study_plan_id: UUID | str,
+    ) -> AcademicProgressCatalog:
+        """Load the persisted plan, groups, and only its actual course members."""
+
+        plan_id = str(study_plan_id)
+        plan_rows = await self._get_rows(
+            "study_plans",
+            {"select": "id,total_credit_hours", "id": f"eq.{plan_id}"},
+        )
+        if not plan_rows:
+            raise StudyPlanNotFound("Study plan was not found")
+        if len(plan_rows) != 1:
+            raise CatalogIntegrityError("Multiple study plans matched one identifier")
+        plan_row = plan_rows[0]
+        if _required_text(plan_row, "id", "study_plan") != plan_id:
+            raise CatalogIntegrityError("Study plan response did not match requested identifier")
+
+        group_rows = await self._get_rows(
+            "requirement_groups",
+            {
+                "select": (
+                    "id,study_plan_id,group_code,name_ar,name_en,scope,"
+                    "requirement_type,required_credit_hours,display_order"
+                ),
+                "study_plan_id": f"eq.{plan_id}",
+                "order": "display_order.asc,group_code.asc",
+            },
+        )
+        groups = tuple(_progress_group(row) for row in group_rows)
+
+        plan_course_rows = await self._get_rows(
+            "study_plan_courses",
+            {
+                "select": (
+                    "id,study_plan_id,requirement_group_id,credit_hours,display_order,"
+                    "courses(course_code,catalog_status)"
+                ),
+                "study_plan_id": f"eq.{plan_id}",
+                "order": "display_order.asc,id.asc",
+            },
+        )
+        plan_courses = tuple(_progress_plan_course(row) for row in plan_course_rows)
+        return AcademicProgressCatalog(
+            study_plan=ProgressStudyPlan(
+                study_plan_id=plan_id,
+                total_credit_hours=_required_decimal(plan_row, "total_credit_hours", "study_plan"),
+            ),
+            requirement_groups=groups,
+            plan_courses=plan_courses,
         )
 
     async def _load_study_plan(self, plan_id: str) -> Mapping[str, Any]:
@@ -303,6 +363,76 @@ def _required_positive_int(row: Mapping[str, Any], field: str, resource: str) ->
     if isinstance(value, bool) or not isinstance(value, int) or value <= 0:
         raise CatalogIntegrityError(f"{resource} has invalid {field}")
     return value
+
+
+def _required_nonnegative_int(row: Mapping[str, Any], field: str, resource: str) -> int:
+    value = row.get(field)
+    if isinstance(value, bool) or not isinstance(value, int) or value < 0:
+        raise CatalogIntegrityError(f"{resource} has invalid {field}")
+    return value
+
+
+def _required_decimal(row: Mapping[str, Any], field: str, resource: str):
+    from decimal import Decimal, InvalidOperation
+
+    value = row.get(field)
+    if isinstance(value, bool) or value is None:
+        raise CatalogIntegrityError(f"{resource} has invalid {field}")
+    try:
+        result = Decimal(str(value))
+    except (InvalidOperation, ValueError) as error:
+        raise CatalogIntegrityError(f"{resource} has invalid {field}") from error
+    if not result.is_finite() or result < 0:
+        raise CatalogIntegrityError(f"{resource} has invalid {field}")
+    return result
+
+
+def _optional_text(row: Mapping[str, Any], field: str, resource: str) -> str | None:
+    value = row.get(field)
+    if value is not None and (not isinstance(value, str) or not value):
+        raise CatalogIntegrityError(f"{resource} has invalid {field}")
+    return value
+
+
+def _progress_group(row: Mapping[str, Any]) -> ProgressRequirementGroup:
+    return ProgressRequirementGroup(
+        group_id=_required_text(row, "id", "requirement_group"),
+        study_plan_id=_required_text(row, "study_plan_id", "requirement_group"),
+        group_code=_required_text(row, "group_code", "requirement_group"),
+        name_ar=_required_text(row, "name_ar", "requirement_group"),
+        name_en=_optional_text(row, "name_en", "requirement_group"),
+        scope=_required_text(row, "scope", "requirement_group"),
+        requirement_type=_enum_value(
+            RequirementType,
+            _required_text(row, "requirement_type", "requirement_group"),
+            "requirement_type",
+        ),
+        required_credit_hours=_required_decimal(
+            row, "required_credit_hours", "requirement_group"
+        ),
+        display_order=_required_nonnegative_int(row, "display_order", "requirement_group"),
+    )
+
+
+def _progress_plan_course(row: Mapping[str, Any]) -> ProgressPlanCourse:
+    nested_course = row.get("courses")
+    if not isinstance(nested_course, Mapping):
+        raise CatalogIntegrityError("Plan course is missing its course relationship")
+    return ProgressPlanCourse(
+        plan_course_id=_required_text(row, "id", "study_plan_course"),
+        study_plan_id=_required_text(row, "study_plan_id", "study_plan_course"),
+        requirement_group_id=_required_text(
+            row, "requirement_group_id", "study_plan_course"
+        ),
+        course_code=_required_text(nested_course, "course_code", "course"),
+        catalog_status=_enum_value(
+            CourseCatalogStatus,
+            _required_text(nested_course, "catalog_status", "course"),
+            "catalog_status",
+        ),
+        credit_hours=_required_decimal(row, "credit_hours", "study_plan_course"),
+        display_order=_required_nonnegative_int(row, "display_order", "study_plan_course"),
+    )
 
 
 def _enum_value(enum_type: type[Any], value: str, field: str) -> Any:

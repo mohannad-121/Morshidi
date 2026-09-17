@@ -22,6 +22,7 @@ from app.student.errors import (
     StudentProfileAlreadyExists, StudentProfileNotFound,
 )
 from app.student.models import StudentAcademicState, StudentCourseAttemptRecord
+from app.progress.models import AcademicProgress
 
 OWNER = "11111111-1111-1111-1111-111111111111"
 PLAN = "10000000-0000-0000-0000-000000000005"
@@ -80,6 +81,24 @@ class FakeStudentService:
         catalog = CanTakeCatalog(PLAN, (PlanCourseRule(target, status, groups),),
             tuple(CourseIdentity(code, CourseCatalogStatus.KNOWN) for code in {target, "1501110"}))
         return evaluate_can_take(catalog, CanTakeRequest(PLAN, target, self.state.attempts))
+    async def get_academic_progress(self, owner):
+        if self.missing: raise StudentProfileNotFound("missing")
+        self.progress_owner = owner
+        return AcademicProgress(
+            study_plan_id=PLAN,
+            plan_total_required_credits=Decimal("132"),
+            completed_plan_credits=Decimal("3"),
+            in_progress_plan_credits=Decimal("0"),
+            remaining_plan_credits=Decimal("129"),
+            satisfied_requirement_group_count=0,
+            total_requirement_group_count=6,
+            all_modeled_plan_requirements_satisfied=False,
+            requirement_groups=(),
+            courses=(),
+            reported_cumulative_gpa=self.state.reported_cumulative_gpa,
+            reported_gpa_scale=self.state.reported_gpa_scale,
+            reported_earned_credit_hours=self.state.reported_earned_credit_hours,
+        )
 
 
 @pytest.fixture
@@ -94,8 +113,21 @@ def api() -> Iterator[tuple[TestClient, FakeStudentService]]:
 def test_all_student_routes_require_auth() -> None:
     app.dependency_overrides.clear()
     with TestClient(app) as client:
-        for method, path in [("GET", "/api/v1/me/academic-profile"), ("GET", "/api/v1/me/academic-profile/attempts"), ("GET", "/api/v1/me/eligibility/1501112")]:
+        for method, path in [("GET", "/api/v1/me/academic-profile"), ("GET", "/api/v1/me/academic-progress"), ("GET", "/api/v1/me/academic-profile/attempts"), ("GET", "/api/v1/me/eligibility/1501112")]:
             assert client.request(method, path).status_code == 401
+
+
+def test_progress_uses_only_authenticated_owner_and_reported_facts_remain_distinct(api) -> None:
+    client, service = api
+    response = client.get("/api/v1/me/academic-progress")
+    assert response.status_code == 200
+    assert service.progress_owner == OWNER
+    body = response.json()
+    assert body["study_plan_id"] == PLAN
+    assert body["completed_plan_credits"] == "3"
+    assert body["reported_earned_credit_hours"] == "15"
+    service.missing = True
+    assert client.get("/api/v1/me/academic-progress").status_code == 404
 
 
 def test_profile_crud_and_owner_is_never_client_controlled(api) -> None:
@@ -167,5 +199,8 @@ def test_openapi_documents_secured_student_contracts(api) -> None:
     assert "/api/v1/me/academic-profile" in schema["paths"]
     assert "/api/v1/me/academic-profile/attempts/{attempt_id}" in schema["paths"]
     assert "/api/v1/me/eligibility/{target_course_code}" in schema["paths"]
+    assert "/api/v1/me/academic-progress" in schema["paths"]
     assert schema["paths"]["/api/v1/me/academic-profile"]["get"]["security"]
+    assert schema["paths"]["/api/v1/me/academic-progress"]["get"]["security"]
+    assert schema["paths"]["/api/v1/me/academic-progress"]["get"].get("parameters", []) == []
     assert schema["components"]["schemas"]["AttemptOutcome"]["enum"] == ["PASSED", "FAILED", "IN_PROGRESS", "WITHDRAWN"]
