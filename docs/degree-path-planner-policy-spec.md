@@ -713,17 +713,23 @@ class BlockerType(str, Enum):
     """Course prerequisite rules are unresolved or contain conflicting sources (e.g. 1505311, 1505320)."""
 
     CURRENT_IN_PROGRESS_BLOCKER = "CURRENT_IN_PROGRESS_BLOCKER"
-    """Prerequisite course is currently active (IN_PROGRESS) and outcome is unresolved."""
+    """A remaining modeled requirement is currently active (IN_PROGRESS) and unresolved."""
 
     PREREQUISITES_LOCKED = "PREREQUISITES_LOCKED"
-    """Prerequisites are not met and cannot be unlocked under current plan structure."""
+    """Phase 5 reports missing prerequisite groups for a relevant remaining requirement."""
 
     PLAN_CONSTRAINTS_TOO_RESTRICTIVE = "PLAN_CONSTRAINTS_TOO_RESTRICTIVE"
     """Requested credit hours or course limits prevent selecting remaining eligible courses."""
 
     CANDIDATE_WINDOW_EXCLUSION = "CANDIDATE_WINDOW_EXCLUSION"
-    """Course was eligible but fell outside Phase 8 candidate window (M=15)."""
+    """Top-M produced no plan and an outside-window recommendation fits the active constraints."""
 ```
+
+Diagnostics are evidence-based and optional. Empty recommendations or an empty
+Phase 8 plan set do not by themselves prove a prerequisite lock. Likewise,
+having more than $M$ recommendations does not by itself prove a candidate-window
+blocker. If existing Phase 5â€“8 outputs cannot establish a specific cause, the
+engine omits that diagnostic rather than guessing.
 
 ---
 

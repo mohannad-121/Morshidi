@@ -66,16 +66,16 @@ class BlockerType(str, Enum):
     """Remaining required courses have unresolved or source-conflict prerequisite logic requiring review."""
 
     CURRENT_IN_PROGRESS_BLOCKER = "CURRENT_IN_PROGRESS_BLOCKER"
-    """Prerequisite course is currently active (IN_PROGRESS) and outcome is unresolved."""
+    """A remaining modeled requirement is currently IN_PROGRESS and unresolved."""
 
     PREREQUISITES_LOCKED = "PREREQUISITES_LOCKED"
-    """Prerequisites are not met and cannot be unlocked under current plan structure."""
+    """A relevant remaining requirement has a Phase 5 missing-prerequisite decision."""
 
     PLAN_CONSTRAINTS_TOO_RESTRICTIVE = "PLAN_CONSTRAINTS_TOO_RESTRICTIVE"
     """Requested credit hours or course limits prevent selecting remaining eligible courses."""
 
     CANDIDATE_WINDOW_EXCLUSION = "CANDIDATE_WINDOW_EXCLUSION"
-    """Course was eligible but fell outside Phase 8 candidate window (M=15)."""
+    """An outside-window recommendation fits constraints when top-M yields no plan."""
 
 
 class PathReasonCode(str, Enum):

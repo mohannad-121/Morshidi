@@ -1105,6 +1105,142 @@ class TestTerminationPrecedence:
         )
         assert "no academic path exists globally" not in res.methodology_note.lower()
 
+    def test_69a_horizon_in_progress_only_has_no_speculative_prerequisite_lock(self) -> None:
+        pcs = (_pc("IP", credits="3"), _pc("A", credits="3"))
+        rules = (_rule_na("IP"), _rule_na("A"))
+        p_cat, e_cat = _catalogs(pcs, rules, total_credits="6")
+        attempts = (StudentCourseAttempt("IP", AttemptOutcome.IN_PROGRESS),)
+        constraints = DegreePathConstraints(
+            max_credit_hours_per_semester=Decimal("3"),
+            max_semesters_ahead=1,
+        )
+
+        first = plan_degree_paths(p_cat, e_cat, attempts, constraints)
+        second = plan_degree_paths(p_cat, e_cat, attempts, constraints)
+
+        assert first == second
+        path = first.paths[0]
+        assert path.status is PathStatus.HORIZON_REACHED
+        assert path.unresolved_blocker_codes == (
+            BlockerType.CURRENT_IN_PROGRESS_BLOCKER.value,
+        )
+        assert BlockerType.PREREQUISITES_LOCKED.value not in path.unresolved_blocker_codes
+        assert BlockerType.CANDIDATE_WINDOW_EXCLUSION.value not in path.unresolved_blocker_codes
+
+    def test_69b_genuine_missing_prerequisite_emits_prerequisites_locked(self) -> None:
+        pcs = (_pc("LOCKED", credits="3"),)
+        rules = (_rule_prereq("LOCKED", "MISSING"),)
+        p_cat, e_cat = _catalogs(pcs, rules, total_credits="3")
+
+        result = plan_degree_paths(
+            p_cat,
+            e_cat,
+            (),
+            DegreePathConstraints(
+                max_credit_hours_per_semester=Decimal("3"),
+                max_semesters_ahead=4,
+            ),
+        )
+
+        path = result.paths[0]
+        assert path.status is PathStatus.NO_VALID_NEXT_PLAN
+        assert BlockerType.PREREQUISITES_LOCKED.value in path.unresolved_blocker_codes
+        assert BlockerType.PLAN_CONSTRAINTS_TOO_RESTRICTIVE.value not in path.unresolved_blocker_codes
+
+    def test_69c_more_than_candidate_window_with_valid_plan_has_no_window_blocker(self) -> None:
+        pcs = tuple(_pc(f"C{i:02d}", credits="3", display_order=i) for i in range(1, 17))
+        rules = tuple(_rule_na(f"C{i:02d}") for i in range(1, 17))
+        p_cat, e_cat = _catalogs(pcs, rules, total_credits="48")
+
+        result = plan_degree_paths(
+            p_cat,
+            e_cat,
+            (),
+            DegreePathConstraints(
+                max_credit_hours_per_semester=Decimal("3"),
+                max_semesters_ahead=1,
+                max_paths=10,
+            ),
+        )
+
+        assert result.paths
+        assert all(path.semester_count == 1 for path in result.paths)
+        assert all(
+            BlockerType.CANDIDATE_WINDOW_EXCLUSION.value not in path.unresolved_blocker_codes
+            for path in result.paths
+        )
+
+    def test_69d_outside_window_candidate_must_fit_constraints_to_emit_blocker(self) -> None:
+        pcs = tuple(
+            _pc(f"C{i:02d}", credits="3" if i <= 15 else "1", display_order=i)
+            for i in range(1, 17)
+        )
+        rules = tuple(_rule_na(f"C{i:02d}") for i in range(1, 17))
+        p_cat, e_cat = _catalogs(pcs, rules, total_credits="46")
+
+        result = plan_degree_paths(
+            p_cat,
+            e_cat,
+            (),
+            DegreePathConstraints(
+                max_credit_hours_per_semester=Decimal("2"),
+                max_semesters_ahead=1,
+            ),
+        )
+
+        path = result.paths[0]
+        assert path.status is PathStatus.NO_VALID_NEXT_PLAN
+        assert BlockerType.CANDIDATE_WINDOW_EXCLUSION.value in path.unresolved_blocker_codes
+        assert BlockerType.PLAN_CONSTRAINTS_TOO_RESTRICTIVE.value not in path.unresolved_blocker_codes
+
+    def test_69e_outside_window_candidates_that_do_not_fit_are_not_blockers(self) -> None:
+        pcs = tuple(_pc(f"C{i:02d}", credits="3", display_order=i) for i in range(1, 17))
+        rules = tuple(_rule_na(f"C{i:02d}") for i in range(1, 17))
+        p_cat, e_cat = _catalogs(pcs, rules, total_credits="48")
+
+        result = plan_degree_paths(
+            p_cat,
+            e_cat,
+            (),
+            DegreePathConstraints(
+                max_credit_hours_per_semester=Decimal("2"),
+                max_semesters_ahead=1,
+            ),
+        )
+
+        path = result.paths[0]
+        assert path.status is PathStatus.NO_VALID_NEXT_PLAN
+        assert BlockerType.PLAN_CONSTRAINTS_TOO_RESTRICTIVE.value in path.unresolved_blocker_codes
+        assert BlockerType.CANDIDATE_WINDOW_EXCLUSION.value not in path.unresolved_blocker_codes
+
+    def test_69f_independently_proven_current_and_prerequisite_blockers_can_coexist(self) -> None:
+        pcs = (
+            _pc("IP", credits="3"),
+            _pc("A", credits="3"),
+            _pc("LOCKED", credits="3"),
+        )
+        rules = (
+            _rule_na("IP"),
+            _rule_na("A"),
+            _rule_prereq("LOCKED", "MISSING"),
+        )
+        p_cat, e_cat = _catalogs(pcs, rules, total_credits="9")
+
+        result = plan_degree_paths(
+            p_cat,
+            e_cat,
+            (StudentCourseAttempt("IP", AttemptOutcome.IN_PROGRESS),),
+            DegreePathConstraints(
+                max_credit_hours_per_semester=Decimal("3"),
+                max_semesters_ahead=1,
+            ),
+        )
+
+        path = result.paths[0]
+        assert path.status is PathStatus.HORIZON_REACHED
+        assert BlockerType.CURRENT_IN_PROGRESS_BLOCKER.value in path.unresolved_blocker_codes
+        assert BlockerType.PREREQUISITES_LOCKED.value in path.unresolved_blocker_codes
+
 
 # ===========================================================================
 # 11. Ranking & Priority Tuples (Tests 70-78)

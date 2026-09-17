@@ -30,6 +30,7 @@ from app.planner.engine import plan_semester
 from app.planner.models import (
     PlanReasonCode,
     PlannerConstraints,
+    SemesterPlannerResult,
 )
 from app.progress.engine import calculate_academic_progress
 from app.progress.models import (
@@ -39,9 +40,15 @@ from app.progress.models import (
     RequirementType,
 )
 from app.recommendations.engine import recommend_courses
+from app.recommendations.models import RecommendationCandidate, RecommendationResult
+from app.rules.evaluator import evaluate_can_take
 from app.rules.models import (
     AttemptOutcome,
     CanTakeCatalog,
+    CanTakeDecision,
+    CanTakeRequest,
+    Decision,
+    DecisionReason,
     StudentCourseAttempt,
 )
 
@@ -87,11 +94,131 @@ class _PathState:
     canonical_path_codes: tuple[tuple[str, ...], ...]
 
 
+@dataclass(frozen=True)
+class _BlockerEvidence:
+    """Positive, course-level evidence for terminal path diagnostics."""
+
+    review_required_codes: frozenset[str]
+    current_in_progress_codes: frozenset[str]
+    prerequisite_locked_codes: frozenset[str]
+    plan_constraints_too_restrictive: bool = False
+    candidate_window_exclusion: bool = False
+
+    @property
+    def diagnostic_codes(self) -> tuple[str, ...]:
+        codes: list[str] = []
+        if self.review_required_codes:
+            codes.append(BlockerType.REVIEW_REQUIRED_BLOCKER.value)
+        if self.current_in_progress_codes:
+            codes.append(BlockerType.CURRENT_IN_PROGRESS_BLOCKER.value)
+        if self.prerequisite_locked_codes:
+            codes.append(BlockerType.PREREQUISITES_LOCKED.value)
+        if self.plan_constraints_too_restrictive:
+            codes.append(BlockerType.PLAN_CONSTRAINTS_TOO_RESTRICTIVE.value)
+        if self.candidate_window_exclusion:
+            codes.append(BlockerType.CANDIDATE_WINDOW_EXCLUSION.value)
+        return tuple(sorted(codes))
+
+
 def _completed_passed_codes(progress: AcademicProgress) -> frozenset[str]:
     return frozenset(
         cp.course_code
         for cp in progress.courses
         if cp.state is CourseProgressState.COMPLETED
+    )
+
+
+def _remaining_modeled_requirement_codes(progress: AcademicProgress) -> frozenset[str]:
+    """Return incomplete plan courses that belong to currently unsatisfied groups."""
+    unsatisfied_group_ids = {
+        group.group_id for group in progress.requirement_groups if not group.is_satisfied
+    }
+    return frozenset(
+        course.course_code
+        for course in progress.courses
+        if course.state is not CourseProgressState.COMPLETED
+        and course.requirement_group_id in unsatisfied_group_ids
+    )
+
+
+def _candidate_fits_active_constraints(
+    candidate: RecommendationCandidate,
+    constraints: DegreePathConstraints,
+) -> bool:
+    """Prove that a candidate can form a valid one-course semester by constraints alone."""
+    return (
+        candidate.credit_hours <= constraints.max_credit_hours_per_semester
+        and (
+            constraints.max_courses_per_semester is None
+            or constraints.max_courses_per_semester >= 1
+        )
+    )
+
+
+def _collect_blocker_evidence(
+    progress: AcademicProgress,
+    eligibility_catalog: CanTakeCatalog,
+    attempts: tuple[StudentCourseAttempt, ...],
+    recommendations: RecommendationResult,
+    constraints: DegreePathConstraints,
+    planner_result: SemesterPlannerResult | None = None,
+) -> _BlockerEvidence:
+    """Classify blockers only from positive evidence already produced by Phases 5-8."""
+    relevant_codes = _remaining_modeled_requirement_codes(progress)
+
+    review_required_codes = frozenset(
+        course.course_code
+        for course in recommendations.review_required_courses
+        if course.course_code in relevant_codes
+    )
+    current_in_progress_codes = frozenset(
+        code for code in recommendations.excluded_in_progress if code in relevant_codes
+    )
+
+    prerequisite_locked: set[str] = set()
+    for code in sorted(relevant_codes):
+        decision = evaluate_can_take(
+            eligibility_catalog,
+            CanTakeRequest(
+                study_plan_id=eligibility_catalog.study_plan_id,
+                target_course_code=code,
+                student_attempts=attempts,
+            ),
+        )
+        if (
+            isinstance(decision, CanTakeDecision)
+            and decision.decision is Decision.NOT_ELIGIBLE
+            and DecisionReason.MISSING_PREREQUISITE_GROUP in decision.reasons
+        ):
+            prerequisite_locked.add(code)
+
+    plan_constraints_too_restrictive = False
+    candidate_window_exclusion = False
+    if (
+        planner_result is not None
+        and planner_result.valid_combination_count == 0
+        and not planner_result.plan_options
+    ):
+        ranked = recommendations.ranked_recommendations
+        fitting_candidates = tuple(
+            candidate
+            for candidate in ranked
+            if _candidate_fits_active_constraints(candidate, constraints)
+        )
+        plan_constraints_too_restrictive = bool(ranked) and not fitting_candidates
+
+        outside_window = ranked[planner_result.candidate_window_size :]
+        candidate_window_exclusion = any(
+            _candidate_fits_active_constraints(candidate, constraints)
+            for candidate in outside_window
+        )
+
+    return _BlockerEvidence(
+        review_required_codes=review_required_codes,
+        current_in_progress_codes=current_in_progress_codes,
+        prerequisite_locked_codes=frozenset(prerequisite_locked),
+        plan_constraints_too_restrictive=plan_constraints_too_restrictive,
+        candidate_window_exclusion=candidate_window_exclusion,
     )
 
 
@@ -304,16 +431,16 @@ def plan_degree_paths(
                     reported_gpa_scale=reported_gpa_scale,
                     reported_earned_credit_hours=reported_earned_credit_hours,
                 )
-                diag_blockers: list[str] = []
-                if final_rec.review_required_courses:
-                    diag_blockers.append(BlockerType.REVIEW_REQUIRED_BLOCKER.value)
-                if final_rec.excluded_in_progress:
-                    diag_blockers.append(BlockerType.CURRENT_IN_PROGRESS_BLOCKER.value)
-                if not final_rec.ranked_recommendations and not final_rec.review_required_courses:
-                    diag_blockers.append(BlockerType.PREREQUISITES_LOCKED.value)
+                evidence = _collect_blocker_evidence(
+                    state.academic_progress,
+                    eligibility_catalog,
+                    state.accumulated_attempts,
+                    final_rec,
+                    constraints,
+                )
 
                 finalized_states.append(
-                    (state, PathStatus.HORIZON_REACHED, tuple(sorted(set(diag_blockers))))
+                    (state, PathStatus.HORIZON_REACHED, evidence.diagnostic_codes)
                 )
                 continue
 
@@ -359,58 +486,23 @@ def plan_degree_paths(
             # Check if Phase 8 produced zero valid combinations
             if planner_result.valid_combination_count == 0 or not planner_result.plan_options:
                 # Classify termination reason when depth < max_semesters_ahead
-                incomplete_plan_codes = {
-                    cp.course_code
-                    for cp in state.academic_progress.courses
-                    if cp.state is not CourseProgressState.COMPLETED
-                }
-
-                # Remaining required courses in unsatisfied groups
-                unsatisfied_group_ids = {
-                    rg.group_id
-                    for rg in state.academic_progress.requirement_groups
-                    if not rg.is_satisfied
-                }
-                remaining_required_in_unsatisfied = {
-                    code
-                    for code in incomplete_plan_codes
-                    if code in plan_courses_by_code
-                    and plan_courses_by_code[code].requirement_group_id in unsatisfied_group_ids
-                    and group_by_id[plan_courses_by_code[code].requirement_group_id].requirement_type
-                    is RequirementType.REQUIRED
-                }
-
-                review_req_codes = {rc.course_code for rc in rec_result.review_required_courses}
-                review_req_in_remaining = review_req_codes.intersection(remaining_required_in_unsatisfied)
-
-                diag_blockers: list[str] = []
-
-                if review_req_in_remaining:
-                    diag_blockers.append(BlockerType.REVIEW_REQUIRED_BLOCKER.value)
-
-                if rec_result.excluded_in_progress:
-                    diag_blockers.append(BlockerType.CURRENT_IN_PROGRESS_BLOCKER.value)
-
-                if (
-                    len(rec_result.ranked_recommendations) > 0
-                    and planner_result.valid_combination_count == 0
-                ):
-                    diag_blockers.append(BlockerType.PLAN_CONSTRAINTS_TOO_RESTRICTIVE.value)
-
-                if (
-                    planner_result.eligible_ranked_candidate_count
-                    > planner_result.candidate_window_size
-                ):
-                    diag_blockers.append(BlockerType.CANDIDATE_WINDOW_EXCLUSION.value)
+                evidence = _collect_blocker_evidence(
+                    state.academic_progress,
+                    eligibility_catalog,
+                    state.accumulated_attempts,
+                    rec_result,
+                    constraints,
+                    planner_result,
+                )
 
                 # Determine PathStatus based on exact termination precedence (Priority 3, 4, 5)
-                if review_req_in_remaining and not rec_result.ranked_recommendations:
+                if evidence.review_required_codes and not rec_result.ranked_recommendations:
                     status = PathStatus.BLOCKED_BY_REVIEW_REQUIRED
-                elif rec_result.excluded_in_progress and not rec_result.ranked_recommendations:
+                elif evidence.current_in_progress_codes and not rec_result.ranked_recommendations:
                     # Test whether hypothetically passing in-progress courses unlocks candidates
                     test_hyp_attempts = state.accumulated_attempts + tuple(
                         StudentCourseAttempt(c, AttemptOutcome.PASSED)
-                        for c in rec_result.excluded_in_progress
+                        for c in sorted(evidence.current_in_progress_codes)
                     )
                     test_rec = recommend_courses(
                         progress_catalog,
@@ -426,14 +518,8 @@ def plan_degree_paths(
                         status = PathStatus.NO_VALID_NEXT_PLAN
                 else:
                     status = PathStatus.NO_VALID_NEXT_PLAN
-                    if (
-                        not diag_blockers
-                        and not rec_result.ranked_recommendations
-                        and not review_req_codes
-                    ):
-                        diag_blockers.append(BlockerType.PREREQUISITES_LOCKED.value)
 
-                finalized_states.append((state, status, tuple(sorted(set(diag_blockers)))))
+                finalized_states.append((state, status, evidence.diagnostic_codes))
                 continue
 
             # Expand valid Phase 8 options into child states
