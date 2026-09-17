@@ -266,7 +266,7 @@ class PathStatus(str, Enum):
     """The path reached max_semesters_ahead without fully satisfying all requirements."""
 
     BLOCKED_BY_REVIEW_REQUIRED = "BLOCKED_BY_REVIEW_REQUIRED"
-    """When depth < max_semesters_ahead: remaining required courses cannot be planned due to source conflicts."""
+    """When depth < max_semesters_ahead: remaining modeled requirements include prerequisite logic requiring review."""
 
     BLOCKED_BY_CURRENT_IN_PROGRESS = "BLOCKED_BY_CURRENT_IN_PROGRESS"
     """When depth < max_semesters_ahead: remaining courses cannot be planned because they depend on an active in-progress course."""
