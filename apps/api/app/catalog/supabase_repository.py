@@ -251,7 +251,11 @@ class SupabaseAcademicCatalogRepository:
             response = await self._client.get(
                 f"{self._rest_url}/{resource}",
                 params=params,
-                headers={"apikey": self._server_key, "Accept": "application/json"},
+                headers={
+                    "apikey": self._server_key,
+                    "Authorization": f"Bearer {self._server_key}",
+                    "Accept": "application/json",
+                },
             )
         except (httpx.TimeoutException, httpx.RequestError) as error:
             raise CatalogTransportError("GET", resource) from error
