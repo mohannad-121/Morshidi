@@ -171,6 +171,15 @@ def test_attempt_validation_identity_immutability_and_errors(api) -> None:
     assert client.delete(f"{endpoint}/44444444-4444-4444-4444-444444444444").status_code == 404
 
 
+@pytest.mark.parametrize("field", ["term_label", "raw_grade_text"])
+@pytest.mark.parametrize("value", ["", "   "])
+def test_nonblank_optional_attempt_text_is_rejected_as_422(api, field, value) -> None:
+    client, _ = api
+    endpoint = "/api/v1/me/academic-profile/attempts"
+    assert client.post(endpoint, json={"course_code": "0300103", "status": "PASSED", field: value}).status_code == 422
+    assert client.patch(f"{endpoint}/{ATTEMPT}", json={field: value}).status_code == 422
+
+
 @pytest.mark.parametrize(("attempts", "target", "decision"), [
     ((AttemptOutcome.PASSED,), "1501112", "ELIGIBLE"),
     ((AttemptOutcome.FAILED,), "1501112", "NOT_ELIGIBLE"),
@@ -204,3 +213,10 @@ def test_openapi_documents_secured_student_contracts(api) -> None:
     assert schema["paths"]["/api/v1/me/academic-progress"]["get"]["security"]
     assert schema["paths"]["/api/v1/me/academic-progress"]["get"].get("parameters", []) == []
     assert schema["components"]["schemas"]["AttemptOutcome"]["enum"] == ["PASSED", "FAILED", "IN_PROGRESS", "WITHDRAWN"]
+    assert schema["components"]["schemas"]["CourseProgressState"]["enum"] == [
+        "COMPLETED", "IN_PROGRESS", "ATTEMPTED_NOT_COMPLETED", "NOT_ATTEMPTED"
+    ]
+    assert schema["components"]["schemas"]["RequirementType"]["enum"] == ["required", "elective"]
+    for request_schema in ("ProfileCreateRequest", "ProfileUpdateRequest", "AttemptCreateRequest", "AttemptUpdateRequest"):
+        assert "owner_user_id" not in schema["components"]["schemas"][request_schema]["properties"]
+    assert schema["components"]["schemas"]["AttemptCreateRequest"]["properties"]["course_code"]["type"] == "string"

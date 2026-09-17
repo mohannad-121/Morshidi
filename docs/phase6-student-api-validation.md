@@ -34,6 +34,9 @@ facts, and timestamps.
 
 Attempt creation accepts an exact strict-text `course_code`, explicit outcome,
 and the existing optional sequence, term, date, raw-grade, and source fields.
+Optional term and raw-grade text is rejected when empty or whitespace-only, in
+agreement with the database constraints, so invalid client values map to 422
+rather than an infrastructure error.
 Updates omit course identity, profile identity, ownership, IDs, and creation
 time. Responses expose the attempt ID and course code rather than `course_id`.
 Raw grade text is evidence only and never changes outcome.

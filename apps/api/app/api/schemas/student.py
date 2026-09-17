@@ -62,6 +62,13 @@ class AttemptCreateRequest(_StrictRequest):
             raise ValueError("course_code must not be blank")
         return value
 
+    @field_validator("term_label", "raw_grade_text")
+    @classmethod
+    def nonblank_optional_text(cls, value: str | None) -> str | None:
+        if value is not None and not value.strip():
+            raise ValueError("optional attempt text must not be blank")
+        return value
+
 
 class AttemptUpdateRequest(_StrictRequest):
     status: AttemptOutcome | None = None
@@ -70,6 +77,13 @@ class AttemptUpdateRequest(_StrictRequest):
     attempted_on: date | None = None
     raw_grade_text: str | None = None
     record_source: RecordSource | None = None
+
+    @field_validator("term_label", "raw_grade_text")
+    @classmethod
+    def nonblank_optional_text(cls, value: str | None) -> str | None:
+        if value is not None and not value.strip():
+            raise ValueError("optional attempt text must not be blank")
+        return value
 
     @model_validator(mode="after")
     def reject_null_required_values(self):
