@@ -697,7 +697,7 @@ flowchart TD
 1. **`MODELED_COMPLETE` (Priority 1):** If `progress.all_modeled_plan_requirements_satisfied` is `True`, the path terminates with complete status, even if `depth == max_semesters_ahead`.
 2. **`HORIZON_REACHED` (Priority 2):** If the path is not complete and `depth == max_semesters_ahead`, expansion halts because the configured planning horizon was reached.
    - *Key Distinction:* Even if unresolved conditions (such as `REVIEW_REQUIRED` or `IN_PROGRESS`) exist in this state, the path stopped because the horizon was reached, NOT because a blocker prevented the next expansion. Blocker diagnostics are recorded in `unresolved_blocker_codes`, but the path status is `HORIZON_REACHED`.
-3. **`BLOCKED_BY_REVIEW_REQUIRED` (Priority 3):** Evaluated ONLY when `depth < max_semesters_ahead`. Triggered when all remaining required courses carry unresolvable source conflicts (`1505311`, `1505320`).
+3. **`BLOCKED_BY_REVIEW_REQUIRED` (Priority 3):** Evaluated ONLY when `depth < max_semesters_ahead`. Triggered when all remaining required courses carry prerequisite logic requiring review (`1505311` is `unresolved`; `1505320` is `source_conflict`).
 4. **`BLOCKED_BY_CURRENT_IN_PROGRESS` (Priority 4):** Evaluated ONLY when `depth < max_semesters_ahead`. Triggered when remaining courses depend on an active in-progress attempt that cannot be assumed to pass.
 5. **`NO_VALID_NEXT_PLAN` (Priority 5):** Evaluated ONLY when `depth < max_semesters_ahead`. Triggered when eligible courses exist but Phase 8 cannot form any combination satisfying constraints (e.g., credit limit too small), and no more specific blocking status applies.
 
@@ -710,7 +710,7 @@ When paths do not achieve `MODELED_COMPLETE`, unresolved conditions are categori
 ```python
 class BlockerType(str, Enum):
     REVIEW_REQUIRED_BLOCKER = "REVIEW_REQUIRED_BLOCKER"
-    """Course prerequisite rules contain conflicting sources (e.g. 1505311, 1505320)."""
+    """Course prerequisite rules are unresolved or contain conflicting sources (e.g. 1505311, 1505320)."""
 
     CURRENT_IN_PROGRESS_BLOCKER = "CURRENT_IN_PROGRESS_BLOCKER"
     """Prerequisite course is currently active (IN_PROGRESS) and outcome is unresolved."""
@@ -729,15 +729,15 @@ class BlockerType(str, Enum):
 
 ## 34. REVIEW_REQUIRED Handling Policy
 
-In Plan 12, two courses carry verified source conflicts:
-- **`1505311` (`تفاعل الإنسان والحاسوب` / Human-Computer Interaction — 3 cr):** Department plan specifies `1501110`; Official faculty bulletin specifies `1501112`.
-- **`1505320` (`تصميم وتحليل الخوارزميات` / Design and Analysis of Algorithms — 3 cr):** Department plan specifies `1501112`; Official faculty bulletin specifies `1501221`.
+In Plan 12, two courses carry prerequisite logic requiring review:
+- **`1505311` (`تعلم الالة` / Machine Learning — 3 cr):** Prerequisite logic status `unresolved`.
+- **`1505320` (`تعلم الآلة المتقدم` / Advanced Machine Learning — 3 cr):** Prerequisite logic status `source_conflict`.
 
 ### Policy:
 1. **Never Bypassed:** The engine will NEVER hypothetically assume review-required courses are eligible or passed without authoritative resolution.
 2. **Partial Progress Permitted:** The path may freely schedule and pass all other independent study plan courses.
 3. **Completion Blocked:** If `1505311` or `1505320` remain required, the path CANNOT achieve `MODELED_COMPLETE`. It halts with `BLOCKED_BY_REVIEW_REQUIRED` (if `depth < max_semesters_ahead`) once all unblocked requirements are exhausted.
-4. **Transparent Surfacing:** Unresolved courses are listed in `DegreePathOption.unresolved_blocker_codes` and top-level result metadata.
+4. **Transparent Surfacing:** Review-required courses are listed in `DegreePathOption.unresolved_blocker_codes` and top-level result metadata.
 
 ---
 
@@ -868,7 +868,7 @@ Phase 9.2 implementation will be validated against an exhaustive 56-test matrix:
 17. Joint AND prerequisite unlocking: Courses requiring both $X$ and $Y$ unlock only after both pass.
 18. Concurrent unlocking: Completing prerequisite $P$ in Sem 1 unlocks multiple downstream courses in Sem 2.
 19. Credit-completion prerequisite: Course requiring 60 completed credits unlocks only in the semester after 60 credits are accumulated.
-20. `0300103` (Remedial English): Referenced-only prerequisite handling.
+20. `0300103` (`الإحصاء والاحتمالات`): Referenced-only prerequisite handling.
 21. Real Plan 12 chain: `0300153` $\to$ `1501110` $\to$ `1501112` $\to$ `1501221`.
 22. Unlocking respects display order and candidate window bounding.
 
@@ -946,8 +946,8 @@ All examples use verified data from the Plan 12 canonical catalog (Zarqa Univers
 
 ### Example 3: REVIEW_REQUIRED Course Blockers
 - **Catalog Verification:**
-  - `1505311` (`تفاعل الإنسان والحاسوب` — 3 cr): Source conflict (Department: `1501110` vs Bulletin: `1501112`).
-  - `1505320` (`تصميم وتحليل الخوارزميات` — 3 cr): Source conflict (Department: `1501112` vs Bulletin: `1501221`).
+  - `1505311` (`تعلم الالة` / Machine Learning — 3 cr): Prerequisite logic status `unresolved`.
+  - `1505320` (`تعلم الآلة المتقدم` / Advanced Machine Learning — 3 cr): Prerequisite logic status `source_conflict`.
 - **Simulation Flow:**
   - A path can progress through all other courses until only `1505311` and `1505320` remain.
   - Phase 5 evaluates both as `REVIEW_REQUIRED`. Phase 7 excludes them from `ranked_recommendations`.

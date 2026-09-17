@@ -210,7 +210,7 @@ All Scenarios A through J were executed and verified against local Supabase usin
 | **Scenario B** | Verified prerequisite chain (`0300153` $\to$ `1501110` $\to$ `1501112` $\to$ `1501221`) | Strict sequential semester ordering verified across all paths | `PASSED` |
 | **Scenario C** | In-progress course (`1501110` IN_PROGRESS) | Course omitted from plan; dependent `1501112` remains blocked in future semesters | `PASSED` |
 | **Scenario D** | Zero-credit required courses (`0200115`, `1509999`) | Successfully scheduled with exact 0.00 credit hours | `PASSED` |
-| **Scenario E** | Review-required courses (`1505311`, `1505320`) | Never selected in any modeled semester | `PASSED` |
+| **Scenario E** | Review-required courses (`1505311` is `unresolved`; `1505320` is `source_conflict`) | Never selected in any modeled semester | `PASSED` |
 | **Scenario F** | Referenced-only course (`0300103`) | Accepted in student history; never scheduled in degree path options | `PASSED` |
 | **Scenario G** | Failed course (`0200104`) | Re-planned with priority reason `INCLUDES_PREVIOUSLY_ATTEMPTED_COURSE` | `PASSED` |
 | **Scenario H** | Bounded horizon (`max_semesters_ahead: 1`) | Generates 1-semester path with status `HORIZON_REACHED` | `PASSED` |

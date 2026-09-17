@@ -156,8 +156,8 @@ All Plan 12 courses used in unit tests and documentation are verified against th
 | `0200115` | `تنمية المجتمع والعمل التطوعي` | University Required (**0 cr**). Consumes 0 credit budget; required for degree completion. |
 | `1509999` | `حلقة بحث لطلبة كلية تكنولوجيا المعلومات` | Faculty Required (**0 cr**). Consumes 0 credit budget; required for degree completion. |
 | `0200110` | `العلوم العسكرية` | University Required (3 cr). |
-| `1505311` | `تعلم الالة` | Major Required (3 cr). Source conflict rule $\to$ `REVIEW_REQUIRED`. Never silently planned. |
-| `1505320` | `تعلم الآلة المتقدم` | Major Required (3 cr). Prereqs: `0300103, 1505311` $\to$ `REVIEW_REQUIRED`. Never silently planned. |
+| `1505311` | `تعلم الالة` | Major Required (3 cr). Prerequisite logic status `unresolved` $\to$ `REVIEW_REQUIRED`. Never silently planned. |
+| `1505320` | `تعلم الآلة المتقدم` | Major Required (3 cr). Prerequisite logic status `source_conflict`; raw prerequisites: `0300103, 1505311` $\to$ `REVIEW_REQUIRED`. Never silently planned. |
 
 ---
 
