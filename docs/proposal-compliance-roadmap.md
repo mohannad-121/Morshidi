@@ -110,6 +110,8 @@ verified data definitions
 
 **Dependencies:** Phases 1–2; institutional subject-matter experts, historical data, privacy/model governance approval.
 
+**P3 delivery gates:** P3.1 closes policy/contracts only. P3.2 may implement only approved deterministic outcome/structure observations with provenance and abstention. Grade, ordered-trend, domain, and predictive extensions remain gated by EVID-008/010/017/018 and separate validation/governance approval.
+
 **User-visible outcome:** Students can receive evidence-backed strengths, weaknesses, risk, and readiness results with clear limitations rather than LLM speculation.
 
 ## Phase 4 — Decision Integration and Delay Consequences
