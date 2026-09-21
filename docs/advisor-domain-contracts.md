@@ -96,7 +96,7 @@ DecisionReference(
 )
 ```
 
-`PolicyVersionReference` tags a version with the source that published it. No missing Phase 5–9 version is invented.
+`PolicyVersionReference` tags a version with the source that published it. `PolicySource.AI_ADVISOR` records the Phase 10 policy without incorrectly treating the advisor as an authoritative academic source. No missing Phase 5–9 version is invented.
 
 ## Evidence contract
 
@@ -134,12 +134,14 @@ Decision and version sources must be present in `authoritative_sources_used`. A 
 - optional `CourseResolution`;
 - optional existing `PlannerConstraints` or `DegreePathConstraints`;
 - sorted unique positive option references.
+- an optional typed `ClarificationRequest` only for `CLARIFICATION_REQUIRED`;
+- an optional `OutOfScopeReason` only for `OUT_OF_SCOPE`.
 
 `PlannerConstraints` are valid only for `SEMESTER_PLANNING`; `DegreePathConstraints` are valid only for `DEGREE_PATH_MODELING`. The request has no owner, token, student-attempt, GPA, study-plan, or engine-state override fields.
 
 ## Structured result contract
 
-`StructuredAdvisorResult` is the future orchestration result before natural-language generation. It contains intent, authority, trace, optional course resolution, minimal evidence, optional clarification, and optional out-of-scope category. It has no provider name, temperature, token usage, generated answer text, or API fields.
+`StructuredAdvisorResult` is the future orchestration result before natural-language generation. It contains intent, authority, trace, optional course resolution, minimal evidence, optional clarification, optional out-of-scope category, and an optional typed `authoritative_payload`. The payload is limited to existing Phase 5–9 result/option types or `CourseInformation`; it is not a generic blob and preserves the original deterministic ordering and status fields. The result has no provider name, temperature, token usage, generated answer text, or API fields.
 
 Validation requires:
 
@@ -200,4 +202,3 @@ This phase does not implement intent interpretation, entity matching, engine/ser
 ## Next-phase boundary
 
 The exact next phase is **10.3 — Read-Only Deterministic Advisor Orchestration**. It may consume `NormalizedAdvisorRequest`, call existing authorized services, construct `AdvisorEvidence` and `AdvisorTrace`, and return `StructuredAdvisorResult`. It must not require these contracts to absorb transport, provider, persistence, or duplicated academic logic.
-
