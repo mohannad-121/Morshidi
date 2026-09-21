@@ -4,6 +4,8 @@
 
 The original proposal is the product definition of done. Morshidi is not proposal-complete until every implementable `PROP-*` item in `proposal-compliance-matrix.md` is `IMPLEMENTED` and has final acceptance evidence. No `PARTIAL` or `MISSING` implementable item may remain at final closure. External dependencies must retain explicit evidence/status and may not be silently relabeled complete.
 
+The complementary world-class product direction is locked in `morshidi-world-class-product-roadmap.md`, with canonical scope in `morshidi-world-class-capability-matrix.md`, provider boundaries in `morshidi-external-adapter-strategy.md`, and safe demonstration rules in `morshidi-sandbox-university-spec.md`. That roadmap does not replace this mandatory proposal-compliance track or change any `PROP-*` status. Both tracks align on **P4 — Decision Intelligence Integration** as the immediate next phase.
+
 This roadmap preserves completed Phase 1–10.7A work. It does not authorize implementation during the audit. Phase 10.7’s advisor/student frontend remains paused until the data and intelligence dependencies below are ready.
 
 ## Ordered roadmap
