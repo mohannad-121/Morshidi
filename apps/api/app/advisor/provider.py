@@ -10,6 +10,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from decimal import Decimal
 from enum import Enum
+from collections.abc import Awaitable
 from typing import Protocol, runtime_checkable
 
 
@@ -97,6 +98,9 @@ class ProviderFailure:
 
 
 ProviderInterpretationResponse = RawAdvisorInterpretation | ProviderFailure
+ProviderInterpretationCall = (
+    ProviderInterpretationResponse | Awaitable[ProviderInterpretationResponse]
+)
 
 
 @runtime_checkable
@@ -106,7 +110,7 @@ class AdvisorLLMProvider(Protocol):
     def interpret(
         self,
         request: AdvisorInterpretationInput,
-    ) -> ProviderInterpretationResponse:
+    ) -> ProviderInterpretationCall:
         """Return structured semantic interpretation, never an academic decision."""
 
 

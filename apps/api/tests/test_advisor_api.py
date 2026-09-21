@@ -19,13 +19,15 @@ from app.advisor import (
     ProviderFailureType,
     ResolvedCourseReference,
     orchestrate_advisor_request,
+    ExplanationStatus,
+    ExplanationLanguage,
 )
 from app.advisor.orchestrator import AdvisorContext
 from app.api.routes.advisor import get_advisor_service
 from app.api.schemas.advisor import ADVISOR_MESSAGE_MAX_LENGTH
 from app.core.auth import CurrentUser, get_current_user
 from app.main import app
-from app.services.advisor import AdvisorProviderError
+from app.services.advisor import AdvisorProviderError, AdvisorServiceResult
 from app.student.errors import StudentProfileNotFound
 from app.planner.models import PlannerConstraints
 from app.degree_path.models import DegreePathConstraints
@@ -41,11 +43,18 @@ class FakeAdvisorService:
         self.result = result
         self.calls: list[tuple[str, str]] = []
 
-    async def advise(self, owner: str, message: str):  # type: ignore[no-untyped-def]
+    async def advise_with_explanation(self, owner: str, message: str):  # type: ignore[no-untyped-def]
         self.calls.append((owner, message))
         if isinstance(self.result, Exception):
             raise self.result
-        return self.result
+        if isinstance(self.result, AdvisorServiceResult):
+            return self.result
+        return AdvisorServiceResult(
+            self.result,
+            None,
+            ExplanationStatus.UNAVAILABLE,
+            None,
+        )
 
 
 def _general_result():  # type: ignore[no-untyped-def]
@@ -325,3 +334,39 @@ def test_33_all_authoritative_payload_families_serialize(api, intent: AdvisorInt
     response = api[0].post(ENDPOINT, json={"message": "advisor request"})
     assert response.status_code == 200
     assert response.json()["result"]["kind"] == kind
+
+
+def test_34_response_includes_typed_explanation_fields(api) -> None:
+    api[1].result = AdvisorServiceResult(
+        _general_result(),
+        "شرح عام فقط.",
+        ExplanationStatus.GENERATED,
+        ExplanationLanguage.ARABIC,
+    )
+    body = api[0].post(ENDPOINT, json={"message": "اشرح"}).json()
+    assert body["explanation"] == "شرح عام فقط."
+    assert body["explanation_status"] == "GENERATED"
+    assert body["explanation_language"] == "ar"
+
+
+def test_35_explanation_unavailable_keeps_structured_response_200(api) -> None:
+    api[1].result = AdvisorServiceResult(
+        _eligibility_result(),
+        None,
+        ExplanationStatus.UNAVAILABLE,
+        None,
+    )
+    response = api[0].post(ENDPOINT, json={"message": "0300153"})
+    assert response.status_code == 200
+    assert response.json()["result"]["kind"] == "eligibility"
+    assert response.json()["explanation"] is None
+
+
+def test_36_openapi_exposes_explanation_but_no_provider_controls(api) -> None:
+    schema = api[0].get("/openapi.json").json()["components"]["schemas"]["AdvisorResponse"]
+    assert {"explanation", "explanation_status", "explanation_language"}.issubset(
+        schema["properties"]
+    )
+    serialized = str(schema).casefold()
+    for forbidden in ("api_key", "provider", "model", "prompt", "request_id", "usage"):
+        assert forbidden not in serialized

@@ -10,6 +10,7 @@ from app.api.routes.health import router as health_router
 from app.api.routes.student import router as student_router
 from app.api.routes.advisor import router as advisor_router
 from app.advisor.provider import ProviderFailureType, UnconfiguredAdvisorLLMProvider
+from app.providers.advisor_openai import OpenAIAdvisorProvider
 from app.catalog.errors import (
     CatalogIntegrityError,
     CatalogTransportError,
@@ -40,6 +41,24 @@ from app.degree_path.models import (
 )
 
 
+def build_advisor_providers(client: httpx.AsyncClient):
+    """Select the concrete adapter only from complete server-side configuration."""
+
+    if (
+        settings.advisor_llm_api_key is not None
+        and settings.advisor_llm_api_key.get_secret_value().strip()
+        and settings.advisor_llm_model is not None
+        and settings.advisor_llm_model.strip()
+    ):
+        provider = OpenAIAdvisorProvider(
+            settings.advisor_llm_api_key.get_secret_value(),
+            settings.advisor_llm_model,
+            client,
+        )
+        return provider, provider
+    return UnconfiguredAdvisorLLMProvider(), None
+
+
 @asynccontextmanager
 async def lifespan(application: FastAPI):
     """Own one reusable server-side Data API client for the application lifetime."""
@@ -67,10 +86,12 @@ async def lifespan(application: FastAPI):
             application.state.eligibility_service,
             repository,
         )
+        advisor_provider, explanation_provider = build_advisor_providers(client)
         application.state.advisor_service = AdvisorService(
             student_repository,
             repository,
-            UnconfiguredAdvisorLLMProvider(),
+            advisor_provider,
+            explanation_provider,
         )
     try:
         yield

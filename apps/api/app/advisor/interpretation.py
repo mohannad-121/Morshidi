@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from enum import Enum
+import inspect
 
 from app.advisor.models import (
     AdvisorContractError,
@@ -93,6 +94,41 @@ def invoke_advisor_provider(
         )
     try:
         provider_response = provider.interpret(provider_input)
+    except TimeoutError:
+        return ProviderFailure(
+            ProviderFailureType.TIMEOUT,
+            "advisor.interpretation.timeout",
+        )
+    except Exception:
+        return ProviderFailure(
+            ProviderFailureType.PROVIDER_UNAVAILABLE,
+            "advisor.interpretation.provider_unavailable",
+        )
+    if not isinstance(provider_response, (RawAdvisorInterpretation, ProviderFailure)):
+        return ProviderFailure(
+            ProviderFailureType.MALFORMED_STRUCTURED_OUTPUT,
+            "advisor.interpretation.malformed_output",
+        )
+    return provider_response
+
+
+async def invoke_advisor_provider_async(
+    provider: AdvisorLLMProvider,
+    user_message: str,
+) -> ProviderInterpretationResponse:
+    """Async-safe provider invocation supporting sync test and async production adapters."""
+
+    try:
+        provider_input = AdvisorInterpretationInput(user_message)
+    except (TypeError, ValueError):
+        return ProviderFailure(
+            ProviderFailureType.SCHEMA_MISMATCH,
+            "advisor.interpretation.schema_mismatch",
+        )
+    try:
+        provider_response = provider.interpret(provider_input)
+        if inspect.isawaitable(provider_response):
+            provider_response = await provider_response
     except TimeoutError:
         return ProviderFailure(
             ProviderFailureType.TIMEOUT,

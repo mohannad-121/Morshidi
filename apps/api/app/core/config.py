@@ -11,6 +11,8 @@ class Settings(BaseSettings):
     frontend_url: str = "http://localhost:3000"
     supabase_url: str | None = None
     supabase_secret_key: SecretStr | None = None
+    advisor_llm_api_key: SecretStr | None = None
+    advisor_llm_model: str | None = None
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 

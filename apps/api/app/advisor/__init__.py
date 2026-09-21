@@ -29,6 +29,7 @@ from app.advisor.interpretation import (
     InterpretationStatus,
     interpret_advisor_message,
     invoke_advisor_provider,
+    invoke_advisor_provider_async,
     normalize_advisor_interpretation,
     resolve_course_references,
 )
@@ -40,6 +41,18 @@ from app.advisor.provider import (
     ProviderFailureType,
     RawAdvisorInterpretation,
     UnconfiguredAdvisorLLMProvider,
+)
+from app.advisor.explanation import (
+    AdvisorExplanationInput,
+    AdvisorExplanationOutput,
+    AdvisorExplanationProvider,
+    ExplanationFailure,
+    ExplanationFailureType,
+    ExplanationLanguage,
+    ExplanationStatus,
+    build_explanation_input,
+    explanation_passes_guards,
+    select_explanation_language,
 )
 
 __all__ = [
@@ -75,8 +88,19 @@ __all__ = [
     "ProviderFailureType",
     "RawAdvisorInterpretation",
     "UnconfiguredAdvisorLLMProvider",
+    "AdvisorExplanationInput",
+    "AdvisorExplanationOutput",
+    "AdvisorExplanationProvider",
+    "ExplanationFailure",
+    "ExplanationFailureType",
+    "ExplanationLanguage",
+    "ExplanationStatus",
+    "build_explanation_input",
+    "explanation_passes_guards",
+    "select_explanation_language",
     "interpret_advisor_message",
     "invoke_advisor_provider",
+    "invoke_advisor_provider_async",
     "normalize_advisor_interpretation",
     "resolve_course_references",
 ]

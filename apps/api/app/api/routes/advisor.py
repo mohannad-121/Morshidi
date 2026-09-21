@@ -33,5 +33,10 @@ async def advise(
     user: AuthenticatedUser,
     service: AdvisorServiceDependency,
 ) -> AdvisorResponse:
-    result = await service.advise(user.user_id, body.message)
-    return AdvisorResponse.from_domain(result)
+    result = await service.advise_with_explanation(user.user_id, body.message)
+    return AdvisorResponse.from_domain(
+        result.structured_result,
+        explanation=result.explanation,
+        explanation_status=result.explanation_status,
+        explanation_language=result.explanation_language,
+    )

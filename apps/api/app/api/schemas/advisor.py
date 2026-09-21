@@ -17,6 +17,7 @@ from app.advisor.models import (
     OutOfScopeReason,
     StructuredAdvisorResult,
 )
+from app.advisor.explanation import ExplanationLanguage, ExplanationStatus
 from app.degree_path.models import DegreePathResult, PathReasonCode, PathStatus
 from app.planner.models import PlanReasonCode, SemesterPlannerResult
 from app.progress.models import AcademicProgress, CourseProgressState, RequirementType
@@ -277,9 +278,19 @@ class AdvisorResponse(BaseModel):
     evidence: list[AdvisorEvidenceResponse]
     trace: AdvisorTraceResponse
     result: AdvisorPayloadResponse | None
+    explanation: str | None
+    explanation_status: ExplanationStatus
+    explanation_language: ExplanationLanguage | None
 
     @classmethod
-    def from_domain(cls, domain: StructuredAdvisorResult) -> "AdvisorResponse":
+    def from_domain(
+        cls,
+        domain: StructuredAdvisorResult,
+        *,
+        explanation: str | None = None,
+        explanation_status: ExplanationStatus = ExplanationStatus.UNAVAILABLE,
+        explanation_language: ExplanationLanguage | None = None,
+    ) -> "AdvisorResponse":
         resolution = None
         if domain.course_resolution is not None:
             resolved = domain.course_resolution.resolved_course
@@ -332,6 +343,9 @@ class AdvisorResponse(BaseModel):
                 option_references=list(domain.trace.option_references),
             ),
             result=_payload_response(domain.authoritative_payload),
+            explanation=explanation,
+            explanation_status=explanation_status,
+            explanation_language=explanation_language,
         )
 
 
