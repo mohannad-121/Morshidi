@@ -114,8 +114,8 @@ The world-class roadmap contains thirteen future phases. Phase boundaries are ga
 
 | Phase | Outcome | Entry gate | Exit evidence |
 |---|---|---|---|
-| P4 | Decision Intelligence Integration and specialized Delay Consequence | P3 engines are stable; P4.1 policy approved | Baseline-preserving factor isolation, typed trace, and deterministic delay-engine tests |
-| P5 | Digital Twin, general What-If, Scenario Comparison | P4 specialized contracts | Immutable scenario lifecycle reusing Delay Consequence, plus graduation audit |
+| P4 | Decision Intelligence Integration and specialized Delay Consequence | P3 engines are stable; P4.1 policy approved | **Implemented:** baseline-preserving readiness composition, annotations, typed trace, specialized delay engine, and regression evidence |
+| P5 | Digital Twin, general What-If, Scenario Comparison | P4.2 closure; immutable snapshot and provenance contracts | Immutable scenario lifecycle reusing Delay Consequence, plus graduation audit |
 | P6 | Mock Registration, Demand, Bottlenecks | P5 | Intent/registration separation and synthetic demand evaluation |
 | P7 | Advisor Copilot, Human Review, Institutional Analytics | P6 | Role-scoped review workflow and aggregate dashboards |
 | P8 | Grounded Knowledge and Decision Trace | P7 | Cited policy retrieval and replayable trace ledger |
@@ -130,7 +130,7 @@ The world-class roadmap contains thirteen future phases. Phase boundaries are ga
 
 ## Immediate next phase
 
-The only immediate next phase is **P4 — Decision Intelligence Integration**. P4.1 defines the versioned factor, trace, baseline-preservation, and specialized Delay Consequence contracts; P4.2 may implement only that bounded scope. P5 then reuses those contracts for the general Digital Twin and What-If framework. No predictive model, institutional adapter, or transactional workflow may bypass this order.
+After P4.2 closure, the next eligible phase is **P5 — Digital Twin and general What-If**. P5 may reuse P4 immutable snapshot provenance, Decision Trace, readiness-aware composition, annotations, specialized Delay Consequence, and the external Phase 9 comparison adapter. It must first define scenario identity/lifecycle, cloning and isolation, current-versus-modeled semantics, authorization/privacy, deterministic comparison, and no-write acceptance tests. No predictive model, institutional adapter, or transaction may bypass those gates.
 
 ## Governance
 
