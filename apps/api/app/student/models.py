@@ -3,6 +3,7 @@
 from dataclasses import dataclass
 from datetime import date, datetime
 from decimal import Decimal
+from enum import Enum
 
 from app.rules.models import AttemptOutcome, StudentCourseAttempt
 
@@ -20,6 +21,21 @@ class StudentAcademicState:
     updated_at: datetime | None = None
 
 
+class PerformanceProvenance(str, Enum):
+    OFFICIAL_VERIFIED = "OFFICIAL_VERIFIED"
+    STUDENT_RECORD = "STUDENT_RECORD"
+    DERIVED_DETERMINISTIC = "DERIVED_DETERMINISTIC"
+    MODEL_OUTPUT = "MODEL_OUTPUT"
+    MANUAL_ACADEMIC_REVIEW = "MANUAL_ACADEMIC_REVIEW"
+    UNVERIFIED = "UNVERIFIED"
+
+
+class PerformanceVerificationState(str, Enum):
+    UNVERIFIED = "UNVERIFIED"
+    VERIFIED = "VERIFIED"
+    REVIEW_REQUIRED = "REVIEW_REQUIRED"
+
+
 @dataclass(frozen=True)
 class StudentCourseAttemptRecord:
     attempt_id: str
@@ -33,3 +49,12 @@ class StudentCourseAttemptRecord:
     record_source: str
     created_at: datetime
     updated_at: datetime
+    raw_numeric_grade: Decimal | None = None
+    raw_letter_grade: str | None = None
+    raw_grade_points: Decimal | None = None
+    raw_academic_year: str | None = None
+    raw_term: str | None = None
+    attempt_credit_hours: Decimal | None = None
+    performance_provenance: PerformanceProvenance = PerformanceProvenance.UNVERIFIED
+    performance_verification_state: PerformanceVerificationState = PerformanceVerificationState.UNVERIFIED
+    performance_source_reference: str | None = None

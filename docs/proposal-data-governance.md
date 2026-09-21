@@ -138,7 +138,7 @@ Collect only data that maps to a proposal claim and an approved capability. Do n
 
 ## 11. Schema gap decision and Phase P2 acceptance
 
-**Decision: NO MIGRATION YET.** Current gaps are real, but their semantics depend on missing official grading, transcript, academic-period, taxonomy, and source-resolution evidence. Adding fields now would encode speculation. P1's authoritative artifacts are this governance contract and the source-resolution backlog.
+**P1 decision (superseded by P1.2): NO MIGRATION YET.** Current gaps were real, but their semantics depended on missing official grading, transcript, academic-period, taxonomy, and source-resolution evidence. P1.2 subsequently authorized nullable/raw preservation only. Phase P2 implements that limited foundation in [student-performance-foundation.md](student-performance-foundation.md), without encoding grading, period, or intelligence semantics.
 
 The original P1 gate required the following before an authoritative import or grade-derived intelligence could begin; P1.2 supersedes it for the narrower raw-storage foundation only:
 
@@ -159,7 +159,7 @@ The original P1 gate required the following before an authoritative import or gr
 
 ### P1.2 gate decision
 
-**P2_READY.** Official public material partially verifies Plan 12 provenance and several grading-policy concepts, while the internal provenance, privacy/minimization, correction, backward-compatibility, and synthetic-test-data decisions are closed. Phase P2 may model optional raw supplied grade/period/credit facts with provenance and preserve current outcomes. It must not validate, normalize, calculate, infer, import live university data, or produce intelligence from those facts until the remaining external evidence is supplied. The complete status register is [evidence-closure-status.md](evidence-closure-status.md).
+**P2_READY.** Official public material partially verifies Plan 12 provenance and several grading-policy concepts, while the internal provenance, privacy/minimization, correction, backward-compatibility, and synthetic-test-data decisions are closed. Phase P2 now models optional raw supplied grade/period/credit facts with provenance and preserves current outcomes; the implementation evidence is [student-performance-foundation.md](student-performance-foundation.md). It does not validate, normalize, calculate, infer, import live university data, or produce intelligence from those facts until the remaining external evidence is supplied. The complete status register is [evidence-closure-status.md](evidence-closure-status.md).
 
 ## 12. Open official-source requests
 

@@ -9,6 +9,7 @@ import httpx
 import pytest
 
 from app.rules.models import AttemptOutcome
+from app.student.models import PerformanceProvenance, PerformanceVerificationState
 from app.student.errors import (
     StudentAttemptNotFound, StudentCourseNotFound, StudentCourseUniversityMismatch,
     StudentProfileAlreadyExists, StudentProfileTransportError,
@@ -64,6 +65,12 @@ class WriteFixture:
         if request.method == "POST" and resource == "student_course_attempts":
             payload = json.loads(request.content); row = attempt(payload["outcome"], self.course_rows[0]["course_code"])
             row["reported_grade_text"] = payload.get("reported_grade_text")
+            for field in (
+                "raw_numeric_grade", "raw_letter_grade", "raw_grade_points", "raw_academic_year",
+                "raw_term", "attempt_credit_hours", "performance_provenance",
+                "performance_verification_state", "performance_source_reference",
+            ):
+                row[field] = payload.get(field)
             self.attempt_rows.append(row); return httpx.Response(201, json=[row])
         if request.method == "PATCH" and resource == "student_course_attempts":
             return httpx.Response(200, json=[] if self.missing_mutation else [attempt(json.loads(request.content)["outcome"])])
@@ -125,6 +132,29 @@ def test_all_attempt_statuses_create_without_grade_inference(outcome: AttemptOut
     data = WriteFixture()
     row = run(data, lambda repo: repo.create_attempt(OWNER, "0300103", outcome, reported_grade_text="contradictory evidence"))
     assert row.outcome is outcome
+
+
+def test_internal_performance_facts_round_trip_without_changing_outcome() -> None:
+    data = WriteFixture()
+    row = run(data, lambda repo: repo.create_attempt(
+        OWNER, "0300103", AttemptOutcome.FAILED,
+        raw_numeric_grade=Decimal("91.25"), raw_letter_grade="A-",
+        raw_grade_points=Decimal("3.7"), raw_academic_year="SYN-2025-2026",
+        raw_term="SYN-TERM-A", attempt_credit_hours=Decimal("3"),
+        performance_provenance=PerformanceProvenance.MANUAL_ACADEMIC_REVIEW,
+        performance_verification_state=PerformanceVerificationState.VERIFIED,
+        performance_source_reference="synthetic-p2-fixture",
+    ))
+    assert row.outcome is AttemptOutcome.FAILED
+    assert row.raw_numeric_grade == Decimal("91.25")
+    assert row.raw_letter_grade == "A-"
+    assert row.raw_grade_points == Decimal("3.7")
+    assert row.raw_academic_year == "SYN-2025-2026"
+    assert row.raw_term == "SYN-TERM-A"
+    assert row.attempt_credit_hours == Decimal("3")
+    assert row.performance_provenance is PerformanceProvenance.MANUAL_ACADEMIC_REVIEW
+    assert row.performance_verification_state is PerformanceVerificationState.VERIFIED
+    assert row.performance_source_reference == "synthetic-p2-fixture"
 
 
 def test_repeated_attempts_are_not_collapsed() -> None:

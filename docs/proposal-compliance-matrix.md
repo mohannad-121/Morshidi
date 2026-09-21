@@ -43,6 +43,8 @@ An item is `IMPLEMENTED` only when executable source and tests support the claim
 - Phase P1 governance evidence: `docs/proposal-data-governance.md` and `docs/plan12-source-closure.md` inventory the current performance-data limits and preserve the six Plan 12 prerequisite cases as open source-resolution work. This adds evidence only; no compliance status changes.
 - Phase P1.1 evidence contracts: `docs/official-data-source-request-pack.md` and `docs/student-performance-data-contract.md` convert those open dependencies into request IDs and a future input gate. This adds evidence only; no compliance status changes.
 - Phase P1.2 acquisition evidence: `docs/evidence-closure-status.md` records public official-source findings and the P2 raw-storage gate. This adds evidence only; no compliance status changes.
+- Phase P2 foundation: `20260921175041_add_student_performance_foundation.sql`, `app.student.performance_import`, and `docs/student-performance-foundation.md` add nullable raw per-attempt performance/provenance storage and synthetic validation fixtures. This is not grade-derived intelligence, live integration, or a compliance-status change.
+- Phase P2.1 runtime closure: `docs/student-performance-foundation-validation.md` records two successful local migration replays plus local RLS, privacy-boundary, and regression validation. This adds runtime evidence only; no compliance status changes.
 
 ## Atomic compliance matrix
 

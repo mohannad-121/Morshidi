@@ -110,6 +110,10 @@ def test_local_authenticated_student_api_end_to_end() -> None:
                     params={"select": "id", "owner_user_id": f"eq.{user_ids[0]}"}).json() == []
                 assert local.get(f"{URL}/rest/v1/student_course_attempts", headers=rls_headers_b,
                     params={"select": "id", "id": f"eq.{passed_id}"}).json() == []
+                protected_write = local.patch(f"{URL}/rest/v1/student_course_attempts", headers={
+                    **rls_headers_a, "Prefer": "return=representation"},
+                    params={"id": f"eq.{passed_id}"}, json={"raw_numeric_grade": 99})
+                assert protected_write.status_code in (400, 401, 403)
                 rls_mutation = local.patch(f"{URL}/rest/v1/student_course_attempts", headers={
                     **rls_headers_b, "Prefer": "return=representation"},
                     params={"id": f"eq.{passed_id}"}, json={"outcome": "WITHDRAWN"})

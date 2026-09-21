@@ -2,7 +2,7 @@
 
 ## Purpose and boundary
 
-This is the authoritative Phase P2 entry contract. It specifies required semantics before any migration, importer, repository, or intelligence engine is built. It does not select database field names, invent Zarqa grading values, or authorize Phase P2 implementation.
+This is the authoritative Phase P2 entry contract. It specifies required semantics before any migration, importer, repository, or intelligence engine is built. It does not select database field names or invent Zarqa grading values. The implemented storage-only foundation is recorded in [student-performance-foundation.md](student-performance-foundation.md); it does not authorize intelligence implementation.
 
 **Traceability:** PROP-002, PROP-007, PROP-077, and PROP-078 require the foundation; PROP-011--014, PROP-017--018, PROP-054--055, PROP-058, PROP-081--082 consume later approved outputs. Each external dependency is identified in [official-data-source-request-pack.md](official-data-source-request-pack.md).
 
@@ -115,7 +115,7 @@ Synthetic fixtures and non-sensitive deterministic records are permitted for uni
 | Correction/update semantics | PASS | Provenance, review, and supersession boundary is defined. |
 | Import validation contract | PASS | Boundary is defined; live implementation awaits EVID-009/010. |
 
-**Exact decision: P2_READY.** This authorizes only the schema/data-model foundation described above. It does not authorize importing real data, applying institutional policy, or producing grade-derived intelligence.
+**Exact decision: P2_READY.** This authorized the schema/data-model foundation described above, implemented by migration `20260921175041_add_student_performance_foundation.sql` and the pure `app.student.performance_import` boundary. It does not authorize importing real data, applying institutional policy, or producing grade-derived intelligence.
 
 ### Deferred without blocking the P2 foundation
 

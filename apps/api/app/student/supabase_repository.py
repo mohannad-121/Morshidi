@@ -21,7 +21,21 @@ from app.student.errors import (
     StudentProfileAlreadyExists,
     StudentStudyPlanNotFound,
 )
-from app.student.models import StudentAcademicState, StudentCourseAttemptRecord
+from app.student.models import (
+    PerformanceProvenance,
+    PerformanceVerificationState,
+    StudentAcademicState,
+    StudentCourseAttemptRecord,
+)
+
+
+_ATTEMPT_RECORD_SELECT = (
+    "id,profile_id,outcome,attempt_sequence,term_label,attempted_on,"
+    "reported_grade_text,record_source,raw_numeric_grade,raw_letter_grade,"
+    "raw_grade_points,raw_academic_year,raw_term,attempt_credit_hours,"
+    "performance_provenance,performance_verification_state,"
+    "performance_source_reference,created_at,updated_at,courses(course_code)"
+)
 
 
 class SupabaseStudentAcademicRepository:
@@ -144,7 +158,7 @@ class SupabaseStudentAcademicRepository:
     async def load_attempt_records(self, owner_user_id: UUID | str) -> tuple[StudentCourseAttemptRecord, ...]:
         state = await self.load_student_academic_state(owner_user_id)
         rows = await self._get_rows("student_course_attempts", {
-            "select": "id,profile_id,outcome,attempt_sequence,term_label,attempted_on,reported_grade_text,record_source,created_at,updated_at,courses(course_code)",
+            "select": _ATTEMPT_RECORD_SELECT,
             "profile_id": f"eq.{state.profile_id}", "order": "created_at.asc,id.asc",
         })
         return tuple(_attempt_record(row, state.profile_id) for row in rows)
@@ -154,13 +168,27 @@ class SupabaseStudentAcademicRepository:
         attempt_sequence: int | None = None, term_label: str | None = None,
         attempted_on: date | None = None, reported_grade_text: str | None = None,
         record_source: str = "manual_entry",
+        raw_numeric_grade: Decimal | None = None, raw_letter_grade: str | None = None,
+        raw_grade_points: Decimal | None = None, raw_academic_year: str | None = None,
+        raw_term: str | None = None, attempt_credit_hours: Decimal | None = None,
+        performance_provenance: PerformanceProvenance = PerformanceProvenance.STUDENT_RECORD,
+        performance_verification_state: PerformanceVerificationState = PerformanceVerificationState.UNVERIFIED,
+        performance_source_reference: str | None = None,
     ) -> StudentCourseAttemptRecord:
         profile_id, course_id = await self._resolve_course_for_owner(owner_user_id, course_code)
         payload = {"profile_id": profile_id, "course_id": course_id, "outcome": outcome.value,
             "attempt_sequence": attempt_sequence, "term_label": term_label,
             "attempted_on": attempted_on.isoformat() if attempted_on else None,
-            "reported_grade_text": reported_grade_text, "record_source": record_source}
-        response = await self._request("POST", "student_course_attempts", params={"select": "id,profile_id,outcome,attempt_sequence,term_label,attempted_on,reported_grade_text,record_source,created_at,updated_at,courses(course_code)"}, json=payload)
+            "reported_grade_text": reported_grade_text, "record_source": record_source,
+            "raw_numeric_grade": _json_decimal(raw_numeric_grade),
+            "raw_letter_grade": raw_letter_grade,
+            "raw_grade_points": _json_decimal(raw_grade_points),
+            "raw_academic_year": raw_academic_year, "raw_term": raw_term,
+            "attempt_credit_hours": _json_decimal(attempt_credit_hours),
+            "performance_provenance": performance_provenance.value,
+            "performance_verification_state": performance_verification_state.value,
+            "performance_source_reference": performance_source_reference}
+        response = await self._request("POST", "student_course_attempts", params={"select": _ATTEMPT_RECORD_SELECT}, json=payload)
         self._require_success(response, "POST", "student_course_attempts")
         rows = _response_rows(response)
         if len(rows) != 1: raise StudentProfileIntegrityError("Attempt creation did not return one row")
@@ -176,7 +204,7 @@ class SupabaseStudentAcademicRepository:
         payload = {"outcome": outcome.value, "attempt_sequence": attempt_sequence,
             "term_label": term_label, "attempted_on": attempted_on.isoformat() if attempted_on else None,
             "reported_grade_text": reported_grade_text, "record_source": record_source}
-        response = await self._request("PATCH", "student_course_attempts", params={"id": f"eq.{attempt_id}", "profile_id": f"eq.{profile_id}", "select": "id,profile_id,outcome,attempt_sequence,term_label,attempted_on,reported_grade_text,record_source,created_at,updated_at,courses(course_code)"}, json=payload)
+        response = await self._request("PATCH", "student_course_attempts", params={"id": f"eq.{attempt_id}", "profile_id": f"eq.{profile_id}", "select": _ATTEMPT_RECORD_SELECT}, json=payload)
         self._require_success(response, "PATCH", "student_course_attempts")
         rows = _response_rows(response)
         if not rows: raise StudentAttemptNotFound("Student course attempt was not found")
@@ -322,7 +350,10 @@ def _attempt_record(row: Mapping[str, Any], profile_id: str) -> StudentCourseAtt
     sequence = row.get("attempt_sequence")
     if sequence is not None and (isinstance(sequence, bool) or not isinstance(sequence, int)):
         raise StudentProfileIntegrityError("Attempt has invalid attempt_sequence")
-    for field in ("term_label", "reported_grade_text"):
+    for field in (
+        "term_label", "reported_grade_text", "raw_letter_grade", "raw_academic_year",
+        "raw_term", "performance_source_reference",
+    ):
         if row.get(field) is not None and not isinstance(row[field], str):
             raise StudentProfileIntegrityError(f"Attempt has invalid {field}")
     return StudentCourseAttemptRecord(
@@ -332,9 +363,35 @@ def _attempt_record(row: Mapping[str, Any], profile_id: str) -> StudentCourseAtt
         attempted_on=_optional_date(row.get("attempted_on"), "attempt attempted_on"),
         reported_grade_text=row.get("reported_grade_text"),
         record_source=_required_text(row, "record_source", "attempt"),
+        raw_numeric_grade=_decimal(row.get("raw_numeric_grade"), "raw_numeric_grade"),
+        raw_letter_grade=row.get("raw_letter_grade"),
+        raw_grade_points=_decimal(row.get("raw_grade_points"), "raw_grade_points"),
+        raw_academic_year=row.get("raw_academic_year"), raw_term=row.get("raw_term"),
+        attempt_credit_hours=_decimal(row.get("attempt_credit_hours"), "attempt_credit_hours"),
+        performance_provenance=_performance_provenance(row.get("performance_provenance")),
+        performance_verification_state=_performance_verification_state(row.get("performance_verification_state")),
+        performance_source_reference=row.get("performance_source_reference"),
         created_at=_required_datetime(row, "created_at", "attempt"),
         updated_at=_required_datetime(row, "updated_at", "attempt"),
     )
+
+
+def _performance_provenance(value: Any) -> PerformanceProvenance:
+    if value is None:
+        return PerformanceProvenance.UNVERIFIED
+    try:
+        return PerformanceProvenance(value)
+    except (TypeError, ValueError) as error:
+        raise StudentProfileIntegrityError("Attempt has invalid performance_provenance") from error
+
+
+def _performance_verification_state(value: Any) -> PerformanceVerificationState:
+    if value is None:
+        return PerformanceVerificationState.UNVERIFIED
+    try:
+        return PerformanceVerificationState(value)
+    except (TypeError, ValueError) as error:
+        raise StudentProfileIntegrityError("Attempt has invalid performance_verification_state") from error
 
 
 def _profile_university_id(profile: Mapping[str, Any]) -> str:
