@@ -140,7 +140,7 @@ Collect only data that maps to a proposal claim and an approved capability. Do n
 
 **Decision: NO MIGRATION YET.** Current gaps are real, but their semantics depend on missing official grading, transcript, academic-period, taxonomy, and source-resolution evidence. Adding fields now would encode speculation. P1's authoritative artifacts are this governance contract and the source-resolution backlog.
 
-Phase P2 may begin only when the following are approved and versioned:
+The original P1 gate required the following before an authoritative import or grade-derived intelligence could begin; P1.2 supersedes it for the narrower raw-storage foundation only:
 
 1. The six-row Plan 12 closure backlog has an assigned official owner, source request, and no inferred resolution; structured rule changes wait for written evidence.
 2. Zarqa grade, pass, repeat, withdrawal, zero-credit, and GPA policy is supplied with effective/version metadata.
@@ -154,8 +154,12 @@ Phase P2 may begin only when the following are approved and versioned:
 | State | Evidence contract result |
 |---|---|
 | READY_FOR_P2 | The contract, provenance vocabulary, import boundary, templates, and precise evidence requests are documented. No implementation is authorized by this state alone. |
-| BLOCKING_FOR_P2_FOUNDATION | EVID-008--015 (grading-policy package), EVID-009 (transcript schema and test-data permission), EVID-010 (academic period), and approved privacy/correction/retention semantics. |
+| BLOCKING_FOR_AUTHORITATIVE_IMPORT_OR_GRADE_INTERPRETATION | EVID-008--015 (grading-policy package), EVID-009 (transcript schema and test-data permission), EVID-010 (academic period), and approved privacy/correction/retention semantics. |
 | DEFERRED_TO_EXTERNAL_DATA | EVID-001--007 and EVID-016 for full Plan 12 closure; EVID-017 for domain outputs; EVID-018 for predictive risk; EVID-019 for offering-aware claims. These do not block a safe P2 foundation. |
+
+### P1.2 gate decision
+
+**P2_READY.** Official public material partially verifies Plan 12 provenance and several grading-policy concepts, while the internal provenance, privacy/minimization, correction, backward-compatibility, and synthetic-test-data decisions are closed. Phase P2 may model optional raw supplied grade/period/credit facts with provenance and preserve current outcomes. It must not validate, normalize, calculate, infer, import live university data, or produce intelligence from those facts until the remaining external evidence is supplied. The complete status register is [evidence-closure-status.md](evidence-closure-status.md).
 
 ## 12. Open official-source requests
 

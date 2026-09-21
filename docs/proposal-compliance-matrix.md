@@ -42,6 +42,7 @@ An item is `IMPLEMENTED` only when executable source and tests support the claim
 - Auth/frontend: Supabase SSR clients, `proxy.ts`, `AuthProvider`, `AuthenticatedApiClient`, and 27 frontend tests. The protected `/student` page is only a shell.
 - Phase P1 governance evidence: `docs/proposal-data-governance.md` and `docs/plan12-source-closure.md` inventory the current performance-data limits and preserve the six Plan 12 prerequisite cases as open source-resolution work. This adds evidence only; no compliance status changes.
 - Phase P1.1 evidence contracts: `docs/official-data-source-request-pack.md` and `docs/student-performance-data-contract.md` convert those open dependencies into request IDs and a future input gate. This adds evidence only; no compliance status changes.
+- Phase P1.2 acquisition evidence: `docs/evidence-closure-status.md` records public official-source findings and the P2 raw-storage gate. This adds evidence only; no compliance status changes.
 
 ## Atomic compliance matrix
 

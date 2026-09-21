@@ -43,3 +43,7 @@ These are course identities created by `20260916231030_model_ai_plan12_prerequis
 5. Replay the catalog and run all-course trace, eligibility, recommendation, and degree-path regressions. A row cannot move from open status merely because its raw text appears parsable.
 
 Until that protocol is complete, `REVIEW_REQUIRED` is the required safe behavior.
+
+## P1.2 official-material recheck
+
+The live official Zarqa Plan 12 page was rechecked and confirms each raw string in this backlog. Published university bachelor regulations and GPA-calculator material do not provide any target-course prerequisite grouping, referenced-only identity, or conflict-resolution decision. Therefore the six rows retain their existing `unresolved`/`source_conflict` statuses and `REVIEW_REQUIRED` engine behavior; no source-closure status changed.

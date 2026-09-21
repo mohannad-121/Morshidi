@@ -81,12 +81,41 @@ An eventual importer must: validate source/batch/version metadata; reject or qua
 
 ## 9. Phase P2 gate and deferrals
 
-### Blocking for the P2 foundation
+### P1.2 minimum safe foundation — P2_READY
 
-- EVID-008 through EVID-015: one approved grading-policy package.
-- EVID-009: approved transcript schema, identifier mapping, provenance/reconciliation semantics, and de-identified test-data permission.
-- EVID-010: approved stable academic-period contract.
-- Approved retention, correction, deletion, owner-isolation, and import-error requirements.
+Phase P2 may now model the following conceptual fields without inventing university semantics. `READY_TO_MODEL` means nullable/raw preservation only unless a listed policy becomes verified.
+
+| Conceptual field | Status | P2 rule |
+|---|---|---|
+| Explicit attempt outcome (`PASSED`, `FAILED`, `IN_PROGRESS`, `WITHDRAWN`) | READY_TO_MODEL | Preserve current semantics exactly. |
+| Attempt sequence | READY_TO_MODEL | Keep optional; do not derive authoritative ordering. |
+| Numeric grade, letter grade, grade points | READY_TO_MODEL | Optional supplied raw values only; no range check, mapping, GPA calculation, or inferred outcome. |
+| Source record reference, batch/version, provenance, verification/review state | READY_TO_MODEL | Required for new imported/reviewed facts; no source may be silently elevated. |
+| Academic-year/term raw values | READY_TO_MODEL | Optional opaque source values; no canonical identity/order until EVID-010. |
+| Course/attempt credit, repeat, transfer/equivalent, withdrawal flags | READY_TO_MODEL | Preserve supplied raw values; do not derive credit/GPA effects. |
+| Policy version/effective scope | READY_TO_MODEL | Optional reference until an approved policy record exists. |
+| Grade range/mapping/pass threshold/GPA conversion | BLOCKED_BY_EVIDENCE | EVID-008, EVID-012, EVID-013 required. |
+| Canonical academic period and importer validation | BLOCKED_BY_EVIDENCE | EVID-009 and EVID-010 required. |
+| Official identity reconciliation, zero-credit and transfer treatment | BLOCKED_BY_EVIDENCE | EVID-009, EVID-015, EVID-016 required. |
+| Course domains, cohort features, offering data | DEFERRED | EVID-017, EVID-018, EVID-019 required. |
+
+Synthetic fixtures and non-sensitive deterministic records are permitted for unit, migration, and integration testing. They must be visibly synthetic, carry no real student identifier, and never be represented as university data. Real student records are not required to begin P2 engineering.
+
+### Gate checklist
+
+| P2 prerequisite | Result | Basis |
+|---|---|---|
+| Data provenance semantics | PASS | Internal contract is closed. |
+| Record authority hierarchy | PASS | Internal contract is closed. |
+| Attempt-outcome compatibility | PASS | Existing explicit outcomes are preserved. |
+| Safe synthetic test-data policy | PASS | Synthetic, non-sensitive fixtures are permitted. |
+| Grade-field semantics sufficient for storage | PASS | Raw optional storage only; interpretation is blocked. |
+| Academic-period semantics sufficient for storage | PASS | Raw opaque values only; canonicalization is blocked. |
+| Privacy/minimization baseline | PASS | Internal purpose/minimization and correction rules are closed; institutional duration remains a placeholder. |
+| Correction/update semantics | PASS | Provenance, review, and supersession boundary is defined. |
+| Import validation contract | PASS | Boundary is defined; live implementation awaits EVID-009/010. |
+
+**Exact decision: P2_READY.** This authorizes only the schema/data-model foundation described above. It does not authorize importing real data, applying institutional policy, or producing grade-derived intelligence.
 
 ### Deferred without blocking the P2 foundation
 
@@ -95,7 +124,7 @@ An eventual importer must: validate source/batch/version metadata; reject or qua
 - EVID-018: required before predictive/population academic risk.
 - EVID-019: required before offering-aware delay, scheduling, or workload claims.
 
-Therefore **Phase P2 can begin before cohort data, but not before the individual authoritative-record, policy, period, provenance, privacy, and import semantics above are approved.**
+Therefore **Phase P2 can begin before cohort data and before live university import access, but it must remain limited to the P1.2 raw-storage boundary until individual authoritative-record, policy, and period semantics are approved.**
 
 ## 10. Course-domain review template
 
