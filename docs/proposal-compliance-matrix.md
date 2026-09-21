@@ -40,6 +40,7 @@ An item is `IMPLEMENTED` only when executable source and tests support the claim
 - Planning/path: `plan_semester`, `plan_degree_paths`, authenticated endpoints and engine/API/local-Supabase tests.
 - Advisor: `AdvisorService.advise_with_explanation`, `orchestrate_advisor_request`, `explanation_passes_guards`, `/api/v1/me/advisor`, advisor tests.
 - Auth/frontend: Supabase SSR clients, `proxy.ts`, `AuthProvider`, `AuthenticatedApiClient`, and 27 frontend tests. The protected `/student` page is only a shell.
+- Phase P1 governance evidence: `docs/proposal-data-governance.md` and `docs/plan12-source-closure.md` inventory the current performance-data limits and preserve the six Plan 12 prerequisite cases as open source-resolution work. This adds evidence only; no compliance status changes.
 
 ## Atomic compliance matrix
 
