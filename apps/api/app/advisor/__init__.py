@@ -1,0 +1,43 @@
+"""Pure advisor domain contracts for Phase 10.2."""
+
+from app.advisor.models import (
+    AI_ADVISOR_POLICY_VERSION,
+    AdvisorContractError,
+    AdvisorEvidence,
+    AdvisorIntent,
+    AdvisorTrace,
+    AnswerAuthority,
+    AuthoritativeSource,
+    ClarificationReason,
+    ClarificationRequest,
+    CourseResolution,
+    DecisionReference,
+    EntityResolutionStatus,
+    NormalizedAdvisorRequest,
+    OutOfScopeReason,
+    PlanningConstraints,
+    PolicyVersionReference,
+    ResolvedCourseReference,
+    StructuredAdvisorResult,
+)
+
+__all__ = [
+    "AI_ADVISOR_POLICY_VERSION",
+    "AdvisorContractError",
+    "AdvisorEvidence",
+    "AdvisorIntent",
+    "AdvisorTrace",
+    "AnswerAuthority",
+    "AuthoritativeSource",
+    "ClarificationReason",
+    "ClarificationRequest",
+    "CourseResolution",
+    "DecisionReference",
+    "EntityResolutionStatus",
+    "NormalizedAdvisorRequest",
+    "OutOfScopeReason",
+    "PlanningConstraints",
+    "PolicyVersionReference",
+    "ResolvedCourseReference",
+    "StructuredAdvisorResult",
+]
