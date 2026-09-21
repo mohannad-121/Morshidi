@@ -1,4 +1,4 @@
-"""Pure advisor domain contracts for Phase 10.2."""
+"""Pure advisor contracts, deterministic orchestration, and interpretation."""
 
 from app.advisor.models import (
     AI_ADVISOR_POLICY_VERSION,
@@ -24,6 +24,21 @@ from app.advisor.models import (
     StructuredAdvisorResult,
 )
 from app.advisor.orchestrator import AdvisorContext, orchestrate_advisor_request
+from app.advisor.interpretation import (
+    AdvisorInterpretationResult,
+    InterpretationStatus,
+    interpret_advisor_message,
+    normalize_advisor_interpretation,
+    resolve_course_references,
+)
+from app.advisor.provider import (
+    ADVISOR_INTERPRETATION_SYSTEM_INSTRUCTION,
+    AdvisorInterpretationInput,
+    AdvisorLLMProvider,
+    ProviderFailure,
+    ProviderFailureType,
+    RawAdvisorInterpretation,
+)
 
 __all__ = [
     "AI_ADVISOR_POLICY_VERSION",
@@ -49,4 +64,15 @@ __all__ = [
     "StructuredAdvisorResult",
     "AdvisorContext",
     "orchestrate_advisor_request",
+    "ADVISOR_INTERPRETATION_SYSTEM_INSTRUCTION",
+    "AdvisorInterpretationInput",
+    "AdvisorInterpretationResult",
+    "AdvisorLLMProvider",
+    "InterpretationStatus",
+    "ProviderFailure",
+    "ProviderFailureType",
+    "RawAdvisorInterpretation",
+    "interpret_advisor_message",
+    "normalize_advisor_interpretation",
+    "resolve_course_references",
 ]
