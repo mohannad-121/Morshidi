@@ -7,6 +7,7 @@ from uuid import UUID
 
 from app.rules.models import CanTakeCatalog
 from app.progress.models import AcademicProgressCatalog
+from app.advisor.models import ResolvedCourseReference
 
 
 class AcademicCatalogRepository(Protocol):
@@ -34,3 +35,9 @@ class AcademicCatalogRepository(Protocol):
         study_plan_id: UUID | str,
     ) -> CanTakeCatalog:
         """Return all resolved plan-course rules and dependency identities for CAN TAKE simulation."""
+
+    async def load_advisor_course_catalog(
+        self,
+        study_plan_id: UUID | str,
+    ) -> tuple[ResolvedCourseReference, ...]:
+        """Return canonical university-course identities for exact advisor resolution."""

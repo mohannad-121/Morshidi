@@ -19,6 +19,7 @@ from app.advisor.models import (
 from app.advisor.provider import (
     AdvisorInterpretationInput,
     AdvisorLLMProvider,
+    ProviderInterpretationResponse,
     ProviderFailure,
     ProviderFailureType,
     RawAdvisorInterpretation,
@@ -63,21 +64,7 @@ def interpret_advisor_message(
 ) -> AdvisorInterpretationResult:
     """Invoke one provider once, then validate its output deterministically."""
 
-    try:
-        provider_input = AdvisorInterpretationInput(user_message)
-    except (TypeError, ValueError):
-        return _schema_failure()
-
-    try:
-        provider_response = provider.interpret(provider_input)
-    except TimeoutError:
-        return _failed(ProviderFailureType.TIMEOUT, "advisor.interpretation.timeout")
-    except Exception:
-        return _failed(
-            ProviderFailureType.PROVIDER_UNAVAILABLE,
-            "advisor.interpretation.provider_unavailable",
-        )
-
+    provider_response = invoke_advisor_provider(provider, user_message)
     if isinstance(provider_response, ProviderFailure):
         return AdvisorInterpretationResult(
             InterpretationStatus.INTERPRETATION_FAILED,
@@ -89,6 +76,39 @@ def interpret_advisor_message(
             "advisor.interpretation.malformed_output",
         )
     return normalize_advisor_interpretation(user_message, provider_response, catalog)
+
+
+def invoke_advisor_provider(
+    provider: AdvisorLLMProvider,
+    user_message: str,
+) -> ProviderInterpretationResponse:
+    """Invoke the provider once and collapse unsafe failures to typed results."""
+
+    try:
+        provider_input = AdvisorInterpretationInput(user_message)
+    except (TypeError, ValueError):
+        return ProviderFailure(
+            ProviderFailureType.SCHEMA_MISMATCH,
+            "advisor.interpretation.schema_mismatch",
+        )
+    try:
+        provider_response = provider.interpret(provider_input)
+    except TimeoutError:
+        return ProviderFailure(
+            ProviderFailureType.TIMEOUT,
+            "advisor.interpretation.timeout",
+        )
+    except Exception:
+        return ProviderFailure(
+            ProviderFailureType.PROVIDER_UNAVAILABLE,
+            "advisor.interpretation.provider_unavailable",
+        )
+    if not isinstance(provider_response, (RawAdvisorInterpretation, ProviderFailure)):
+        return ProviderFailure(
+            ProviderFailureType.MALFORMED_STRUCTURED_OUTPUT,
+            "advisor.interpretation.malformed_output",
+        )
+    return provider_response
 
 
 def normalize_advisor_interpretation(

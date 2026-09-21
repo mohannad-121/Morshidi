@@ -108,3 +108,16 @@ class AdvisorLLMProvider(Protocol):
         request: AdvisorInterpretationInput,
     ) -> ProviderInterpretationResponse:
         """Return structured semantic interpretation, never an academic decision."""
+
+
+class UnconfiguredAdvisorLLMProvider:
+    """Safe production placeholder until a server-controlled adapter exists."""
+
+    def interpret(
+        self,
+        request: AdvisorInterpretationInput,
+    ) -> ProviderInterpretationResponse:
+        return ProviderFailure(
+            ProviderFailureType.PROVIDER_UNAVAILABLE,
+            "advisor.interpretation.provider_not_configured",
+        )

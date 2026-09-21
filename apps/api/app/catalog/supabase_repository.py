@@ -8,6 +8,7 @@ from uuid import UUID
 
 import httpx
 
+from app.advisor.models import ResolvedCourseReference
 from app.catalog.errors import (
     CatalogIntegrityError,
     CatalogTransportError,
@@ -213,6 +214,42 @@ class SupabaseAcademicCatalogRepository:
             requirement_groups=groups,
             plan_courses=plan_courses,
         )
+
+    async def load_advisor_course_catalog(
+        self,
+        study_plan_id: UUID | str,
+    ) -> tuple[ResolvedCourseReference, ...]:
+        """Batch-load canonical university-course identities for advisor resolution."""
+
+        plan_id = str(study_plan_id)
+        plan = await self._load_study_plan(plan_id)
+        university_id = self._university_id(plan)
+        rows = await self._get_rows(
+            "courses",
+            {
+                "select": "course_code,name_ar,name_en,university_id",
+                "university_id": f"eq.{university_id}",
+                "order": "course_code.asc",
+            },
+        )
+        resolved: list[ResolvedCourseReference] = []
+        for course in rows:
+            if _required_text(course, "university_id", "course") != university_id:
+                raise CatalogIntegrityError("Course belongs to another university")
+            name_en = course.get("name_en")
+            if name_en is not None and (not isinstance(name_en, str) or not name_en.strip()):
+                raise CatalogIntegrityError("course name_en is not valid text")
+            resolved.append(
+                ResolvedCourseReference(
+                    course_code=_required_text(course, "course_code", "course"),
+                    canonical_arabic_name=_required_text(course, "name_ar", "course"),
+                    canonical_english_name=name_en,
+                )
+            )
+        ordered = tuple(sorted(resolved, key=lambda item: item.course_code))
+        if len({item.course_code for item in ordered}) != len(ordered):
+            raise CatalogIntegrityError("Plan catalog contains duplicate course codes")
+        return ordered
 
     async def load_plan_eligibility_catalog(
         self,

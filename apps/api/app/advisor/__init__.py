@@ -28,6 +28,7 @@ from app.advisor.interpretation import (
     AdvisorInterpretationResult,
     InterpretationStatus,
     interpret_advisor_message,
+    invoke_advisor_provider,
     normalize_advisor_interpretation,
     resolve_course_references,
 )
@@ -38,6 +39,7 @@ from app.advisor.provider import (
     ProviderFailure,
     ProviderFailureType,
     RawAdvisorInterpretation,
+    UnconfiguredAdvisorLLMProvider,
 )
 
 __all__ = [
@@ -72,7 +74,9 @@ __all__ = [
     "ProviderFailure",
     "ProviderFailureType",
     "RawAdvisorInterpretation",
+    "UnconfiguredAdvisorLLMProvider",
     "interpret_advisor_message",
+    "invoke_advisor_provider",
     "normalize_advisor_interpretation",
     "resolve_course_references",
 ]

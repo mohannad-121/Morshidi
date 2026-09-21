@@ -8,6 +8,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.api.routes.eligibility import router as eligibility_router
 from app.api.routes.health import router as health_router
 from app.api.routes.student import router as student_router
+from app.api.routes.advisor import router as advisor_router
+from app.advisor.provider import ProviderFailureType, UnconfiguredAdvisorLLMProvider
 from app.catalog.errors import (
     CatalogIntegrityError,
     CatalogTransportError,
@@ -19,6 +21,11 @@ from app.catalog.supabase_repository import SupabaseAcademicCatalogRepository
 from app.core.config import settings
 from app.services.eligibility import EligibilityConfigurationError, EligibilityService
 from app.services.student import StudentConfigurationError, StudentService
+from app.services.advisor import (
+    AdvisorConfigurationError,
+    AdvisorProviderError,
+    AdvisorService,
+)
 from app.student.errors import (
     StudentAttemptNotFound, StudentCourseNotFound, StudentCourseUniversityMismatch,
     StudentProfileAlreadyExists, StudentProfileIntegrityError, StudentProfileNotFound,
@@ -42,6 +49,7 @@ async def lifespan(application: FastAPI):
     application.state.auth_http_client = client
     application.state.eligibility_service = None
     application.state.student_service = None
+    application.state.advisor_service = None
     if settings.supabase_url and settings.supabase_secret_key:
         repository = SupabaseAcademicCatalogRepository(
             settings.supabase_url,
@@ -58,6 +66,11 @@ async def lifespan(application: FastAPI):
             student_repository,
             application.state.eligibility_service,
             repository,
+        )
+        application.state.advisor_service = AdvisorService(
+            student_repository,
+            repository,
+            UnconfiguredAdvisorLLMProvider(),
         )
     try:
         yield
@@ -83,6 +96,7 @@ app.add_middleware(
 app.include_router(health_router)
 app.include_router(eligibility_router)
 app.include_router(student_router)
+app.include_router(advisor_router)
 
 
 def _catalog_error_response(error_code: str, detail: str, status_code: int) -> JSONResponse:
@@ -170,3 +184,34 @@ async def handle_student_unavailable(_: Request, __: Exception) -> JSONResponse:
 @app.exception_handler(StudentProfileValidationError)
 async def handle_student_validation(_: Request, __: StudentProfileValidationError) -> JSONResponse:
     return _catalog_error_response("STUDENT_PROFILE_INVALID", "Student profile facts are invalid", 422)
+
+
+@app.exception_handler(AdvisorConfigurationError)
+async def handle_advisor_configuration(_: Request, __: AdvisorConfigurationError) -> JSONResponse:
+    return _catalog_error_response(
+        "ADVISOR_SERVICE_UNAVAILABLE",
+        "Advisor service is not configured",
+        503,
+    )
+
+
+@app.exception_handler(AdvisorProviderError)
+async def handle_advisor_provider(_: Request, exc: AdvisorProviderError) -> JSONResponse:
+    failure_type = exc.failure.failure_type
+    if failure_type is ProviderFailureType.TIMEOUT:
+        return _catalog_error_response(
+            "ADVISOR_PROVIDER_TIMEOUT",
+            "Advisor interpretation provider timed out",
+            503,
+        )
+    if failure_type is ProviderFailureType.PROVIDER_UNAVAILABLE:
+        return _catalog_error_response(
+            "ADVISOR_PROVIDER_UNAVAILABLE",
+            "Advisor interpretation provider is unavailable",
+            503,
+        )
+    return _catalog_error_response(
+        "ADVISOR_PROVIDER_RESPONSE_INVALID",
+        "Advisor interpretation provider returned an invalid response",
+        502,
+    )
