@@ -4,6 +4,8 @@
 
 This document is the Phase P1 evidence baseline for the Morshidi proposal. It records what the repository can prove now, what it deliberately does not claim, and the smallest approved contract boundary for a later student-performance foundation. It does not implement strengths, weaknesses, risk, readiness, grade-derived recommendations, or a schema migration.
 
+Phase P1.1 turns each external dependency into an actionable request in [official-data-source-request-pack.md](official-data-source-request-pack.md), and formalizes the Phase P2 entry boundary in [student-performance-data-contract.md](student-performance-data-contract.md). It also re-checked the live official Plan 12 page: it confirms the captured raw prerequisite strings but does not resolve their semantics or version. Templates are header-only and explicitly non-sensitive: [student-record-import-template.csv](templates/student-record-import-template.csv) and [cohort-outcomes-template.csv](templates/cohort-outcomes-template.csv).
+
 ### Proposal traceability
 
 Phase P1 directly owns **PROP-002, PROP-007, PROP-037, PROP-040, and PROP-077**. The data prerequisites documented here also gate **PROP-011--014, PROP-017--018, PROP-054--055, PROP-058, PROP-078, and PROP-081--082**. Their compliance statuses are unchanged: documenting a gap is not implementation evidence.
@@ -146,6 +148,14 @@ Phase P2 may begin only when the following are approved and versioned:
 4. The stable academic-period contract is approved.
 5. The minimal provenance/source-resolution data contract is approved, including retention, correction, deletion, and owner-isolation requirements.
 6. A de-identified representative record set and permitted test strategy are available before importer/feature-snapshot implementation.
+
+### P1.1 readiness classification
+
+| State | Evidence contract result |
+|---|---|
+| READY_FOR_P2 | The contract, provenance vocabulary, import boundary, templates, and precise evidence requests are documented. No implementation is authorized by this state alone. |
+| BLOCKING_FOR_P2_FOUNDATION | EVID-008--015 (grading-policy package), EVID-009 (transcript schema and test-data permission), EVID-010 (academic period), and approved privacy/correction/retention semantics. |
+| DEFERRED_TO_EXTERNAL_DATA | EVID-001--007 and EVID-016 for full Plan 12 closure; EVID-017 for domain outputs; EVID-018 for predictive risk; EVID-019 for offering-aware claims. These do not block a safe P2 foundation. |
 
 ## 12. Open official-source requests
 
