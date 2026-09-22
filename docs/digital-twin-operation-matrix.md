@@ -20,6 +20,14 @@ Policy version: **1.0**. Operation IDs are stable and may not be reused with dif
 | `TWIN_OP_FORCE_ELIGIBILITY` | Override academic rule | `FORBIDDEN` | Target/decision | Violates Phase 5 hard gate | None | None | No | No | Not applicable | `TWIN_OPERATION_FORBIDDEN` | Reject entire scenario | No future scenario policy may bypass official rules |
 | `TWIN_OP_OFFICIAL_REGISTER` | Register/add/drop course | `FORBIDDEN` | Registration intent/action | Digital Twin has no transaction authority | None | None | No | No | Institutional registration API | `TWIN_OPERATION_FORBIDDEN` | Reject; no side effect | Separate explicitly authorized transaction capability |
 
+## Completion-target validation outcomes
+
+| Target | Phase 5 | Requirement-group state | Scenario result | Validation code | Application | Engine recomputation | Deltas | Authoritative state | Modeled state |
+|---|---|---|---|---|---|---|---|---|---|
+| Incomplete plan-listed elective | `ELIGIBLE` | Already satisfied under current Phase 6 semantics | `INVALID` | `TWIN_ELECTIVE_GROUP_ALREADY_SATISFIED` | None; operation rejected | None | None | Unchanged | Not applied |
+
+This outcome is specific to `TWIN_OP_MODEL_COURSE_COMPLETION`. It does not change the Phase 5 eligibility result: academic prerequisite eligibility and bounded Digital Twin operation validity are separate decisions. It is deterministic rather than an academic-source ambiguity, so it does not produce `REVIEW_REQUIRED`.
+
 ## Operation-set rules
 
 - Maximum operations: two—one structural operation and one constraint bundle.

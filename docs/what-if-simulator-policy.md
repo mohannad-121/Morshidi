@@ -29,7 +29,11 @@ Validation is finite and deterministic. It checks exact plan/base identity, fing
 
 Canonical invalid codes are:
 
-`TWIN_UNKNOWN_OPERATION`, `TWIN_UNKNOWN_COURSE`, `TWIN_TARGET_NOT_PLAN_MEMBER`, `TWIN_TARGET_ALREADY_COMPLETED`, `TWIN_TARGET_IN_PROGRESS`, `TWIN_TARGET_NOT_ELIGIBLE`, `TWIN_TARGET_REVIEW_REQUIRED`, `TWIN_INVALID_CONSTRAINT`, `TWIN_DUPLICATE_OPERATION`, `TWIN_CONFLICTING_OPERATIONS`, `TWIN_TOO_MANY_STRUCTURAL_OPERATIONS`, `TWIN_BASE_IDENTITY_MISMATCH`, `TWIN_STALE_BASE_STATE`, and `TWIN_REQUIRED_CONTEXT_MISSING`.
+`TWIN_UNKNOWN_OPERATION`, `TWIN_UNKNOWN_COURSE`, `TWIN_TARGET_NOT_PLAN_MEMBER`, `TWIN_TARGET_ALREADY_COMPLETED`, `TWIN_TARGET_IN_PROGRESS`, `TWIN_TARGET_NOT_ELIGIBLE`, `TWIN_TARGET_REVIEW_REQUIRED`, `TWIN_ELECTIVE_GROUP_ALREADY_SATISFIED`, `TWIN_INVALID_CONSTRAINT`, `TWIN_DUPLICATE_OPERATION`, `TWIN_CONFLICTING_OPERATIONS`, `TWIN_TOO_MANY_STRUCTURAL_OPERATIONS`, `TWIN_BASE_IDENTITY_MISMATCH`, `TWIN_STALE_BASE_STATE`, and `TWIN_REQUIRED_CONTEXT_MISSING`.
+
+`TWIN_ELECTIVE_GROUP_ALREADY_SATISFIED` applies only to `TWIN_OP_MODEL_COURSE_COMPLETION` when the target is an incomplete, valid plan-listed elective option, Phase 5 may return `ELIGIBLE`, and the owning elective requirement group is already satisfied under current Phase 6 semantics. The scenario is `INVALID` and the operation is rejected atomically before an overlay is applied: no modeled completion is created, no engine recomputation occurs, no delta is emitted, authoritative state remains unchanged, and modeled state is not applied.
+
+This code does not alter Phase 5 eligibility, relabel the target `NOT_ELIGIBLE`, claim that the target is completed or has no academic value, infer future registration, change requirement-group semantics, or affect actual recommendations or planning. It states only that this hypothetical completion is outside supported P5 V1 scenario scope because the elective requirement is already satisfied. The outcome is `INVALID`, not `REVIEW_REQUIRED`, because the system has sufficient deterministic information; `REVIEW_REQUIRED` remains reserved for an academic-source ambiguity or conflict requiring review.
 
 ## 5. Recompute graph
 

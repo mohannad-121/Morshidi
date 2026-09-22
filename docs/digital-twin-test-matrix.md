@@ -54,6 +54,7 @@ Policy version: **1.0**. P5.1 defines tests only; no test code is authorized.
 | `TWIN-T48` | Computational bounds | Operation, comparison, Phase 8, and Phase 9 limits enforced. |
 | `TWIN-T49` | No writes | No repository/database/cache/API/LLM call or persisted scenario side effect. |
 | `TWIN-T50` | Engine reuse/purity | No duplicated prerequisite, progress, ranking, planner, path, P3, or delay logic. |
+| `TWIN-T51` | Pass eligible, incomplete elective whose requirement group is already satisfied | Scenario `INVALID` + `TWIN_ELECTIVE_GROUP_ALREADY_SATISFIED`; operation rejected; no modeled completion, engine recomputation, or delta; authoritative state unchanged; Phase 5 eligibility unchanged. |
 
 ## Required regression gates for P5.2
 

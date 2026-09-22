@@ -104,7 +104,7 @@ Invented grade/grade point, mutation or deletion of authoritative history, force
 
 ## 10. Hypothetical completion
 
-`TWIN_OP_MODEL_COURSE_COMPLETION` answers “What changes in the modeled academic structure if course X is treated as completed?” It creates a `ModeledCourseCompletion`, not a persisted `StudentCourseAttempt`. The target must be an exact selected-plan member, incomplete, not currently `IN_PROGRESS`, and Phase 5 `ELIGIBLE` at the base state. A Phase 5 `REVIEW_REQUIRED` target makes the scenario `REVIEW_REQUIRED` without applying completion; a `NOT_ELIGIBLE` target is invalid for this V1 operation. The operation carries no grade, term, registration, probability, or promise of future success.
+`TWIN_OP_MODEL_COURSE_COMPLETION` answers “What changes in the modeled academic structure if course X is treated as completed?” It creates a `ModeledCourseCompletion`, not a persisted `StudentCourseAttempt`. The target must be an exact selected-plan member, incomplete, not currently `IN_PROGRESS`, and Phase 5 `ELIGIBLE` at the base state. A Phase 5 `REVIEW_REQUIRED` target makes the scenario `REVIEW_REQUIRED` without applying completion; a `NOT_ELIGIBLE` target is invalid for this V1 operation. An incomplete, plan-listed elective that is Phase 5 `ELIGIBLE` is nevertheless invalid as a P5 V1 completion target when its owning elective requirement group is already satisfied under current Phase 6 semantics. That case returns `TWIN_ELECTIVE_GROUP_ALREADY_SATISFIED`; the operation is rejected before application, no modeled completion is created, no engine is recomputed, no delta is emitted, authoritative state remains unchanged, and modeled state is not applied. The operation carries no grade, term, registration, probability, or promise of future success.
 
 The modeled completion participates only in structural Phase 5/6/7/8/9 recomputation. Existing failures and withdrawals remain in authoritative history and are never collapsed.
 
@@ -123,7 +123,7 @@ These are user modeling preferences and computational bounds, not institutional 
 
 ## 13. Elective semantics
 
-Preference is not completion. P5 V1 does not add an elective preference operation because Phase 8/9 have no approved course-pinning or preference factor. A modeled completion may target an eligible elective only while its requirement group has remaining need. Existing Phase 6 elective caps still apply; selection never marks an elective passed.
+Preference is not completion. P5 V1 does not add an elective preference operation because Phase 8/9 have no approved course-pinning or preference factor. A modeled completion may target an eligible elective only while its requirement group has remaining need. If the group is already satisfied, the scenario is `INVALID` with `TWIN_ELECTIVE_GROUP_ALREADY_SATISFIED`; this does not change the Phase 5 decision or relabel the target `NOT_ELIGIBLE`. Phase 5 eligibility answers whether the course may be taken under academic prerequisite rules, while Digital Twin operation validation answers whether the hypothetical is supported and meaningful within bounded P5 V1 scope. The rejection makes no claim that the target is completed, lacks academic value, or cannot be registered in the future, and it does not alter requirement-group or elective policy outside Digital Twin V1. Existing Phase 6 elective caps still apply; selection never marks an elective passed.
 
 ## 14. State cloning
 
