@@ -115,7 +115,7 @@ The world-class roadmap contains thirteen future phases. Phase boundaries are ga
 | Phase | Outcome | Entry gate | Exit evidence |
 |---|---|---|---|
 | P4 | Decision Intelligence Integration and specialized Delay Consequence | P3 engines are stable; P4.1 policy approved | **Implemented:** baseline-preserving readiness composition, annotations, typed trace, specialized delay engine, and regression evidence |
-| P5 | Digital Twin, general What-If, Scenario Comparison | P4.2 closure; immutable snapshot and provenance contracts | Immutable scenario lifecycle reusing Delay Consequence, plus graduation audit |
+| P5 | Digital Twin, general What-If, Scenario Comparison | P4.2 closure; immutable snapshot and provenance contracts | **Pure domain implemented:** immutable fingerprinted scenarios, three-operation evaluator, P4 Delay reuse, 16 typed deltas, same-base factual comparison, and 51-scenario evidence; authorized API/UI remains |
 | P6 | Mock Registration, Demand, Bottlenecks | P5 | Intent/registration separation and synthetic demand evaluation |
 | P7 | Advisor Copilot, Human Review, Institutional Analytics | P6 | Role-scoped review workflow and aggregate dashboards |
 | P8 | Grounded Knowledge and Decision Trace | P7 | Cited policy retrieval and replayable trace ledger |
@@ -137,6 +137,10 @@ After P4.2 closure, the next eligible phase is **P5 — Digital Twin and general
 P5.1 defines the documentation-only implementation gate in `academic-digital-twin-policy.md`, `what-if-simulator-policy.md`, `scenario-comparison-policy.md`, and the operation, delta, and test matrices. V1 is ephemeral and domain-only: one authoritative base, at most one structural operation plus one existing-policy constraint bundle, and at most two comparison sides. Supported structural operations are modeled course completion and P4 Delay Consequence omission; modeled failure/withdrawal, live availability, major/plan transition, equivalency creation, transactions, and predictive claims remain deferred or forbidden.
 
 This policy evidence does not implement WC-001, WC-002, or WC-003 and does not change their statuses. P5.2 must prove immutable cloning, engine reuse, modeled/history separation, bounded deterministic deltas/comparison, and full Phase 5–9/P3/P4 regression before implementation evidence may be claimed. API, persistence, frontend, saved scenarios, and registration remain later decisions.
+
+### P5.2 implementation evidence
+
+P5.2 implements the pure, ephemeral Academic Digital Twin and What-If package with immutable normalized state, privacy-minimized SHA-256 fingerprints, stale-state rejection, one structural operation plus one typed constraint bundle, exact P5.1.1 satisfied-elective rejection, unchanged Phase 5–9/P4 reuse, all 16 deltas, and bounded factual comparison. The implementation trace maps all 51 committed scenarios. `WC-001` and `WC-002` remain `PARTIALLY_ENABLED`; `WC-003` advances to `PARTIALLY_ENABLED`. Product completion still requires an authorized service boundary and Arabic student experience; persistence, Mock Registration, offerings, and transactions remain later phases.
 
 ## Governance
 
