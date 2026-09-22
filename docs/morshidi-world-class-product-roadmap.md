@@ -162,6 +162,18 @@ P6.4 implements the additive normalized storage foundation, immutable intent rev
 
 P6.5 connects verified Supabase identity, server-derived academic scope, current P6.2 validation/revalidation, P6.4 CAS persistence, active institutional membership, exact tenant scoping, P6.2 current-resolution/aggregation, and whole-result suppression through four typed FastAPI routes. Runtime evidence covers real local Auth and database writes, current reads, replay/conflict, withdrawal, authorization-before-load, aggregate-only privacy, OpenAPI safety, and all 35 previously deferred P6.5 scenarios. `WC-008` and `WC-009` remain `PARTIALLY_ENABLED`, while `WC-044` and `WC-015` remain `PLANNED`: frontend delivery, production privacy/query governance, real offering/capacity providers, representative institutional validation, dashboards, and official-registration integration remain open.
 
+### P7.1 policy gate evidence
+
+P7.1 locks the policy-only contracts and explicit specification for Institutional Intelligence and Advisor Copilot across seven canonical design documents: `institutional-intelligence-policy.md`, `institutional-capacity-pressure-policy.md`, `advisor-copilot-policy.md`, `institutional-intelligence-signal-matrix.md`, `advisor-copilot-tool-matrix.md`, `institutional-alert-matrix.md`, and `institutional-intelligence-advisor-test-matrix.md`. The contracts enforce: signal versus decision separation ($\text{INSTITUTIONAL\_SIGNAL} \neq \text{INSTITUTIONAL\_DECISION}$); 13 closed deterministic institutional signals (`INST_SIG_*`); factual capacity deficit and pressure state without section recommendations or staffing mandates; structural bottleneck evidence without black-box scoring; complete reuse of P6.2 demand, P5.2 Digital Twin, P4 Delay Consequence, and Phase 5–9 engines; strict propagation of privacy suppression to derived capacity arithmetic; read-only Advisor Copilot with 11 non-mutating tools (`ADVISOR_TOOL_*`); explicit rejection of analyst-to-student access and in-system advisor overrides; six factual alert conditions (`INST_ALERT_*`); and an 85-scenario acceptance test gate.
+
+Implementation is explicitly split into four focused sub-phases:
+- **P7.2:** Institutional Intelligence pure-domain engine (signals, capacity pressure, structural bottleneck evidence, alerts, and deterministic tests; zero I/O).
+- **P7.3:** Institutional Intelligence authenticated service and API (FastAPI routes, analyst authorization, context loading, and local integration tests).
+- **P7.4:** Advisor authorization and advisor-student assignment persistence / security foundation (schema migration, RLS policies, and concurrency tests).
+- **P7.5:** Advisor Copilot deterministic orchestration and API (FastAPI routes, tool adapters, read-only guards, and advising workspace tests).
+
+Policy evidence alone implements no capability and changes no status in the capability matrix or proposal compliance matrix.
+
 ## Governance
 
 Changes to a WC record require a documented rationale, dependency review, proposal crosswalk review, data classification, and updated definition of done. A capability may move from `EXTERNAL_DEPENDENCY` only when its named evidence or integration gate is met. No status in the proposal compliance matrix is changed by this roadmap lock.

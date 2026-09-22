@@ -225,6 +225,16 @@ This bounded V1 does not yet close risk-based ranking or planner/path ranking cl
 
 **Inputs/data required:** University role model, organizational hierarchy, advisor-student assignment/consent, approved aggregate definitions, audit/retention policy.
 
+**Sub-phase sequence:**
+- **Phase P7.1 (Policy & Contracts):** Define Institutional Intelligence (signals vs decisions, bottleneck decomposition, capacity pressure) and Advisor Copilot (read-only, non-mutating tool registry, separation from `INSTITUTIONAL_ANALYST`, and assignment authorization).
+- **Phase P7.2 (Institutional Intelligence Pure Domain):** Implement pure signal models, capacity pressure rules, structural bottleneck evidence, alerts, and deterministic tests (zero I/O).
+- **Phase P7.3 (Institutional Intelligence Service & API):** Implement FastAPI routes, context loader, analyst authorization, and aggregation integration.
+- **Phase P7.4 (Advisor Authorization & Persistence):** Implement `ACADEMIC_ADVISOR` role, advisor-student assignment tables, RLS policies, and security tests.
+- **Phase P7.5 (Advisor Copilot Orchestration & API):** Implement read-only tool orchestration, student context guards, and advising workspace endpoints.
+
+**P7.1 Policy Gate Evidence:**
+`institutional-intelligence-policy.md`, `institutional-capacity-pressure-policy.md`, `advisor-copilot-policy.md`, `institutional-intelligence-signal-matrix.md`, `advisor-copilot-tool-matrix.md`, `institutional-alert-matrix.md`, and `institutional-intelligence-advisor-test-matrix.md` establish implementation-ready contracts and the 85-scenario acceptance gate for PROP-031, PROP-032, and PROP-033. This policy gate adds documentation evidence only; no proposal compliance status changes.
+
 **Implementation scope:**
 
 - Add tenant-scoped roles and least-privilege permission contracts.

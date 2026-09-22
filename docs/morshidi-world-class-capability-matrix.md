@@ -41,6 +41,15 @@ P6.4 adds additive normalized persistence, exact-key transactional CAS, immutabl
 
 P6.5 implements the four authenticated student/institutional routes with verified owner derivation, server-derived plan scope, fresh P6.2 validation, P6.4 CAS, current-state revalidation, active analyst membership, tenant-first candidate loading, exact nine-metric aggregation, and suppression-safe typed responses. The 35 P6.5 scenarios now have focused and real local runtime evidence. Statuses do not advance: `WC-008` still lacks product UI and official-integration boundaries; `WC-009` lacks dashboard, providers, representative adoption, and institutional validation; `WC-044` lacks broader consent/retention/export/query governance; `WC-015` lacks the broader governed metric catalog and dashboard.
 
+## P7.1 policy evidence (no status change)
+
+P7.1 defines implementation-ready policy and contract specifications for `WC-010`, `WC-011`, `WC-012`, `WC-013`, `WC-014`, and `WC-015`:
+- `institutional-intelligence-policy.md` and `institutional-capacity-pressure-policy.md` define 13 closed deterministic signals (`INST_SIG_*`), factual capacity deficit arithmetic without section creation, structural bottleneck gateway decomposition, and suppression propagation.
+- `advisor-copilot-policy.md` defines the read-only advisor decision-support boundary, separation from `INSTITUTIONAL_ANALYST`, 11 non-mutating deterministic tools (`ADVISOR_TOOL_*`), and rejection of automated in-system overrides.
+- `institutional-alert-matrix.md` and `institutional-intelligence-advisor-test-matrix.md` define six factual alert conditions (`INST_ALERT_*`) and an 85-scenario contract gate covering P7.2 through P7.5.
+
+Documentation is not implementation evidence, and these contracts implement no new engine, service, schema, or UI; every capability status in the registry below remains unchanged.
+
 | WC ID | Capability | Class | Priority | Primary user | Problem solved | Existing foundation | Dependencies | Required data | External dependency | Synthetic demo | Backend | Frontend | Tests | Proposal relation | PROP IDs | Target phase | Status | Definition of Done |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
 | WC-001 | Academic Digital Twin | CORE_DIFFERENTIATOR | P0 | Student | Fragmented academic state | P2 records; P3/P4 engines; P5.2 immutable snapshot/fingerprint/model package | Authorized service and product delivery | Verified record, plan, rules, versions | No | FULLY_BUILDABLE_LOCALLY | Pure versioned twin projection implemented | Overview and evidence drill-down absent | P5.2 isolation, stale-state, 51-scenario and regression evidence | SUPPORTS | PROP-001, PROP-014, PROP-017, PROP-018, PROP-021, PROP-023, PROP-050, PROP-078 | P5 | PARTIALLY_ENABLED | Immutable reproducible projection explains status, constraints, provenance, and unresolved facts without mutation. |
