@@ -116,7 +116,7 @@ The world-class roadmap contains thirteen future phases. Phase boundaries are ga
 |---|---|---|---|
 | P4 | Decision Intelligence Integration and specialized Delay Consequence | P3 engines are stable; P4.1 policy approved | **Implemented:** baseline-preserving readiness composition, annotations, typed trace, specialized delay engine, and regression evidence |
 | P5 | Digital Twin, general What-If, Scenario Comparison | P4.2 closure; immutable snapshot and provenance contracts | **Pure domain implemented:** immutable fingerprinted scenarios, three-operation evaluator, P4 Delay reuse, 16 typed deltas, same-base factual comparison, and 51-scenario evidence; authorized API/UI remains |
-| P6 | Mock Registration, Demand, Bottlenecks | P5 | **P6.2 pure domain implemented:** explicit-intent validation, fingerprint/revision resolution, nine descriptive metrics, coverage/suppression, and exact supplied-fact arithmetic; persistence, authorized APIs, frontend, real adapters, and bottleneck decisions remain open |
+| P6 | Mock Registration, Demand, Bottlenecks | P5 | **P6.2 pure domain implemented; P6.3 policy locked:** explicit-intent validation, immutable persistence/CAS, owner and institutional authorization, aggregate-only API, revalidation, and suppression contracts are defined; P6.4 persistence/security and P6.5 services/APIs remain unimplemented |
 | P7 | Advisor Copilot, Human Review, Institutional Analytics | P6 | Role-scoped review workflow and aggregate dashboards |
 | P8 | Grounded Knowledge and Decision Trace | P7 | Cited policy retrieval and replayable trace ledger |
 | P9 | Arabic UX, Visual Roadmap, Reports, Accessibility, PWA | P8 | WCAG/RTL/usability acceptance and modeled exports |
@@ -149,6 +149,10 @@ P6.1 defines Mock Registration as explicit, non-binding student intent and separ
 ### P6.2 pure-domain implementation evidence
 
 P6.2 now supplies the provider-neutral pure engine: immutable intent/fact/result models, exact Phase 5/6-backed atomic validation, privacy-minimized fingerprints, deterministic latest-valid revision resolution, plan and university-period demand views, the complete nine-metric registry, factual coverage flags, whole-result privacy suppression, and optional exact offering/capacity comparison. `WC-008` and `WC-009` are now `PARTIALLY_ENABLED`; persistence, owner RLS/auth, institutional roles, API/frontend delivery, production privacy controls, real providers, representative adoption validation, actual-registration comparison, forecasting, bottleneck ranking, section estimation, and faculty-workload decisions remain explicit open gates.
+
+### P6.3 persistence, authorization, and API policy evidence
+
+P6.3 locks policy-only contracts for immutable normalized intent revisions, exact-key compare-and-swap, atomic validation evidence, withdrawal-as-revision, explicit period authority, owner-derived access, explicit grants plus RLS, server-managed `INSTITUTIONAL_ANALYST` membership, university isolation, aggregate-only demand, current-state revalidation, and stable API/error semantics. It directly strengthens the delivery contracts for `WC-008`, `WC-009`, and `WC-044`, and enables later `WC-015`, without changing any capability status. P6.4 is deliberately limited to persistence/security and membership foundations; P6.5 owns services/APIs. Frontend, live offerings/capacity, SIS/SSO, representative validation, forecasts, bottleneck ranking, and institutional actions remain later gates.
 
 ## Governance
 
