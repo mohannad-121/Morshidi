@@ -116,7 +116,7 @@ The world-class roadmap contains thirteen future phases. Phase boundaries are ga
 |---|---|---|---|
 | P4 | Decision Intelligence Integration and specialized Delay Consequence | P3 engines are stable; P4.1 policy approved | **Implemented:** baseline-preserving readiness composition, annotations, typed trace, specialized delay engine, and regression evidence |
 | P5 | Digital Twin, general What-If, Scenario Comparison | P4.2 closure; immutable snapshot and provenance contracts | **Pure domain implemented:** immutable fingerprinted scenarios, three-operation evaluator, P4 Delay reuse, 16 typed deltas, same-base factual comparison, and 51-scenario evidence; authorized API/UI remains |
-| P6 | Mock Registration, Demand, Bottlenecks | P5 | **P6.1 policy gate locked:** intent/registration separation, revision/current-intent semantics, descriptive demand metrics, privacy suppression, and supplied-fact capacity comparison; pure implementation remains P6.2 |
+| P6 | Mock Registration, Demand, Bottlenecks | P5 | **P6.2 pure domain implemented:** explicit-intent validation, fingerprint/revision resolution, nine descriptive metrics, coverage/suppression, and exact supplied-fact arithmetic; persistence, authorized APIs, frontend, real adapters, and bottleneck decisions remain open |
 | P7 | Advisor Copilot, Human Review, Institutional Analytics | P6 | Role-scoped review workflow and aggregate dashboards |
 | P8 | Grounded Knowledge and Decision Trace | P7 | Cited policy retrieval and replayable trace ledger |
 | P9 | Arabic UX, Visual Roadmap, Reports, Accessibility, PWA | P8 | WCAG/RTL/usability acceptance and modeled exports |
@@ -145,6 +145,10 @@ P5.2 implements the pure, ephemeral Academic Digital Twin and What-If package wi
 ### P6.1 policy gate evidence
 
 P6.1 defines Mock Registration as explicit, non-binding student intent and separates it from Digital Twin scenarios, planner/recommendation output, and official registration. The contract locks deterministic revisions and current-intent resolution, Phase 5/6-backed atomic validation, exact-period descriptive aggregation, nine finite demand metrics, aggregate-first privacy suppression, coverage/provenance flags, optional supplied-fact capacity arithmetic, and a 64-scenario implementation gate. Missing offerings/capacity never become false zeros or inferred unavailability. P6.2 is pure/domain-only; persistence, APIs, auth roles, SIS adapters, frontend, actual-registration comparison, forecasting, bottleneck ranking, section estimation, and institutional actions remain later slices. Policy evidence changes no WC status.
+
+### P6.2 pure-domain implementation evidence
+
+P6.2 now supplies the provider-neutral pure engine: immutable intent/fact/result models, exact Phase 5/6-backed atomic validation, privacy-minimized fingerprints, deterministic latest-valid revision resolution, plan and university-period demand views, the complete nine-metric registry, factual coverage flags, whole-result privacy suppression, and optional exact offering/capacity comparison. `WC-008` and `WC-009` are now `PARTIALLY_ENABLED`; persistence, owner RLS/auth, institutional roles, API/frontend delivery, production privacy controls, real providers, representative adoption validation, actual-registration comparison, forecasting, bottleneck ranking, section estimation, and faculty-workload decisions remain explicit open gates.
 
 ## Governance
 
