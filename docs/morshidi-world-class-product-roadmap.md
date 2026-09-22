@@ -116,7 +116,7 @@ The world-class roadmap contains thirteen future phases. Phase boundaries are ga
 |---|---|---|---|
 | P4 | Decision Intelligence Integration and specialized Delay Consequence | P3 engines are stable; P4.1 policy approved | **Implemented:** baseline-preserving readiness composition, annotations, typed trace, specialized delay engine, and regression evidence |
 | P5 | Digital Twin, general What-If, Scenario Comparison | P4.2 closure; immutable snapshot and provenance contracts | **Pure domain implemented:** immutable fingerprinted scenarios, three-operation evaluator, P4 Delay reuse, 16 typed deltas, same-base factual comparison, and 51-scenario evidence; authorized API/UI remains |
-| P6 | Mock Registration, Demand, Bottlenecks | P5 | Intent/registration separation and synthetic demand evaluation |
+| P6 | Mock Registration, Demand, Bottlenecks | P5 | **P6.1 policy gate locked:** intent/registration separation, revision/current-intent semantics, descriptive demand metrics, privacy suppression, and supplied-fact capacity comparison; pure implementation remains P6.2 |
 | P7 | Advisor Copilot, Human Review, Institutional Analytics | P6 | Role-scoped review workflow and aggregate dashboards |
 | P8 | Grounded Knowledge and Decision Trace | P7 | Cited policy retrieval and replayable trace ledger |
 | P9 | Arabic UX, Visual Roadmap, Reports, Accessibility, PWA | P8 | WCAG/RTL/usability acceptance and modeled exports |
@@ -141,6 +141,10 @@ This policy evidence does not implement WC-001, WC-002, or WC-003 and does not c
 ### P5.2 implementation evidence
 
 P5.2 implements the pure, ephemeral Academic Digital Twin and What-If package with immutable normalized state, privacy-minimized SHA-256 fingerprints, stale-state rejection, one structural operation plus one typed constraint bundle, exact P5.1.1 satisfied-elective rejection, unchanged Phase 5–9/P4 reuse, all 16 deltas, and bounded factual comparison. The implementation trace maps all 51 committed scenarios. `WC-001` and `WC-002` remain `PARTIALLY_ENABLED`; `WC-003` advances to `PARTIALLY_ENABLED`. Product completion still requires an authorized service boundary and Arabic student experience; persistence, Mock Registration, offerings, and transactions remain later phases.
+
+### P6.1 policy gate evidence
+
+P6.1 defines Mock Registration as explicit, non-binding student intent and separates it from Digital Twin scenarios, planner/recommendation output, and official registration. The contract locks deterministic revisions and current-intent resolution, Phase 5/6-backed atomic validation, exact-period descriptive aggregation, nine finite demand metrics, aggregate-first privacy suppression, coverage/provenance flags, optional supplied-fact capacity arithmetic, and a 64-scenario implementation gate. Missing offerings/capacity never become false zeros or inferred unavailability. P6.2 is pure/domain-only; persistence, APIs, auth roles, SIS adapters, frontend, actual-registration comparison, forecasting, bottleneck ranking, section estimation, and institutional actions remain later slices. Policy evidence changes no WC status.
 
 ## Governance
 
