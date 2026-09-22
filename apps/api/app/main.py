@@ -1,7 +1,7 @@
 from contextlib import asynccontextmanager
 
 import httpx
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -9,6 +9,8 @@ from app.api.routes.eligibility import router as eligibility_router
 from app.api.routes.health import router as health_router
 from app.api.routes.student import router as student_router
 from app.api.routes.advisor import router as advisor_router
+from app.api.routes.mock_registration import router as mock_registration_router
+from app.api.routes.institutional_demand import router as institutional_demand_router
 from app.advisor.provider import ProviderFailureType, UnconfiguredAdvisorLLMProvider
 from app.providers.advisor_openai import OpenAIAdvisorProvider
 from app.catalog.errors import (
@@ -39,6 +41,13 @@ from app.degree_path.models import (
     DegreePathConstraintError,
     DegreePathIntegrityError,
 )
+from app.mock_registration_persistence.repository import SupabaseMockRegistrationRepository
+from app.mock_registration_service.context import SupabaseAcademicContextLoader
+from app.mock_registration_service.errors import (
+    HTTP_STATUS, MockRegistrationServiceError, ServiceErrorCode,
+)
+from app.mock_registration_service.institutional_service import InstitutionalDemandService
+from app.mock_registration_service.student_service import MockRegistrationStudentService
 
 
 def build_advisor_providers(client: httpx.AsyncClient):
@@ -69,6 +78,8 @@ async def lifespan(application: FastAPI):
     application.state.eligibility_service = None
     application.state.student_service = None
     application.state.advisor_service = None
+    application.state.mock_registration_student_service = None
+    application.state.institutional_demand_service = None
     if settings.supabase_url and settings.supabase_secret_key:
         repository = SupabaseAcademicCatalogRepository(
             settings.supabase_url,
@@ -93,6 +104,25 @@ async def lifespan(application: FastAPI):
             advisor_provider,
             explanation_provider,
         )
+        persistence = SupabaseMockRegistrationRepository(
+            settings.supabase_url, settings.supabase_secret_key.get_secret_value(), client)
+        context_loader = SupabaseAcademicContextLoader(
+            settings.supabase_url, settings.supabase_secret_key.get_secret_value(), client,
+            student_repository, repository)
+        application.state.mock_registration_student_service = MockRegistrationStudentService(
+            persistence, context_loader)
+        privacy_fields = {
+            "mock_registration_minimum_disclosure_group_size",
+            "mock_registration_max_intents",
+            "mock_registration_max_catalog_courses",
+        }
+        if settings.app_env in {"development", "test"} or privacy_fields <= settings.model_fields_set:
+            application.state.institutional_demand_service = InstitutionalDemandService(
+                persistence, context_loader,
+                minimum_disclosure_group_size=settings.mock_registration_minimum_disclosure_group_size,
+                max_intents=settings.mock_registration_max_intents,
+                max_catalog_courses=settings.mock_registration_max_catalog_courses,
+            )
     try:
         yield
     finally:
@@ -118,6 +148,8 @@ app.include_router(health_router)
 app.include_router(eligibility_router)
 app.include_router(student_router)
 app.include_router(advisor_router)
+app.include_router(mock_registration_router)
+app.include_router(institutional_demand_router)
 
 
 def _catalog_error_response(error_code: str, detail: str, status_code: int) -> JSONResponse:
@@ -125,6 +157,45 @@ def _catalog_error_response(error_code: str, detail: str, status_code: int) -> J
         status_code=status_code,
         content={"kind": "error", "error_code": error_code, "detail": detail},
     )
+
+
+@app.exception_handler(MockRegistrationServiceError)
+async def handle_mock_registration_service_error(
+    _: Request, exc: MockRegistrationServiceError
+) -> JSONResponse:
+    messages = {
+        ServiceErrorCode.AUTH_REQUIRED: "Authentication is required",
+        ServiceErrorCode.OWNER_SCOPE_MISMATCH: "Requested resource was not found",
+        ServiceErrorCode.ACADEMIC_CONTEXT_UNAVAILABLE: "Academic context is unavailable",
+        ServiceErrorCode.ACADEMIC_STATE_CHANGED: "Academic information changed; refresh and retry",
+        ServiceErrorCode.INVALID_INTENT: "Mock Registration intent is invalid",
+        ServiceErrorCode.REVIEW_REQUIRED: "Academic review is required",
+        ServiceErrorCode.REVISION_CONFLICT: "Mock Registration intent changed; refresh and retry",
+        ServiceErrorCode.PERIOD_INVALID: "Target period is unavailable",
+        ServiceErrorCode.PLAN_SCOPE_INVALID: "Academic plan context is invalid",
+        ServiceErrorCode.PERSISTENCE_CONFLICT: "Mock Registration state changed; refresh and retry",
+        ServiceErrorCode.PERSISTENCE_UNAVAILABLE: "Mock Registration storage is unavailable",
+        ServiceErrorCode.INSTITUTIONAL_ACCESS_DENIED: "Institutional demand access is denied",
+        ServiceErrorCode.AGGREGATION_SCOPE_INVALID: "Institutional demand scope is invalid",
+        ServiceErrorCode.RESOURCE_NOT_FOUND: "Requested resource was not found",
+    }
+    return JSONResponse(status_code=HTTP_STATUS[exc.code], content={
+        "kind": "error", "error_code": exc.code.value, "detail": messages[exc.code],
+        "reason_codes": [item.value for item in exc.reasons],
+        "current_revision": exc.current_revision,
+    })
+
+
+@app.exception_handler(HTTPException)
+async def handle_http_exception(_: Request, exc: HTTPException) -> JSONResponse:
+    if exc.status_code == 401:
+        return JSONResponse(status_code=401, content={
+            "kind": "error", "error_code": ServiceErrorCode.AUTH_REQUIRED.value,
+            "detail": "Authentication is required", "reason_codes": [],
+            "current_revision": None,
+        })
+    return JSONResponse(status_code=exc.status_code, content={"detail": exc.detail},
+                        headers=exc.headers)
 
 
 @app.exception_handler(StudyPlanNotFound)

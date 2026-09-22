@@ -116,7 +116,7 @@ The world-class roadmap contains thirteen future phases. Phase boundaries are ga
 |---|---|---|---|
 | P4 | Decision Intelligence Integration and specialized Delay Consequence | P3 engines are stable; P4.1 policy approved | **Implemented:** baseline-preserving readiness composition, annotations, typed trace, specialized delay engine, and regression evidence |
 | P5 | Digital Twin, general What-If, Scenario Comparison | P4.2 closure; immutable snapshot and provenance contracts | **Pure domain implemented:** immutable fingerprinted scenarios, three-operation evaluator, P4 Delay reuse, 16 typed deltas, same-base factual comparison, and 51-scenario evidence; authorized API/UI remains |
-| P6 | Mock Registration, Demand, Bottlenecks | P5 | **P6.2 pure domain implemented; P6.3 policy locked:** explicit-intent validation, immutable persistence/CAS, owner and institutional authorization, aggregate-only API, revalidation, and suppression contracts are defined; P6.4 persistence/security and P6.5 services/APIs remain unimplemented |
+| P6 | Mock Registration, Demand, Bottlenecks | P5 | **P6.5 backend delivery implemented:** P6.2 domain, P6.4 immutable persistence/security, and authenticated student/institutional services/APIs now operate together; frontend, real providers, representative validation, bottleneck intelligence, and institutional deployment remain open |
 | P7 | Advisor Copilot, Human Review, Institutional Analytics | P6 | Role-scoped review workflow and aggregate dashboards |
 | P8 | Grounded Knowledge and Decision Trace | P7 | Cited policy retrieval and replayable trace ledger |
 | P9 | Arabic UX, Visual Roadmap, Reports, Accessibility, PWA | P8 | WCAG/RTL/usability acceptance and modeled exports |
@@ -157,6 +157,10 @@ P6.3 locks policy-only contracts for immutable normalized intent revisions, exac
 ### P6.4 persistence and security implementation evidence
 
 P6.4 implements the additive normalized storage foundation, immutable intent revisions and course children, exact-key server-authoritative CAS, atomic header/child writes, idempotent fingerprint replay, withdrawal revisions, explicit period authority, owner-only read RLS, direct browser-write denial, and server-managed institutional memberships. Two clean local migration replays, schema/policy/grant introspection, real concurrent-writer and rollback tests, owner/tenant isolation, membership self-promotion denial, and the 72-scenario classification provide runtime evidence for `WC-008`, `WC-009`, and the relevant enforcement slice of `WC-044`. Statuses remain unchanged: P6.5 must still implement authenticated services and APIs, and frontend, real providers, representative institutional validation, production privacy governance, and official-registration integration remain open.
+
+### P6.5 authenticated service/API implementation evidence
+
+P6.5 connects verified Supabase identity, server-derived academic scope, current P6.2 validation/revalidation, P6.4 CAS persistence, active institutional membership, exact tenant scoping, P6.2 current-resolution/aggregation, and whole-result suppression through four typed FastAPI routes. Runtime evidence covers real local Auth and database writes, current reads, replay/conflict, withdrawal, authorization-before-load, aggregate-only privacy, OpenAPI safety, and all 35 previously deferred P6.5 scenarios. `WC-008` and `WC-009` remain `PARTIALLY_ENABLED`, while `WC-044` and `WC-015` remain `PLANNED`: frontend delivery, production privacy/query governance, real offering/capacity providers, representative institutional validation, dashboards, and official-registration integration remain open.
 
 ## Governance
 

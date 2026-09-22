@@ -13,6 +13,9 @@ class Settings(BaseSettings):
     supabase_secret_key: SecretStr | None = None
     advisor_llm_api_key: SecretStr | None = None
     advisor_llm_model: str | None = None
+    mock_registration_minimum_disclosure_group_size: int = 3
+    mock_registration_max_intents: int = 1000
+    mock_registration_max_catalog_courses: int = 10000
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
