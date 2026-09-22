@@ -126,6 +126,8 @@ verified data definitions
 
 **Delivery sequence:** P4.1 locked Decision Intelligence Integration policy version 1.0. P4.2 now implements shared immutable contracts, the pure delay engine, bounded Phase 7 readiness tie-breaking, Phase 8/9 annotations, read-only orchestration, and isolation/regression evidence. General Digital Twin and What-If work remains after P4.
 
+**P5.1 dependency clarification:** The next domain slice is governed by the Academic Digital Twin, What-If, Scenario Comparison, operation, delta, and test contracts. It reuses P4 Delay Consequence and unchanged Phase 5–9 engines; it does not close PROP-001, PROP-014, PROP-017, PROP-018, PROP-021, PROP-023, PROP-050, PROP-062, or PROP-078 through documentation. P5.2 is pure/domain-only and ephemeral; authorized API/UI delivery, predictive-risk evidence, live offerings, and continuous lifecycle behavior remain separate gates.
+
 This bounded V1 does not yet close risk-based ranking or planner/path ranking claims: structural risk remains non-predictive and explanation-only, while Phase 8/9 rankings remain baseline-equivalent. Any later material factor requires validated evidence, a versioned policy increment, an exact precedence position, and new isolation/fairness regressions.
 
 **P4.2 closure evidence:** `decision-intelligence-implementation.md`, `delay-consequence-implementation.md`, and `p4-decision-delay-implementation-trace.md`. Remaining dependencies are an authorized delivery surface for readiness/delay, institutional construct validation, governed predictive-risk evidence, and a separately approved policy before readiness or risk may alter Phase 8/9 ordering.

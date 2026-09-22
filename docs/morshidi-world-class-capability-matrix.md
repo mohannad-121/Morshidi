@@ -6,6 +6,17 @@ This is the canonical world-class capability registry. IDs are stable and never 
 
 Synthetic-demo values are `FULLY_BUILDABLE_LOCALLY`, `DEMO_WITH_SYNTHETIC_DATA`, `REQUIRES_REAL_DATA_FOR_VALIDATION`, or `REQUIRES_INSTITUTIONAL_INTEGRATION`.
 
+## P5.1 policy evidence (no status change)
+
+The P5.1 contract set defines implementation-ready policy evidence for `WC-001`, `WC-002`, and `WC-003`:
+
+- `academic-digital-twin-policy.md` defines immutable authoritative/modeled state, ephemeral identity/lifecycle, cloning, provenance, authorization, privacy, and P5.2 boundaries.
+- `what-if-simulator-policy.md` defines the finite V1 operation set, engine recomputation graph, result contract, and historical-intelligence isolation.
+- `scenario-comparison-policy.md` defines baseline-versus-scenario and two-scenario factual comparison with no overall score.
+- `digital-twin-operation-matrix.md`, `digital-twin-delta-matrix.md`, and `digital-twin-test-matrix.md` provide closed IDs and acceptance coverage.
+
+`WC-004` is reused unchanged through its P4 Delay Consequence contract. `WC-005`, `WC-025`, `WC-040`, and `WC-046` are enabled by the shared scenario/trace boundary but are not completed. Documentation is not executable evidence, so every registry status below remains unchanged.
+
 | WC ID | Capability | Class | Priority | Primary user | Problem solved | Existing foundation | Dependencies | Required data | External dependency | Synthetic demo | Backend | Frontend | Tests | Proposal relation | PROP IDs | Target phase | Status | Definition of Done |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
 | WC-001 | Academic Digital Twin | CORE_DIFFERENTIATOR | P0 | Student | Fragmented academic state | P2 records; P3 engines | P4 unified contract | Verified record, plan, rules, versions | No | FULLY_BUILDABLE_LOCALLY | Versioned twin projection | Overview and evidence drill-down | Replay, isolation, stale-data, contract | SUPPORTS | PROP-001, PROP-014, PROP-017, PROP-018, PROP-021, PROP-023, PROP-050, PROP-078 | P5 | PARTIALLY_ENABLED | Immutable reproducible projection explains status, constraints, provenance, and unresolved facts without mutation. |

@@ -132,6 +132,12 @@ The world-class roadmap contains thirteen future phases. Phase boundaries are ga
 
 After P4.2 closure, the next eligible phase is **P5 — Digital Twin and general What-If**. P5 may reuse P4 immutable snapshot provenance, Decision Trace, readiness-aware composition, annotations, specialized Delay Consequence, and the external Phase 9 comparison adapter. It must first define scenario identity/lifecycle, cloning and isolation, current-versus-modeled semantics, authorization/privacy, deterministic comparison, and no-write acceptance tests. No predictive model, institutional adapter, or transaction may bypass those gates.
 
+### P5.1 policy gate evidence
+
+P5.1 defines the documentation-only implementation gate in `academic-digital-twin-policy.md`, `what-if-simulator-policy.md`, `scenario-comparison-policy.md`, and the operation, delta, and test matrices. V1 is ephemeral and domain-only: one authoritative base, at most one structural operation plus one existing-policy constraint bundle, and at most two comparison sides. Supported structural operations are modeled course completion and P4 Delay Consequence omission; modeled failure/withdrawal, live availability, major/plan transition, equivalency creation, transactions, and predictive claims remain deferred or forbidden.
+
+This policy evidence does not implement WC-001, WC-002, or WC-003 and does not change their statuses. P5.2 must prove immutable cloning, engine reuse, modeled/history separation, bounded deterministic deltas/comparison, and full Phase 5–9/P3/P4 regression before implementation evidence may be claimed. API, persistence, frontend, saved scenarios, and registration remain later decisions.
+
 ## Governance
 
 Changes to a WC record require a documented rationale, dependency review, proposal crosswalk review, data classification, and updated definition of done. A capability may move from `EXTERNAL_DEPENDENCY` only when its named evidence or integration gate is met. No status in the proposal compliance matrix is changed by this roadmap lock.

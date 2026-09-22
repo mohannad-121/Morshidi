@@ -47,6 +47,7 @@ An item is `IMPLEMENTED` only when executable source and tests support the claim
 - Phase P2.1 runtime closure: `docs/student-performance-foundation-validation.md` records two successful local migration replays plus local RLS, privacy-boundary, and regression validation. This adds runtime evidence only; no compliance status changes.
 - Phase P3.1 policy contracts: `docs/student-intelligence-policy-spec.md` and companion rule/readiness/risk contracts define evidence and abstention boundaries for PROP-011–014, 058, and 078. Documentation is not implementation evidence and changes no compliance status.
 - Phase P3.2 engines: pure policy-1.0 Student Intelligence modules implement all 19 approved deterministic rules with focused safety tests. PROP-011–014 and PROP-078 move from MISSING to PARTIAL; domain/predictive/integration/UI and continuous-lifecycle gaps remain.
+- Phase P5.1 policy evidence: `academic-digital-twin-policy.md`, `what-if-simulator-policy.md`, `scenario-comparison-policy.md`, and the operation/delta/test matrices define immutable ephemeral scenario contracts and P5.2 acceptance gates. Documentation is not implementation evidence; no proposal compliance status or count changes.
 
 ## Atomic compliance matrix
 
