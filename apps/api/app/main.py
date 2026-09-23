@@ -11,6 +11,12 @@ from app.api.routes.student import router as student_router
 from app.api.routes.advisor import router as advisor_router
 from app.api.routes.mock_registration import router as mock_registration_router
 from app.api.routes.institutional_demand import router as institutional_demand_router
+from app.api.routes.institutional_intelligence import router as institutional_intelligence_router
+from app.institutional_intelligence_service import (
+    HTTP_STATUS as INSTITUTIONAL_INTELLIGENCE_HTTP_STATUS,
+    InstitutionalIntelligenceService,
+    InstitutionalIntelligenceServiceError,
+)
 from app.advisor.provider import ProviderFailureType, UnconfiguredAdvisorLLMProvider
 from app.providers.advisor_openai import OpenAIAdvisorProvider
 from app.catalog.errors import (
@@ -80,6 +86,7 @@ async def lifespan(application: FastAPI):
     application.state.advisor_service = None
     application.state.mock_registration_student_service = None
     application.state.institutional_demand_service = None
+    application.state.institutional_intelligence_service = None
     if settings.supabase_url and settings.supabase_secret_key:
         repository = SupabaseAcademicCatalogRepository(
             settings.supabase_url,
@@ -123,6 +130,12 @@ async def lifespan(application: FastAPI):
                 max_intents=settings.mock_registration_max_intents,
                 max_catalog_courses=settings.mock_registration_max_catalog_courses,
             )
+            application.state.institutional_intelligence_service = InstitutionalIntelligenceService(
+                persistence,
+                context_loader,
+                repository,
+                application.state.institutional_demand_service,
+            )
     try:
         yield
     finally:
@@ -150,6 +163,7 @@ app.include_router(student_router)
 app.include_router(advisor_router)
 app.include_router(mock_registration_router)
 app.include_router(institutional_demand_router)
+app.include_router(institutional_intelligence_router)
 
 
 def _catalog_error_response(error_code: str, detail: str, status_code: int) -> JSONResponse:
@@ -184,6 +198,16 @@ async def handle_mock_registration_service_error(
         "reason_codes": [item.value for item in exc.reasons],
         "current_revision": exc.current_revision,
     })
+
+
+@app.exception_handler(InstitutionalIntelligenceServiceError)
+async def handle_institutional_intelligence_service_error(
+    _: Request, exc: InstitutionalIntelligenceServiceError
+) -> JSONResponse:
+    return JSONResponse(
+        status_code=INSTITUTIONAL_INTELLIGENCE_HTTP_STATUS[exc.code],
+        content={"kind": "error", "error_code": exc.code.value, "detail": exc.detail},
+    )
 
 
 @app.exception_handler(HTTPException)

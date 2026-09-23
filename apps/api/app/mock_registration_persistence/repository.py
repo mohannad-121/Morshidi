@@ -198,6 +198,23 @@ class SupabaseMockRegistrationRepository:
             raise MockRegistrationPersistenceIntegrityError("load institutional membership")
         return _membership(rows[0])
 
+    async def load_active_memberships_for_user(
+        self,
+        *,
+        subject_user_id: UUID,
+        role: str = "INSTITUTIONAL_ANALYST",
+    ) -> tuple[InstitutionalMembershipRecord, ...]:
+        rows = await self._get_rows(
+            "institutional_memberships",
+            {
+                "select": "*",
+                "subject_user_id": f"eq.{subject_user_id}",
+                "role": f"eq.{role}",
+                "active": "eq.true",
+            },
+        )
+        return tuple(_membership(row) for row in rows)
+
     async def _get_rows(
         self, resource: str, params: Mapping[str, str]
     ) -> list[Mapping[str, Any]]:
