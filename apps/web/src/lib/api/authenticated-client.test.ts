@@ -111,3 +111,49 @@ test("maps network failure safely", async () => {
     status: null,
   });
 });
+
+test("constructs exact production URLs for student endpoints", async () => {
+  const urls: string[] = [];
+  const fetcher = vi.fn(async (input: RequestInfo | URL) => {
+    urls.push(String(input));
+    return new Response("{}", { status: 200 });
+  });
+  const client = new AuthenticatedApiClient(
+    tokens(),
+    fetcher,
+    "https://morshidi.onrender.com",
+  );
+  await client.request("/api/v1/me/academic-profile");
+  await client.request("/api/v1/me/academic-progress");
+  expect(urls).toEqual([
+    "https://morshidi.onrender.com/api/v1/me/academic-profile",
+    "https://morshidi.onrender.com/api/v1/me/academic-progress",
+  ]);
+});
+
+test("normalizes baseUrl with trailing slashes", async () => {
+  const urls: string[] = [];
+  const fetcher = vi.fn(async (input: RequestInfo | URL) => {
+    urls.push(String(input));
+    return new Response("{}", { status: 200 });
+  });
+  const client = new AuthenticatedApiClient(
+    tokens(),
+    fetcher,
+    "https://morshidi.onrender.com///",
+  );
+  await client.request("/api/v1/me/academic-profile");
+  expect(urls[0]).toBe("https://morshidi.onrender.com/api/v1/me/academic-profile");
+});
+
+test("invokes fetcher bound to globalThis avoiding Illegal invocation", async () => {
+  let invoked = false;
+  const fakeFetch = function (this: unknown) {
+    invoked = true;
+    expect(this).toBe(globalThis);
+    return Promise.resolve(new Response("{}", { status: 200 }));
+  };
+  const client = new AuthenticatedApiClient(tokens(), fakeFetch, "https://api.example.test");
+  await client.request("/api/v1/me/academic-profile");
+  expect(invoked).toBe(true);
+});

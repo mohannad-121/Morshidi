@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import { SignOutButton } from "@/auth/sign-out-button";
 import { useAuth } from "@/auth/auth-provider";
@@ -100,8 +100,9 @@ export default function StudentPage({ client: injectedClient }: StudentPageProps
   const auth = useAuth();
   const [profile, setProfile] = useState<AcademicProfileResponse | null>(null);
   const [progress, setProgress] = useState<AcademicProgressResponse | null>(null);
-  const [loading, setLoading] = useState(false);
   const [dashboardError, setDashboardError] = useState<DashboardError | null>(null);
+  const [isReloading, setIsReloading] = useState(false);
+  const [refreshIndex, setRefreshIndex] = useState(0);
 
   const client = useMemo(() => {
     if (injectedClient) return injectedClient;
@@ -121,48 +122,63 @@ export default function StudentPage({ client: injectedClient }: StudentPageProps
     auth.invalidateSession,
   ]);
 
-  const load = useCallback(async () => {
-    if (!auth.isAuthenticated || !client) return;
+  const activeError: DashboardError | null =
+    auth.status === "authenticated" && !client
+      ? "CONFIGURATION_ERROR"
+      : dashboardError;
 
-    setLoading(true);
+  const loading =
+    isReloading ||
+    (auth.status === "authenticated" &&
+      Boolean(client) &&
+      !profile &&
+      !progress &&
+      !activeError);
+
+  const handleRefresh = () => {
+    setIsReloading(true);
     setDashboardError(null);
-
-    try {
-      const [profileResponse, progressResponse] = await Promise.all([
-        client.request("/api/v1/me/academic-profile"),
-        client.request("/api/v1/me/academic-progress"),
-      ]);
-
-      const [nextProfile, nextProgress] = await Promise.all([
-        parseResponse<AcademicProfileResponse>(profileResponse),
-        parseResponse<AcademicProgressResponse>(progressResponse),
-      ]);
-
-      setProfile(nextProfile);
-      setProgress(nextProgress);
-    } catch (error) {
-      setProfile(null);
-      setProgress(null);
-
-      if (error instanceof Error && error.message === "NOT_FOUND") {
-        setDashboardError("NOT_FOUND");
-      } else {
-        setDashboardError(mapClientError(error));
-      }
-    } finally {
-      setLoading(false);
-    }
-  }, [auth.isAuthenticated, client]);
+    setRefreshIndex((prev) => prev + 1);
+  };
 
   useEffect(() => {
-    if (auth.status === "authenticated") {
-      if (!client) {
-        setDashboardError("CONFIGURATION_ERROR");
-        return;
-      }
-      void load();
-    }
-  }, [auth.status, client, load]);
+    if (auth.status !== "authenticated" || !client) return;
+
+    let ignore = false;
+
+    void Promise.all([
+      client.request("/api/v1/me/academic-profile"),
+      client.request("/api/v1/me/academic-progress"),
+    ])
+      .then(async ([profileResponse, progressResponse]) => {
+        const [nextProfile, nextProgress] = await Promise.all([
+          parseResponse<AcademicProfileResponse>(profileResponse),
+          parseResponse<AcademicProgressResponse>(progressResponse),
+        ]);
+        if (!ignore) {
+          setProfile(nextProfile);
+          setProgress(nextProgress);
+          setDashboardError(null);
+          setIsReloading(false);
+        }
+      })
+      .catch((error: unknown) => {
+        if (!ignore) {
+          setProfile(null);
+          setProgress(null);
+          if (error instanceof Error && error.message === "NOT_FOUND") {
+            setDashboardError("NOT_FOUND");
+          } else {
+            setDashboardError(mapClientError(error));
+          }
+          setIsReloading(false);
+        }
+      });
+
+    return () => {
+      ignore = true;
+    };
+  }, [auth.status, client, refreshIndex]);
 
   if (auth.isLoading) {
     return (
@@ -198,7 +214,7 @@ export default function StudentPage({ client: injectedClient }: StudentPageProps
           <div className="flex flex-wrap gap-3">
             <button
               type="button"
-              onClick={() => void load()}
+              onClick={handleRefresh}
               disabled={loading || !client}
               className="rounded-xl border border-zinc-700 px-4 py-2 text-sm font-medium disabled:opacity-50"
             >
@@ -216,16 +232,16 @@ export default function StudentPage({ client: injectedClient }: StudentPageProps
           </section>
         ) : null}
 
-        {!loading && dashboardError ? (
+        {!loading && activeError ? (
           <section
-            role={dashboardError === "NOT_FOUND" ? undefined : "alert"}
+            role={activeError === "NOT_FOUND" ? undefined : "alert"}
             className="rounded-3xl border border-zinc-800 bg-zinc-900 p-8"
           >
-            <p className="text-zinc-200">{errorMessage(dashboardError)}</p>
-            {isRetryable(dashboardError) ? (
+            <p className="text-zinc-200">{errorMessage(activeError)}</p>
+            {isRetryable(activeError) ? (
               <button
                 type="button"
-                onClick={() => void load()}
+                onClick={handleRefresh}
                 className="mt-5 rounded-xl bg-emerald-500 px-4 py-2 font-semibold text-zinc-950"
               >
                 إعادة المحاولة
@@ -234,7 +250,7 @@ export default function StudentPage({ client: injectedClient }: StudentPageProps
           </section>
         ) : null}
 
-        {!loading && !dashboardError && profile && progress ? (
+        {!loading && !activeError && profile && progress ? (
           <>
             <section className="grid gap-4 lg:grid-cols-2">
               <article className="rounded-3xl border border-zinc-800 bg-zinc-900 p-6">

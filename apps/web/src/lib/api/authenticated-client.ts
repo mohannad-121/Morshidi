@@ -24,14 +24,25 @@ export interface SessionTokenSource {
   invalidateSession(): Promise<void>;
 }
 
-type Fetcher = (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>;
+export type Fetcher = (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>;
 
 export class AuthenticatedApiClient {
+  private readonly fetcher: Fetcher;
+  private readonly baseUrl: string;
+
   constructor(
     private readonly tokens: SessionTokenSource,
-    private readonly fetcher: Fetcher = fetch,
-    private readonly baseUrl: string = getPublicApiBaseUrl(),
-  ) {}
+    fetcher: Fetcher = (...args) => globalThis.fetch(...args),
+    baseUrl: string = getPublicApiBaseUrl(),
+  ) {
+    this.baseUrl = baseUrl.replace(/\/+$/, "");
+    this.fetcher = (input, init) => {
+      if (typeof globalThis !== "undefined" && fetcher === globalThis.fetch) {
+        return globalThis.fetch(input, init);
+      }
+      return fetcher.call(globalThis, input, init);
+    };
+  }
 
   async request(path: `/api/v1/me/${string}`, init: RequestInit = {}): Promise<Response> {
     const token = await this.tokens.getAccessToken();
@@ -71,7 +82,8 @@ export class AuthenticatedApiClient {
     headers.set("Authorization", `Bearer ${token}`);
     try {
       return await this.fetcher(`${this.baseUrl}${path}`, { ...init, headers });
-    } catch {
+    } catch (err: unknown) {
+      if (err instanceof AuthenticatedApiError) throw err;
       throw new AuthenticatedApiError("NETWORK_ERROR", null);
     }
   }

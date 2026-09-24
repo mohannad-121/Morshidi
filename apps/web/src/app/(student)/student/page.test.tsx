@@ -4,6 +4,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import StudentPage from "@/app/(student)/student/page";
 import { AuthProvider } from "@/auth/auth-provider";
+import { contentSecurityPolicy } from "../../../../next.config";
 import {
   AuthenticatedApiClient,
   type SessionTokenSource,
@@ -139,7 +140,8 @@ describe("Student Dashboard (لوحة الطالب)", () => {
     expect(screen.getByText("student@example.com")).toBeDefined();
 
     // Verify Academic Profile Card
-    expect(screen.getByRole("heading", { name: "الملف الأكاديمي", level: 2 })).toBeDefined();
+    const profileHeading = await screen.findByRole("heading", { name: "الملف الأكاديمي", level: 2 });
+    expect(profileHeading).toBeDefined();
     expect(screen.getByText("plan-uuid-123")).toBeDefined();
     expect(screen.getByText("3.85")).toBeDefined();
     expect(screen.getByText("4")).toBeDefined();
@@ -506,5 +508,13 @@ describe("Student Dashboard (لوحة الطالب)", () => {
 
     const msg = await screen.findByText("يجب تسجيل الدخول للوصول إلى لوحة الطالب.");
     expect(msg).toBeDefined();
+  });
+});
+
+describe("Content Security Policy (next.config.ts)", () => {
+  it("explicitly permits backend and supabase in connect-src without wildcards", () => {
+    expect(contentSecurityPolicy).toContain("https://morshidi.onrender.com");
+    expect(contentSecurityPolicy).toContain("https://*.supabase.co");
+    expect(contentSecurityPolicy).not.toContain("connect-src *");
   });
 });
