@@ -12,6 +12,15 @@ from app.api.routes.advisor import router as advisor_router
 from app.api.routes.mock_registration import router as mock_registration_router
 from app.api.routes.institutional_demand import router as institutional_demand_router
 from app.api.routes.institutional_intelligence import router as institutional_intelligence_router
+from app.api.routes.advisor_copilot import router as advisor_copilot_router
+from app.advisor_copilot import (
+    AdvisorCopilotService,
+    AdvisorCopilotServiceError,
+)
+from app.advisor_copilot.adapters import AdvisorMockRegistrationReader
+from app.advisor_copilot.errors import HTTP_STATUS as ADVISOR_COPILOT_HTTP_STATUS
+from app.advisor_persistence.repository import SupabaseAdvisorAssignmentRepository
+from app.advisor_service.authorization import AdvisorAuthorizationService
 from app.institutional_intelligence_service import (
     HTTP_STATUS as INSTITUTIONAL_INTELLIGENCE_HTTP_STATUS,
     InstitutionalIntelligenceService,
@@ -87,6 +96,7 @@ async def lifespan(application: FastAPI):
     application.state.mock_registration_student_service = None
     application.state.institutional_demand_service = None
     application.state.institutional_intelligence_service = None
+    application.state.advisor_copilot_service = None
     if settings.supabase_url and settings.supabase_secret_key:
         repository = SupabaseAcademicCatalogRepository(
             settings.supabase_url,
@@ -118,6 +128,21 @@ async def lifespan(application: FastAPI):
             student_repository, repository)
         application.state.mock_registration_student_service = MockRegistrationStudentService(
             persistence, context_loader)
+        advisor_assignment_repo = SupabaseAdvisorAssignmentRepository(
+            settings.supabase_url,
+            settings.supabase_secret_key.get_secret_value(),
+            client,
+        )
+        advisor_auth_service = AdvisorAuthorizationService(advisor_assignment_repo)
+        advisor_mock_reg_reader = AdvisorMockRegistrationReader(persistence, context_loader)
+        application.state.advisor_copilot_service = AdvisorCopilotService(
+            advisor_auth_service,
+            student_repository,
+            repository,
+            application.state.eligibility_service,
+            mock_registration_reader=advisor_mock_reg_reader,
+            context_loader=context_loader,
+        )
         privacy_fields = {
             "mock_registration_minimum_disclosure_group_size",
             "mock_registration_max_intents",
@@ -164,6 +189,7 @@ app.include_router(advisor_router)
 app.include_router(mock_registration_router)
 app.include_router(institutional_demand_router)
 app.include_router(institutional_intelligence_router)
+app.include_router(advisor_copilot_router)
 
 
 def _catalog_error_response(error_code: str, detail: str, status_code: int) -> JSONResponse:
@@ -206,6 +232,16 @@ async def handle_institutional_intelligence_service_error(
 ) -> JSONResponse:
     return JSONResponse(
         status_code=INSTITUTIONAL_INTELLIGENCE_HTTP_STATUS[exc.code],
+        content={"kind": "error", "error_code": exc.code.value, "detail": exc.detail},
+    )
+
+
+@app.exception_handler(AdvisorCopilotServiceError)
+async def handle_advisor_copilot_service_error(
+    _: Request, exc: AdvisorCopilotServiceError
+) -> JSONResponse:
+    return JSONResponse(
+        status_code=ADVISOR_COPILOT_HTTP_STATUS.get(exc.code, exc.status_code),
         content={"kind": "error", "error_code": exc.code.value, "detail": exc.detail},
     )
 
