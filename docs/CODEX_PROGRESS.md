@@ -1,5 +1,19 @@
 # Morshidi — Codex Progress Record
 
+## Controlled GitHub handoff -- Draft PR created (2026-09-25)
+
+**Branch/remote:** `chore/p8-recovery-baseline` was pushed to `origin` only; `main` was
+not changed, merged, force-pushed, or deployed. The actual implementation commits are
+`a5d244767972e9706cbee96f97708b121b79e2a7` (recovery/instructions),
+`ef7c27fd9dbfc30a1a73fa796793114bdb9b3c59` (P8 ledger foundation),
+`6c26ae8370a99c1794830a2b7fed9b81da39c6c2` (P8 trusted persistence/internal mapper),
+and `4b2a07efaf589562d8482f2bc795daa79cf2884e` (P6 outbox/replay integrity).
+
+**Owner review:** Draft PR [#1 — P8 Decision Trace Foundation and P6 Outbox — Review](https://github.com/mohannad-121/Morshidi/pull/1)
+targets `main` from `chore/p8-recovery-baseline`. It explicitly records that P8 Slice 2
+is **NOT ACCEPTED**, production deployment is **NOT APPROVED**, and owner approval is
+required before any merge. No auto-merge was enabled.
+
 ## Controlled GitHub handoff audit -- proposed owner review (2026-09-25)
 
 **Scope:** audit and proposed delivery plan only; no staging, commit, push, pull request,
