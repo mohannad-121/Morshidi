@@ -10,6 +10,7 @@ __pycache__/
 
 # Python virtual environments
 .venv/
+apps/api/.venv311/
 venv/
 env/
 ENV/
