@@ -35,6 +35,7 @@ from .provider import (
     InMemoryInstitutionalPolicyProvider,
     InstitutionalPolicyProvider,
 )
+from .supabase_provider import SupabaseInstitutionalPolicyProvider
 
 __all__ = [
     "SourceAdmissionStatus",
@@ -59,4 +60,5 @@ __all__ = [
     "classify_academic_query",
     "InstitutionalPolicyProvider",
     "InMemoryInstitutionalPolicyProvider",
+    "SupabaseInstitutionalPolicyProvider",
 ]

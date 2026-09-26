@@ -23,6 +23,12 @@ class SourceAdmissionStatus(str, Enum):
     UNAVAILABLE = "UNAVAILABLE"
     """Archived, revoked, or temporarily inaccessible source."""
 
+    PENDING_REVIEW = "PENDING_REVIEW"
+    """Source under formal administrative review; held from authoritative retrieval."""
+
+    WITHDRAWN = "WITHDRAWN"
+    """Source formally withdrawn by university authority; excluded from retrieval."""
+
 
 class GroundingStatus(str, Enum):
     """Deterministic grounding evaluation status for a policy query."""
@@ -101,6 +107,8 @@ class LimitationCode(str, Enum):
     CROSS_UNIVERSITY_DENIED = "CROSS_UNIVERSITY_DENIED"
     UNSUPPORTED_OUT_OF_CORPUS = "UNSUPPORTED_OUT_OF_CORPUS"
     STUDENT_RECORD_DISCLOSURE_DENIED = "STUDENT_RECORD_DISCLOSURE_DENIED"
+    PENDING_REVIEW_HELD = "PENDING_REVIEW_HELD"
+    WITHDRAWN_SOURCE_EXCLUDED = "WITHDRAWN_SOURCE_EXCLUDED"
 
 
 class PolicyErrorCode(str, Enum):
