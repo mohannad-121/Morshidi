@@ -28,6 +28,8 @@ import type {
   RecommendationResponse,
   SemesterPlannerResponse,
   StudentIntentResponse,
+  StudentPolicyDocumentDetail,
+  StudentPolicyDocumentSummary,
 } from '@/lib/api/student-types';
 
 vi.mock('next/navigation', () => ({
@@ -300,10 +302,59 @@ const mockAdvisor: AdvisorResponse = {
   explanation_language: 'ar',
 };
 
+const mockPolicySummary: StudentPolicyDocumentSummary = {
+  id: 'doc-policy-1',
+  university_id: 'univ-1',
+  document_code: 'BYLAW-2026',
+  title: 'تعليمات منح درجة البكالوريوس',
+  authority_level: 'university_council',
+  category: 'academic_bylaws',
+  language: 'ar',
+  active_version_tag: '1.0',
+  passage_count: 1,
+};
+
+const mockPolicyDetail: StudentPolicyDocumentDetail = {
+  id: 'doc-policy-1',
+  university_id: 'univ-1',
+  document_code: 'BYLAW-2026',
+  title: 'تعليمات منح درجة البكالوريوس',
+  authority_level: 'university_council',
+  category: 'academic_bylaws',
+  language: 'ar',
+  active_version: {
+    id: 'ver-1',
+    version_tag: '1.0',
+    status: 'verified',
+    effective_start_date: '2026-09-01T00:00:00Z',
+  },
+  passages: [
+    {
+      id: 'pas-1',
+      locator_text: 'المادة 5',
+      passage_text: 'الحد الأدنى للعبء الدراسي في الفصل الاعتيادي هو 12 ساعة معتمدة.',
+      article_number: '5',
+      sequence_order: 0,
+    },
+  ],
+};
+
 function setupMockFetch() {
   return vi.spyOn(globalThis, 'fetch').mockImplementation(async (input: RequestInfo | URL) => {
     const url = String(input);
 
+    if (url.includes('/api/v1/me/policies/')) {
+      return new Response(JSON.stringify(mockPolicyDetail), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    }
+    if (url.includes('/api/v1/me/policies')) {
+      return new Response(JSON.stringify([mockPolicySummary]), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    }
     if (url.includes('/api/v1/me/academic-profile/attempts')) {
       return new Response(JSON.stringify(mockAttempts), {
         status: 200,
@@ -489,12 +540,26 @@ describe('Morshidi Student Portal Pages Suite', () => {
     expect(screen.getByText('المصدر: DETERMINISTIC_RULES_ENGINE')).toBeDefined();
   });
 
-  it('renders PoliciesPage and DecisionHistoryPage with under development state', () => {
-    const { unmount } = render(<PoliciesPage />);
+  it('renders PoliciesPage with real policies from API and opens detail modal', async () => {
+    const user = userEvent.setup();
+    renderWithAuth(<PoliciesPage />);
     expect(screen.getByText('اللوائح والسياسات الجامعية')).toBeDefined();
-    expect(screen.getByText('بوابة اللوائح والسياسات قيد التجهيز')).toBeDefined();
-    unmount();
 
+    await waitFor(() => {
+      expect(screen.getByText('تعليمات منح درجة البكالوريوس')).toBeDefined();
+      expect(screen.getByText('BYLAW-2026')).toBeDefined();
+    });
+
+    const policyCard = screen.getByText('تعليمات منح درجة البكالوريوس');
+    await user.click(policyCard);
+
+    await waitFor(() => {
+      expect(screen.getByText(/الحد الأدنى للعبء الدراسي في الفصل الاعتيادي/)).toBeDefined();
+      expect(screen.getAllByText(/المادة 5/).length).toBeGreaterThan(0);
+    });
+  });
+
+  it('renders DecisionHistoryPage with under development state', () => {
     render(<DecisionHistoryPage />);
     expect(screen.getByText('سجل القرارات والتدقيق الأكاديمي')).toBeDefined();
     expect(screen.getByText('سجل القرارات الأكاديمية قيد التجهيز')).toBeDefined();

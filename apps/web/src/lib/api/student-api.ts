@@ -17,6 +17,8 @@ import type {
   SemesterPlanRequest,
   SemesterPlannerResponse,
   StudentIntentResponse,
+  StudentPolicyDocumentDetail,
+  StudentPolicyDocumentSummary,
   SubmitIntentRequest,
   WithdrawIntentRequest,
 } from "@/lib/api/student-types";
@@ -166,5 +168,15 @@ export class StudentApiService {
       body: JSON.stringify(request),
     });
     return parseJson<AdvisorResponse>(res);
+  }
+
+  async listPolicies(): Promise<StudentPolicyDocumentSummary[]> {
+    const res = await this.client.request("/api/v1/me/policies");
+    return parseJson<StudentPolicyDocumentSummary[]>(res);
+  }
+
+  async getPolicyDetail(documentId: string): Promise<StudentPolicyDocumentDetail> {
+    const res = await this.client.request(`/api/v1/me/policies/${encodeURIComponent(documentId)}`);
+    return parseJson<StudentPolicyDocumentDetail>(res);
   }
 }

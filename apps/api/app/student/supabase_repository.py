@@ -217,6 +217,13 @@ class SupabaseStudentAcademicRepository:
         self._require_success(response, "DELETE", "student_course_attempts")
         if not _response_rows(response): raise StudentAttemptNotFound("Student course attempt was not found")
 
+    async def resolve_student_university_id(self, owner_user_id: UUID | str) -> str:
+        profiles = await self._get_rows("student_academic_profiles", {
+            "select": "id,study_plans(majors(faculties(university_id)))", "owner_user_id": f"eq.{owner_user_id}"})
+        if not profiles: raise StudentProfileNotFound("Student academic profile was not found")
+        if len(profiles) != 1: raise StudentProfileIntegrityError("Multiple student profiles matched one owner")
+        return _profile_university_id(profiles[0])
+
     async def _resolve_course_for_owner(self, owner_user_id: UUID | str, course_code: str) -> tuple[str, str]:
         profiles = await self._get_rows("student_academic_profiles", {
             "select": "id,study_plans(majors(faculties(university_id)))", "owner_user_id": f"eq.{owner_user_id}"})

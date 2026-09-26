@@ -36,6 +36,23 @@ from .provider import (
     InstitutionalPolicyProvider,
 )
 from .supabase_provider import SupabaseInstitutionalPolicyProvider
+from .ingestion import (
+    InMemoryPolicyIngestionStorage,
+    PolicyConflictError,
+    PolicyDocumentIngestionInput,
+    PolicyIngestionError,
+    PolicyIngestionResult,
+    PolicyIngestionStorage,
+    PolicyPassageIngestionInput,
+    SupabasePolicyIngestionStorage,
+    TenantViolationError,
+)
+from .service import (
+    InMemoryPolicyReadStorage,
+    PolicyReadStorage,
+    StudentPolicyService,
+    SupabasePolicyReadStorage,
+)
 
 __all__ = [
     "SourceAdmissionStatus",
@@ -61,4 +78,17 @@ __all__ = [
     "InstitutionalPolicyProvider",
     "InMemoryInstitutionalPolicyProvider",
     "SupabaseInstitutionalPolicyProvider",
+    "PolicyPassageIngestionInput",
+    "PolicyDocumentIngestionInput",
+    "PolicyIngestionResult",
+    "PolicyIngestionStorage",
+    "InMemoryPolicyIngestionStorage",
+    "SupabasePolicyIngestionStorage",
+    "PolicyIngestionError",
+    "PolicyConflictError",
+    "TenantViolationError",
+    "PolicyReadStorage",
+    "InMemoryPolicyReadStorage",
+    "SupabasePolicyReadStorage",
+    "StudentPolicyService",
 ]

@@ -1,0 +1,93 @@
+"""Authenticated student-facing institutional policy routes (WC-038).
+
+AI EXPLAINS — DETERMINISTIC RULES DECIDE.
+Read-only surface for students to access verified university regulations and institutional policies.
+Enforces:
+- Strict university-level tenant isolation (derived from authenticated student profile).
+- Reading only VERIFIED policy versions.
+- Preserving exact citations, version tags, and passage locators.
+- Zero client-controlled tenant bypass.
+"""
+
+from __future__ import annotations
+
+from typing import Annotated
+
+from fastapi import APIRouter, Depends, HTTPException, Request, status
+
+from app.api.schemas.policy import (
+    StudentPolicyDocumentDetail,
+    StudentPolicyDocumentSummary,
+)
+from app.core.auth import CurrentUser, get_current_user
+from app.institutional_policy.errors import PolicyRetrievalError
+from app.institutional_policy.service import StudentPolicyService
+from app.services.student import StudentConfigurationError, StudentService
+from app.student.errors import StudentProfileNotFound
+
+router = APIRouter(prefix="/api/v1/me/policies", tags=["policies"], dependencies=[Depends(get_current_user)])
+AuthenticatedUser = Annotated[CurrentUser, Depends(get_current_user)]
+
+
+def get_policy_service(request: Request) -> StudentPolicyService:
+    service = getattr(request.app.state, "policy_service", None)
+    if service is None:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Policy service is not configured",
+        )
+    return service
+
+
+def get_student_service(request: Request) -> StudentService:
+    service = getattr(request.app.state, "student_service", None)
+    if service is None:
+        raise StudentConfigurationError("Student service is not configured")
+    return service
+
+
+PolicyServiceDependency = Annotated[StudentPolicyService, Depends(get_policy_service)]
+StudentServiceDependency = Annotated[StudentService, Depends(get_student_service)]
+
+
+@router.get("", response_model=list[StudentPolicyDocumentSummary])
+async def list_student_policies(
+    user: AuthenticatedUser,
+    policy_service: PolicyServiceDependency,
+    student_service: StudentServiceDependency,
+) -> list[StudentPolicyDocumentSummary]:
+    """List verified institutional policy documents for the student's university."""
+    try:
+        university_id = await student_service.resolve_student_university_id(user.user_id)
+    except StudentProfileNotFound:
+        return []
+
+    docs = await policy_service.list_policies_for_student(university_id)
+    return [StudentPolicyDocumentSummary.model_validate(d) for d in docs]
+
+
+@router.get("/{document_id}", response_model=StudentPolicyDocumentDetail)
+async def get_student_policy_detail(
+    document_id: str,
+    user: AuthenticatedUser,
+    policy_service: PolicyServiceDependency,
+    student_service: StudentServiceDependency,
+) -> StudentPolicyDocumentDetail:
+    """Get full detail of a verified institutional policy document with passages."""
+    try:
+        university_id = await student_service.resolve_student_university_id(user.user_id)
+    except StudentProfileNotFound:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Student profile not found",
+        )
+
+    try:
+        detail = await policy_service.get_policy_detail_for_student(university_id, document_id)
+    except PolicyRetrievalError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=exc.detail,
+        ) from exc
+
+    return StudentPolicyDocumentDetail.model_validate(detail)

@@ -13,6 +13,11 @@ from app.api.routes.mock_registration import router as mock_registration_router
 from app.api.routes.institutional_demand import router as institutional_demand_router
 from app.api.routes.institutional_intelligence import router as institutional_intelligence_router
 from app.api.routes.advisor_copilot import router as advisor_copilot_router
+from app.api.routes.policies import router as policies_router
+from app.institutional_policy.service import (
+    StudentPolicyService,
+    SupabasePolicyReadStorage,
+)
 from app.advisor_copilot import (
     AdvisorCopilotService,
     AdvisorCopilotServiceError,
@@ -97,6 +102,7 @@ async def lifespan(application: FastAPI):
     application.state.institutional_demand_service = None
     application.state.institutional_intelligence_service = None
     application.state.advisor_copilot_service = None
+    application.state.policy_service = None
     if settings.supabase_url and settings.supabase_secret_key:
         repository = SupabaseAcademicCatalogRepository(
             settings.supabase_url,
@@ -161,6 +167,12 @@ async def lifespan(application: FastAPI):
                 repository,
                 application.state.institutional_demand_service,
             )
+        policy_storage = SupabasePolicyReadStorage(
+            settings.supabase_url,
+            settings.supabase_secret_key.get_secret_value(),
+            client,
+        )
+        application.state.policy_service = StudentPolicyService(policy_storage)
     try:
         yield
     finally:
@@ -190,6 +202,7 @@ app.include_router(mock_registration_router)
 app.include_router(institutional_demand_router)
 app.include_router(institutional_intelligence_router)
 app.include_router(advisor_copilot_router)
+app.include_router(policies_router)
 
 
 def _catalog_error_response(error_code: str, detail: str, status_code: int) -> JSONResponse:

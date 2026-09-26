@@ -391,3 +391,52 @@ export type DashboardError =
   | "NETWORK_ERROR"
   | "CONFIGURATION_ERROR"
   | "UNKNOWN";
+
+export interface StudentPolicyPassage {
+  id: string;
+  locator_text: string;
+  passage_text: string;
+  article_number?: string | null;
+  section_number?: string | null;
+  page_number?: number | null;
+  heading?: string | null;
+  sequence_order: number;
+  passage_sha256?: string | null;
+}
+
+export interface StudentPolicyDocumentSummary {
+  id: string;
+  university_id: string;
+  document_code: string;
+  title: string;
+  authority_level: string;
+  category: string;
+  language: string;
+  active_version_tag: string;
+  effective_start_date?: string | null;
+  passage_count: number;
+}
+
+export interface StudentPolicyVersionDetail {
+  id: string;
+  version_tag: string;
+  status: string;
+  effective_start_date?: string | null;
+  effective_end_date?: string | null;
+  content_sha256?: string | null;
+  verified_at?: string | null;
+  verified_by?: string | null;
+  source_url?: string | null;
+}
+
+export interface StudentPolicyDocumentDetail {
+  id: string;
+  university_id: string;
+  document_code: string;
+  title: string;
+  authority_level: string;
+  category: string;
+  language: string;
+  active_version: StudentPolicyVersionDetail;
+  passages: StudentPolicyPassage[];
+}
