@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { useEffect, useMemo, useState } from "react";
 import { SignOutButton } from "@/auth/sign-out-button";
 import { useAuth } from "@/auth/auth-provider";
@@ -207,22 +208,34 @@ export default function StudentPage({ client: injectedClient }: StudentPageProps
       {/* Header & Welcome banner */}
       <div className="relative overflow-hidden rounded-3xl border border-[#EDE2C5] bg-gradient-to-l from-[#FFF4C7]/80 via-[#FFF9E8] to-[#FFFFFF] p-6 shadow-xs sm:p-8">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <div className="flex items-center gap-2">
-              <span className="rounded-full bg-[#A66F00]/10 px-2.5 py-0.5 text-xs font-bold text-[#A66F00]">
-                مرشدي
-              </span>
-              <span className="text-xs text-[#726B5E]">بوابة الطالب الأكاديمية</span>
+          <div className="flex items-center gap-4">
+            <div className="relative hidden sm:flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-[#EDE2C5] bg-[#FFF4C7] shadow-2xs">
+              <Image
+                src="/brand/morshidi-guide.png"
+                alt="مرشدي"
+                width={56}
+                height={56}
+                className="object-contain"
+                priority
+              />
             </div>
-            <h1 className="mt-2 text-2xl font-bold tracking-tight text-[#28241C] sm:text-3xl">
-              لوحة الطالب
-            </h1>
-            <p className="mt-1 text-sm text-[#726B5E]">
-              مرحباً،{" "}
-              <span className="font-semibold text-[#28241C]" dir="ltr">
-                {auth.user?.email ?? "غير متوفر"}
-              </span>
-            </p>
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="rounded-full bg-[#A66F00]/10 px-2.5 py-0.5 text-xs font-bold text-[#A66F00]">
+                  حسابي الأكاديمي
+                </span>
+                <span className="text-xs text-[#726B5E]">لوحة المتابعة الشخصية</span>
+              </div>
+              <h1 className="mt-1 text-2xl font-bold tracking-tight text-[#28241C] sm:text-3xl">
+                لوحة الطالب
+              </h1>
+              <p className="mt-1 text-sm text-[#726B5E]">
+                مرحباً،{" "}
+                <span className="font-semibold text-[#28241C]" dir="ltr">
+                  {auth.user?.email ?? "غير متوفر"}
+                </span>
+              </p>
+            </div>
           </div>
 
           <div className="flex flex-wrap items-center gap-2 self-start sm:self-center">
@@ -238,6 +251,40 @@ export default function StudentPage({ client: injectedClient }: StudentPageProps
             </button>
             <SignOutButton />
           </div>
+        </div>
+
+        {/* Account Sub-navigation Tabs */}
+        <div className="mt-5 flex flex-wrap items-center gap-2 border-t border-[#EDE2C5]/60 pt-4">
+          <Link
+            href="/student"
+            className="rounded-xl bg-[#A66F00] px-3.5 py-1.5 text-xs font-semibold text-white shadow-2xs"
+          >
+            نظرة عامة
+          </Link>
+          <Link
+            href="/student/profile"
+            className="rounded-xl border border-[#EDE2C5] bg-white px-3.5 py-1.5 text-xs font-semibold text-[#28241C] hover:bg-[#FFF9E8] transition-colors"
+          >
+            الملف الأكاديمي
+          </Link>
+          <Link
+            href="/student/progress"
+            className="rounded-xl border border-[#EDE2C5] bg-white px-3.5 py-1.5 text-xs font-semibold text-[#28241C] hover:bg-[#FFF9E8] transition-colors"
+          >
+            التقدم الأكاديمي
+          </Link>
+          <Link
+            href="/student/courses"
+            className="rounded-xl border border-[#EDE2C5] bg-white px-3.5 py-1.5 text-xs font-semibold text-[#28241C] hover:bg-[#FFF9E8] transition-colors"
+          >
+            سجل موادي
+          </Link>
+          <Link
+            href="/student/planner"
+            className="rounded-xl border border-[#EDE2C5] bg-white px-3.5 py-1.5 text-xs font-semibold text-[#28241C] hover:bg-[#FFF9E8] transition-colors"
+          >
+            مخطط الفصل
+          </Link>
         </div>
 
         {/* Governance banner */}

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import Image from "next/image";
 import { useAuth } from "@/auth/auth-provider";
 import { useAuthenticatedApi } from "@/lib/api/use-authenticated-api";
 import { StudentApiService } from "@/lib/api/student-api";
@@ -50,7 +51,7 @@ export default function AdvisorPage() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    messagesEndRef.current?.scrollIntoView?.({ behavior: "smooth" });
   };
 
   useEffect(() => {
@@ -102,17 +103,28 @@ export default function AdvisorPage() {
   return (
     <div className="flex h-[calc(100vh-140px)] flex-col space-y-4">
       {/* Header */}
-      <div className="flex shrink-0 flex-col gap-2 border-b border-[#EDE2C5] pb-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <div className="flex items-center gap-2">
-            <span className="rounded-full bg-[#A66F00]/10 px-2.5 py-0.5 text-xs font-bold text-[#A66F00]">
-              المساعد الأكاديمي الحتمي
-            </span>
-            <span className="text-xs text-[#726B5E]">شرح مدعوم بالأدلة القطعية</span>
+      <div className="flex shrink-0 flex-col gap-3 border-b border-[#EDE2C5] pb-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex items-center gap-3">
+          <div className="relative h-12 w-12 shrink-0 rounded-2xl bg-[#FFF4C7] p-1 border border-[#E2AD27]/30 shadow-xs flex items-center justify-center">
+            <Image
+              src="/brand/morshidi-guide.png"
+              alt="مرشدي"
+              width={48}
+              height={48}
+              className="h-full w-full object-contain"
+            />
           </div>
-          <h1 className="mt-1 text-2xl font-bold tracking-tight text-[#28241C]">
-            المرشد الأكاديمي الذكي
-          </h1>
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="rounded-full bg-[#A66F00]/10 px-2.5 py-0.5 text-xs font-bold text-[#A66F00]">
+                المساعد الأكاديمي الحتمي
+              </span>
+              <span className="text-xs text-[#726B5E]">شرح مدعوم بالأدلة القطعية</span>
+            </div>
+            <h1 className="mt-1 text-2xl font-bold tracking-tight text-[#28241C]">
+              المرشد الأكاديمي الذكي
+            </h1>
+          </div>
         </div>
 
         <div className="flex items-center gap-2">
@@ -149,8 +161,14 @@ export default function AdvisorPage() {
           >
             {/* Avatar */}
             {msg.sender === "advisor" ? (
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-[#FFF4C7] text-[#A66F00] shadow-xs">
-                <MorshidiLogo className="h-6 w-6" />
+              <div className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-[#FFF4C7] p-1 border border-[#E2AD27]/30 shadow-xs">
+                <Image
+                  src="/brand/morshidi-guide.png"
+                  alt="مرشدي"
+                  width={36}
+                  height={36}
+                  className="h-full w-full object-contain"
+                />
               </div>
             ) : (
               <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-[#E2AD27] font-bold text-[#28241C] shadow-xs">

@@ -5,7 +5,13 @@ import { useState } from "react";
 
 import { useAuth } from "@/auth/auth-provider";
 
-export function SignOutButton() {
+export function SignOutButton({
+  className,
+  children,
+}: {
+  className?: string;
+  children?: React.ReactNode;
+} = {}) {
   const auth = useAuth();
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -21,8 +27,13 @@ export function SignOutButton() {
   }
 
   return (
-    <button className="button-secondary" disabled={isSubmitting} onClick={handleSignOut} type="button">
-      {isSubmitting ? "جاري تسجيل الخروج…" : "تسجيل الخروج"}
+    <button
+      className={className ?? "button-secondary"}
+      disabled={isSubmitting}
+      onClick={handleSignOut}
+      type="button"
+    >
+      {isSubmitting ? "جاري تسجيل الخروج…" : children ?? "تسجيل الخروج"}
     </button>
   );
 }

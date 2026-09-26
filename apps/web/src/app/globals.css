@@ -1,48 +1,45 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #FFFCF4;
+  --foreground: #28241C;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Cairo", "Tajawal", "Noto Sans Arabic", sans-serif;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
 }
 
 button,
 a,
-input {
-  outline-offset: 3px;
+input,
+select,
+textarea {
+  outline-offset: 2px;
 }
 
 button:focus-visible,
 a:focus-visible,
-input:focus-visible {
-  outline: 2px solid #059669;
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: 2px solid #A66F00;
 }
 
 @layer components {
   .button-primary {
-    @apply inline-flex min-h-11 items-center justify-center rounded-xl bg-emerald-700 px-5 py-2.5 font-semibold text-white transition-colors hover:bg-emerald-800 disabled:cursor-not-allowed disabled:opacity-60 dark:bg-emerald-500 dark:text-zinc-950 dark:hover:bg-emerald-400;
+    @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-[#A66F00] px-5 py-2.5 font-semibold text-white shadow-xs transition-colors hover:bg-[#805400] disabled:cursor-not-allowed disabled:opacity-50;
   }
 
   .button-secondary {
-    @apply inline-flex min-h-11 items-center justify-center rounded-xl border border-zinc-300 bg-white px-5 py-2.5 font-semibold text-zinc-800 transition-colors hover:bg-zinc-100 disabled:cursor-not-allowed disabled:opacity-60 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100 dark:hover:bg-zinc-800;
+    @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-[#EDE2C5] bg-white px-5 py-2.5 font-semibold text-[#28241C] shadow-2xs transition-colors hover:bg-[#FFF9E8] disabled:cursor-not-allowed disabled:opacity-50;
   }
 }
