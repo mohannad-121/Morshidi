@@ -4,13 +4,30 @@ Status: **APPROVED POLICY CONTRACT**
 
 ## Status and method
 
-The original matrix was empty; these are not recovered original scenarios. They are candidate coverage derived from the P8 umbrella policy, Slice 1 code/tests, and existing P6/P7 security contracts. `Existing` means an executable test currently exists; all other rows are proposed and require approval before implementation.
+This remains a normative coverage matrix; it is not a claim that every row is
+implemented. The historical recovery origin of the matrix remains relevant, but
+the repository now includes later runtime slices for Decision Trace and structured
+Policy Retrieval. `Existing` means an executable test currently exists; all other
+rows remain proposed unless their implementation evidence is explicitly named.
 
 Source codes: `U` = P8 umbrella policy; `S1` = Slice 1 model/canonical/validation/replay and `test_decision_trace.py`; `P6` = mock-registration RLS/threat contracts; `P7` = advisor authorization policy/service/migration; `CAP` = capability matrix.
 
+## Current implementation evidence
+
+The audited backend baseline is **1,488 passed, 0 failed, 0 skipped** against
+Local Supabase (two existing dependency deprecation warnings). In addition to
+the original Slice 1 evidence, the repository contains executable coverage for
+Decision Trace persistence, P6 outbox mapping/processing boundaries, policy
+domain/retrieval, atomic policy ingestion, student policy API, and Local Supabase
+policy persistence/security. That evidence establishes implemented slices only;
+it does not accept every row in this matrix or complete the P8 exit gate.
+
 ## Verified existing requirements and coverage
 
-Slice 1 has 40 executable focused tests for canonical entry validation, hashing, tamper detection, supersession, scope checks, replay, and structural redaction. The root backend suite has 13 Local Supabase skips; none is a P8 Slice 2 test because Slice 2 has no files.
+Slice 1 has executable focused tests for canonical entry validation, hashing,
+tamper detection, supersession, scope checks, replay, and structural redaction.
+The current audited root backend suite has zero skipped tests. Later P8 runtime
+tests supplement, rather than replace, the original policy requirements.
 
 ## Requirements derived from implementation
 
@@ -18,7 +35,11 @@ The existing registries, immutable records, canonicalization, validation, replay
 
 ## Proposed requirements and unresolved contracts
 
-All rows marked `SPECIFIED` are approved specification coverage only. Source onboarding, persistence schema, graph registry, impact semantics, approved metric catalog, RAG retrieval mechanics, and query-provider controls remain **OPEN CONTRACT / REQUIRES HUMAN APPROVAL**.
+All rows marked `SPECIFIED` remain specification coverage only. Structured policy
+persistence and ingestion are implemented, but document-source onboarding,
+semantic RAG retrieval mechanics, graph registry, change-impact semantics,
+approved institutional metric catalog, and query-provider controls remain
+**OPEN CONTRACT / REQUIRES HUMAN APPROVAL**.
 
 ## Security and privacy boundaries
 
@@ -87,4 +108,9 @@ This matrix creates no executable test, migration, policy promotion, RAG corpus,
 
 ## Specification acceptance gate
 
-The 54 rows are specification coverage: 14 trace rows have existing executable unit evidence, while `TRACE-15` and all RAG/IMPACT/GRAPH/QUERY rows require approved design and future tests. P8.1 remains PARTIAL and P8 Slice 2 remains NOT ACCEPTED.
+The 54 rows remain specification coverage. The repository now has additional
+runtime and Local Supabase evidence for the implemented Decision Trace and
+structured Policy Retrieval slices, but `TRACE-15` and the remaining
+RAG/IMPACT/GRAPH/QUERY rows still require the stated approved design and tests.
+P8 remains PARTIAL; the P8 exit gate is not accepted solely by the current
+implementation.

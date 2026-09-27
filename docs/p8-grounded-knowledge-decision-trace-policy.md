@@ -46,7 +46,10 @@ Phase P8 builds directly upon the accepted and locked outcomes of Phase P7:
 
 - **Entry Gate**: Acceptance of Phase P7 (Advisor Copilot, Human Review, Institutional Analytics). Satisfied by accepted commit \\4aab138\\.
 - **Exit Gate**: Cited policy retrieval contracts, canonical ledger envelope, explainability DAG specifications, change impact analysis boundaries, institutional query constraints, and an exhaustive 54-scenario test matrix documented and verified.
-- **Policy-Only Status**: Phase P8.1 is documentation and contract definition only. Zero database migrations, zero vector indexes, and zero runtime services are implemented in this phase.
+- **Policy and implementation distinction**: P8.1 remains the normative policy
+  contract. Subsequent implementation slices now provide Decision Trace and
+  structured Policy Retrieval runtime foundations; those slices do not alter this
+  document's authority boundaries or make the complete P8 exit gate satisfied.
 
 ---
 
@@ -82,34 +85,60 @@ Phase P8 preserves the canonical privacy and suppression foundations established
 
 ---
 
-## 7. Policy-Only Status Declaration
+## 7. Implementation status (not a policy change)
 
-This document and its companion P8 specifications constitute formal policy and contract evidence. Under the Critical Status Rule:
-- No capability status advances solely due to policy documentation.
-- \\WC-007\\ (Academic Explainability Graph) remains \\PARTIALLY_ENABLED\\.
-- \\WC-038\\ (University Regulation RAG) remains \\PARTIALLY_ENABLED\\.
-- \\WC-039\\ (Institutional AI Query Experience) remains \\PLANNED\\.
-- \\WC-040\\ (Decision Trace Ledger) remains \\PARTIALLY_ENABLED\\.
-- \\WC-046\\ (Change Impact Engine) remains \\PARTIALLY_ENABLED\\.
-- Proposal obligation \\PROP-072\\ remains \\MISSING\\.
+No capability advances merely because this policy exists. The following is a
+repository implementation snapshot, not a claim of production deployment or
+institutional adoption.
+
+### Implemented now
+
+- **WC-040 Decision Trace Ledger — PARTIAL:** canonical domain model, hashing,
+  validation, evidence references, replay availability, immutable PostgreSQL
+  ledger/evidence persistence, service-role append RPC, P6 outbox integration,
+  and bounded processor RPCs are present.
+- **WC-038 University Regulation RAG / Policy Retrieval — PARTIAL:** governed
+  document/version/passage model, exact citation anchors, deterministic
+  computation handoff, Supabase persistence, atomic structured ingestion,
+  verified-only student read API, and authenticated frontend viewing are present.
+
+### Remaining
+
+- **WC-040:** complete end-user Decision History access, complete trace exposure
+  and authorization projections, and all roadmap exit evidence remain outside
+  the implemented slice.
+- **WC-038:** document/PDF import and parsing, semantic embeddings or vector
+  retrieval if adopted, generated grounded policy answers, and the final
+  cited-retrieval plus replayable-ledger exit evidence are not implemented.
+- **WC-007 Academic Explainability Graph — PLANNED:** trace evidence is not an
+  explainability-graph runtime.
+- **WC-046 Change Impact Engine — PLANNED:** existing analysis and simulation
+  capabilities are not a WC-046 change-impact runtime.
+- **WC-039 Institutional AI Query Experience — PLANNED:** no governed
+  natural-language institutional metric-query runtime exists.
+
+The standing deterministic-engine, citation, source-admission, tenant-isolation,
+privacy, and no-write requirements in this policy remain unchanged.
 
 ---
 
 ## 8. Companion Policy Documents
 
 The detailed specifications governing Phase P8 are established in:
-1. [decision-trace-ledger-policy.md](decision-trace-ledger-policy.md): Canonical envelope, material decisions, replay modes, tamper evidence, and authorization.
-2. [institutional-policy-retrieval-policy.md](institutional-policy-retrieval-policy.md): InstitutionalPolicyProvider, chunking, citations, engine precedence, and prompt-injection defense.
-3. [academic-explainability-graph-policy.md](academic-explainability-graph-policy.md): Typed node and edge taxonomies, DAG cycle prevention, and role-based projection.
+1. [decision-trace-ledger-policy.md](decision-trace-ledger-policy.md): referenced canonical companion path; the tracked file currently has no substantive content.
+2. [institutional-policy-retrieval-policy.md](institutional-policy-retrieval-policy.md): referenced canonical companion path; the tracked file currently has no substantive content.
+3. [academic-explainability-graph-policy.md](academic-explainability-graph-policy.md): referenced canonical companion path; the tracked file currently has no substantive content.
 4. [change-impact-policy.md](change-impact-policy.md): Analysis-only version diff evaluation, affected decision identification, and no-write guarantees.
-5. [institutional-ai-query-policy.md](institutional-ai-query-policy.md): Governed metric catalog, zero arbitrary SQL, zero student drill-down, and suppression enforcement.
+5. [institutional-ai-query-policy.md](institutional-ai-query-policy.md): referenced canonical companion path; the tracked file currently has no substantive content.
 6. [p8-grounded-knowledge-test-matrix.md](p8-grounded-knowledge-test-matrix.md): Exhaustive 54-scenario closed verification matrix.
 
 ---
 
-## 9. Future Runtime Implementation Roadmap
+## 9. Remaining runtime roadmap
 
-Runtime implementation of Phase P8 capabilities will be executed in future runtime phases:
-- **Future P8 Runtime Implementation**: Implementation of append-only ledger tables, RLS policies, canonical JSON serialization, and cryptographic hashing utilities.
-- **Future P8 Runtime Implementation**: Implementation of InstitutionalPolicyProvider adapters, vector index integration, citation extraction, and engine handoff logic.
+The following runtime work remains after the current implemented slices:
+- **Remaining P8 Decision Trace work**: end-user history/read projections and
+  approved completion of the remaining ledger exit evidence.
+- **Remaining P8 Policy Retrieval work**: document ingestion/parsing pipeline,
+  semantic/vector retrieval if approved, and generated grounded answer handling.
 - **Future P8 Runtime Implementation**: Implementation of explainability DAG builder services, change impact batch evaluators, and constrained metric query planners.
