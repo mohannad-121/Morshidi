@@ -559,6 +559,73 @@ describe('Morshidi Student Portal Pages Suite', () => {
     });
   });
 
+  it('shows a list failure and retries the real policy request', async () => {
+    let listCalls = 0;
+    fetchSpy.mockImplementation(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.endsWith('/api/v1/me/policies')) {
+        listCalls += 1;
+        if (listCalls === 1) return new Response('{}', { status: 500 });
+        return new Response(JSON.stringify([mockPolicySummary]), { status: 200, headers: { 'Content-Type': 'application/json' } });
+      }
+      return new Response(JSON.stringify({}), { status: 200 });
+    });
+    const user = userEvent.setup();
+    renderWithAuth(<PoliciesPage />);
+    await waitFor(() => expect(screen.getByRole('alert').textContent).toContain('تعذّر تحميل اللوائح'));
+    await user.click(screen.getByRole('button', { name: 'إعادة المحاولة' }));
+    await waitFor(() => expect(screen.getByText('تعليمات منح درجة البكالوريوس')).toBeDefined());
+    expect(listCalls).toBe(2);
+  });
+
+  it('shows detail loading, a safe failure state, and retries the selected document', async () => {
+    let detailCalls = 0;
+    const completeDetail: StudentPolicyDocumentDetail = {
+      ...mockPolicyDetail,
+      active_version: {
+        ...mockPolicyDetail.active_version,
+        effective_end_date: '2027-09-01T00:00:00Z',
+        content_sha256: '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef',
+        verified_at: '2026-09-02T00:00:00Z',
+        verified_by: 'policy-office',
+        source_url: 'https://university.example.edu/policies/bylaw.pdf',
+      },
+      passages: [{ ...mockPolicyDetail.passages[0], section_number: '3', page_number: 42, heading: 'العبء الدراسي', passage_sha256: 'abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789' }],
+    };
+    fetchSpy.mockImplementation(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.includes('/api/v1/me/policies/')) {
+        detailCalls += 1;
+        if (detailCalls === 1) return new Response('{}', { status: 404 });
+        return new Response(JSON.stringify(completeDetail), { status: 200, headers: { 'Content-Type': 'application/json' } });
+      }
+      if (url.endsWith('/api/v1/me/policies')) return new Response(JSON.stringify([mockPolicySummary]), { status: 200, headers: { 'Content-Type': 'application/json' } });
+      return new Response(JSON.stringify({}), { status: 200 });
+    });
+    const user = userEvent.setup();
+    renderWithAuth(<PoliciesPage />);
+    await user.click(await screen.findByText('تعليمات منح درجة البكالوريوس'));
+    await waitFor(() => expect(screen.getByRole('alert').textContent).toContain('لم تعد هذه اللائحة متاحة'));
+    expect(screen.queryByText(mockPolicyDetail.passages[0].passage_text)).toBeNull();
+    await user.click(screen.getByRole('button', { name: 'إعادة المحاولة' }));
+    await waitFor(() => expect(screen.getByText('المصدر والإصدار')).toBeDefined());
+    expect(screen.getByText('القسم')).toBeDefined();
+    expect(screen.getByText('42')).toBeDefined();
+    expect(screen.getByText('العبء الدراسي')).toBeDefined();
+    expect(screen.getByRole('link', { name: 'مصدر خارجي ↗' }).getAttribute('rel')).toBe('noopener noreferrer');
+    expect(detailCalls).toBe(2);
+  });
+
+  it('does not invent absent policy citation metadata', async () => {
+    renderWithAuth(<PoliciesPage />);
+    const user = userEvent.setup();
+    await user.click(await screen.findByText('تعليمات منح درجة البكالوريوس'));
+    await screen.findByText(mockPolicyDetail.passages[0].passage_text);
+    expect(screen.queryByText('بصمة المحتوى')).toBeNull();
+    expect(screen.queryByText('الصفحة')).toBeNull();
+    expect(screen.queryByRole('link', { name: 'مصدر خارجي ↗' })).toBeNull();
+  });
+
   it('renders DecisionHistoryPage with under development state', () => {
     render(<DecisionHistoryPage />);
     expect(screen.getByText('سجل القرارات والتدقيق الأكاديمي')).toBeDefined();
