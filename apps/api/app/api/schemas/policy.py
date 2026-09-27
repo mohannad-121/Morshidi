@@ -73,3 +73,30 @@ class StudentPolicyDocumentDetail(BaseModel):
     language: str = "ar"
     active_version: StudentPolicyVersionDetail
     passages: list[StudentPolicyPassageResponse] = Field(default_factory=list)
+
+
+class StudentPolicySearchResult(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+
+    document_id: str
+    document_code: str
+    document_title: str
+    category: str
+    version_id: str
+    version_tag: str
+    status: str
+    effective_start_date: Any | None = None
+    effective_end_date: Any | None = None
+    content_sha256: str | None = None
+    verified_at: Any | None = None
+    verified_by: str | None = None
+    source_url: str | None = None
+    passage_id: str
+    sequence_order: int
+    passage_text: str
+    locator_text: str
+    article_number: str | None = None
+    section_number: str | None = None
+    page_number: int | None = None
+    heading: str | None = None
+    passage_sha256: str | None = None

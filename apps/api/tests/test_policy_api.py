@@ -249,3 +249,64 @@ def test_unauthenticated_request_returns_401() -> None:
     with TestClient(app) as client:
         resp = client.get("/api/v1/me/policies")
         assert resp.status_code == 401
+
+
+def _override_policy_dependencies(env: dict[str, Any]) -> None:
+    app.dependency_overrides[get_current_user] = lambda: CurrentUser(user_id=env["student_user_id"])
+    app.dependency_overrides[get_policy_service] = lambda: env["policy_service"]
+    app.dependency_overrides[get_student_service] = lambda: env["student_service"]
+
+
+@pytest.mark.parametrize(
+    "params",
+    [
+        {"q": ""},
+        {"q": "   "},
+        {"q": "x" * 241},
+        {"q": "BYLAW", "limit": 0},
+        {"q": "BYLAW", "limit": 21},
+    ],
+)
+def test_policy_search_rejects_invalid_query_and_limit(params: dict[str, Any], mock_policy_env: dict[str, Any]) -> None:
+    _override_policy_dependencies(mock_policy_env)
+    try:
+        with TestClient(app) as client:
+            assert client.get("/api/v1/me/policies/search", params=params).status_code == 422
+    finally:
+        app.dependency_overrides.clear()
+
+
+def test_policy_search_returns_exact_verified_tenant_result_and_stable_order(mock_policy_env: dict[str, Any]) -> None:
+    env = mock_policy_env
+    _override_policy_dependencies(env)
+    try:
+        with TestClient(app) as client:
+            first = client.get("/api/v1/me/policies/search", params={"q": "\u0627\u0644\u0645\u0627\u062f\u0629", "limit": 10, "university_id": env["univ_b"]})
+            second = client.get("/api/v1/me/policies/search", params={"q": "\u0627\u0644\u0645\u0627\u062f\u0629", "limit": 10})
+            assert first.status_code == second.status_code == 200
+            assert first.json() == second.json()
+            rows = first.json()
+            assert rows and all(row["document_id"] == env["doc_a1_id"] for row in rows)
+            assert all(row["document_code"] == "BYLAW-A1" for row in rows)
+            assert rows[0]["passage_text"].startswith("\u0627\u0644\u0645\u0627\u062f\u0629")
+            assert rows[0]["locator_text"] == "\u0627\u0644\u0645\u0627\u062f\u0629 1"
+            assert rows[0]["article_number"] == "1"
+            assert rows[0]["status"] == "verified"
+            return
+            assert rows[0]["passage_text"].startswith("Ø§Ù„Ù…Ø§Ø¯Ø©")
+            assert rows[0]["locator_text"] == "Ø§Ù„Ù…Ø§Ø¯Ø© 1"
+            assert rows[0]["article_number"] == "1"
+            assert rows[0]["status"] == "verified"
+    finally:
+        app.dependency_overrides.clear()
+
+
+def test_policy_search_empty_result_and_unauthenticated_denial(mock_policy_env: dict[str, Any]) -> None:
+    _override_policy_dependencies(mock_policy_env)
+    try:
+        with TestClient(app) as client:
+            assert client.get("/api/v1/me/policies/search", params={"q": "لا_تطابق"}).json() == []
+    finally:
+        app.dependency_overrides.clear()
+    with TestClient(app) as client:
+        assert client.get("/api/v1/me/policies/search", params={"q": "BYLAW"}).status_code == 401

@@ -14,10 +14,12 @@ from __future__ import annotations
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi import Query
 
 from app.api.schemas.policy import (
     StudentPolicyDocumentDetail,
     StudentPolicyDocumentSummary,
+    StudentPolicySearchResult,
 )
 from app.core.auth import CurrentUser, get_current_user
 from app.institutional_policy.errors import PolicyRetrievalError
@@ -64,6 +66,27 @@ async def list_student_policies(
 
     docs = await policy_service.list_policies_for_student(university_id)
     return [StudentPolicyDocumentSummary.model_validate(d) for d in docs]
+
+
+@router.get("/search", response_model=list[StudentPolicySearchResult])
+async def search_student_policies(
+    q: str = Query(min_length=1, max_length=240),
+    limit: int = Query(default=10, ge=1, le=20),
+    category: str | None = None,
+    document_id: str | None = None,
+    user: AuthenticatedUser = None,
+    policy_service: PolicyServiceDependency = None,
+    student_service: StudentServiceDependency = None,
+) -> list[StudentPolicySearchResult]:
+    query = " ".join(q.split())
+    if not query:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Query cannot be blank")
+    try:
+        university_id = await student_service.resolve_student_university_id(user.user_id)
+    except StudentProfileNotFound:
+        return []
+    rows = await policy_service.search_policies_for_student(university_id, query, limit, category, document_id)
+    return [StudentPolicySearchResult.model_validate(row) for row in rows]
 
 
 @router.get("/{document_id}", response_model=StudentPolicyDocumentDetail)

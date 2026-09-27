@@ -626,6 +626,53 @@ describe('Morshidi Student Portal Pages Suite', () => {
     expect(screen.queryByRole('link', { name: 'مصدر خارجي ↗' })).toBeNull();
   });
 
+  it('searches policy text, renders exact returned evidence, and opens its document', async () => {
+    fetchSpy.mockImplementation(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.includes('/api/v1/me/policies/search')) return new Response(JSON.stringify([{
+        document_id: mockPolicySummary.id, document_code: mockPolicySummary.document_code,
+        document_title: mockPolicySummary.title, category: mockPolicySummary.category,
+        version_id: 'ver-1', version_tag: '1.0', status: 'verified', passage_id: 'search-p1',
+        sequence_order: 0, passage_text: 'نص عربي موثق للبحث داخل اللائحة.', locator_text: 'المادة 9',
+        article_number: '9', page_number: 11, heading: 'الانسحاب',
+      }]), { status: 200, headers: { 'Content-Type': 'application/json' } });
+      if (url.includes('/api/v1/me/policies/')) return new Response(JSON.stringify(mockPolicyDetail), { status: 200, headers: { 'Content-Type': 'application/json' } });
+      if (url.endsWith('/api/v1/me/policies')) return new Response(JSON.stringify([mockPolicySummary]), { status: 200, headers: { 'Content-Type': 'application/json' } });
+      return new Response(JSON.stringify({}), { status: 200 });
+    });
+    const user = userEvent.setup();
+    renderWithAuth(<PoliciesPage />);
+    const search = await screen.findByPlaceholderText('ابحث داخل نصوص اللوائح والسياسات...');
+    await user.type(search, 'الانسحاب');
+    await user.click(screen.getByRole('button', { name: 'بحث' }));
+    await screen.findByText('نص عربي موثق للبحث داخل اللائحة.');
+    expect(screen.getAllByText(/المادة 9/).length).toBeGreaterThan(0);
+    await user.click(screen.getByRole('button', { name: 'فتح اللائحة كاملة' }));
+    await screen.findByText(mockPolicyDetail.passages[0].passage_text);
+  });
+
+  it('shows honest empty and retryable error states for policy text search', async () => {
+    let calls = 0;
+    fetchSpy.mockImplementation(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.includes('/api/v1/me/policies/search')) {
+        calls += 1;
+        if (calls === 1) return new Response('{}', { status: 500 });
+        if (calls === 2) return new Response(JSON.stringify([]), { status: 200, headers: { 'Content-Type': 'application/json' } });
+      }
+      if (url.endsWith('/api/v1/me/policies')) return new Response(JSON.stringify([mockPolicySummary]), { status: 200, headers: { 'Content-Type': 'application/json' } });
+      return new Response(JSON.stringify(mockPolicyDetail), { status: 200, headers: { 'Content-Type': 'application/json' } });
+    });
+    const user = userEvent.setup();
+    renderWithAuth(<PoliciesPage />);
+    await user.type(await screen.findByPlaceholderText('ابحث داخل نصوص اللوائح والسياسات...'), 'انسحاب');
+    await user.click(screen.getByRole('button', { name: 'بحث' }));
+    await screen.findByRole('alert');
+    await user.click(screen.getByRole('button', { name: 'إعادة المحاولة' }));
+    await screen.findByText('لم يتم العثور على نص موثق يطابق بحثك.');
+    expect(calls).toBe(2);
+  });
+
   it('renders DecisionHistoryPage with under development state', () => {
     render(<DecisionHistoryPage />);
     expect(screen.getByText('سجل القرارات والتدقيق الأكاديمي')).toBeDefined();

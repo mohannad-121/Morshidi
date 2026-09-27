@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { AuthenticatedApiError } from "@/lib/api/authenticated-client";
 import { StudentApiService } from "@/lib/api/student-api";
 import { useAuthenticatedApi } from "@/lib/api/use-authenticated-api";
-import type { StudentPolicyDocumentDetail, StudentPolicyDocumentSummary, StudentPolicyPassage } from "@/lib/api/student-types";
+import type { StudentPolicyDocumentDetail, StudentPolicyDocumentSummary, StudentPolicyPassage, StudentPolicySearchResult } from "@/lib/api/student-types";
 import { Badge } from "@/components/ui/Badge";
 import { AlertTriangleIcon, InfoIcon, PoliciesIcon, SearchIcon, SparklesIcon } from "@/components/ui/Icons";
 import { LoadingSkeletonGrid } from "@/components/ui/LoadingSkeleton";
@@ -58,6 +58,10 @@ export default function PoliciesPage() {
   const [detail, setDetail] = useState<StudentPolicyDocumentDetail | null>(null);
   const [detailState, setDetailState] = useState<DetailState>("idle");
   const [detailError, setDetailError] = useState<string | null>(null);
+  const [policySearch, setPolicySearch] = useState("");
+  const [searchResults, setSearchResults] = useState<StudentPolicySearchResult[] | null>(null);
+  const [searchLoading, setSearchLoading] = useState(false);
+  const [searchError, setSearchError] = useState<string | null>(null);
   const loadPolicies = useCallback(async () => {
     setLoading(true); try { setPolicies(await new StudentApiService(client).listPolicies()); setListError(null); } catch { setListError("تعذّر تحميل اللوائح والسياسات الجامعية."); } finally { setLoading(false); }
   }, [client]);
@@ -70,11 +74,23 @@ export default function PoliciesPage() {
     try { setDetail(await new StudentApiService(client).getPolicyDetail(policy.id)); setDetailState("success"); } catch (error) { setDetail(null); setDetailError(detailErrorMessage(error)); setDetailState("error"); }
   }, [client]);
   const closeDetail = () => { setSelectedDoc(null); setDetail(null); setDetailError(null); setDetailState("idle"); };
+  const submitPolicySearch = async () => {
+    const query = policySearch.trim();
+    if (!query || searchLoading) return;
+    setSearchLoading(true); setSearchError(null);
+    try { setSearchResults(await new StudentApiService(client).searchPolicies(query)); }
+    catch { setSearchError("تعذّر البحث داخل نصوص اللوائح والسياسات."); }
+    finally { setSearchLoading(false); }
+  };
   const categories = useMemo(() => Array.from(new Set(policies.map((policy) => policy.category).filter(Boolean))), [policies]);
   const filtered = useMemo(() => { const query = searchQuery.trim().toLowerCase(); return policies.filter((policy) => (selectedCategory === "ALL" || policy.category === selectedCategory) && (!query || policy.title.toLowerCase().includes(query) || policy.document_code.toLowerCase().includes(query))); }, [policies, searchQuery, selectedCategory]);
   return <div className="space-y-6">
     <header className="border-b border-[#EDE2C5] pb-5"><div className="flex items-center gap-2"><span className="rounded-full bg-[#A66F00]/10 px-2.5 py-0.5 text-xs font-bold text-[#A66F00]">اللوائح والسياسات</span><span className="text-xs text-[#726B5E]">المكتبة التشريعية الأكاديمية</span></div><div className="mt-2 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between"><div><h1 className="text-2xl font-bold tracking-tight text-[#28241C]">اللوائح والسياسات الجامعية</h1><p className="mt-1 text-xs text-[#726B5E]">استرجاع موثق ومفهرس للأنظمة وتعليمات منح درجة البكالوريوس وقواعد العبء الدراسي والإنذارات.</p></div><p className="inline-flex items-center gap-1.5 self-start rounded-full border border-[#EDE2C5] bg-[#FFFDF7] px-3 py-1 text-[11px] text-[#726B5E]"><SparklesIcon className="h-3.5 w-3.5 shrink-0 text-[#A66F00]" />مرشدي يستخدم اللوائح لشرح السياسات الأكاديمية، بينما تبقى قرارات الأهلية والتقدم والتخطيط لدى محركات القواعد الأكاديمية.</p></div></header>
     <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"><div className="relative max-w-md flex-1"><SearchIcon className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#726B5E]" /><input type="text" value={searchQuery} onChange={(event) => setSearchQuery(event.target.value)} placeholder="البحث في اللوائح والتعليمات..." className="w-full rounded-xl border border-[#EDE2C5] bg-white py-2 pr-9 pl-4 text-xs text-[#28241C]" /></div>{categories.length ? <div className="flex flex-wrap gap-1.5"><button type="button" onClick={() => setSelectedCategory("ALL")} className="rounded-lg border border-[#EDE2C5] px-3 py-1 text-xs">الكل ({policies.length})</button>{categories.map((category) => <button type="button" key={category} onClick={() => setSelectedCategory(category)} className="rounded-lg border border-[#EDE2C5] px-3 py-1 text-xs">{CATEGORY_LABELS[category] || category}</button>)}</div> : null}</div>
+    <form onSubmit={(event) => { event.preventDefault(); void submitPolicySearch(); }} className="rounded-2xl border border-[#EDE2C5] bg-[#FFF9E8] p-4"><label htmlFor="policy-text-search" className="text-sm font-bold text-[#28241C]">ابحث داخل اللوائح</label><p className="mt-1 text-xs text-[#726B5E]">يعرض البحث نصوصاً موثقة؛ القرارات الأكاديمية تحسبها محركات القواعد.</p><div className="mt-3 flex gap-2"><input id="policy-text-search" value={policySearch} onChange={(event) => setPolicySearch(event.target.value)} placeholder="ابحث داخل نصوص اللوائح والسياسات..." className="min-w-0 flex-1 rounded-xl border border-[#EDE2C5] bg-white px-3 py-2 text-sm" /><button type="submit" disabled={searchLoading || !policySearch.trim()} className="rounded-xl bg-[#28241C] px-4 py-2 text-xs font-semibold text-white disabled:opacity-60">{searchLoading ? "جارٍ البحث..." : "بحث"}</button></div>
+      {searchError ? <div role="alert" className="mt-3 text-sm text-red-800">{searchError} <button type="button" onClick={() => void submitPolicySearch()} disabled={searchLoading} className="underline">إعادة المحاولة</button></div> : null}
+      {searchResults !== null && !searchLoading && !searchError ? <div className="mt-4 space-y-3">{searchResults.length === 0 ? <p className="text-sm text-[#726B5E]">لم يتم العثور على نص موثق يطابق بحثك.</p> : searchResults.map((result) => <article key={result.passage_id} className="rounded-xl border border-[#EDE2C5] bg-white p-3"><strong className="text-xs text-[#A66F00]">{result.document_code} — {result.locator_text}</strong><p className="mt-2 whitespace-pre-wrap text-sm text-[#28241C]">{result.passage_text}</p><p className="mt-2 text-xs text-[#726B5E]">{result.heading || ""} {result.article_number ? "• المادة " + result.article_number : ""} {result.page_number ? "• ص " + result.page_number : ""} • إصدار {result.version_tag}</p><button type="button" onClick={() => { const policy = policies.find((item) => item.id === result.document_id); if (policy) void loadDetail(policy); }} className="mt-2 text-xs font-semibold text-[#805400] underline">فتح اللائحة كاملة</button></article>)}</div> : null}
+    </form>
     {loading && !listError ? <LoadingSkeletonGrid count={3} /> : null}
     {listError ? <div role="alert" className="flex flex-col gap-3 rounded-2xl border border-red-200 bg-red-50 p-5 sm:flex-row sm:items-center sm:justify-between"><div className="flex items-center gap-3 text-red-900"><AlertTriangleIcon className="h-5 w-5 shrink-0" /><p className="text-sm font-medium">{listError}</p></div><button type="button" onClick={() => void loadPolicies()} disabled={loading} className="min-h-10 rounded-xl border border-red-300 bg-white px-4 py-2 text-xs font-semibold text-red-800 disabled:cursor-not-allowed disabled:opacity-60">{loading ? "جارٍ إعادة المحاولة..." : "إعادة المحاولة"}</button></div> : null}
     {!loading && !listError && !filtered.length ? <div className="rounded-3xl border border-[#EDE2C5] bg-[#FFF9E8] p-8 text-center sm:p-12"><PoliciesIcon className="mx-auto h-8 w-8 text-[#A66F00]" /><h2 className="mt-4 text-lg font-bold text-[#28241C]">{searchQuery ? "لا توجد نتائج مطابقة لبحثك" : "لا توجد لوائح معتمدة منشورة حالياً لجامعتك"}</h2><p className="mt-2 text-xs text-[#726B5E]">{searchQuery ? "جرّب تغيير كلمات البحث أو اختيار تصنيف آخر." : "لا يتم عرض أي تعليمات أو لوائح إلا بعد اعتمادها وفهرستها رسمياً."}</p></div> : null}

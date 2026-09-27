@@ -19,6 +19,7 @@ import type {
   StudentIntentResponse,
   StudentPolicyDocumentDetail,
   StudentPolicyDocumentSummary,
+  StudentPolicySearchResult,
   SubmitIntentRequest,
   WithdrawIntentRequest,
 } from "@/lib/api/student-types";
@@ -178,5 +179,10 @@ export class StudentApiService {
   async getPolicyDetail(documentId: string): Promise<StudentPolicyDocumentDetail> {
     const res = await this.client.request(`/api/v1/me/policies/${encodeURIComponent(documentId)}`);
     return parseJson<StudentPolicyDocumentDetail>(res);
+  }
+
+  async searchPolicies(query: string, limit = 10): Promise<StudentPolicySearchResult[]> {
+    const res = await this.client.request(`/api/v1/me/policies/search?q=${encodeURIComponent(query)}&limit=${limit}`);
+    return parseJson<StudentPolicySearchResult[]>(res);
   }
 }

@@ -32,6 +32,12 @@ class PolicyReadStorage(Protocol):
     ) -> dict[str, Any] | None:
         ...
 
+    async def search_verified_passages(
+        self, university_id: str | UUID, query: str, limit: int, category: str | None = None,
+        document_id: str | None = None,
+    ) -> Sequence[dict[str, Any]]:
+        ...
+
 
 class InMemoryPolicyReadStorage:
     """In-memory storage adapter for testing policy read workflows."""
@@ -123,6 +129,19 @@ class InMemoryPolicyReadStorage:
             },
             "passages": version_passages,
         }
+
+    async def search_verified_passages(self, university_id: str | UUID, query: str, limit: int, category: str | None = None, document_id: str | None = None) -> Sequence[dict[str, Any]]:
+        tokens = tuple(token for token in " ".join(query.lower().split()).split(" ") if len(token) >= 2)
+        rows: list[dict[str, Any]] = []
+        for detail in [await self.get_document_detail(university_id, str(doc["id"])) for doc in self.documents]:
+            if not detail or (category and detail["category"] != category) or (document_id and detail["id"] != document_id):
+                continue
+            for passage in detail["passages"]:
+                searchable = " ".join(str(passage.get(key) or "") for key in ("passage_text", "locator_text", "article_number", "section_number", "heading")).lower() + " " + detail["title"].lower() + " " + detail["document_code"].lower()
+                score = (100 if " ".join(query.lower().split()) in searchable else 0) + 10 * sum(token in searchable for token in tokens)
+                if score:
+                    rows.append({"document_id": detail["id"], "document_code": detail["document_code"], "document_title": detail["title"], "category": detail["category"], "version_id": detail["active_version"]["id"], "version_tag": detail["active_version"]["version_tag"], **detail["active_version"], "passage_id": passage["id"], **passage, "score": score})
+        return sorted(rows, key=lambda row: (-row["score"], row["document_code"], row["sequence_order"], row["passage_id"]))[:limit]
 
 
 class SupabasePolicyReadStorage:
@@ -240,6 +259,15 @@ class SupabasePolicyReadStorage:
             "passages": passages,
         }
 
+    async def search_verified_passages(self, university_id: str | UUID, query: str, limit: int, category: str | None = None, document_id: str | None = None) -> Sequence[dict[str, Any]]:
+        response = await self._client.post(
+            f"{self._rest_url}/rpc/search_verified_policy_passages",
+            headers=self._headers(),
+            json={"p_university_id": str(university_id), "p_query": query, "p_limit": limit, "p_category": category, "p_document_id": document_id},
+        )
+        response.raise_for_status()
+        return response.json()
+
 
 class StudentPolicyService:
     """Domain service orchestrating read-only student institutional policy queries."""
@@ -262,3 +290,6 @@ class StudentPolicyService:
                 f"Policy document {document_id} was not found for this university",
             )
         return detail
+
+    async def search_policies_for_student(self, university_id: str | UUID, query: str, limit: int, category: str | None = None, document_id: str | None = None) -> Sequence[dict[str, Any]]:
+        return await self._storage.search_verified_passages(university_id, query, limit, category, document_id)

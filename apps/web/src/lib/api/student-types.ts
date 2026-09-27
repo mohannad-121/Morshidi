@@ -440,3 +440,11 @@ export interface StudentPolicyDocumentDetail {
   active_version: StudentPolicyVersionDetail;
   passages: StudentPolicyPassage[];
 }
+
+export interface StudentPolicySearchResult {
+  document_id: string; document_code: string; document_title: string; category: string;
+  version_id: string; version_tag: string; status: string; source_url?: string | null;
+  passage_id: string; sequence_order: number; passage_text: string; locator_text: string;
+  article_number?: string | null; section_number?: string | null; page_number?: number | null;
+  heading?: string | null; passage_sha256?: string | null;
+}
