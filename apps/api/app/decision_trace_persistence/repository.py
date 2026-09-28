@@ -81,8 +81,12 @@ class SupabaseDecisionTraceRepository:
         student_user_id: str,
         university_id: str,
         redaction_profile: str | None = None,
+        redaction_profiles: tuple[str, ...] | None = None,
     ) -> CanonicalLedgerEntry | None:
         """Load at most one individual trace after service authorization has fixed owner and tenant."""
+        if redaction_profiles is not None and (redaction_profile is not None or not redaction_profiles
+                or set(redaction_profiles) - {"STUDENT_SAFE", "ADVISOR_SAFE"}):
+            raise ValueError("invalid viewer redaction profiles")
         params = {
                 "select": _LEDGER_SELECT,
                 "ledger_entry_id": f"eq.{ledger_entry_id}",
@@ -93,6 +97,8 @@ class SupabaseDecisionTraceRepository:
             }
         if redaction_profile is not None:
             params["redaction_profile"] = f"eq.{redaction_profile}"
+        if redaction_profiles is not None:
+            params["redaction_profile"] = f"in.({','.join(redaction_profiles)})"
         rows = await self._get_rows("decision_trace_ledger", params)
         if not rows:
             return None
@@ -122,16 +128,20 @@ class SupabaseDecisionTraceRepository:
     async def list_student_entries(
         self, *, student_user_id: str, university_id: str, limit: int,
         before_created_at: datetime | None = None, before_entry_id: str | None = None,
+        redaction_profiles: tuple[str, ...] = ("STUDENT_SAFE",),
     ) -> tuple[CanonicalLedgerEntry, ...]:
-        """Return a bounded, stable page of fully verified student-safe entries."""
+        """Return a bounded, stable page of viewer-permitted individual entries."""
         if not 1 <= limit <= _MAX_HISTORY_PAGE or (before_created_at is None) != (before_entry_id is None):
             raise ValueError("invalid history pagination")
+        if not redaction_profiles or set(redaction_profiles) - {"STUDENT_SAFE", "ADVISOR_SAFE"}:
+            raise ValueError("invalid viewer redaction profiles")
         params = {
             "select": _LEDGER_SELECT,
             "student_user_id": f"eq.{student_user_id}",
             "university_id": f"eq.{university_id}",
             "subject_scope_type": "eq.STUDENT_INDIVIDUAL",
-            "redaction_profile": "eq.STUDENT_SAFE",
+            "redaction_profile": ("eq.STUDENT_SAFE" if redaction_profiles == ("STUDENT_SAFE",)
+                                   else f"in.({','.join(redaction_profiles)})"),
             "order": "created_at.desc,ledger_entry_id.desc",
             "limit": str(limit),
         }
@@ -150,7 +160,7 @@ class SupabaseDecisionTraceRepository:
             entry = await self._entry_with_evidence(row)
             if (entry.student_user_id != student_user_id or entry.university_id != university_id
                     or entry.subject_scope_type.value != "STUDENT_INDIVIDUAL"
-                    or entry.redaction_profile.value != "STUDENT_SAFE"):
+                    or entry.redaction_profile.value not in redaction_profiles):
                 raise DecisionTracePersistenceError(
                     DecisionTraceErrorCode.PERSISTENCE_INTEGRITY_FAILURE, "history scope mismatch"
                 )
@@ -169,15 +179,19 @@ class SupabaseDecisionTraceRepository:
 
     async def load_student_successor(
         self, *, ledger_entry_id: str, student_user_id: str, university_id: str,
+        redaction_profiles: tuple[str, ...] = ("STUDENT_SAFE",),
     ) -> CanonicalLedgerEntry | None:
         """Look up only a visible successor; never disclose a restricted successor."""
+        if not redaction_profiles or set(redaction_profiles) - {"STUDENT_SAFE", "ADVISOR_SAFE"}:
+            raise ValueError("invalid viewer redaction profiles")
         rows = await self._get_rows("decision_trace_ledger", {
             "select": _LEDGER_SELECT,
             "supersedes_entry_id": f"eq.{ledger_entry_id}",
             "student_user_id": f"eq.{student_user_id}",
             "university_id": f"eq.{university_id}",
             "subject_scope_type": "eq.STUDENT_INDIVIDUAL",
-            "redaction_profile": "eq.STUDENT_SAFE",
+            "redaction_profile": ("eq.STUDENT_SAFE" if redaction_profiles == ("STUDENT_SAFE",)
+                                   else f"in.({','.join(redaction_profiles)})"),
             "limit": "2",
         })
         if not rows:
@@ -188,7 +202,7 @@ class SupabaseDecisionTraceRepository:
             )
         entry = await self._entry_with_evidence(rows[0])
         if (entry.supersedes_entry_id != ledger_entry_id or entry.student_user_id != student_user_id
-                or entry.university_id != university_id or entry.redaction_profile.value != "STUDENT_SAFE"
+                or entry.university_id != university_id or entry.redaction_profile.value not in redaction_profiles
                 or entry.subject_scope_type.value != "STUDENT_INDIVIDUAL"):
             raise DecisionTracePersistenceError(
                 DecisionTraceErrorCode.PERSISTENCE_INTEGRITY_FAILURE, "successor scope mismatch"

@@ -14,8 +14,8 @@ Source codes: `U` = P8 umbrella policy; `S1` = Slice 1 model/canonical/validatio
 
 ## Current implementation evidence
 
-The last accepted backend baseline before Student Decision History V1 is **1,558
-passed, 0 failed, 0 skipped** against Local Supabase. In addition to
+The Student Decision History V1 backend baseline is **1,582 passed, 0 failed,
+0 skipped** against Local Supabase. In addition to
 the original Slice 1 evidence, the repository contains executable coverage for
 Decision Trace persistence, P6 outbox mapping/processing boundaries, policy
 domain/retrieval, atomic policy ingestion, student policy API, and Local Supabase
@@ -54,21 +54,21 @@ This matrix creates no executable test, migration, policy promotion, RAG corpus,
 
 | ID | Capability | Source | Input / precondition | Expected behavior | Security boundary | Test type | Existing coverage | Status |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| TRACE-01 | Envelope | S1 | Valid material entry | Canonical entry validates and hashes | No hidden reasoning | Unit | `P8_TRACE_001` | VERIFIED existing |
-| TRACE-02 | Immutability | S1 | Existing entry | Historical object cannot mutate | Append-only precursor | Unit | `P8_TRACE_002` | VERIFIED existing |
-| TRACE-03 | Materiality required | S1 | Required decision type | Maps to required | Closed registry | Unit | `003` | VERIFIED existing |
-| TRACE-04 | Materiality optional | S1 | Formal policy consultation | Maps optional | Closed registry | Unit | `004` | VERIFIED existing |
-| TRACE-05 | Domain-only | S1/U | Routine query | Not ledger-required | No accidental persistence | Unit | `005` | VERIFIED existing |
-| TRACE-06 | Unsupported type | S1 | Unknown value | Fails closed | No arbitrary decision | Unit | `006` | VERIFIED existing |
-| TRACE-07 | Canonical hash | S1 | Same logical payload | Stable canonical hash | Integrity only | Unit | `009-011,028` | VERIFIED existing |
-| TRACE-08 | Tamper signal | S1 | Modified hashed entry | `TAMPER_DETECTED` | Integrity | Unit | `012-014` | VERIFIED existing |
-| TRACE-09 | Scope validation | S1 | Missing/mis-scoped student | Fails validation | Student scope | Unit | `020-024,038` | VERIFIED existing |
-| TRACE-10 | Evidence normalization | S1 | Reordered/duplicate refs | Canonical evidence ordering | Provenance | Unit | `026` | VERIFIED existing |
-| TRACE-11 | Supersession | S1 | Correction to entry | New ID; predecessor unchanged | No historical rewrite | Unit | `015-019` | VERIFIED existing |
-| TRACE-12 | Exact replay | S1 | All historic versions available | Historical result available | Version integrity | Unit | `029` | VERIFIED existing |
-| TRACE-13 | Replay fail-closed | S1 | Missing source/engine/policy | No substitute output | No fabricated replay | Unit | `030-035` | VERIFIED existing |
-| TRACE-14 | Structural redaction | S1/U | Public aggregate projection | Student scope redacted | Privacy | Unit | `036,040` | VERIFIED existing |
-| TRACE-15 | Persisted append boundary | U/P6/P7 | Service attempts valid append | Insert only; browser denied | RLS/RPC/tenant | Local Supabase adversarial | None | SPECIFIED |
+| TRACE-01 | Envelope | S1 | Valid material entry | Canonical entry validates and hashes | No hidden reasoning | Unit | `P8_TRACE_001` | VERIFIED |
+| TRACE-02 | Immutability | S1 | Existing entry | Historical object and stored rows cannot mutate | Append-only | Unit + Local Supabase | `002`, persistence trigger tests | VERIFIED |
+| TRACE-03 | Materiality required | S1 | Required decision type | Maps to required | Closed registry | Unit | `003`; producer coverage remains separate | VERIFIED |
+| TRACE-04 | Materiality optional | S1 | Formal policy consultation | Maps optional | Closed registry | Unit | `004` | VERIFIED |
+| TRACE-05 | Domain-only | S1/U | Routine query | Not ledger-required | No accidental persistence | Unit | `005` | VERIFIED |
+| TRACE-06 | Unsupported type | S1 | Unknown value | Fails closed | No arbitrary decision | Unit | `006` | VERIFIED |
+| TRACE-07 | Canonical hash | S1 | Same logical payload | Stable canonical hash | Integrity only | Unit | `009-011,028` | VERIFIED |
+| TRACE-08 | Tamper signal | S1 | Modified hashed entry | `TAMPER_DETECTED` | Integrity | Unit + viewer | `012-014`, history tamper tests | VERIFIED |
+| TRACE-09 | Scope validation | S1 | Missing/mis-scoped student | Fails validation | Student scope | Unit + Local Supabase | `020-024,038`, owner/advisor tests | VERIFIED |
+| TRACE-10 | Evidence normalization | S1 | Reordered/duplicate refs | Canonical evidence ordering | Provenance | Unit + Local Supabase | `026`, stored evidence-order tests | VERIFIED |
+| TRACE-11 | Supersession | S1 | Correction to entry | New ID; predecessor unchanged | No historical rewrite | Unit + Local Supabase | `015-019`, persisted supersession tests | VERIFIED |
+| TRACE-12 | Exact replay availability | S1 | All historic versions available | Availability contract true; no historical engine execution claimed | Version integrity | Unit | `029`, replay helper | VERIFIED |
+| TRACE-13 | Replay fail-closed | S1 | Missing source/engine/policy | No substitute output | No fabricated replay | Unit | `030-035` | VERIFIED |
+| TRACE-14 | Structural redaction | S1/U | Public aggregate projection | Student scope redacted | Privacy | Unit | `036,040`; no public viewer runtime | PARTIALLY VERIFIED |
+| TRACE-15 | Persisted append boundary | U/P6/P7 | Service attempts valid append | Insert only; browser denied | RLS/RPC/tenant | Local Supabase adversarial | persistence, outbox, history local tests | VERIFIED |
 | RAG-01 | Verified source admission | U | Unverified source | Reject/hold source | Provenance | Integration | None | SPECIFIED |
 | RAG-02 | Citation anchor | U/S1 | Verified passage | Response names ID/version/locator | Evidence integrity | Integration | None | SPECIFIED |
 | RAG-03 | Missing evidence | U | No matching passage | Explicit abstention | No fabrication | Integration | None | SPECIFIED |
@@ -111,9 +111,12 @@ This matrix creates no executable test, migration, policy promotion, RAG corpus,
 
 ## Specification acceptance gate
 
-The 54 rows remain specification coverage. The repository now has additional
+The 54 rows remain the normative scenario inventory. The repository now has additional
 runtime and Local Supabase evidence for the implemented Decision Trace and
-grounded Policy Retrieval slices, but complete `TRACE-15` acceptance and the remaining
-RAG/IMPACT/GRAPH/QUERY rows still require the stated approved design and tests.
+grounded Policy Retrieval slices. `TRACE-14` remains partially verified because
+only the structural public-redaction helper exists; no public viewer is approved.
+WC-040 also remains partial because seven `LEDGER_REQUIRED` decision types lack
+trusted runtime producers. Other RAG/IMPACT/GRAPH/QUERY rows still require the
+stated approved design and tests.
 P8 remains PARTIAL; the P8 exit gate is not accepted solely by the current
 implementation.

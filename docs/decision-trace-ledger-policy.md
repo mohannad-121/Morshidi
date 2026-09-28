@@ -54,15 +54,28 @@ authoritative deterministic result has been determined and validated. Evidence
 inherits the authorization scope of its parent and cannot become an independent
 enumeration path.
 
-The approved Student Decision History V1 surface requires the verified student
-owner and authoritative university, displays only `STUDENT_SAFE` entries, and
-provides read-only allowlisted list/detail projections after canonical integrity
-verification. Advisor viewing remains outside this V1 surface; any later advisor
-viewer must use the existing complete predicate: authenticated identity, active
-`ACADEMIC_ADVISOR` membership, authoritative same university, and active exact
-advisor-student assignment. Institutional analyst access never grants
-student-level trace access. Cross-tenant access fails closed without existence
-disclosure.
+The Student Decision History V1 surface requires the verified student owner and
+authoritative university, displays only `STUDENT_SAFE` entries, and provides
+read-only allowlisted list/detail projections after canonical integrity
+verification. The advisor read API reuses the P7 predicate: verified identity,
+active `ACADEMIC_ADVISOR` membership in the student's authoritative university,
+and active exact advisor-student assignment. It permits `STUDENT_SAFE` and
+`ADVISOR_SAFE` only. `FULL_AUDIT`, `AGGREGATE_ANALYST`, and `PUBLIC_REDACTED`
+are not implicitly visible. `INSTITUTIONAL_ANALYST` has **zero student-level
+Decision Trace access**, even when it holds unrelated institutional permissions.
+Cross-tenant and unknown-scope access fail closed without existence disclosure.
+
+**RETENTION V1: NO AUTOMATIC DELETION.** Retention remains governed; no automatic
+deletion mechanism is enabled in V1. There is no TTL, background cleanup, or
+student/advisor/analyst browser deletion control. This is not a legal claim to
+retain forever. Any future institutional/legal retention or erasure operation
+requires explicit policy approval, legal/institutional basis, an auditable
+operation, and preservation of required integrity/audit obligations.
+
+**EXPORT V1: DISABLED / NOT IMPLEMENTED.** No PDF, CSV, JSON dump, public/share
+link, or bulk download is approved. Export requires a separate authorization,
+redaction, privacy, audit, and institutional governance contract. Bounded
+list/detail APIs do not constitute export authority.
 
 ## 4. Current implementation status
 
@@ -70,21 +83,62 @@ disclosure.
 validation, hashing, replay availability checks, typed evidence, immutable
 PostgreSQL ledger/evidence persistence, a service-role append RPC, P6 outbox
 records, and service-only outbox claim/complete/release/fail RPC boundaries.
-Student Decision History V1 now adds owner-only bounded newest-first timeline
-reads, student-safe detail/evidence projection, per-entry hash verification,
-historical replay-status display, and supersession display. The browser remains
-read-only; no arbitrary replay or current recomputation is performed. The last
-accepted backend baseline before this V1 slice was 1,558 passed, 0 failed, and
-0 skipped; this slice's final test evidence is recorded in `CODEX_PROGRESS.md`.
+Student Decision History V1 and the advisor's assignment-scoped read API provide
+bounded newest-first list/detail projections, safe evidence, per-entry canonical
+hash verification, stored replay-status display, and read-only supersession
+labels. No viewer executes arbitrary replay or mutates history. Exact replay
+availability checks require the historical source, engine, and policy versions;
+the comparison helper is not evidence that the historical executable ran.
+`CURRENT_RECOMPUTATION` is distinct and does not change the historical entry.
 
-This does not complete WC-040: the full P8 exit evidence, retention policy,
-export controls, and advisor/institutional viewer contracts remain open.
+WC-040 remains **PARTIAL** because registry acceptance requires every required
+material decision to have a trusted runtime producer, while only
+`MOCK_REGISTRATION_SUBMIT` currently has a P6 outbox-to-ledger producer. The
+other required types cannot be called covered merely because the domain model
+accepts them or a fixture can be appended. No unrelated producer is added by
+this viewer closure. Test outcomes and the full registry coverage assessment
+are recorded in `CODEX_PROGRESS.md`.
+The current P6 submit adapter explicitly writes `NOT_REPLAYABLE` with the
+`P6_HISTORICAL_REPLAY_NOT_AVAILABLE` limitation. Exact replay availability
+helpers therefore do not establish historical replay for that runtime path.
+
+### Material-event coverage at this closure
+
+`Trusted producer` means a real approved runtime event adapter, not a test
+fixture or an on-demand domain trace. `Persistence` means that producer reaches
+the immutable ledger. `Viewer compatible` means an existing individual-safe
+projection can show a correctly scoped entry; it does not assert that one is
+produced. Institutional/aggregate traces have no approved student-level viewer.
+
+| Decision type | Materiality | Trusted producer | Persistence | Viewer compatible |
+| --- | --- | --- | --- | --- |
+| `MOCK_REGISTRATION_SUBMIT` | `LEDGER_REQUIRED` | YES | YES | YES |
+| `MOCK_REGISTRATION_WITHDRAW` | `LEDGER_REQUIRED` | NO | NO | YES |
+| `MOCK_REGISTRATION_REVALIDATE` | `LEDGER_REQUIRED` | NO | NO | YES |
+| `ADVISOR_FORMAL_GUIDANCE` | `LEDGER_REQUIRED` | NO | NO | YES |
+| `INSTITUTIONAL_PERIOD_DEMAND_SNAPSHOT` | `LEDGER_REQUIRED` | NO | NO | NO |
+| `INSTITUTIONAL_BOTTLENECK_SNAPSHOT` | `LEDGER_REQUIRED` | NO | NO | NO |
+| `INSTITUTIONAL_ALERT_TRIGGERED` | `LEDGER_REQUIRED` | NO | NO | NO |
+| `CHANGE_IMPACT_EVALUATION` | `LEDGER_REQUIRED` | NO | NO | NO |
+| `FORMAL_POLICY_CONSULTATION` | `LEDGER_OPTIONAL` | NO | NO | YES |
+| `CHECK_ELIGIBILITY` | `DOMAIN_TRACE_ONLY` | NO | NO | NO |
+| `GET_PROGRESS` | `DOMAIN_TRACE_ONLY` | NO | NO | NO |
+| `GET_RECOMMENDATIONS` | `DOMAIN_TRACE_ONLY` | NO | NO | NO |
+| `GET_SEMESTER_PLANS` | `DOMAIN_TRACE_ONLY` | NO | NO | NO |
+| `GET_DEGREE_PATHS` | `DOMAIN_TRACE_ONLY` | NO | NO | NO |
+| `GET_STUDENT_INTELLIGENCE` | `DOMAIN_TRACE_ONLY` | NO | NO | NO |
+| `CHECK_DELAY_CONSEQUENCE` | `DOMAIN_TRACE_ONLY` | NO | NO | NO |
+| `RUN_WHAT_IF` | `DOMAIN_TRACE_ONLY` | NO | NO | NO |
+| `GET_CURRENT_MOCK_REGISTRATION` | `DOMAIN_TRACE_ONLY` | NO | NO | NO |
+| `EXPLAIN_RECOMMENDATION_DECISION` | `DOMAIN_TRACE_ONLY` | NO | NO | NO |
+| `INSTITUTIONAL_AD_HOC_QUERY` | `NOT_LEDGERED` | NO | NO | NO |
+| `POLICY_AD_HOC_CHAT` | `NOT_LEDGERED` | NO | NO | NO |
 
 ## 5. Open contracts — requires human approval
 
-- Eligible material event registry expansion, retention/legal-erasure process,
-  and any institutional viewer beyond the stated boundaries.
-- Any viewer beyond the approved student-owner V1 projection and authorized export.
+- Eligible material event registry expansion, future retention/legal-erasure
+  process, and any viewer beyond the approved student/advisor boundaries.
+- Any export capability beyond the V1 disabled boundary.
 - Source/engine/policy-version preservation obligations for exact replay.
 - Any additional chain/period integrity model beyond per-entry integrity.
 - Any new persistence surface, grant, RLS policy, or external integration not

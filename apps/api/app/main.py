@@ -15,6 +15,7 @@ from app.api.routes.institutional_intelligence import router as institutional_in
 from app.api.routes.advisor_copilot import router as advisor_copilot_router
 from app.api.routes.policies import router as policies_router
 from app.api.routes.decision_history import router as decision_history_router
+from app.api.routes.advisor_decision_history import router as advisor_decision_history_router
 from app.decision_trace_persistence import (
     DecisionTraceErrorCode, DecisionTracePersistenceError, DecisionTraceService,
     SupabaseDecisionTraceRepository,
@@ -249,6 +250,7 @@ app.include_router(institutional_intelligence_router)
 app.include_router(advisor_copilot_router)
 app.include_router(policies_router)
 app.include_router(decision_history_router)
+app.include_router(advisor_decision_history_router)
 
 
 @app.exception_handler(DecisionTracePersistenceError)
