@@ -219,30 +219,39 @@ class SupabaseAcademicCatalogRepository:
         self,
         study_plan_id: UUID | str,
     ) -> tuple[ResolvedCourseReference, ...]:
-        """Batch-load canonical university-course identities for advisor resolution."""
+        """Load only canonical course identities in the requested study plan."""
 
         plan_id = str(study_plan_id)
         plan = await self._load_study_plan(plan_id)
         university_id = self._university_id(plan)
         rows = await self._get_rows(
-            "courses",
+            "study_plan_courses",
             {
-                "select": "course_code,name_ar,name_en,university_id",
-                "university_id": f"eq.{university_id}",
-                "order": "course_code.asc",
+                "select": "id,study_plan_id,courses(course_code,name_ar,name_en,university_id)",
+                "study_plan_id": f"eq.{plan_id}",
+                "order": "id.asc",
             },
         )
         resolved: list[ResolvedCourseReference] = []
-        for course in rows:
+        for row in rows:
+            _required_text(row, "id", "study_plan_course")
+            if _required_text(row, "study_plan_id", "study_plan_course") != plan_id:
+                raise CatalogIntegrityError("Plan course belongs to another study plan")
+            course = row.get("courses")
+            if not isinstance(course, Mapping):
+                raise CatalogIntegrityError("Plan course is missing its course relationship")
             if _required_text(course, "university_id", "course") != university_id:
-                raise CatalogIntegrityError("Course belongs to another university")
+                raise CatalogIntegrityError("Plan course belongs to another university")
+            name_ar = _required_text(course, "name_ar", "course")
+            if not name_ar.strip():
+                raise CatalogIntegrityError("course name_ar is blank")
             name_en = course.get("name_en")
             if name_en is not None and (not isinstance(name_en, str) or not name_en.strip()):
                 raise CatalogIntegrityError("course name_en is not valid text")
             resolved.append(
                 ResolvedCourseReference(
                     course_code=_required_text(course, "course_code", "course"),
-                    canonical_arabic_name=_required_text(course, "name_ar", "course"),
+                    canonical_arabic_name=name_ar,
                     canonical_english_name=name_en,
                 )
             )

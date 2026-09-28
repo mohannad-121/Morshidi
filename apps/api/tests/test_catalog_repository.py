@@ -18,6 +18,8 @@ from app.catalog.errors import (
     TargetCourseNotInStudyPlan,
 )
 from app.catalog.supabase_repository import SupabaseAcademicCatalogRepository
+from app.advisor.interpretation import resolve_course_references
+from app.advisor.models import EntityResolutionStatus
 from app.rules.evaluator import evaluate_can_take
 from app.rules.models import (
     AttemptOutcome,
@@ -119,6 +121,91 @@ def load(data: FixtureData, target_code: str = "1501112"):
             return await repository.load_target_rules(PLAN_ID, target_code)
 
     return asyncio.run(operation())
+
+
+def load_advisor_catalog(data: FixtureData):
+    async def operation():
+        async with httpx.AsyncClient(transport=httpx.MockTransport(data.handler)) as client:
+            repository = SupabaseAcademicCatalogRepository(
+                "https://catalog.example", SERVER_KEY, client
+            )
+            return await repository.load_advisor_course_catalog(PLAN_ID)
+
+    return asyncio.run(operation())
+
+
+def test_advisor_catalog_uses_plan_membership_and_ignores_unnamed_referenced_only_course() -> None:
+    data = FixtureData()
+    data.course_rows.append({
+        "id": "referenced-only", "course_code": "0300103", "name_ar": None,
+        "name_en": None, "catalog_status": "referenced_only", "university_id": UNIVERSITY_ID,
+    })
+    data.course_rows.append({
+        "id": "foreign-course", "course_code": "9999001", "name_ar": "مادة خارجية",
+        "name_en": None, "catalog_status": "known", "university_id": "different-university",
+    })
+    data.plan_course_rows = [
+        {
+            "id": PLAN_COURSE_ID, "study_plan_id": PLAN_ID,
+            "courses": {
+                "course_code": "1505320", "name_ar": "الذكاء الاصطناعي",
+                "name_en": "Artificial Intelligence", "university_id": UNIVERSITY_ID,
+            },
+        },
+        {
+            "id": "another-membership", "study_plan_id": PLAN_ID,
+            "courses": {
+                "course_code": "1501112", "name_ar": "برمجة الحاسوب",
+                "name_en": None, "university_id": UNIVERSITY_ID,
+            },
+        },
+    ]
+
+    catalog = load_advisor_catalog(data)
+
+    assert tuple(course.course_code for course in catalog) == ("1501112", "1505320")
+    assert resolve_course_references(("الذكاء الاصطناعي",), catalog).resolved_course == catalog[1]
+    assert resolve_course_references(("Artificial Intelligence",), catalog).resolved_course == catalog[1]
+    assert resolve_course_references(("1505320",), catalog).resolved_course == catalog[1]
+    assert resolve_course_references(("0300103",), catalog).status is EntityResolutionStatus.NOT_FOUND
+    assert resolve_course_references(("9999001",), catalog).status is EntityResolutionStatus.NOT_FOUND
+    assert [request.url.path.rsplit("/", 1)[-1] for request in data.calls] == [
+        "study_plans", "study_plan_courses",
+    ]
+    assert data.calls[1].url.params["study_plan_id"] == f"eq.{PLAN_ID}"
+
+
+@pytest.mark.parametrize("corruption", [
+    "missing_relationship", "wrong_university", "wrong_plan", "duplicate_code",
+    "missing_arabic", "blank_arabic", "malformed_english",
+])
+def test_advisor_catalog_rejects_invalid_actual_plan_membership(corruption: str) -> None:
+    data = FixtureData()
+    member = {
+        "id": PLAN_COURSE_ID, "study_plan_id": PLAN_ID,
+        "courses": {
+            "course_code": "1505320", "name_ar": "الذكاء الاصطناعي",
+            "name_en": "Artificial Intelligence", "university_id": UNIVERSITY_ID,
+        },
+    }
+    data.plan_course_rows = [member]
+    if corruption == "missing_relationship":
+        member["courses"] = None
+    elif corruption == "wrong_university":
+        member["courses"]["university_id"] = "different-university"
+    elif corruption == "wrong_plan":
+        member["study_plan_id"] = "different-plan"
+    elif corruption == "duplicate_code":
+        data.plan_course_rows.append({**member, "id": "duplicate-membership"})
+    elif corruption == "missing_arabic":
+        member["courses"]["name_ar"] = None
+    elif corruption == "blank_arabic":
+        member["courses"]["name_ar"] = "   "
+    elif corruption == "malformed_english":
+        member["courses"]["name_en"] = "   "
+
+    with pytest.raises(CatalogIntegrityError):
+        load_advisor_catalog(data)
 
 
 def test_not_applicable_target_maps_without_dependencies() -> None:

@@ -5,6 +5,7 @@ from __future__ import annotations
 import inspect
 from decimal import Decimal
 
+import httpx
 import pytest
 
 from app.advisor import (
@@ -19,9 +20,11 @@ from app.advisor import (
     UnconfiguredAdvisorLLMProvider,
 )
 from app.rules.models import AttemptOutcome, StudentCourseAttempt
+from app.catalog.supabase_repository import SupabaseAcademicCatalogRepository
 from app.services.advisor import AdvisorProviderError, AdvisorService
 from app.student.models import StudentAcademicState
 from tests.test_advisor_orchestrator import _context
+from tests.test_catalog_repository import FixtureData, SERVER_KEY, UNIVERSITY_ID
 
 
 OWNER = "11111111-1111-1111-1111-111111111111"
@@ -170,6 +173,45 @@ async def test_05_eligibility_loads_only_state_resolution_and_eligibility() -> N
     assert catalogs.resolution_loads == [PLAN]
     assert catalogs.eligibility_loads == [PLAN]
     assert catalogs.progress_loads == []
+
+
+@pytest.mark.anyio
+async def test_arabic_course_question_ignores_unnamed_unrelated_prerequisite() -> None:
+    data = FixtureData()
+    data.plan_rows[0]["id"] = PLAN
+    data.course_rows.append({
+        "course_code": "0300103", "name_ar": None, "name_en": None,
+        "catalog_status": "referenced_only", "university_id": UNIVERSITY_ID,
+    })
+    data.plan_course_rows = [{
+        "id": "actual-plan-member", "study_plan_id": PLAN,
+        "courses": {
+            "course_code": "1505320", "name_ar": "الذكاء الاصطناعي",
+            "name_en": "Artificial Intelligence", "university_id": UNIVERSITY_ID,
+        },
+    }]
+
+    class CatalogWithRealResolution(FakeCatalogRepository):
+        async def load_advisor_course_catalog(self, plan_id: str):
+            self.resolution_loads.append(str(plan_id))
+            return await repository.load_advisor_course_catalog(plan_id)
+
+    provider = FakeProvider(RawAdvisorInterpretation(
+        "COURSE_ELIGIBILITY", course_mentions=("الذكاء الاصطناعي",)
+    ))
+    students = FakeStudentRepository()
+    catalogs = CatalogWithRealResolution()
+    async with httpx.AsyncClient(transport=httpx.MockTransport(data.handler)) as client:
+        repository = SupabaseAcademicCatalogRepository("https://catalog.example", SERVER_KEY, client)
+        result = await AdvisorService(students, catalogs, provider).advise(
+            OWNER, "هل يمكنني تسجيل مادة الذكاء الاصطناعي؟"
+        )
+
+    assert result.intent is AdvisorIntent.COURSE_ELIGIBILITY
+    assert result.course_resolution.resolved_course.course_code == "1505320"
+    assert result.authority is AnswerAuthority.REVIEW_REQUIRED
+    assert catalogs.resolution_loads == [PLAN]
+    assert provider.calls == ["هل يمكنني تسجيل مادة الذكاء الاصطناعي؟"]
 
 
 @pytest.mark.anyio

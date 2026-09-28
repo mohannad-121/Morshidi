@@ -33,6 +33,20 @@ def local_load(target_course_code: str):
     return asyncio.run(operation())
 
 
+def test_local_advisor_catalog_excludes_unnamed_referenced_only_prerequisites() -> None:
+    async def operation():
+        repository = SupabaseAcademicCatalogRepository(LOCAL_URL or "", LOCAL_SERVER_KEY or "")
+        try:
+            return await repository.load_advisor_course_catalog(LOCAL_PLAN_ID or "")
+        finally:
+            await repository.close()
+
+    catalog = asyncio.run(operation())
+    codes = {course.course_code for course in catalog}
+    assert "1501112" in codes
+    assert "0300103" not in codes
+
+
 def test_local_catalog_maps_required_target_states() -> None:
     not_applicable = local_load("0200115").plan_courses[0]
     verified = local_load("1501112").plan_courses[0]
