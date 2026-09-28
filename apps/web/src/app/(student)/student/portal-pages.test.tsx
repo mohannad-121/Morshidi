@@ -23,6 +23,7 @@ import type {
   AcademicProgressResponse,
   AdvisorResponse,
   CanTakeDecisionResponse,
+  EligibilityExplanationGraph,
   CourseAttemptResponse,
   DegreePathResponse,
   RecommendationResponse,
@@ -133,6 +134,29 @@ const mockEligibility: CanTakeDecisionResponse = {
   raw_prerequisite_text: '1501110',
   target_name_ar: 'برمجة كينونية',
 };
+
+const mockEligibilityGraph = {
+  graph_id: 'eligibility:1501211:ELIGIBLE:why',
+  subject_type: 'ELIGIBILITY', subject_reference: '1501211',
+  root_node_id: 'decision:1501211', mode: 'why', target_decision: null,
+  nodes: [
+    {
+      id: 'decision:1501211', type: 'DECISION', decision: 'ELIGIBLE', reason: null,
+      course_code: null, group_number: null, dependency_type: null,
+      option_course_codes: [], passed_option_course_codes: [], non_passed_option_course_codes: [],
+      academic_state: null, limitation: null,
+    },
+    {
+      id: 'reason:PREREQUISITES_SATISFIED', type: 'REASON', decision: null,
+      reason: 'PREREQUISITES_SATISFIED', course_code: null, group_number: null,
+      dependency_type: null, option_course_codes: [], passed_option_course_codes: [],
+      non_passed_option_course_codes: [], academic_state: null, limitation: null,
+    },
+  ],
+  edges: [{ from_node_id: 'decision:1501211', to_node_id: 'reason:PREREQUISITES_SATISFIED', relation: 'DECIDED_BY' }],
+  limitations: ['CURRENT_STORED_STATE', 'EXACT_SOURCE_VERSION_UNAVAILABLE'],
+  policy_versions: [], source_versions: [], generated_at: '2026-09-29T00:00:00Z',
+} satisfies EligibilityExplanationGraph;
 
 const mockRecommendations: RecommendationResponse = {
   study_plan_id: 'test-plan-uuid',
@@ -373,6 +397,12 @@ function setupMockFetch() {
         headers: { 'Content-Type': 'application/json' },
       });
     }
+    if (url.includes('/explanation-graph')) {
+      return new Response(JSON.stringify(mockEligibilityGraph), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    }
     if (url.includes('/api/v1/me/eligibility')) {
       return new Response(JSON.stringify(mockEligibility), {
         status: 200,
@@ -478,6 +508,17 @@ describe('Morshidi Student Portal Pages Suite', () => {
       expect(screen.getByText(/مؤهل لتسجيل المادة/)).toBeDefined();
     });
     expect(screen.getByText(/برمجة كينونية/)).toBeDefined();
+  });
+
+  it('renders the graph beneath the authoritative eligibility result', async () => {
+    const user = userEvent.setup();
+    renderWithAuth(<EligibilityPage />);
+    await user.type(screen.getByPlaceholderText('أدخل رمز المادة هنا...'), '1501211');
+    await user.click(screen.getByRole('button', { name: 'فحص الأهلية' }));
+    await waitFor(() => {
+      expect(screen.getByRole('heading', { name: 'لماذا هذا القرار؟' })).toBeDefined();
+      expect(screen.getByText('استوفيت المتطلبات السابقة')).toBeDefined();
+    });
   });
 
   it('renders RecommendationsPage with ranked courses and impact tags', async () => {

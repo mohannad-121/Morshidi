@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useAuth } from "@/auth/auth-provider";
 import { useAuthenticatedApi } from "@/lib/api/use-authenticated-api";
 import { StudentApiService } from "@/lib/api/student-api";
@@ -9,8 +9,11 @@ import type {
   Decision,
   DecisionReason,
   DependencyGroupEvidenceResponse,
+  EligibilityExplanationGraph,
+  EligibilityGraphMode,
   PrerequisiteLogicStatus,
 } from "@/lib/api/student-types";
+import { EligibilityExplanationGraphPanel } from "./EligibilityExplanationGraph";
 import { Badge, type BadgeVariant } from "@/components/ui/Badge";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { ErrorAlert } from "@/components/ui/ErrorAlert";
@@ -71,6 +74,27 @@ export default function EligibilityPage() {
   const [result, setResult] = useState<CanTakeDecisionResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [graph, setGraph] = useState<EligibilityExplanationGraph | null>(null);
+  const [graphMode, setGraphMode] = useState<EligibilityGraphMode>("why");
+  const [graphLoading, setGraphLoading] = useState(false);
+  const [graphError, setGraphError] = useState(false);
+  const graphRequestRef = useRef(0);
+
+  const loadGraph = async (code: string, mode: EligibilityGraphMode) => {
+    const requestId = ++graphRequestRef.current;
+    setGraphMode(mode);
+    setGraph(null);
+    setGraphLoading(true);
+    setGraphError(false);
+    try {
+      const data = await new StudentApiService(client).getEligibilityExplanationGraph(code, mode);
+      if (requestId === graphRequestRef.current) setGraph(data);
+    } catch {
+      if (requestId === graphRequestRef.current) setGraphError(true);
+    } finally {
+      if (requestId === graphRequestRef.current) setGraphLoading(false);
+    }
+  };
 
   const handleCheck = async (codeToCheck?: string) => {
     const code = (codeToCheck ?? courseCodeInput).trim().toUpperCase();
@@ -83,11 +107,18 @@ export default function EligibilityPage() {
     setLoading(true);
     setErrorMessage(null);
     setResult(null);
+    graphRequestRef.current += 1;
+    setGraph(null);
+    setGraphError(false);
+    setGraphLoading(false);
+    setGraphMode("why");
 
     try {
       const api = new StudentApiService(client);
       const data = await api.checkEligibility(code);
       setResult(data);
+      setLoading(false);
+      void loadGraph(data.target_course_code, "why");
     } catch (err: unknown) {
       if (err instanceof Error && err.message === "NOT_FOUND") {
         setErrorMessage(`المادة ذات الرمز (${code}) غير موجودة في الخطة الدراسية الحالية.`);
@@ -266,6 +297,16 @@ export default function EligibilityPage() {
               </div>
             </div>
           </div>
+
+          <EligibilityExplanationGraphPanel
+            graph={graph}
+            mode={graphMode}
+            loading={graphLoading}
+            error={graphError}
+            canAskWhyNot={result.decision !== "ELIGIBLE"}
+            onModeChange={(mode) => { void loadGraph(result.target_course_code, mode); }}
+            onRetry={() => { void loadGraph(result.target_course_code, graphMode); }}
+          />
 
           {/* Details Grid */}
           <div className="grid grid-cols-1 gap-6 md:grid-cols-2">

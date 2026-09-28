@@ -163,6 +163,50 @@ export interface CanTakeDecisionResponse {
   target_name_ar: string | null;
 }
 
+export type EligibilityGraphMode = "why" | "why_not";
+export type EligibilityGraphNodeType =
+  | "DECISION" | "COURSE" | "REASON" | "PREREQUISITE_GROUP"
+  | "ACADEMIC_STATE" | "LIMITATION";
+export type EligibilityGraphEdgeRelation =
+  | "DECIDED_BY" | "REFERENCES" | "SUPPORTED_BY" | "SATISFIED_BY"
+  | "BLOCKED_BY" | "LIMITED_BY";
+
+export interface EligibilityGraphNode {
+  id: string;
+  type: EligibilityGraphNodeType;
+  decision: Decision | null;
+  reason: DecisionReason | null;
+  course_code: string | null;
+  group_number: number | null;
+  dependency_type: DependencyType | null;
+  option_course_codes: string[];
+  passed_option_course_codes: string[];
+  non_passed_option_course_codes: string[];
+  academic_state: "PASSED" | "NOT_PASSED" | "TARGET_COMPLETED" | "TARGET_IN_PROGRESS" | null;
+  limitation: string | null;
+}
+
+export interface EligibilityGraphEdge {
+  from_node_id: string;
+  to_node_id: string;
+  relation: EligibilityGraphEdgeRelation;
+}
+
+export interface EligibilityExplanationGraph {
+  graph_id: string;
+  subject_type: "ELIGIBILITY";
+  subject_reference: string;
+  root_node_id: string;
+  mode: EligibilityGraphMode;
+  target_decision: Decision | null;
+  nodes: EligibilityGraphNode[];
+  edges: EligibilityGraphEdge[];
+  generated_at: string;
+  policy_versions: string[];
+  source_versions: string[];
+  limitations: string[];
+}
+
 export interface RecommendationCandidateResponse {
   course_code: string;
   course_name_ar: string | null;

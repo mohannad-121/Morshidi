@@ -10,6 +10,8 @@ import type {
   AttemptCreateRequest,
   AttemptUpdateRequest,
   CanTakeDecisionResponse,
+  EligibilityExplanationGraph,
+  EligibilityGraphMode,
   CourseAttemptResponse,
   DegreePathRequest,
   DegreePathResponse,
@@ -182,6 +184,16 @@ export class StudentApiService {
   async getPolicyDetail(documentId: string): Promise<StudentPolicyDocumentDetail> {
     const res = await this.client.request(`/api/v1/me/policies/${encodeURIComponent(documentId)}`);
     return parseJson<StudentPolicyDocumentDetail>(res);
+  }
+
+  async getEligibilityExplanationGraph(
+    courseCode: string, mode: EligibilityGraphMode = "why",
+  ): Promise<EligibilityExplanationGraph> {
+    const query = mode === "why_not" ? "?mode=why_not&target=ELIGIBLE" : "?mode=why";
+    const res = await this.client.request(
+      `/api/v1/me/eligibility/${encodeURIComponent(courseCode.trim().toUpperCase())}/explanation-graph${query}`,
+    );
+    return parseJson<EligibilityExplanationGraph>(res);
   }
 
   async searchPolicies(query: string, limit = 10, mode: "lexical" | "semantic" | "hybrid" = "lexical"): Promise<StudentPolicySearchResult[]> {

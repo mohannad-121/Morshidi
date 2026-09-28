@@ -3,7 +3,7 @@
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Query, Request, Response, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response, status
 
 from app.api.routes.eligibility import _decision_response
 from app.api.schemas.eligibility import CanTakeDecisionResponse
@@ -22,7 +22,8 @@ from app.api.schemas.degree_path import (
     DegreePathResponse,
 )
 from app.core.auth import CurrentUser, get_current_user
-from app.rules.models import CanTakeDecision
+from app.rules.models import CanTakeDecision, Decision
+from app.explainability_graph import ExplainabilityGraph, GraphMode, build_eligibility_graph
 from app.services.student import StudentConfigurationError, StudentService
 from app.student.models import StudentAcademicState, StudentCourseAttemptRecord
 from app.progress.models import AcademicProgress
@@ -103,6 +104,32 @@ async def profile_can_take(target_course_code: str, user: AuthenticatedUser, ser
     if not isinstance(result, CanTakeDecision):
         raise RuntimeError("Validated profile eligibility produced a request error")
     return _decision_response(result)
+
+
+@router.get("/eligibility/{target_course_code}/explanation-graph", response_model=ExplainabilityGraph)
+async def profile_can_take_explanation_graph(
+    target_course_code: str, user: AuthenticatedUser, service: StudentServiceDependency,
+    request: Request,
+    mode: GraphMode = GraphMode.WHY, target: Decision | None = None,
+) -> ExplainabilityGraph:
+    if set(request.query_params) - {"mode", "target"}:
+        raise HTTPException(status_code=422, detail="Unsupported graph query parameter")
+    if mode is GraphMode.WHY and target is not None:
+        raise HTTPException(status_code=422, detail="WHY does not accept a target decision")
+    if mode is GraphMode.WHY_NOT and target not in {None, Decision.ELIGIBLE}:
+        raise HTTPException(status_code=422, detail="Unsupported alternative decision")
+    result = await service.evaluate_can_take(user.user_id, target_course_code)
+    if not isinstance(result, CanTakeDecision):
+        raise RuntimeError("Validated profile eligibility produced a request error")
+    if mode is GraphMode.WHY_NOT and result.decision is Decision.ELIGIBLE:
+        raise HTTPException(status_code=422, detail="The requested alternative is already current")
+    try:
+        return build_eligibility_graph(
+            result, mode=mode,
+            target_decision=Decision.ELIGIBLE if mode is GraphMode.WHY_NOT else None,
+        )
+    except ValueError as error:
+        raise HTTPException(status_code=409, detail="Eligibility evidence cannot be safely graphed") from error
 
 
 def _profile_response(state: StudentAcademicState) -> AcademicProfileResponse:
