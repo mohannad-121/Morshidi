@@ -693,9 +693,9 @@ describe('Morshidi Student Portal Pages Suite', () => {
     expect(screen.queryByText(/AI answer/i)).toBeNull();
   });
 
-  it('renders DecisionHistoryPage with under development state', () => {
-    render(<DecisionHistoryPage />);
-    expect(screen.getByText('سجل القرارات والتدقيق الأكاديمي')).toBeDefined();
-    expect(screen.getByText('سجل القرارات الأكاديمية قيد التجهيز')).toBeDefined();
+  it('renders the read-only Decision History page without the old placeholder', () => {
+    renderWithAuth(<DecisionHistoryPage />);
+    expect(screen.getByRole('heading', { name: 'سجل القرارات الأكاديمية' })).toBeDefined();
+    expect(screen.queryByText('سجل القرارات الأكاديمية قيد التجهيز')).toBeNull();
   });
 });

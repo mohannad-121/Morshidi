@@ -96,7 +96,10 @@ institutional adoption.
 - **WC-040 Decision Trace Ledger — PARTIAL:** canonical domain model, hashing,
   validation, evidence references, replay availability, immutable PostgreSQL
   ledger/evidence persistence, service-role append RPC, P6 outbox integration,
-  and bounded processor RPCs are present.
+  bounded processor RPCs, and a read-only student-owner Decision History V1
+  timeline/detail surface are present. The viewer enforces `STUDENT_SAFE`,
+  verifies canonical hashes before projection, and displays safe evidence,
+  historical replay status, supersession, and limitations without replaying.
 - **WC-038 University Regulation RAG / Policy Retrieval — PARTIAL:** governed
   document/version/passage model, exact citation anchors, deterministic
   computation handoff, Supabase persistence, atomic structured ingestion,
@@ -106,9 +109,9 @@ institutional adoption.
 
 ### Remaining
 
-- **WC-040:** complete end-user Decision History access, complete trace exposure
-  and authorization projections, and all roadmap exit evidence remain outside
-  the implemented slice.
+- **WC-040:** advisor/institutional viewer authorization, export and retention
+  contracts, and all roadmap exit evidence remain outside the student-owner V1
+  slice. The browser cannot append, mutate, or replay traces.
 - **WC-038:** document/PDF import and parsing, real institutional source
   onboarding and verification, approved conflict resolution, and the final
   cited-retrieval plus replayable-ledger exit evidence remain incomplete.
@@ -127,7 +130,7 @@ privacy, and no-write requirements in this policy remain unchanged.
 ## 8. Companion Policy Documents
 
 The detailed specifications governing Phase P8 are established in:
-1. [decision-trace-ledger-policy.md](decision-trace-ledger-policy.md): referenced canonical companion path; the tracked file currently has no substantive content.
+1. [decision-trace-ledger-policy.md](decision-trace-ledger-policy.md): approved canonical Decision Trace contract; student-owner read runtime remains a bounded partial slice.
 2. [institutional-policy-retrieval-policy.md](institutional-policy-retrieval-policy.md): approved canonical policy-retrieval contract; runtime implementation remains partial.
 3. [academic-explainability-graph-policy.md](academic-explainability-graph-policy.md): referenced canonical companion path; the tracked file currently has no substantive content.
 4. [change-impact-policy.md](change-impact-policy.md): Analysis-only version diff evaluation, affected decision identification, and no-write guarantees.
@@ -139,8 +142,8 @@ The detailed specifications governing Phase P8 are established in:
 ## 9. Remaining runtime roadmap
 
 The following runtime work remains after the current implemented slices:
-- **Remaining P8 Decision Trace work**: end-user history/read projections and
-  approved completion of the remaining ledger exit evidence.
+- **Remaining P8 Decision Trace work**: separately authorized viewers, retention
+  and export governance, and approved completion of the remaining ledger exit evidence.
 - **Remaining P8 Policy Retrieval work**: institutional source onboarding and
   verification, document ingestion/parsing, conflict governance, and final exit evidence.
 - **Future P8 Runtime Implementation**: Implementation of explainability DAG builder services, change impact batch evaluators, and constrained metric query planners.

@@ -7,7 +7,7 @@ from datetime import datetime
 from enum import Enum
 from uuid import UUID
 
-from app.decision_trace.registries import DecisionStatus, DecisionType, ReplayStatus
+from app.decision_trace.registries import DecisionStatus, DecisionType, ReplayStatus, ProvenanceClass
 
 from .p6_outbox_mapper import TrustedP6OutboxProjection
 
@@ -44,6 +44,50 @@ class DecisionTraceSafeView:
     """Minimum individual projection; evidence is not projected in this local slice."""
 
     metadata: DecisionTraceSafeMetadata
+
+
+@dataclass(frozen=True, slots=True)
+class StudentDecisionHistoryItem:
+    ledger_entry_id: str
+    decision_type: DecisionType
+    decision_status: DecisionStatus
+    created_at: datetime
+    source_engine: str
+    source_engine_version: str
+    policy_version: str
+    replay_status: ReplayStatus
+    supersedes_entry_id: str | None
+    is_superseded: bool
+    limitations: tuple[str, ...]
+    integrity_status: str = "VERIFIED"
+
+
+@dataclass(frozen=True, slots=True)
+class StudentDecisionEvidence:
+    source: str
+    identifier: str
+    version: str
+    locator: str | None
+    uri: str | None
+
+
+@dataclass(frozen=True, slots=True)
+class StudentDecisionHistoryDetail:
+    ledger_entry_id: str
+    decision_type: DecisionType
+    decision_status: DecisionStatus
+    created_at: datetime
+    source_engine: str
+    source_engine_version: str
+    policy_version: str
+    source_versions: tuple[str, ...]
+    replay_status: ReplayStatus
+    provenance_class: ProvenanceClass
+    limitations: tuple[str, ...]
+    integrity_status: str
+    supersedes_entry_id: str | None
+    is_superseded: bool
+    evidence: tuple[StudentDecisionEvidence, ...]
 
 
 @dataclass(frozen=True, slots=True)

@@ -475,3 +475,32 @@ export interface StudentPolicyAnswerResponse {
     reason: string;
   } | null;
 }
+
+export interface StudentDecisionHistoryItem {
+  ledger_entry_id: string;
+  decision_type: string;
+  decision_status: string;
+  created_at: string;
+  source_engine: string;
+  source_engine_version: string;
+  policy_version: string;
+  replay_status: string;
+  supersedes_entry_id: string | null;
+  is_superseded: boolean;
+  limitations: string[];
+  integrity_status: "VERIFIED";
+}
+
+export interface StudentDecisionEvidence {
+  source: string;
+  identifier: string;
+  version: string;
+  locator: string | null;
+  uri: string | null;
+}
+
+export interface StudentDecisionHistoryDetail extends StudentDecisionHistoryItem {
+  source_versions: string[];
+  provenance_class: string;
+  evidence: StudentDecisionEvidence[];
+}

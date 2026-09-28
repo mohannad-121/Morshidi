@@ -2,9 +2,12 @@
 
 from __future__ import annotations
 
+from datetime import datetime
 from typing import Protocol
+from urllib.parse import urlsplit
 from uuid import UUID
 
+from app.advisor_persistence.errors import AdvisorPersistenceError
 from app.advisor_service import AdvisorAuthorizationError, AdvisorAuthorizationService
 from app.core.auth import CurrentUser
 from app.decision_trace import (
@@ -16,7 +19,10 @@ from app.decision_trace import (
 )
 
 from .errors import DecisionTraceErrorCode, DecisionTracePersistenceError
-from .models import DecisionTraceSafeMetadata, DecisionTraceSafeView
+from .models import (
+    DecisionTraceSafeMetadata, DecisionTraceSafeView, StudentDecisionEvidence,
+    StudentDecisionHistoryDetail, StudentDecisionHistoryItem,
+)
 from .repository import SupabaseDecisionTraceRepository
 
 
@@ -83,6 +89,92 @@ class DecisionTraceService:
         _require_viewer_visibility(entry, RedactionProfile.STUDENT_SAFE)
         return _safe_view(entry)
 
+    async def list_student_history(
+        self, principal: CurrentUser | None, *, limit: int = 20,
+        before_created_at: datetime | None = None, before_entry_id: str | None = None,
+    ) -> tuple[StudentDecisionHistoryItem, ...]:
+        student_id = _verified_principal_uuid(principal)
+        university_id = await _student_university(self._student_scopes, student_id)
+        entries = await self._repository.list_student_entries(
+            student_user_id=str(student_id), university_id=str(university_id), limit=limit,
+            before_created_at=before_created_at, before_entry_id=before_entry_id,
+        )
+        result: list[StudentDecisionHistoryItem] = []
+        for entry in entries:
+            _require_viewer_visibility(entry, RedactionProfile.STUDENT_SAFE)
+            _require_verified_hash(entry)
+            predecessor_id = await self._visible_predecessor_id(entry, student_id, university_id)
+            successor = await self._visible_successor(entry, student_id, university_id)
+            result.append(StudentDecisionHistoryItem(
+                ledger_entry_id=entry.ledger_entry_id, decision_type=entry.decision_type,
+                decision_status=entry.decision_status, created_at=entry.created_at,
+                source_engine=entry.source_engine, source_engine_version=entry.source_engine_version,
+                policy_version=entry.policy_version, replay_status=entry.replay_status,
+                supersedes_entry_id=predecessor_id, is_superseded=successor is not None,
+                limitations=entry.limitations,
+            ))
+        return tuple(result)
+
+    async def get_student_history_detail(
+        self, principal: CurrentUser | None, ledger_entry_id: str,
+    ) -> StudentDecisionHistoryDetail:
+        student_id = _verified_principal_uuid(principal)
+        university_id = await _student_university(self._student_scopes, student_id)
+        entry = await self._load_authorized_student_entry(
+            ledger_entry_id, student_id, university_id,
+            viewer_profile=RedactionProfile.STUDENT_SAFE,
+        )
+        predecessor_id = await self._visible_predecessor_id(entry, student_id, university_id)
+        successor = await self._visible_successor(entry, student_id, university_id)
+        return StudentDecisionHistoryDetail(
+            ledger_entry_id=entry.ledger_entry_id, decision_type=entry.decision_type,
+            decision_status=entry.decision_status, created_at=entry.created_at,
+            source_engine=entry.source_engine, source_engine_version=entry.source_engine_version,
+            policy_version=entry.policy_version, source_versions=entry.source_versions,
+            replay_status=entry.replay_status, provenance_class=entry.provenance_class,
+            limitations=entry.limitations, integrity_status="VERIFIED",
+            supersedes_entry_id=predecessor_id, is_superseded=successor is not None,
+            evidence=tuple(StudentDecisionEvidence(
+                source=ref.source, identifier=ref.identifier, version=ref.version,
+                locator=ref.locator, uri=_safe_evidence_uri(ref.uri),
+            ) for ref in entry.evidence_references),
+        )
+
+    async def _visible_predecessor_id(
+        self, entry: CanonicalLedgerEntry, student_id: UUID, university_id: UUID,
+    ) -> str | None:
+        if entry.supersedes_entry_id is None:
+            return None
+        predecessor = await self._repository.load_student_entry(
+            ledger_entry_id=entry.supersedes_entry_id,
+            student_user_id=str(student_id), university_id=str(university_id),
+            redaction_profile=RedactionProfile.STUDENT_SAFE.value,
+        )
+        if predecessor is None or predecessor.redaction_profile is not RedactionProfile.STUDENT_SAFE:
+            return None
+        _require_verified_hash(predecessor)
+        if entry.previous_entry_hash != predecessor.integrity_hash:
+            raise DecisionTracePersistenceError(
+                DecisionTraceErrorCode.INTEGRITY_FAILURE, "supersession hash does not match"
+            )
+        return predecessor.ledger_entry_id
+
+    async def _visible_successor(
+        self, entry: CanonicalLedgerEntry, student_id: UUID, university_id: UUID,
+    ) -> CanonicalLedgerEntry | None:
+        successor = await self._repository.load_student_successor(
+            ledger_entry_id=entry.ledger_entry_id,
+            student_user_id=str(student_id), university_id=str(university_id),
+        )
+        if successor is not None:
+            _require_viewer_visibility(successor, RedactionProfile.STUDENT_SAFE)
+            _require_verified_hash(successor)
+            if successor.previous_entry_hash != entry.integrity_hash:
+                raise DecisionTracePersistenceError(
+                    DecisionTraceErrorCode.INTEGRITY_FAILURE, "successor hash does not match"
+                )
+        return successor
+
     async def get_advisor_trace(
         self,
         principal: CurrentUser | None,
@@ -116,7 +208,8 @@ class DecisionTraceService:
         )
 
     async def _load_authorized_student_entry(
-        self, ledger_entry_id: str, student_id: UUID, university_id: UUID
+        self, ledger_entry_id: str, student_id: UUID, university_id: UUID,
+        viewer_profile: RedactionProfile | None = None,
     ) -> CanonicalLedgerEntry:
         if not isinstance(ledger_entry_id, str) or not ledger_entry_id.strip():
             raise DecisionTracePersistenceError(
@@ -126,11 +219,21 @@ class DecisionTraceService:
             ledger_entry_id=ledger_entry_id,
             student_user_id=str(student_id),
             university_id=str(university_id),
+            **({"redaction_profile": viewer_profile.value} if viewer_profile is not None else {}),
         )
         if entry is None:
             raise DecisionTracePersistenceError(
                 DecisionTraceErrorCode.NOT_FOUND, "individual decision trace was not found"
             )
+        if (entry.ledger_entry_id != ledger_entry_id or entry.student_user_id != str(student_id)
+                or entry.university_id != str(university_id)
+                or entry.subject_scope_type.value != "STUDENT_INDIVIDUAL"):
+            raise DecisionTracePersistenceError(
+                DecisionTraceErrorCode.PERSISTENCE_INTEGRITY_FAILURE,
+                "individual decision trace scope mismatch",
+            )
+        if viewer_profile is not None:
+            _require_viewer_visibility(entry, viewer_profile)
         _require_verified_hash(entry)
         return entry
 
@@ -138,7 +241,13 @@ class DecisionTraceService:
 async def _student_university(
     repository: StudentScopeRepository, student_id: UUID
 ) -> UUID:
-    university = await repository.load_student_authoritative_university(student_id)
+    try:
+        university = await repository.load_student_authoritative_university(student_id)
+    except AdvisorPersistenceError as error:
+        raise DecisionTracePersistenceError(
+            DecisionTraceErrorCode.PERSISTENCE_UNAVAILABLE,
+            "student scope lookup is unavailable",
+        ) from error
     if university is None:
         raise DecisionTracePersistenceError(
             DecisionTraceErrorCode.ACCESS_DENIED,
@@ -217,3 +326,12 @@ def _safe_view(entry: CanonicalLedgerEntry) -> DecisionTraceSafeView:
             replay_status=entry.replay_status,
         )
     )
+
+
+def _safe_evidence_uri(value: str | None) -> str | None:
+    if value is None:
+        return None
+    parsed = urlsplit(value)
+    if parsed.scheme.lower() not in {"http", "https"} or not parsed.hostname or parsed.username or parsed.password:
+        return None
+    return value

@@ -14,6 +14,11 @@ from app.api.routes.institutional_demand import router as institutional_demand_r
 from app.api.routes.institutional_intelligence import router as institutional_intelligence_router
 from app.api.routes.advisor_copilot import router as advisor_copilot_router
 from app.api.routes.policies import router as policies_router
+from app.api.routes.decision_history import router as decision_history_router
+from app.decision_trace_persistence import (
+    DecisionTraceErrorCode, DecisionTracePersistenceError, DecisionTraceService,
+    SupabaseDecisionTraceRepository,
+)
 from app.institutional_policy.service import (
     StudentPolicyService,
     SupabasePolicyReadStorage,
@@ -131,6 +136,7 @@ async def lifespan(application: FastAPI):
     application.state.advisor_copilot_service = None
     application.state.policy_service = None
     application.state.policy_answer_service = None
+    application.state.decision_trace_service = None
     if settings.supabase_url and settings.supabase_secret_key:
         repository = SupabaseAcademicCatalogRepository(
             settings.supabase_url,
@@ -168,6 +174,12 @@ async def lifespan(application: FastAPI):
             client,
         )
         advisor_auth_service = AdvisorAuthorizationService(advisor_assignment_repo)
+        trace_repository = SupabaseDecisionTraceRepository(
+            settings.supabase_url, settings.supabase_secret_key.get_secret_value(), client,
+        )
+        application.state.decision_trace_service = DecisionTraceService(
+            trace_repository, advisor_assignment_repo, advisor_auth_service,
+        )
         advisor_mock_reg_reader = AdvisorMockRegistrationReader(persistence, context_loader)
         application.state.advisor_copilot_service = AdvisorCopilotService(
             advisor_auth_service,
@@ -236,6 +248,22 @@ app.include_router(institutional_demand_router)
 app.include_router(institutional_intelligence_router)
 app.include_router(advisor_copilot_router)
 app.include_router(policies_router)
+app.include_router(decision_history_router)
+
+
+@app.exception_handler(DecisionTracePersistenceError)
+async def handle_decision_trace_error(_: Request, exc: DecisionTracePersistenceError) -> JSONResponse:
+    if exc.code is DecisionTraceErrorCode.AUTH_REQUIRED:
+        status_code, detail = 401, "Authentication is required"
+    elif exc.code in {DecisionTraceErrorCode.ACCESS_DENIED, DecisionTraceErrorCode.NOT_FOUND}:
+        status_code, detail = 404, "Decision record was not found"
+    elif exc.code in {DecisionTraceErrorCode.INTEGRITY_FAILURE, DecisionTraceErrorCode.PERSISTENCE_INTEGRITY_FAILURE}:
+        status_code, detail = 409, "Decision record integrity could not be verified"
+    else:
+        status_code, detail = 503, "Decision History is unavailable"
+    return JSONResponse(status_code=status_code, content={
+        "kind": "error", "error_code": exc.code.value, "detail": detail,
+    })
 
 
 def _catalog_error_response(error_code: str, detail: str, status_code: int) -> JSONResponse:

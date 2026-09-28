@@ -14,12 +14,14 @@ Source codes: `U` = P8 umbrella policy; `S1` = Slice 1 model/canonical/validatio
 
 ## Current implementation evidence
 
-The last accepted backend baseline before this bounded answer slice is **1,520
+The last accepted backend baseline before Student Decision History V1 is **1,558
 passed, 0 failed, 0 skipped** against Local Supabase. In addition to
 the original Slice 1 evidence, the repository contains executable coverage for
 Decision Trace persistence, P6 outbox mapping/processing boundaries, policy
 domain/retrieval, atomic policy ingestion, student policy API, and Local Supabase
-policy persistence/security, hybrid retrieval, and grounded-answer guards. That
+policy persistence/security, hybrid retrieval, grounded-answer guards, and
+student-owner Decision History list/detail, redaction, integrity, and Local
+Supabase browser-denial checks. That
 evidence establishes implemented slices only;
 it does not accept every row in this matrix or complete the P8 exit gate.
 
@@ -111,7 +113,7 @@ This matrix creates no executable test, migration, policy promotion, RAG corpus,
 
 The 54 rows remain specification coverage. The repository now has additional
 runtime and Local Supabase evidence for the implemented Decision Trace and
-grounded Policy Retrieval slices, but `TRACE-15` and the remaining
+grounded Policy Retrieval slices, but complete `TRACE-15` acceptance and the remaining
 RAG/IMPACT/GRAPH/QUERY rows still require the stated approved design and tests.
 P8 remains PARTIAL; the P8 exit gate is not accepted solely by the current
 implementation.

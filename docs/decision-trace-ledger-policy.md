@@ -54,8 +54,11 @@ authoritative deterministic result has been determined and validated. Evidence
 inherits the authorization scope of its parent and cannot become an independent
 enumeration path.
 
-Individual viewing is a future surface and must require the verified student
-owner or the existing complete advisor predicate: authenticated identity, active
+The approved Student Decision History V1 surface requires the verified student
+owner and authoritative university, displays only `STUDENT_SAFE` entries, and
+provides read-only allowlisted list/detail projections after canonical integrity
+verification. Advisor viewing remains outside this V1 surface; any later advisor
+viewer must use the existing complete predicate: authenticated identity, active
 `ACADEMIC_ADVISOR` membership, authoritative same university, and active exact
 advisor-student assignment. Institutional analyst access never grants
 student-level trace access. Cross-tenant access fails closed without existence
@@ -67,17 +70,21 @@ disclosure.
 validation, hashing, replay availability checks, typed evidence, immutable
 PostgreSQL ledger/evidence persistence, a service-role append RPC, P6 outbox
 records, and service-only outbox claim/complete/release/fail RPC boundaries.
-The audited backend baseline is 1,488 passed, 0 failed, and 0 skipped.
+Student Decision History V1 now adds owner-only bounded newest-first timeline
+reads, student-safe detail/evidence projection, per-entry hash verification,
+historical replay-status display, and supersession display. The browser remains
+read-only; no arbitrary replay or current recomputation is performed. The last
+accepted backend baseline before this V1 slice was 1,558 passed, 0 failed, and
+0 skipped; this slice's final test evidence is recorded in `CODEX_PROGRESS.md`.
 
-This does not complete WC-040: no student-facing Decision History read API or
-timeline is implemented, and the full P8 exit evidence, retention policy, and
-viewer/projection design are not accepted by this document.
+This does not complete WC-040: the full P8 exit evidence, retention policy,
+export controls, and advisor/institutional viewer contracts remain open.
 
 ## 5. Open contracts — requires human approval
 
 - Eligible material event registry expansion, retention/legal-erasure process,
   and any institutional viewer beyond the stated boundaries.
-- Viewer API/projection shape, exact redaction profiles, and authorized export.
+- Any viewer beyond the approved student-owner V1 projection and authorized export.
 - Source/engine/policy-version preservation obligations for exact replay.
 - Any additional chain/period integrity model beyond per-entry integrity.
 - Any new persistence surface, grant, RLS policy, or external integration not

@@ -21,6 +21,8 @@ import type {
   StudentPolicyDocumentSummary,
   StudentPolicyAnswerResponse,
   StudentPolicySearchResult,
+  StudentDecisionHistoryItem,
+  StudentDecisionHistoryDetail,
   SubmitIntentRequest,
   WithdrawIntentRequest,
 } from "@/lib/api/student-types";
@@ -194,5 +196,25 @@ export class StudentApiService {
       body: JSON.stringify({ question, limit }),
     });
     return parseJson<StudentPolicyAnswerResponse>(res);
+  }
+
+  async listDecisionHistory(
+    limit = 20,
+    before?: Pick<StudentDecisionHistoryItem, "created_at" | "ledger_entry_id">,
+  ): Promise<StudentDecisionHistoryItem[]> {
+    const query = new URLSearchParams({ limit: String(limit) });
+    if (before) {
+      query.set("before_created_at", before.created_at);
+      query.set("before_entry_id", before.ledger_entry_id);
+    }
+    const res = await this.client.request(`/api/v1/me/decision-history?${query}`);
+    return parseJson<StudentDecisionHistoryItem[]>(res);
+  }
+
+  async getDecisionHistoryEntry(ledgerEntryId: string): Promise<StudentDecisionHistoryDetail> {
+    const res = await this.client.request(
+      `/api/v1/me/decision-history/${encodeURIComponent(ledgerEntryId)}`,
+    );
+    return parseJson<StudentDecisionHistoryDetail>(res);
   }
 }

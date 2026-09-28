@@ -33,6 +33,7 @@ _LEDGER_SELECT = (
 )
 _EVIDENCE_SELECT = "ledger_entry_id,evidence_position,source,identifier,version,locator,uri"
 _MAX_EVIDENCE_REFERENCES = 1000
+_MAX_HISTORY_PAGE = 50
 
 
 class SupabaseDecisionTraceRepository:
@@ -79,19 +80,20 @@ class SupabaseDecisionTraceRepository:
         ledger_entry_id: str,
         student_user_id: str,
         university_id: str,
+        redaction_profile: str | None = None,
     ) -> CanonicalLedgerEntry | None:
         """Load at most one individual trace after service authorization has fixed owner and tenant."""
-        rows = await self._get_rows(
-            "decision_trace_ledger",
-            {
+        params = {
                 "select": _LEDGER_SELECT,
                 "ledger_entry_id": f"eq.{ledger_entry_id}",
                 "student_user_id": f"eq.{student_user_id}",
                 "university_id": f"eq.{university_id}",
                 "subject_scope_type": "eq.STUDENT_INDIVIDUAL",
                 "limit": "2",
-            },
-        )
+            }
+        if redaction_profile is not None:
+            params["redaction_profile"] = f"eq.{redaction_profile}"
+        rows = await self._get_rows("decision_trace_ledger", params)
         if not rows:
             return None
         if len(rows) != 1:
@@ -116,6 +118,102 @@ class SupabaseDecisionTraceRepository:
                 "stored decision trace exceeds the supported evidence bound",
             )
         return _ledger_entry(rows[0], evidence_rows)
+
+    async def list_student_entries(
+        self, *, student_user_id: str, university_id: str, limit: int,
+        before_created_at: datetime | None = None, before_entry_id: str | None = None,
+    ) -> tuple[CanonicalLedgerEntry, ...]:
+        """Return a bounded, stable page of fully verified student-safe entries."""
+        if not 1 <= limit <= _MAX_HISTORY_PAGE or (before_created_at is None) != (before_entry_id is None):
+            raise ValueError("invalid history pagination")
+        params = {
+            "select": _LEDGER_SELECT,
+            "student_user_id": f"eq.{student_user_id}",
+            "university_id": f"eq.{university_id}",
+            "subject_scope_type": "eq.STUDENT_INDIVIDUAL",
+            "redaction_profile": "eq.STUDENT_SAFE",
+            "order": "created_at.desc,ledger_entry_id.desc",
+            "limit": str(limit),
+        }
+        if before_created_at is not None and before_entry_id is not None:
+            if before_created_at.tzinfo is None or before_created_at.utcoffset() is None:
+                raise ValueError("history cursor must be timezone-aware")
+            stamp = before_created_at.astimezone(timezone.utc).isoformat(timespec="microseconds")
+            params["or"] = f"(created_at.lt.{stamp},and(created_at.eq.{stamp},ledger_entry_id.lt.{before_entry_id}))"
+        rows = await self._get_rows("decision_trace_ledger", params)
+        if len(rows) > limit:
+            raise DecisionTracePersistenceError(
+                DecisionTraceErrorCode.PERSISTENCE_INTEGRITY_FAILURE, "history page exceeded bound"
+            )
+        entries: list[CanonicalLedgerEntry] = []
+        for row in rows:
+            entry = await self._entry_with_evidence(row)
+            if (entry.student_user_id != student_user_id or entry.university_id != university_id
+                    or entry.subject_scope_type.value != "STUDENT_INDIVIDUAL"
+                    or entry.redaction_profile.value != "STUDENT_SAFE"):
+                raise DecisionTracePersistenceError(
+                    DecisionTraceErrorCode.PERSISTENCE_INTEGRITY_FAILURE, "history scope mismatch"
+                )
+            if before_created_at is not None and before_entry_id is not None:
+                if (entry.created_at, entry.ledger_entry_id) >= (before_created_at, before_entry_id):
+                    raise DecisionTracePersistenceError(
+                        DecisionTraceErrorCode.PERSISTENCE_INTEGRITY_FAILURE, "history cursor mismatch"
+                    )
+            entries.append(entry)
+        expected = sorted(entries, key=lambda item: (item.created_at, item.ledger_entry_id), reverse=True)
+        if entries != expected or len({entry.ledger_entry_id for entry in entries}) != len(entries):
+            raise DecisionTracePersistenceError(
+                DecisionTraceErrorCode.PERSISTENCE_INTEGRITY_FAILURE, "history order is invalid"
+            )
+        return tuple(entries)
+
+    async def load_student_successor(
+        self, *, ledger_entry_id: str, student_user_id: str, university_id: str,
+    ) -> CanonicalLedgerEntry | None:
+        """Look up only a visible successor; never disclose a restricted successor."""
+        rows = await self._get_rows("decision_trace_ledger", {
+            "select": _LEDGER_SELECT,
+            "supersedes_entry_id": f"eq.{ledger_entry_id}",
+            "student_user_id": f"eq.{student_user_id}",
+            "university_id": f"eq.{university_id}",
+            "subject_scope_type": "eq.STUDENT_INDIVIDUAL",
+            "redaction_profile": "eq.STUDENT_SAFE",
+            "limit": "2",
+        })
+        if not rows:
+            return None
+        if len(rows) != 1:
+            raise DecisionTracePersistenceError(
+                DecisionTraceErrorCode.PERSISTENCE_INTEGRITY_FAILURE, "multiple successors found"
+            )
+        entry = await self._entry_with_evidence(rows[0])
+        if (entry.supersedes_entry_id != ledger_entry_id or entry.student_user_id != student_user_id
+                or entry.university_id != university_id or entry.redaction_profile.value != "STUDENT_SAFE"
+                or entry.subject_scope_type.value != "STUDENT_INDIVIDUAL"):
+            raise DecisionTracePersistenceError(
+                DecisionTraceErrorCode.PERSISTENCE_INTEGRITY_FAILURE, "successor scope mismatch"
+            )
+        return entry
+
+    async def _entry_with_evidence(self, row: Mapping[str, Any]) -> CanonicalLedgerEntry:
+        try:
+            ledger_entry_id = _required_text(row, "ledger_entry_id")
+        except ValueError as error:
+            raise DecisionTracePersistenceError(
+                DecisionTraceErrorCode.PERSISTENCE_INTEGRITY_FAILURE, "history identity is invalid"
+            ) from error
+        evidence_rows = await self._get_rows("decision_trace_evidence", {
+            "select": _EVIDENCE_SELECT,
+            "ledger_entry_id": f"eq.{ledger_entry_id}",
+            "order": "evidence_position.asc",
+            "limit": str(_MAX_EVIDENCE_REFERENCES + 1),
+        })
+        if len(evidence_rows) > _MAX_EVIDENCE_REFERENCES:
+            raise DecisionTracePersistenceError(
+                DecisionTraceErrorCode.PERSISTENCE_INTEGRITY_FAILURE,
+                "stored decision trace exceeds the supported evidence bound",
+            )
+        return _ledger_entry(row, evidence_rows)
 
     async def _get_rows(
         self, resource: str, params: Mapping[str, str]
