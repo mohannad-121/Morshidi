@@ -17,6 +17,7 @@ import httpx
 
 from .enums import PolicyErrorCode
 from .errors import PolicyRetrievalError
+from .embeddings import PolicyEmbeddingError, PolicyEmbeddingProvider
 
 
 class PolicyReadStorage(Protocol):
@@ -35,6 +36,12 @@ class PolicyReadStorage(Protocol):
     async def search_verified_passages(
         self, university_id: str | UUID, query: str, limit: int, category: str | None = None,
         document_id: str | None = None,
+    ) -> Sequence[dict[str, Any]]:
+        ...
+
+    async def search_semantic_passages(
+        self, university_id: str | UUID, embedding: Sequence[float], provider: str, model: str,
+        limit: int, category: str | None = None, document_id: str | None = None,
     ) -> Sequence[dict[str, Any]]:
         ...
 
@@ -142,6 +149,9 @@ class InMemoryPolicyReadStorage:
                 if score:
                     rows.append({"document_id": detail["id"], "document_code": detail["document_code"], "document_title": detail["title"], "category": detail["category"], "version_id": detail["active_version"]["id"], "version_tag": detail["active_version"]["version_tag"], **detail["active_version"], "passage_id": passage["id"], **passage, "score": score})
         return sorted(rows, key=lambda row: (-row["score"], row["document_code"], row["sequence_order"], row["passage_id"]))[:limit]
+
+    async def search_semantic_passages(self, university_id: str | UUID, embedding: Sequence[float], provider: str, model: str, limit: int, category: str | None = None, document_id: str | None = None) -> Sequence[dict[str, Any]]:
+        return []
 
 
 class SupabasePolicyReadStorage:
@@ -268,12 +278,22 @@ class SupabasePolicyReadStorage:
         response.raise_for_status()
         return response.json()
 
+    async def search_semantic_passages(self, university_id: str | UUID, embedding: Sequence[float], provider: str, model: str, limit: int, category: str | None = None, document_id: str | None = None) -> Sequence[dict[str, Any]]:
+        response = await self._client.post(
+            f"{self._rest_url}/rpc/search_verified_policy_passages_semantic",
+            headers=self._headers(),
+            json={"p_university_id": str(university_id), "p_query_embedding": list(embedding), "p_provider": provider, "p_model": model, "p_limit": limit, "p_category": category, "p_document_id": document_id},
+        )
+        response.raise_for_status()
+        return response.json()
+
 
 class StudentPolicyService:
     """Domain service orchestrating read-only student institutional policy queries."""
 
-    def __init__(self, storage: PolicyReadStorage) -> None:
+    def __init__(self, storage: PolicyReadStorage, embedding_provider: PolicyEmbeddingProvider | None = None) -> None:
         self._storage = storage
+        self._embedding_provider = embedding_provider
 
     async def list_policies_for_student(
         self, university_id: str | UUID
@@ -291,5 +311,34 @@ class StudentPolicyService:
             )
         return detail
 
-    async def search_policies_for_student(self, university_id: str | UUID, query: str, limit: int, category: str | None = None, document_id: str | None = None) -> Sequence[dict[str, Any]]:
-        return await self._storage.search_verified_passages(university_id, query, limit, category, document_id)
+    async def search_policies_for_student(self, university_id: str | UUID, query: str, limit: int, category: str | None = None, document_id: str | None = None, mode: str = "lexical") -> Sequence[dict[str, Any]]:
+        lexical = await self._storage.search_verified_passages(university_id, query, limit, category, document_id)
+        if mode == "lexical":
+            return lexical
+        if self._embedding_provider is None:
+            raise PolicyEmbeddingError("policy.embedding.not_configured")
+        vector = await self._embedding_provider.embed_query(query)
+        semantic = await self._storage.search_semantic_passages(university_id, vector, self._embedding_provider.model.provider, self._embedding_provider.model.model, limit, category, document_id)
+        if mode == "semantic":
+            return semantic
+        return _fuse_policy_results(lexical, semantic, limit)
+
+
+def _fuse_policy_results(lexical: Sequence[dict[str, Any]], semantic: Sequence[dict[str, Any]], limit: int) -> list[dict[str, Any]]:
+    """Deterministic RRF fusion; evidence stays verbatim and appears once."""
+    merged: dict[str, dict[str, Any]] = {}
+    for rank, row in enumerate(lexical, start=1):
+        item = dict(row)
+        item["lexical_rank"] = rank
+        item["semantic_rank"] = None
+        item["semantic_similarity"] = None
+        item["hybrid_score"] = 1 / (60 + rank)
+        merged[str(row["passage_id"])] = item
+    for rank, row in enumerate(semantic, start=1):
+        key = str(row["passage_id"])
+        item = merged.setdefault(key, dict(row))
+        item["semantic_rank"] = rank
+        item["semantic_similarity"] = row.get("semantic_similarity")
+        item.setdefault("lexical_rank", None)
+        item["hybrid_score"] = float(item.get("hybrid_score", 0)) + 1 / (60 + rank)
+    return sorted(merged.values(), key=lambda row: (-float(row["hybrid_score"]), row["document_code"], row["sequence_order"], row["passage_id"]))[:limit]

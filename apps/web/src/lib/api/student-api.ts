@@ -181,8 +181,8 @@ export class StudentApiService {
     return parseJson<StudentPolicyDocumentDetail>(res);
   }
 
-  async searchPolicies(query: string, limit = 10): Promise<StudentPolicySearchResult[]> {
-    const res = await this.client.request(`/api/v1/me/policies/search?q=${encodeURIComponent(query)}&limit=${limit}`);
+  async searchPolicies(query: string, limit = 10, mode: "lexical" | "semantic" | "hybrid" = "lexical"): Promise<StudentPolicySearchResult[]> {
+    const res = await this.client.request(`/api/v1/me/policies/search?q=${encodeURIComponent(query)}&limit=${limit}&mode=${mode}`);
     return parseJson<StudentPolicySearchResult[]>(res);
   }
 }

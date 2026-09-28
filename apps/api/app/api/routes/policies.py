@@ -11,7 +11,7 @@ Enforces:
 
 from __future__ import annotations
 
-from typing import Annotated
+from typing import Annotated, Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi import Query
@@ -23,6 +23,7 @@ from app.api.schemas.policy import (
 )
 from app.core.auth import CurrentUser, get_current_user
 from app.institutional_policy.errors import PolicyRetrievalError
+from app.institutional_policy.embeddings import PolicyEmbeddingError
 from app.institutional_policy.service import StudentPolicyService
 from app.services.student import StudentConfigurationError, StudentService
 from app.student.errors import StudentProfileNotFound
@@ -74,6 +75,7 @@ async def search_student_policies(
     limit: int = Query(default=10, ge=1, le=20),
     category: str | None = None,
     document_id: str | None = None,
+    mode: Literal["lexical", "semantic", "hybrid"] = "lexical",
     user: AuthenticatedUser = None,
     policy_service: PolicyServiceDependency = None,
     student_service: StudentServiceDependency = None,
@@ -85,7 +87,10 @@ async def search_student_policies(
         university_id = await student_service.resolve_student_university_id(user.user_id)
     except StudentProfileNotFound:
         return []
-    rows = await policy_service.search_policies_for_student(university_id, query, limit, category, document_id)
+    try:
+        rows = await policy_service.search_policies_for_student(university_id, query, limit, category, document_id, mode)
+    except PolicyEmbeddingError as exc:
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Semantic policy search is temporarily unavailable") from exc
     return [StudentPolicySearchResult.model_validate(row) for row in rows]
 
 

@@ -100,3 +100,7 @@ class StudentPolicySearchResult(BaseModel):
     page_number: int | None = None
     heading: str | None = None
     passage_sha256: str | None = None
+    lexical_rank: int | None = None
+    semantic_rank: int | None = None
+    semantic_similarity: float | None = None
+    hybrid_score: float | None = None

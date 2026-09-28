@@ -78,7 +78,7 @@ export default function PoliciesPage() {
     const query = policySearch.trim();
     if (!query || searchLoading) return;
     setSearchLoading(true); setSearchError(null);
-    try { setSearchResults(await new StudentApiService(client).searchPolicies(query)); }
+    try { setSearchResults(await new StudentApiService(client).searchPolicies(query, 10, "hybrid")); }
     catch { setSearchError("تعذّر البحث داخل نصوص اللوائح والسياسات."); }
     finally { setSearchLoading(false); }
   };

@@ -33,6 +33,7 @@ from app.institutional_intelligence_service import (
 )
 from app.advisor.provider import ProviderFailureType, UnconfiguredAdvisorLLMProvider
 from app.providers.advisor_openai import OpenAIAdvisorProvider
+from app.institutional_policy.embeddings import OpenAIPolicyEmbeddingProvider
 from app.catalog.errors import (
     CatalogIntegrityError,
     CatalogTransportError,
@@ -86,6 +87,17 @@ def build_advisor_providers(client: httpx.AsyncClient):
         )
         return provider, provider
     return UnconfiguredAdvisorLLMProvider(), None
+
+
+def build_policy_embedding_provider(client: httpx.AsyncClient):
+    if settings.policy_embedding_api_key is not None and settings.policy_embedding_api_key.get_secret_value().strip():
+        return OpenAIPolicyEmbeddingProvider(
+            settings.policy_embedding_api_key.get_secret_value(),
+            settings.policy_embedding_model,
+            settings.policy_embedding_dimensions,
+            client,
+        )
+    return None
 
 
 @asynccontextmanager
@@ -172,7 +184,9 @@ async def lifespan(application: FastAPI):
             settings.supabase_secret_key.get_secret_value(),
             client,
         )
-        application.state.policy_service = StudentPolicyService(policy_storage)
+        application.state.policy_service = StudentPolicyService(
+            policy_storage, build_policy_embedding_provider(client)
+        )
     try:
         yield
     finally:

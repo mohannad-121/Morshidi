@@ -447,4 +447,6 @@ export interface StudentPolicySearchResult {
   passage_id: string; sequence_order: number; passage_text: string; locator_text: string;
   article_number?: string | null; section_number?: string | null; page_number?: number | null;
   heading?: string | null; passage_sha256?: string | null;
+  lexical_rank?: number | null; semantic_rank?: number | null;
+  semantic_similarity?: number | null; hybrid_score?: number | null;
 }

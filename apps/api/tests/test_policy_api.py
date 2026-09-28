@@ -310,3 +310,16 @@ def test_policy_search_empty_result_and_unauthenticated_denial(mock_policy_env: 
         app.dependency_overrides.clear()
     with TestClient(app) as client:
         assert client.get("/api/v1/me/policies/search", params={"q": "BYLAW"}).status_code == 401
+
+
+def test_policy_without_embedding_credentials_keeps_browsing_and_lexical_search(mock_policy_env: dict[str, Any]) -> None:
+    _override_policy_dependencies(mock_policy_env)
+    try:
+        with TestClient(app) as client:
+            assert client.get("/api/v1/me/policies").status_code == 200
+            assert client.get("/api/v1/me/policies/search", params={"q": "BYLAW", "mode": "lexical"}).status_code == 200
+            semantic = client.get("/api/v1/me/policies/search", params={"q": "BYLAW", "mode": "semantic"})
+            assert semantic.status_code == 503
+            assert semantic.json() == {"detail": "Semantic policy search is temporarily unavailable"}
+    finally:
+        app.dependency_overrides.clear()
