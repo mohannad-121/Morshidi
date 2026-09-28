@@ -6,8 +6,11 @@ Strictly typed read-only models for verified university regulations and institut
 
 from __future__ import annotations
 
-from typing import Any
-from pydantic import BaseModel, ConfigDict, Field
+import re
+from typing import Any, Literal
+from pydantic import BaseModel, ConfigDict, Field, field_validator
+
+from app.institutional_policy.enums import EngineHandoffTarget
 
 
 class StudentPolicyPassageResponse(BaseModel):
@@ -104,3 +107,57 @@ class StudentPolicySearchResult(BaseModel):
     semantic_rank: int | None = None
     semantic_similarity: float | None = None
     hybrid_score: float | None = None
+
+
+class StudentPolicyAnswerRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    question: str
+    limit: int = Field(default=6, ge=1, le=8)
+
+    @field_validator("question")
+    @classmethod
+    def normalize_question(cls, value: str) -> str:
+        cleaned = " ".join(value.split())
+        if len(cleaned) > 500 or len(re.findall(r"[^\W_]", cleaned, re.UNICODE)) < 3:
+            raise ValueError("Question must contain 3 meaningful characters and at most 500 characters")
+        return cleaned
+
+
+class StudentPolicyAnswerCitation(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    document_id: str
+    document_code: str
+    document_title: str
+    version_id: str
+    version_tag: str
+    passage_id: str
+    locator_text: str
+    article_number: str | None
+    section_number: str | None
+    page_number: int | None
+    heading: str | None
+    passage_text: str
+    source_url: str | None
+    passage_sha256: str | None
+
+
+class StudentPolicyAnswerHandoff(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    target_engine: EngineHandoffTarget
+    query_topic: str
+    reason: str
+
+
+class StudentPolicyAnswerResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    status: Literal["ANSWERED", "ABSTAINED", "HANDOFF_REQUIRED"]
+    answer: str | None
+    language: Literal["ar", "en"] | None
+    citations: list[StudentPolicyAnswerCitation]
+    retrieval_mode: Literal["hybrid"]
+    abstention_reason: str | None
+    handoff: StudentPolicyAnswerHandoff | None

@@ -11,12 +11,15 @@ Enforces:
 
 from __future__ import annotations
 
+from dataclasses import asdict
 from typing import Annotated, Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi import Query
 
 from app.api.schemas.policy import (
+    StudentPolicyAnswerRequest,
+    StudentPolicyAnswerResponse,
     StudentPolicyDocumentDetail,
     StudentPolicyDocumentSummary,
     StudentPolicySearchResult,
@@ -25,6 +28,7 @@ from app.core.auth import CurrentUser, get_current_user
 from app.institutional_policy.errors import PolicyRetrievalError
 from app.institutional_policy.embeddings import PolicyEmbeddingError
 from app.institutional_policy.service import StudentPolicyService
+from app.institutional_policy.answering import PolicyAnswerService
 from app.services.student import StudentConfigurationError, StudentService
 from app.student.errors import StudentProfileNotFound
 
@@ -42,6 +46,16 @@ def get_policy_service(request: Request) -> StudentPolicyService:
     return service
 
 
+def get_policy_answer_service(request: Request) -> PolicyAnswerService:
+    service = getattr(request.app.state, "policy_answer_service", None)
+    if service is None:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Policy answer service is not configured",
+        )
+    return service
+
+
 def get_student_service(request: Request) -> StudentService:
     service = getattr(request.app.state, "student_service", None)
     if service is None:
@@ -51,6 +65,23 @@ def get_student_service(request: Request) -> StudentService:
 
 PolicyServiceDependency = Annotated[StudentPolicyService, Depends(get_policy_service)]
 StudentServiceDependency = Annotated[StudentService, Depends(get_student_service)]
+PolicyAnswerServiceDependency = Annotated[PolicyAnswerService, Depends(get_policy_answer_service)]
+
+
+@router.post("/answer", response_model=StudentPolicyAnswerResponse)
+async def answer_student_policy_question(
+    request: StudentPolicyAnswerRequest,
+    user: AuthenticatedUser,
+    policy_answer_service: PolicyAnswerServiceDependency,
+    student_service: StudentServiceDependency,
+) -> StudentPolicyAnswerResponse:
+    """Answer only from the authenticated student's verified university evidence."""
+    try:
+        university_id = await student_service.resolve_student_university_id(user.user_id)
+    except StudentProfileNotFound as exc:
+        raise HTTPException(status_code=404, detail="Student profile not found") from exc
+    result = await policy_answer_service.answer(str(university_id), request.question, request.limit)
+    return StudentPolicyAnswerResponse.model_validate(asdict(result))
 
 
 @router.get("", response_model=list[StudentPolicyDocumentSummary])

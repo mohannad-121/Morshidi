@@ -688,7 +688,7 @@ describe('Morshidi Student Portal Pages Suite', () => {
     await waitFor(() => expect(container.querySelector('#policy-text-search')).not.toBeNull());
     const input = container.querySelector('#policy-text-search') as HTMLInputElement;
     await user.type(input, 'withdrawal');
-    await user.click(container.querySelector('form button[type="submit"]') as HTMLButtonElement);
+    await user.click(input.closest('form')?.querySelector('button[type="submit"]') as HTMLButtonElement);
     await waitFor(() => expect(requests.some((url) => url.includes('/api/v1/me/policies/search') && url.includes('mode=hybrid'))).toBe(true));
     expect(screen.queryByText(/AI answer/i)).toBeNull();
   });

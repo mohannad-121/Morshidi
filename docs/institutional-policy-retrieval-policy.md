@@ -42,14 +42,18 @@ explanatory evidence, not a substitute authority.
 
 **PARTIAL.** The repository contains a typed policy domain, source-admission
 states, document/version/passage and citation-anchor models, deterministic
-computation classifier handoff, provider abstractions, Supabase/PostgreSQL
-persistence, atomic structured service-role ingestion, verified-only
-student-policy read endpoints, and an authenticated frontend policy viewer.
+computation classifier handoff, Supabase/PostgreSQL persistence, atomic
+structured service-role ingestion, verified-only student-policy read endpoints,
+lexical and semantic retrieval, deterministic hybrid fusion, and a bounded
+grounded-answer endpoint and frontend. The answer path abstains without verified
+evidence, accepts only retrieved passage IDs from the provider, and constructs
+citations from server-side retrieval rows.
 
 The implementation does not establish that a particular university has supplied
-or verified production policy content. It also does not implement a document/PDF
-parser, semantic embeddings/vector retrieval, generated grounded policy answers,
-or a complete policy Q&A workflow.
+or verified production policy content. Production currently has no verified
+institutional corpus. Document/PDF parsing, institutional source onboarding,
+human conflict adjudication, and acceptance of the complete P8 exit gate remain
+outside this bounded runtime slice.
 
 ## 4. Privacy and disclosure
 

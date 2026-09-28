@@ -19,6 +19,7 @@ import type {
   StudentIntentResponse,
   StudentPolicyDocumentDetail,
   StudentPolicyDocumentSummary,
+  StudentPolicyAnswerResponse,
   StudentPolicySearchResult,
   SubmitIntentRequest,
   WithdrawIntentRequest,
@@ -184,5 +185,14 @@ export class StudentApiService {
   async searchPolicies(query: string, limit = 10, mode: "lexical" | "semantic" | "hybrid" = "lexical"): Promise<StudentPolicySearchResult[]> {
     const res = await this.client.request(`/api/v1/me/policies/search?q=${encodeURIComponent(query)}&limit=${limit}&mode=${mode}`);
     return parseJson<StudentPolicySearchResult[]>(res);
+  }
+
+  async answerPolicyQuestion(question: string, limit = 6): Promise<StudentPolicyAnswerResponse> {
+    const res = await this.client.request("/api/v1/me/policies/answer", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ question, limit }),
+    });
+    return parseJson<StudentPolicyAnswerResponse>(res);
   }
 }

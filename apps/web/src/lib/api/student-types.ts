@@ -450,3 +450,28 @@ export interface StudentPolicySearchResult {
   lexical_rank?: number | null; semantic_rank?: number | null;
   semantic_similarity?: number | null; hybrid_score?: number | null;
 }
+
+export interface StudentPolicyAnswerCitation {
+  document_id: string; document_code: string; document_title: string;
+  version_id: string; version_tag: string; passage_id: string;
+  locator_text: string; passage_text: string;
+  article_number: string | null; section_number: string | null;
+  page_number: number | null; heading: string | null;
+  source_url: string | null; passage_sha256: string | null;
+}
+
+export interface StudentPolicyAnswerResponse {
+  status: "ANSWERED" | "ABSTAINED" | "HANDOFF_REQUIRED";
+  answer: string | null;
+  language: "ar" | "en" | null;
+  citations: StudentPolicyAnswerCitation[];
+  retrieval_mode: "hybrid";
+  abstention_reason: string | null;
+  handoff: {
+    target_engine: "ELIGIBILITY_ENGINE" | "PROGRESS_ENGINE" |
+      "SEMESTER_PLANNER_ENGINE" | "DEGREE_PATH_ENGINE" | "MOCK_REGISTRATION_ENGINE" |
+      "ADVISOR_AUTHORIZATION_ENGINE";
+    query_topic: string;
+    reason: string;
+  } | null;
+}

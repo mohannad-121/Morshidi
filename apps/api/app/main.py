@@ -18,6 +18,7 @@ from app.institutional_policy.service import (
     StudentPolicyService,
     SupabasePolicyReadStorage,
 )
+from app.institutional_policy.answering import PolicyAnswerService
 from app.advisor_copilot import (
     AdvisorCopilotService,
     AdvisorCopilotServiceError,
@@ -33,6 +34,7 @@ from app.institutional_intelligence_service import (
 )
 from app.advisor.provider import ProviderFailureType, UnconfiguredAdvisorLLMProvider
 from app.providers.advisor_openai import OpenAIAdvisorProvider
+from app.providers.policy_answer_openai import OpenAIPolicyAnswerProvider
 from app.institutional_policy.embeddings import OpenAIPolicyEmbeddingProvider
 from app.catalog.errors import (
     CatalogIntegrityError,
@@ -100,6 +102,19 @@ def build_policy_embedding_provider(client: httpx.AsyncClient):
     return None
 
 
+def build_policy_answer_provider(client: httpx.AsyncClient):
+    if (
+        settings.advisor_llm_api_key is not None
+        and settings.advisor_llm_api_key.get_secret_value().strip()
+        and settings.advisor_llm_model is not None
+        and settings.advisor_llm_model.strip()
+    ):
+        return OpenAIPolicyAnswerProvider(
+            settings.advisor_llm_api_key.get_secret_value(), settings.advisor_llm_model, client
+        )
+    return None
+
+
 @asynccontextmanager
 async def lifespan(application: FastAPI):
     """Own one reusable server-side Data API client for the application lifetime."""
@@ -115,6 +130,7 @@ async def lifespan(application: FastAPI):
     application.state.institutional_intelligence_service = None
     application.state.advisor_copilot_service = None
     application.state.policy_service = None
+    application.state.policy_answer_service = None
     if settings.supabase_url and settings.supabase_secret_key:
         repository = SupabaseAcademicCatalogRepository(
             settings.supabase_url,
@@ -186,6 +202,9 @@ async def lifespan(application: FastAPI):
         )
         application.state.policy_service = StudentPolicyService(
             policy_storage, build_policy_embedding_provider(client)
+        )
+        application.state.policy_answer_service = PolicyAnswerService(
+            application.state.policy_service, build_policy_answer_provider(client)
         )
     try:
         yield

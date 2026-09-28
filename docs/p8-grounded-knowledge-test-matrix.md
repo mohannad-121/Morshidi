@@ -14,12 +14,13 @@ Source codes: `U` = P8 umbrella policy; `S1` = Slice 1 model/canonical/validatio
 
 ## Current implementation evidence
 
-The audited backend baseline is **1,488 passed, 0 failed, 0 skipped** against
-Local Supabase (two existing dependency deprecation warnings). In addition to
+The last accepted backend baseline before this bounded answer slice is **1,520
+passed, 0 failed, 0 skipped** against Local Supabase. In addition to
 the original Slice 1 evidence, the repository contains executable coverage for
 Decision Trace persistence, P6 outbox mapping/processing boundaries, policy
 domain/retrieval, atomic policy ingestion, student policy API, and Local Supabase
-policy persistence/security. That evidence establishes implemented slices only;
+policy persistence/security, hybrid retrieval, and grounded-answer guards. That
+evidence establishes implemented slices only;
 it does not accept every row in this matrix or complete the P8 exit gate.
 
 ## Verified existing requirements and coverage
@@ -36,8 +37,8 @@ The existing registries, immutable records, canonicalization, validation, replay
 ## Proposed requirements and unresolved contracts
 
 All rows marked `SPECIFIED` remain specification coverage only. Structured policy
-persistence and ingestion are implemented, but document-source onboarding,
-semantic RAG retrieval mechanics, graph registry, change-impact semantics,
+persistence, ingestion, semantic and hybrid retrieval, and a bounded grounded
+answer runtime are implemented, but document-source onboarding, graph registry, change-impact semantics,
 approved institutional metric catalog, and query-provider controls remain
 **OPEN CONTRACT / REQUIRES HUMAN APPROVAL**.
 
@@ -110,7 +111,7 @@ This matrix creates no executable test, migration, policy promotion, RAG corpus,
 
 The 54 rows remain specification coverage. The repository now has additional
 runtime and Local Supabase evidence for the implemented Decision Trace and
-structured Policy Retrieval slices, but `TRACE-15` and the remaining
+grounded Policy Retrieval slices, but `TRACE-15` and the remaining
 RAG/IMPACT/GRAPH/QUERY rows still require the stated approved design and tests.
 P8 remains PARTIAL; the P8 exit gate is not accepted solely by the current
 implementation.

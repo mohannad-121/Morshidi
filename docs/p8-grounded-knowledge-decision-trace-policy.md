@@ -100,16 +100,18 @@ institutional adoption.
 - **WC-038 University Regulation RAG / Policy Retrieval — PARTIAL:** governed
   document/version/passage model, exact citation anchors, deterministic
   computation handoff, Supabase persistence, atomic structured ingestion,
-  verified-only student read API, and authenticated frontend viewing are present.
+  verified-only student read API, lexical and semantic retrieval, deterministic
+  hybrid fusion, and bounded grounded answers with server-built citations and
+  authenticated frontend viewing are present. An empty verified corpus abstains.
 
 ### Remaining
 
 - **WC-040:** complete end-user Decision History access, complete trace exposure
   and authorization projections, and all roadmap exit evidence remain outside
   the implemented slice.
-- **WC-038:** document/PDF import and parsing, semantic embeddings or vector
-  retrieval if adopted, generated grounded policy answers, and the final
-  cited-retrieval plus replayable-ledger exit evidence are not implemented.
+- **WC-038:** document/PDF import and parsing, real institutional source
+  onboarding and verification, approved conflict resolution, and the final
+  cited-retrieval plus replayable-ledger exit evidence remain incomplete.
 - **WC-007 Academic Explainability Graph — PLANNED:** trace evidence is not an
   explainability-graph runtime.
 - **WC-046 Change Impact Engine — PLANNED:** existing analysis and simulation
@@ -126,7 +128,7 @@ privacy, and no-write requirements in this policy remain unchanged.
 
 The detailed specifications governing Phase P8 are established in:
 1. [decision-trace-ledger-policy.md](decision-trace-ledger-policy.md): referenced canonical companion path; the tracked file currently has no substantive content.
-2. [institutional-policy-retrieval-policy.md](institutional-policy-retrieval-policy.md): referenced canonical companion path; the tracked file currently has no substantive content.
+2. [institutional-policy-retrieval-policy.md](institutional-policy-retrieval-policy.md): approved canonical policy-retrieval contract; runtime implementation remains partial.
 3. [academic-explainability-graph-policy.md](academic-explainability-graph-policy.md): referenced canonical companion path; the tracked file currently has no substantive content.
 4. [change-impact-policy.md](change-impact-policy.md): Analysis-only version diff evaluation, affected decision identification, and no-write guarantees.
 5. [institutional-ai-query-policy.md](institutional-ai-query-policy.md): referenced canonical companion path; the tracked file currently has no substantive content.
@@ -139,6 +141,6 @@ The detailed specifications governing Phase P8 are established in:
 The following runtime work remains after the current implemented slices:
 - **Remaining P8 Decision Trace work**: end-user history/read projections and
   approved completion of the remaining ledger exit evidence.
-- **Remaining P8 Policy Retrieval work**: document ingestion/parsing pipeline,
-  semantic/vector retrieval if approved, and generated grounded answer handling.
+- **Remaining P8 Policy Retrieval work**: institutional source onboarding and
+  verification, document ingestion/parsing, conflict governance, and final exit evidence.
 - **Future P8 Runtime Implementation**: Implementation of explainability DAG builder services, change impact batch evaluators, and constrained metric query planners.

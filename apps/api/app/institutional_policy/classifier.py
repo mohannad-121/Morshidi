@@ -27,7 +27,7 @@ _PROGRESS_PATTERNS: tuple[re.Pattern[str], ...] = (
 
 _SEMESTER_PLANNER_PATTERNS: tuple[re.Pattern[str], ...] = (
     re.compile(r"\b(what\s+courses\s+should\s+i\s+take|plan\s+my\s+semester|recommend\s+courses\s+for\s+next|semester\s+schedule|course\s+load\s+for\s+next)\b", re.IGNORECASE),
-    re.compile(r"(ما\s+هي\s+المواد\s+التي\s+أسجلها|خطة\s+الفصل|توصيات\s+المواد|جدول\s+الفصل\s+القادم|اقتراح\s+مواد\s+للفصل)"),
+    re.compile(r"(ما\s+هي\s+المواد\s+التي\s+أسجلها|خطة\s+الفصل|توصيات\s+المواد|جدول\s+الفصل\s+القادم|اقتراح\s+مواد\s+للفصل|رتبلي\s+مواد\s+الفصل\s+القادم)"),
 )
 
 _DEGREE_PATH_PATTERNS: tuple[re.Pattern[str], ...] = (
