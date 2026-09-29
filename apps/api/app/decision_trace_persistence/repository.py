@@ -74,6 +74,28 @@ class SupabaseDecisionTraceRepository:
             )
         return appended_id
 
+    async def load_exact_internal_entry(
+        self, *, ledger_entry_id: str, university_id: str,
+    ) -> CanonicalLedgerEntry | None:
+        """Internal-only, tenant-bound lookup for trusted producer retry reconciliation.
+
+        This is not an HTTP/viewer method and grants no browser read authority.
+        """
+        rows = await self._get_rows("decision_trace_ledger", {
+            "select": _LEDGER_SELECT,
+            "ledger_entry_id": f"eq.{ledger_entry_id}",
+            "university_id": f"eq.{university_id}",
+            "limit": "2",
+        })
+        if not rows:
+            return None
+        if len(rows) != 1:
+            raise DecisionTracePersistenceError(
+                DecisionTraceErrorCode.PERSISTENCE_INTEGRITY_FAILURE,
+                "producer retry identity matched multiple entries",
+            )
+        return await self._entry_with_evidence(rows[0])
+
     async def load_student_entry(
         self,
         *,

@@ -123,8 +123,9 @@ institutional adoption.
 ### Remaining
 
 - **WC-040:** material-event runtime coverage remains incomplete: of the eight
-  `LEDGER_REQUIRED` registered types, only `MOCK_REGISTRATION_SUBMIT` has a
-  trusted P6 outbox-to-ledger producer, and it explicitly records
+  `LEDGER_REQUIRED` registered types, `MOCK_REGISTRATION_SUBMIT` has a trusted
+  P6 outbox producer and `CHANGE_IMPACT_EVALUATION` has a trusted WC-046
+  evaluator producer. The P6 producer explicitly records
   `NOT_REPLAYABLE` because historical P6 execution is unavailable. Version-aware replay availability and
   comparison helpers do not rerun a historical executable. The browser cannot
   append, mutate, replay, delete, or export traces.
@@ -133,8 +134,14 @@ institutional adoption.
   cited-retrieval plus replayable-ledger exit evidence remain incomplete.
 - **WC-007:** progress/material-ledger adapters, exact academic source-document
   version propagation, and any advisor frontend remain outside this slice.
-- **WC-046 Change Impact Engine — PLANNED:** existing analysis and simulation
-  capabilities are not a WC-046 change-impact runtime.
+- **WC-046 Change Impact Engine — PARTIAL:** owner-approved V1 analyzes four
+  closed proposed-delta types using bounded immutable copies, existing
+  eligibility/progress engines, analyst structural and P7 assigned-advisor
+  endpoints, a focused Arabic institutional form, and a required trusted
+  `CHANGE_IMPACT_EVALUATION` ledger producer. It makes no academic-state write,
+  student population scan, advisor queue, or notification. Reports are ephemeral
+  and explicitly not historically replayable; published-source authority and
+  some exact source-version verification remain outside V1.
 - **WC-039 Institutional AI Query Experience — PLANNED:** no governed
   natural-language institutional metric-query runtime exists.
 

@@ -4,7 +4,8 @@ import { NextResponse, type NextRequest } from "next/server";
 import { getPublicSupabaseConfig } from "@/lib/config/public-env";
 
 export function isProtectedStudentPath(pathname: string): boolean {
-  return pathname === "/student" || pathname.startsWith("/student/");
+  return pathname === "/student" || pathname.startsWith("/student/")
+    || pathname === "/institutional/change-impact";
 }
 
 function copySessionState(source: NextResponse, target: NextResponse): NextResponse {
@@ -54,7 +55,9 @@ export async function updateSession(request: NextRequest) {
 
   if (claims && request.nextUrl.pathname === "/login") {
     const studentUrl = request.nextUrl.clone();
-    studentUrl.pathname = "/student";
+    const destination = request.nextUrl.searchParams.get("returnTo");
+    studentUrl.pathname = destination === "/institutional/change-impact"
+      ? destination : "/student";
     studentUrl.search = "";
     return copySessionState(supabaseResponse, NextResponse.redirect(studentUrl));
   }

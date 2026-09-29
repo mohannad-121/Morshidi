@@ -40,8 +40,10 @@ The existing registries, immutable records, canonicalization, validation, replay
 
 All rows marked `SPECIFIED` remain specification coverage only. Structured policy
 persistence, ingestion, semantic and hybrid retrieval, and a bounded grounded
-answer runtime are implemented, but document-source onboarding, broader graph registries, change-impact semantics,
-approved institutional metric catalog, and query-provider controls remain
+answer runtime are implemented. WC-046 V1 change-impact semantics are now owner-approved
+and partially implemented; document-source onboarding, broader graph registries,
+published-change authority, general plan revision, approved institutional metric catalog,
+and query-provider controls remain
 **OPEN CONTRACT / REQUIRES HUMAN APPROVAL**.
 
 ## Security and privacy boundaries
@@ -84,14 +86,14 @@ This matrix creates no executable test, migration, policy promotion, RAG corpus,
 | RAG-13 | Advisor case scope | U/P7 | Advisor combines policy + student | P7 predicate first | Assignment/tenant | Local integration | None | SPECIFIED |
 | RAG-14 | Unsupported question | U | Outside corpus/metric | Abstain with limitation | Grounding | Integration | None | SPECIFIED |
 | RAG-15 | No raw reasoning | S1/U | Generated answer/log | No CoT/raw prompt stored | Privacy/security | Unit/integration | `P8_TRACE_036` partial | SPECIFIED |
-| IMPACT-01 | Policy delta | U | Versioned policy change | Read-only affected report | No write | Unit | None | SPECIFIED |
-| IMPACT-02 | Curriculum delta | U | Curriculum revision | Affected plans reported | Tenant/scope | Unit | None | SPECIFIED |
-| IMPACT-03 | Prerequisite delta | U | Rule change | recompute affected paths with uncertainty | Deterministic precedence | Unit | None | SPECIFIED |
-| IMPACT-04 | Plan revision | U | Plan version change | Historic/current separated | No history rewrite | Unit | None | SPECIFIED |
-| IMPACT-05 | Missing versions | S1/U | Historic source absent | Not-replayable limitation | No fabricated impact | Unit | `030-035` partial | SPECIFIED |
-| IMPACT-06 | Owner/advisor scope | P7 | Individual impact request | Owner/P7 predicate enforced | BOLA/tenant | Local integration | None | SPECIFIED |
-| IMPACT-07 | Analyst aggregate | P6/U | Small cohort impact | Suppress result | Privacy | Local integration | None | SPECIFIED |
-| IMPACT-08 | No queue/write | U | Any impact run | No mutations/notifications | No side effect | Unit/audit | None | SPECIFIED |
+| IMPACT-01 | Policy delta | U | Versioned policy change | Read-only affected report | No write | Unit + Local Supabase | policy review and audit-only persistence tests | VERIFIED |
+| IMPACT-02 | Curriculum delta | U | Curriculum revision | Affected plans reported | Tenant/scope | Unit + Local Supabase | requirement/plan-course credit V1; general plan-version revision absent | PARTIALLY VERIFIED |
+| IMPACT-03 | Prerequisite delta | U | Rule change | recompute affected paths with uncertainty | Deterministic precedence | Unit + Local Supabase | add/remove/replace, OR/AND, downstream, overflow, eligibility recomputation and local plan-scoped API; request-specific path recomputation unavailable | PARTIALLY VERIFIED |
+| IMPACT-04 | Plan revision | U | Plan version change | Historic/current separated | No history rewrite | Unit | current/proposed basis and immutable ledger; no PLAN_VERSION_CHANGE V1 type | PARTIALLY VERIFIED |
+| IMPACT-05 | Missing versions | S1/U | Historic source absent | Not-replayable limitation | No fabricated impact | Unit + Local Supabase | `NOT_REPLAYABLE`, ephemeral report, source-version-unverified limitation | VERIFIED |
+| IMPACT-06 | Owner/advisor scope | P7 | Individual impact request | Owner/P7 predicate enforced | BOLA/tenant | Local Supabase | assigned advisor and denial matrix; owner delta submission intentionally absent in approved V1 | PARTIALLY VERIFIED |
+| IMPACT-07 | Analyst aggregate | P6/U | Small cohort impact | Suppress result | Privacy | Local Supabase | structural-only analyst report, no student scan/count; population suppression not exercised | PARTIALLY VERIFIED |
+| IMPACT-08 | No queue/write | U | Any impact run | No mutations/notifications | No side effect | Unit + Local Supabase | academic-table snapshots identical; only required trace appended and retry idempotent | VERIFIED |
 | GRAPH-01 | Typed decision node | U/CAP | Material decision | Closed node kind/provenance | No raw reasoning | Unit | eligibility decision plus typed recommendation/planner/path nodes; no material-ledger adapter | PARTIALLY VERIFIED |
 | GRAPH-02 | Rule/course/requirement links | U/CAP | Deterministic outcome | Typed causal edges | Engine precedence | Unit | closed reason, course, prerequisite, requirement, constraint, semester, path, and version edges tested; no general rule or ledger adapter | PARTIALLY VERIFIED |
 | GRAPH-03 | Evidence/source links | U/S1 | Evidence reference | Versioned source edge | Provenance | Unit | exact engine policy versions linked; academic source-document versions absent and disclosed | PARTIALLY VERIFIED |
@@ -117,7 +119,7 @@ grounded Policy Retrieval slices. `TRACE-14` remains partially verified because
 only the structural public-redaction helper exists; no public viewer is approved.
 WC-007 now has eligibility and material recommendation/planner/path projections
 with student and assigned-advisor API evidence. GRAPH-01/02/03/05 remain
-partial for broader decision/source/scope contracts. WC-040 also remains partial because seven `LEDGER_REQUIRED` decision types lack
+partial for broader decision/source/scope contracts. WC-040 also remains partial because six `LEDGER_REQUIRED` decision types lack
 trusted runtime producers. Other RAG/IMPACT/GRAPH/QUERY rows still require the
 stated approved design and tests.
 P8 remains PARTIAL; the P8 exit gate is not accepted solely by the current

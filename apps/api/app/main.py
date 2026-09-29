@@ -17,6 +17,11 @@ from app.api.routes.policies import router as policies_router
 from app.api.routes.decision_history import router as decision_history_router
 from app.api.routes.advisor_decision_history import router as advisor_decision_history_router
 from app.api.routes.advisor_explainability_graph import router as advisor_explainability_graph_router
+from app.api.routes.change_impact import (
+    institutional_router as institutional_change_impact_router,
+    advisor_router as advisor_change_impact_router,
+)
+from app.change_impact.service import ChangeImpactService, ImpactServiceCode, ImpactServiceError
 from app.decision_trace_persistence import (
     DecisionTraceErrorCode, DecisionTracePersistenceError, DecisionTraceService,
     SupabaseDecisionTraceRepository,
@@ -140,6 +145,7 @@ async def lifespan(application: FastAPI):
     application.state.policy_answer_service = None
     application.state.decision_trace_service = None
     application.state.advisor_authorization_service = None
+    application.state.change_impact_service = None
     if settings.supabase_url and settings.supabase_secret_key:
         repository = SupabaseAcademicCatalogRepository(
             settings.supabase_url,
@@ -183,6 +189,9 @@ async def lifespan(application: FastAPI):
         )
         application.state.decision_trace_service = DecisionTraceService(
             trace_repository, advisor_assignment_repo, advisor_auth_service,
+        )
+        application.state.change_impact_service = ChangeImpactService(
+            persistence, advisor_auth_service, context_loader, repository, trace_repository,
         )
         advisor_mock_reg_reader = AdvisorMockRegistrationReader(persistence, context_loader)
         application.state.advisor_copilot_service = AdvisorCopilotService(
@@ -255,6 +264,23 @@ app.include_router(policies_router)
 app.include_router(decision_history_router)
 app.include_router(advisor_decision_history_router)
 app.include_router(advisor_explainability_graph_router)
+app.include_router(institutional_change_impact_router)
+app.include_router(advisor_change_impact_router)
+
+
+@app.exception_handler(ImpactServiceError)
+async def handle_change_impact_error(_: Request, exc: ImpactServiceError) -> JSONResponse:
+    status_code = {
+        ImpactServiceCode.ACCESS_DENIED: 403,
+        ImpactServiceCode.SCOPE_UNAVAILABLE: 404,
+        ImpactServiceCode.IMPACT_SERVICE_UNAVAILABLE: 503,
+        ImpactServiceCode.AUDIT_PERSISTENCE_UNAVAILABLE: 503,
+    }[exc.code]
+    return JSONResponse(status_code=status_code, content={
+        "kind": "error", "error_code": exc.code.value,
+        "detail": "Change impact evaluation is unavailable" if status_code == 503
+                  else "Change impact scope is unavailable",
+    })
 
 
 @app.exception_handler(DecisionTracePersistenceError)

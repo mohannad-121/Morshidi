@@ -92,8 +92,9 @@ the comparison helper is not evidence that the historical executable ran.
 `CURRENT_RECOMPUTATION` is distinct and does not change the historical entry.
 
 WC-040 remains **PARTIAL** because registry acceptance requires every required
-material decision to have a trusted runtime producer, while only
-`MOCK_REGISTRATION_SUBMIT` currently has a P6 outbox-to-ledger producer. The
+material decision to have a trusted runtime producer. `MOCK_REGISTRATION_SUBMIT`
+has the P6 outbox-to-ledger producer, and `CHANGE_IMPACT_EVALUATION` now has the
+trusted WC-046 evaluator producer. The
 other required types cannot be called covered merely because the domain model
 accepts them or a fixture can be appended. No unrelated producer is added by
 this viewer closure. Test outcomes and the full registry coverage assessment
@@ -119,7 +120,7 @@ produced. Institutional/aggregate traces have no approved student-level viewer.
 | `INSTITUTIONAL_PERIOD_DEMAND_SNAPSHOT` | `LEDGER_REQUIRED` | NO | NO | NO |
 | `INSTITUTIONAL_BOTTLENECK_SNAPSHOT` | `LEDGER_REQUIRED` | NO | NO | NO |
 | `INSTITUTIONAL_ALERT_TRIGGERED` | `LEDGER_REQUIRED` | NO | NO | NO |
-| `CHANGE_IMPACT_EVALUATION` | `LEDGER_REQUIRED` | NO | NO | NO |
+| `CHANGE_IMPACT_EVALUATION` | `LEDGER_REQUIRED` | YES | YES | PARTIAL: advisor individual safe; no analyst structural viewer |
 | `FORMAL_POLICY_CONSULTATION` | `LEDGER_OPTIONAL` | NO | NO | YES |
 | `CHECK_ELIGIBILITY` | `DOMAIN_TRACE_ONLY` | NO | NO | NO |
 | `GET_PROGRESS` | `DOMAIN_TRACE_ONLY` | NO | NO | NO |

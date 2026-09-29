@@ -6,7 +6,8 @@ import { useAuth } from "@/auth/auth-provider";
 import { EyeIcon, EyeOffIcon } from "@/components/ui/Icons";
 
 function safeReturnTo(value: string | null): string {
-  return value && (value === "/student" || value.startsWith("/student/"))
+  return value && (value === "/student" || value.startsWith("/student/")
+    || value === "/institutional/change-impact")
     ? value
     : "/student";
 }
