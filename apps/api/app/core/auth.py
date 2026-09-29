@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from time import perf_counter
 from typing import Any
 from uuid import UUID
 
@@ -26,6 +27,7 @@ async def get_current_user(
     credentials: HTTPAuthorizationCredentials | None = Depends(_bearer),
 ) -> CurrentUser:
     """Verify the bearer token with Supabase Auth; never decode claims locally."""
+    auth_started = perf_counter()
     if credentials is None or credentials.scheme.lower() != "bearer":
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Authentication required")
     token = credentials.credentials.strip()
@@ -49,4 +51,5 @@ async def get_current_user(
         normalized_user_id = str(UUID(user_id))
     except ValueError:
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Invalid authentication") from None
+    request.state.auth_ms = round((perf_counter() - auth_started) * 1000, 1)
     return CurrentUser(normalized_user_id)

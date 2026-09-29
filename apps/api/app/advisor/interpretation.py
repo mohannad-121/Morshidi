@@ -324,10 +324,16 @@ def _validate_raw_shape(
         not isinstance(raw.clarification_hint, str) or not raw.clarification_hint.strip()
     ):
         return _schema_failure()
+    if raw.general_response is not None and (
+        not isinstance(raw.general_response, str) or not raw.general_response.strip()
+    ):
+        return _schema_failure()
     return None
 
 
 def _fields_allowed_for_intent(raw: RawAdvisorInterpretation, intent: AdvisorIntent) -> bool:
+    if (intent is AdvisorIntent.GENERAL_CHAT) != (raw.general_response is not None):
+        return False
     has_course = bool(raw.course_mentions or raw.course_codes_mentioned)
     has_options = bool(raw.option_references)
     has_credit_or_courses = (

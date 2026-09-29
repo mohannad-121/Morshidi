@@ -117,7 +117,7 @@ def orchestrate_advisor_request(
         return _option_comparison_result(request, context)
     if request.intent is AdvisorIntent.COURSE_INFORMATION:
         return _course_information_result(request, context)
-    if request.intent is AdvisorIntent.GENERAL_ACADEMIC_INFORMATION:
+    if request.intent in (AdvisorIntent.GENERAL_CHAT, AdvisorIntent.GENERAL_ACADEMIC_INFORMATION):
         return _general_information_result(request)
     if request.intent is AdvisorIntent.CLARIFICATION_REQUIRED:
         assert request.clarification_request is not None

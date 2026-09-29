@@ -528,6 +528,7 @@ describe('Morshidi Student Portal Pages Suite', () => {
     const user = userEvent.setup();
     renderWithAuth(<EligibilityPage />);
     expect(screen.getByText('فحص أهلية تسجيل مادة')).toBeDefined();
+    expect(screen.queryByRole('button', { name: '1501332' })).toBeNull();
 
     const input = screen.getByPlaceholderText('أدخل رمز المادة هنا...');
     await user.type(input, '1501211');
@@ -633,6 +634,61 @@ describe('Morshidi Student Portal Pages Suite', () => {
       expect(screen.getByText(/الحد الأدنى للعبء الدراسي في الفصل الاعتيادي/)).toBeDefined();
       expect(screen.getAllByText(/المادة 5/).length).toBeGreaterThan(0);
     });
+  });
+
+  it('uses POST only and clears degree-path loading after a server error', async () => {
+    const requests: string[] = [];
+    fetchSpy.mockImplementation(async (input: RequestInfo | URL, init?: RequestInit) => {
+      requests.push(`${init?.method ?? 'GET'} ${String(input)}`);
+      if (String(input).includes('/degree-paths')) expect(init?.signal).toBeInstanceOf(AbortSignal);
+      return new Response('{}', { status: 503 });
+    });
+    const user = userEvent.setup();
+    const { container } = renderWithAuth(<DegreePathPage />);
+    await user.click(container.querySelector('form button[type="submit"]') as HTMLButtonElement);
+    await screen.findByRole('alert');
+    expect(screen.getByRole('alert').textContent).toContain('تعذر إنشاء مسار التخرج الآن');
+    expect(screen.getByRole('alert').textContent).not.toContain('استغرق إنشاء');
+    expect(screen.queryByRole('status')).toBeNull();
+    expect(requests.filter((request) => request.includes('/degree-paths'))).toEqual([
+      expect.stringMatching(/^POST .*\/api\/v1\/me\/degree-paths$/),
+    ]);
+  });
+
+  it('clears degree-path loading when response JSON is malformed', async () => {
+    fetchSpy.mockImplementation(async () => new Response('not-json', { status: 200 }));
+    const user = userEvent.setup();
+    const { container } = renderWithAuth(<DegreePathPage />);
+    await user.click(container.querySelector('form button[type="submit"]') as HTMLButtonElement);
+    await screen.findByRole('alert');
+    expect(screen.queryByRole('status')).toBeNull();
+  });
+
+  it('rejects a malformed degree-path shape before rendering it', async () => {
+    fetchSpy.mockImplementation(async () => new Response('{}', { status: 200 }));
+    const user = userEvent.setup();
+    const { container } = renderWithAuth(<DegreePathPage />);
+    await user.click(container.querySelector('form button[type="submit"]') as HTMLButtonElement);
+    await screen.findByRole('alert');
+    expect(screen.queryByRole('status')).toBeNull();
+  });
+
+  it('clears degree-path loading when the request times out', async () => {
+    const timeout = vi.spyOn(AbortSignal, 'timeout').mockReturnValue(AbortSignal.abort());
+    fetchSpy.mockImplementation(async (_input: RequestInfo | URL, init?: RequestInit) => {
+      if (init?.signal?.aborted) throw new DOMException('Timed out', 'TimeoutError');
+      return new Response('{}', { status: 200 });
+    });
+    try {
+      const user = userEvent.setup();
+      const { container } = renderWithAuth(<DegreePathPage />);
+      await user.click(container.querySelector('form button[type="submit"]') as HTMLButtonElement);
+      await screen.findByRole('alert');
+      expect(screen.getByRole('alert').textContent).toContain('استغرق إنشاء مسار التخرج وقتًا أطول');
+      expect(screen.queryByRole('status')).toBeNull();
+    } finally {
+      timeout.mockRestore();
+    }
   });
 
   it('shows a list failure and retries the real policy request', async () => {

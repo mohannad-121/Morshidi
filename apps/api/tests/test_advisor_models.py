@@ -63,6 +63,7 @@ def test_01_advisor_intent_exact_members() -> None:
         "OPTION_COMPARISON",
         "COURSE_INFORMATION",
         "GENERAL_ACADEMIC_INFORMATION",
+        "GENERAL_CHAT",
         "CLARIFICATION_REQUIRED",
         "OUT_OF_SCOPE",
     )

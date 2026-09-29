@@ -138,13 +138,22 @@ export class StudentApiService {
 
   async createDegreePaths(
     request: DegreePathRequest,
+    signal?: AbortSignal,
   ): Promise<DegreePathResponse> {
     const res = await this.client.request("/api/v1/me/degree-paths", {
       method: "POST",
+      signal,
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(request),
     });
-    return parseJson<DegreePathResponse>(res);
+    const data = await parseJson<DegreePathResponse>(res);
+    if (!data || !Array.isArray(data.paths) || data.paths.some((path) =>
+      !path || !Array.isArray(path.semesters) || path.semesters.some((semester) =>
+        !semester || !semester.plan_option || !Array.isArray(semester.plan_option.courses) ||
+        !Array.isArray(semester.newly_satisfied_requirement_group_codes)
+      )
+    )) throw new Error("INVALID_DEGREE_PATH_RESPONSE");
+    return data;
   }
 
   async createDegreePathGraph(request: DegreePathRequest): Promise<AcademicExplanationGraph> {
@@ -188,9 +197,10 @@ export class StudentApiService {
     return parseJson<StudentIntentResponse>(res);
   }
 
-  async askAdvisor(request: AdvisorRequest): Promise<AdvisorResponse> {
+  async askAdvisor(request: AdvisorRequest, signal?: AbortSignal): Promise<AdvisorResponse> {
     const res = await this.client.request("/api/v1/me/advisor", {
       method: "POST",
+      signal,
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(request),
     });

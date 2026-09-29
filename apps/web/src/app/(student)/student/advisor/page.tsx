@@ -76,7 +76,7 @@ export default function AdvisorPage() {
     try {
       const api = new StudentApiService(client);
       const req: AdvisorRequest = { message: query };
-      const response = await api.askAdvisor(req);
+      const response = await api.askAdvisor(req, AbortSignal.timeout(55_000));
 
       const advisorMsg: ChatMessage = {
         id: `advisor-${Date.now()}`,

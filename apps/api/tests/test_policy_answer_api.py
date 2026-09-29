@@ -10,8 +10,9 @@ from app.core.auth import CurrentUser, get_current_user
 from app.institutional_policy.answering import PolicyAnswerService
 from app.institutional_policy.service import InMemoryPolicyReadStorage, StudentPolicyService
 from app.main import app
+from app.services.student import StudentService
 from tests.test_policy_answering import FakePolicies, FakeProvider, UNIVERSITY, WITHDRAWAL, answered
-from tests.test_policy_api import DummyStudentService
+from tests.test_policy_api import DummyStudentRepository
 
 
 USER = "20000000-0000-0000-0000-000000000001"
@@ -20,7 +21,11 @@ USER = "20000000-0000-0000-0000-000000000001"
 @pytest.fixture
 def answer_client():
     app.dependency_overrides[get_current_user] = lambda: CurrentUser(user_id=USER)
-    app.dependency_overrides[get_student_service] = lambda: DummyStudentService({USER: UNIVERSITY})
+    app.dependency_overrides[get_student_service] = lambda: StudentService(
+        repository=DummyStudentRepository({USER: UNIVERSITY}),
+        eligibility=None,
+        catalog_repository=None,
+    )
     try:
         with TestClient(app) as client:
             yield client

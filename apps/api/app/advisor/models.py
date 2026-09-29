@@ -56,6 +56,9 @@ class AdvisorIntent(str, Enum):
     GENERAL_ACADEMIC_INFORMATION = "GENERAL_ACADEMIC_INFORMATION"
     """Explain a general concept without a student-specific decision."""
 
+    GENERAL_CHAT = "GENERAL_CHAT"
+    """Conversational answer with no student-specific academic authority."""
+
     CLARIFICATION_REQUIRED = "CLARIFICATION_REQUIRED"
     """Represent an intent, entity, option, or constraint ambiguity."""
 

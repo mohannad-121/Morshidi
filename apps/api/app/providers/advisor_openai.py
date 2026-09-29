@@ -32,6 +32,7 @@ ADVISOR_PROVIDER_TIMEOUT_SECONDS = 20.0
 
 _INTERPRETATION_FIELDS = {
     "intent",
+    "general_response",
     "course_mentions",
     "course_codes_mentioned",
     "option_references",
@@ -51,6 +52,7 @@ INTERPRETATION_JSON_SCHEMA: dict[str, Any] = {
     "type": "object",
     "properties": {
         "intent": _nullable({"type": "string"}),
+        "general_response": _nullable({"type": "string"}),
         "course_mentions": {"type": "array", "items": {"type": "string"}},
         "course_codes_mentioned": {"type": "array", "items": {"type": "string"}},
         "option_references": {"type": "array", "items": {"type": "integer"}},
@@ -105,6 +107,7 @@ class OpenAIAdvisorProvider:
                 raise ValueError
             return RawAdvisorInterpretation(
                 intent=data["intent"],
+                general_response=data["general_response"],
                 course_mentions=tuple(data["course_mentions"]),
                 course_codes_mentioned=tuple(data["course_codes_mentioned"]),
                 option_references=tuple(data["option_references"]),

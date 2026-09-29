@@ -46,6 +46,10 @@ class StudentService:
     async def get_profile(self, owner: str) -> StudentAcademicState:
         return await self._repository.load_student_academic_state(owner)
 
+    async def resolve_student_university_id(self, owner: str) -> str:
+        """Resolve the authenticated owner's university through the existing repository boundary."""
+        return await self._repository.resolve_student_university_id(owner)
+
     async def create_profile(self, owner: str, **values: Any) -> StudentAcademicState:
         return await self._repository.create_profile(owner, **values)
 
@@ -191,9 +195,22 @@ class StudentService:
         constructs DegreePathConstraints from user parameters, and invokes the pure engine.
         Internal engine parameters (beam_width, semester_branch_width) remain engine defaults.
         """
+        from time import perf_counter
+        import logging
+        import asyncio
+
+        started = perf_counter()
         state = await self.get_profile(owner)
-        progress_catalog = await self._catalog_repository.load_progress_catalog(state.study_plan_id)
-        eligibility_catalog = await self._catalog_repository.load_plan_eligibility_catalog(state.study_plan_id)
+        profile_ms = (perf_counter() - started) * 1000
+        async def timed_catalog(load):
+            phase_started = perf_counter()
+            value = await load(state.study_plan_id)
+            return value, (perf_counter() - phase_started) * 1000
+
+        (progress_catalog, progress_catalog_ms), (eligibility_catalog, eligibility_catalog_ms) = await asyncio.gather(
+            timed_catalog(self._catalog_repository.load_progress_catalog),
+            timed_catalog(self._catalog_repository.load_plan_eligibility_catalog),
+        )
 
         constraints = DegreePathConstraints(
             max_credit_hours_per_semester=max_credit_hours_per_semester,
@@ -202,7 +219,8 @@ class StudentService:
             max_paths=max_paths,
         )
 
-        return plan_degree_paths(
+        engine_started = perf_counter()
+        result = plan_degree_paths(
             progress_catalog,
             eligibility_catalog,
             state.attempts,
@@ -211,3 +229,9 @@ class StudentService:
             reported_gpa_scale=state.reported_gpa_scale,
             reported_earned_credit_hours=state.reported_earned_credit_hours,
         )
+        logging.getLogger(__name__).info(
+            "degree_path_timing profile_attempts_ms=%.1f progress_catalog_ms=%.1f eligibility_catalog_ms=%.1f engine_ms=%.1f total_service_ms=%.1f",
+            profile_ms, progress_catalog_ms, eligibility_catalog_ms,
+            (perf_counter() - engine_started) * 1000, (perf_counter() - started) * 1000,
+        )
+        return result

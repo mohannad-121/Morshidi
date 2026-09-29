@@ -24,10 +24,11 @@ from app.institutional_policy.service import (
     StudentPolicyService,
 )
 from app.main import app
+from app.services.student import StudentService
 from app.student.errors import StudentProfileNotFound
 
 
-class DummyStudentService:
+class DummyStudentRepository:
     def __init__(self, university_map: dict[str, str] | None = None) -> None:
         self.university_map = university_map or {}
 
@@ -144,10 +145,10 @@ def mock_policy_env():
     student_user_id = str(uuid.uuid4())
     student_without_profile_id = str(uuid.uuid4())
 
-    student_service = DummyStudentService(
-        university_map={
-            student_user_id: univ_a,
-        }
+    student_service = StudentService(
+        repository=DummyStudentRepository(university_map={student_user_id: univ_a}),
+        eligibility=None,
+        catalog_repository=None,
     )
 
     return {

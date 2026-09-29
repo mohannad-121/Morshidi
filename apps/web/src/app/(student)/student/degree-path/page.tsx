@@ -28,6 +28,13 @@ import {
   SparklesIcon,
 } from "@/components/ui/Icons";
 
+const PATH_STAGES = [
+  "قراءة الخطة الدراسية والسجل الأكاديمي",
+  "فحص المتطلبات السابقة والمواد المتبقية",
+  "محاكاة المسارات الفصلية وترتيبها",
+  "تجهيز نتيجة مسار التخرج",
+] as const;
+
 export default function DegreePathPage() {
   const auth = useAuth();
   const client = useAuthenticatedApi();
@@ -47,6 +54,7 @@ export default function DegreePathPage() {
   const [graphError, setGraphError] = useState(false);
   const lastGraphRequest = useRef<DegreePathRequest | null>(null);
   const graphRequestId = useRef(0);
+  const requestId = useRef(0);
 
   const loadGraph = async (request: DegreePathRequest) => {
     const currentId = ++graphRequestId.current;
@@ -70,24 +78,30 @@ export default function DegreePathPage() {
     graphRequestId.current += 1;
     setGraph(null);
     setGraphError(false);
+    const currentRequest = ++requestId.current;
+    let timeoutSignal: AbortSignal | null = null;
 
     try {
+      timeoutSignal = AbortSignal.timeout(60_000);
       const api = new StudentApiService(client);
       const req: DegreePathRequest = {
         max_credit_hours_per_semester: maxCreditsPerSemester,
         max_semesters_ahead: maxSemestersAhead,
         max_paths: maxPaths,
       };
-      const data = await api.createDegreePaths(req);
+      const data = await api.createDegreePaths(req, timeoutSignal);
+      if (currentRequest !== requestId.current) return;
       setResult(data);
       setSelectedPathIndex(0);
       lastGraphRequest.current = req;
-      setLoading(false);
       void loadGraph(req);
     } catch {
-      setErrorMessage("تعذر توليد مسار التخرج. يرجى التحقق من توفر الخطة الدراسية وسجل المواد.");
+      if (currentRequest !== requestId.current) return;
+      setErrorMessage(timeoutSignal?.aborted
+        ? "استغرق إنشاء مسار التخرج وقتًا أطول من المتوقع. حاول مرة أخرى."
+        : "تعذر إنشاء مسار التخرج الآن. حاول مرة أخرى.");
     } finally {
-      setLoading(false);
+      if (currentRequest === requestId.current) setLoading(false);
     }
   };
 
@@ -198,14 +212,27 @@ export default function DegreePathPage() {
 
       {/* Error */}
       {errorMessage ? (
-        <div className="rounded-2xl border border-red-200 bg-red-50 p-5 text-xs text-red-800">
+        <div role="alert" className="rounded-2xl border border-red-200 bg-red-50 p-5 text-xs text-red-800">
           <p className="font-bold">{errorMessage}</p>
+          <button type="button" onClick={() => void handleGeneratePath()} className="mt-3 rounded-lg border border-red-300 px-3 py-1">إعادة المحاولة</button>
         </div>
       ) : null}
 
       {/* Loading */}
       {loading ? (
-        <div className="space-y-6">
+        <div role="status" aria-live="polite" className="space-y-6">
+          <div className="rounded-2xl border border-[#EDE2C5] bg-white p-5 text-sm text-[#28241C]">
+            <p className="font-bold">جارٍ إعداد مسار التخرج...</p>
+            <p className="mt-2 text-[#726B5E]">يقرأ الخادم خطتك وسجلك الأكاديمي، ويفحص المتطلبات السابقة، ثم يحاكي المسارات. لا تصلنا حالة كل خطوة على حدة؛ سنعرض النتيجة عند اكتمال الحساب.</p>
+            <ol className="mt-4 space-y-2" aria-label="مراحل إنشاء المسار">
+              {PATH_STAGES.map((stage, index) => (
+                <li key={stage} className="flex gap-2 text-[#726B5E]">
+                  <span aria-hidden="true">{index + 1}.</span>
+                  <span>{stage} — قيد الانتظار من الخادم</span>
+                </li>
+              ))}
+            </ol>
+          </div>
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
             <LoadingSkeletonCard />
             <LoadingSkeletonCard />
@@ -219,6 +246,9 @@ export default function DegreePathPage() {
       {/* Result Path */}
       {!loading && result && result.paths.length > 0 ? (
         <div className="space-y-8">
+          <div role="status" className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-900">
+            ✓ اكتملت قراءة البيانات الأكاديمية وفحص المتطلبات ومحاكاة المسارات وتجهيز النتيجة.
+          </div>
           {/* Paths Selection */}
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex flex-wrap items-center gap-2">

@@ -30,6 +30,18 @@ test("adds the current Bearer token and preserves the exact body", async () => {
   expect(captured?.body).toBe(body);
   expect(captured?.body).not.toContain("owner");
   expect(source.getAccessToken).toHaveBeenCalledTimes(1);
+  expect(captured?.signal).toBeUndefined();
+});
+
+test("forwards an explicit feature deadline without creating one globally", async () => {
+  const fetcher = vi.fn(async (_url: RequestInfo | URL, init?: RequestInit) => {
+    expect(init?.signal).toBe(signal);
+    return new Response("{}", { status: 200 });
+  });
+  const signal = AbortSignal.timeout(60_000);
+  const client = new AuthenticatedApiClient(tokens(), fetcher, "https://api.example.test");
+  await client.request("/api/v1/me/degree-paths", { method: "POST", signal });
+  expect(fetcher).toHaveBeenCalledTimes(1);
 });
 
 test("does not send a request when there is no current token", async () => {

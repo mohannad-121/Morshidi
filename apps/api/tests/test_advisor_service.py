@@ -120,6 +120,69 @@ def _service(
 
 
 @pytest.mark.anyio
+@pytest.mark.parametrize("message", ("كيفك", "شو بتعرف عن التفاح؟", "احكيلي عن الحرب العالمية الثانية"))
+async def test_general_chat_is_one_call_without_academic_access(message: str) -> None:
+    service, provider, students, catalogs = _service(
+        RawAdvisorInterpretation("GENERAL_CHAT", general_response="أهلاً! يمكنني المساعدة.")
+    )
+    result = await service.advise_with_explanation(OWNER, message)
+    assert result.structured_result.intent is AdvisorIntent.GENERAL_CHAT
+    assert result.structured_result.authority is AnswerAuthority.GENERAL_INFORMATION
+    assert result.explanation == "أهلاً! يمكنني المساعدة."
+    assert provider.calls == [message]
+    assert students.loads == []
+    assert catalogs.progress_loads == catalogs.eligibility_loads == catalogs.resolution_loads == []
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize(
+    ("message", "expected_intent"),
+    (
+        ("هل أقدر أسجل الذكاء الاصطناعي؟", AdvisorIntent.CLARIFICATION_REQUIRED),
+        ("كم ساعة ضايل علي؟", AdvisorIntent.REMAINING_REQUIREMENTS),
+        ("How many credits do I have?", AdvisorIntent.REMAINING_REQUIREMENTS),
+        ("اعمللي مسار تخرج", AdvisorIntent.CLARIFICATION_REQUIRED),
+        ("كم مادة خلصت؟", AdvisorIntent.REMAINING_REQUIREMENTS),
+        ("What courses should I take next semester?", AdvisorIntent.COURSE_RECOMMENDATIONS),
+        ("If I increase my credit limit, what changes?", AdvisorIntent.CLARIFICATION_REQUIRED),
+    ),
+)
+async def test_misclassified_academic_message_never_returns_general_answer(
+    message: str, expected_intent: AdvisorIntent,
+) -> None:
+    service, provider, students, catalogs = _service(
+        RawAdvisorInterpretation("GENERAL_CHAT", general_response="You are eligible to graduate.")
+    )
+    result = await service.advise_with_explanation(OWNER, message)
+    assert result.structured_result.intent is expected_intent
+    assert result.explanation != "You are eligible to graduate."
+    assert provider.calls == [message]
+    if expected_intent in (AdvisorIntent.REMAINING_REQUIREMENTS, AdvisorIntent.COURSE_RECOMMENDATIONS):
+        assert students.loads == [OWNER]
+        assert catalogs.progress_loads == [PLAN]
+    else:
+        assert students.loads == []
+        assert catalogs.progress_loads == catalogs.eligibility_loads == []
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize("claim", (
+    "You are eligible to register for course 1501110.",
+    "You have completed 80 credits.",
+    "You are eligible to graduate.",
+))
+async def test_general_chat_academic_claim_is_rejected_even_for_general_question(claim: str) -> None:
+    service, _, students, catalogs = _service(
+        RawAdvisorInterpretation("GENERAL_CHAT", general_response=claim)
+    )
+    result = await service.advise_with_explanation(OWNER, "كيفك؟")
+    assert result.structured_result.intent is AdvisorIntent.CLARIFICATION_REQUIRED
+    assert result.explanation != claim
+    assert students.loads == []
+    assert catalogs.progress_loads == catalogs.eligibility_loads == catalogs.resolution_loads == []
+
+
+@pytest.mark.anyio
 async def test_01_general_information_avoids_student_and_catalog_loads() -> None:
     service, provider, students, catalogs = _service(
         RawAdvisorInterpretation("GENERAL_ACADEMIC_INFORMATION")

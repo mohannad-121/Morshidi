@@ -96,8 +96,8 @@ export default function EligibilityPage() {
     }
   };
 
-  const handleCheck = async (codeToCheck?: string) => {
-    const code = (codeToCheck ?? courseCodeInput).trim().toUpperCase();
+  const handleCheck = async () => {
+    const code = courseCodeInput.trim().toUpperCase();
     if (!code) {
       setErrorMessage("يرجى إدخال رمز المادة المراد فحص أهليتها.");
       return;
@@ -129,8 +129,6 @@ export default function EligibilityPage() {
       setLoading(false);
     }
   };
-
-  const quickPills = ["1501110", "1501211", "1501221", "1501332", "1501440"];
 
   return (
     <div className="space-y-8">
@@ -184,22 +182,6 @@ export default function EligibilityPage() {
                 <span>{loading ? "جاري الفحص..." : "فحص الأهلية"}</span>
               </button>
             </div>
-          </div>
-
-          {/* Quick suggestions */}
-          <div className="flex flex-wrap items-center gap-2 pt-2 text-xs">
-            <span className="text-[#726B5E]">مواد مقترحة للفحص السريع:</span>
-            {quickPills.map((pill) => (
-              <button
-                key={pill}
-                type="button"
-                onClick={() => void handleCheck(pill)}
-                className="rounded-xl border border-[#EDE2C5] bg-[#FFF9E8] px-3 py-1 font-mono text-[11px] font-bold text-[#805400] hover:bg-[#FFF4C7] hover:border-[#E2AD27] transition-colors"
-                dir="ltr"
-              >
-                {pill}
-              </button>
-            ))}
           </div>
         </form>
       </div>

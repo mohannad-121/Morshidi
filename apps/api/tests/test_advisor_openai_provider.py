@@ -24,6 +24,7 @@ from app.main import build_advisor_providers, settings
 def _interpretation(**overrides: object) -> dict[str, object]:
     value: dict[str, object] = {
         "intent": "COURSE_ELIGIBILITY",
+        "general_response": None,
         "course_mentions": [],
         "course_codes_mentioned": ["0300153"],
         "option_references": [],

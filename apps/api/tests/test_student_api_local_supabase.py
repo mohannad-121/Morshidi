@@ -44,6 +44,10 @@ def test_local_authenticated_student_api_end_to_end() -> None:
                         "reported_gpa_scale": 4, "reported_earned_credit_hours": 15})
                 assert created_profile.status_code == 201
                 assert client.get("/api/v1/me/academic-profile", headers=auth_a).json()["id"] == created_profile.json()["id"]
+                policies = client.get("/api/v1/me/policies", headers=auth_a)
+                assert policies.status_code == 200 and isinstance(policies.json(), list)
+                missing_profile_policies = client.get("/api/v1/me/policies", headers=auth_b)
+                assert missing_profile_policies.status_code == 200 and missing_profile_policies.json() == []
 
                 failed = client.post("/api/v1/me/academic-profile/attempts", headers=auth_a,
                     json={"course_code": "1501110", "status": "FAILED", "raw_grade_text": "raw-failure"})

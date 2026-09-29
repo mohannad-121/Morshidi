@@ -233,7 +233,12 @@ async def create_degree_paths(
     request: DegreePathRequest,
     user: AuthenticatedUser,
     service: StudentServiceDependency,
+    http_request: Request,
 ) -> DegreePathResponse:
+    from time import perf_counter
+    import logging
+
+    started = perf_counter()
     result = await service.get_degree_paths(
         user.user_id,
         max_credit_hours_per_semester=request.max_credit_hours_per_semester,
@@ -241,7 +246,15 @@ async def create_degree_paths(
         max_semesters_ahead=request.max_semesters_ahead,
         max_paths=request.max_paths,
     )
-    return _degree_path_response(result)
+    service_ms = (perf_counter() - started) * 1000
+    response = _degree_path_response(result)
+    logging.getLogger(__name__).info(
+        "degree_path_timing auth_ms=%s service_ms=%.1f serialization_ms=%.1f post_auth_ms=%.1f",
+        getattr(http_request.state, "auth_ms", None), service_ms,
+        (perf_counter() - started) * 1000 - service_ms,
+        (perf_counter() - started) * 1000,
+    )
+    return response
 
 
 def _degree_path_response(result: DegreePathResult) -> DegreePathResponse:
