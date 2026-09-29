@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
+from dataclasses import replace
 from datetime import datetime, timezone
 from typing import Any
 from uuid import UUID
@@ -19,6 +20,7 @@ from app.mock_registration_persistence.models import (
     PersistedIntentCourse,
     PersistedIntentRevision,
 )
+from app.mock_registration.replay_artifact import P6ReplayArtifactV1
 
 from .errors import DecisionTraceErrorCode, DecisionTracePersistenceError
 from .models import ClaimedOutboxEvent
@@ -70,7 +72,52 @@ class SupabaseDecisionTraceOutboxRepository:
         response = await self._request("POST", "rpc/claim_decision_trace_outbox_events", json=body)
         self._require_success(response, "claim outbox events")
         rows = self._rows(response, "claim outbox events")
-        return tuple(self._parse_claimed_event(row) for row in rows)
+        claimed = []
+        for row in rows:
+            event = self._parse_claimed_event(row)
+            artifact = await self.load_replay_artifact(
+                revision_id=event.revision_id,
+                university_id=event.projection.revision.university_id,
+            )
+            claimed.append(replace(event, projection=replace(
+                event.projection, replay_artifact=artifact,
+            )))
+        return tuple(claimed)
+
+    async def load_replay_artifact(
+        self, *, revision_id: UUID, university_id: UUID,
+    ) -> P6ReplayArtifactV1 | None:
+        response = await self._request("GET", "p6_submit_replay_artifacts", params={
+            "select": "revision_id,university_id,replay_contract_version,engine_id,engine_version,canonical_payload,canonical_sha256,source_versions",
+            "revision_id": f"eq.{revision_id}", "university_id": f"eq.{university_id}",
+            "limit": "2",
+        })
+        self._require_success(response, "load replay artifact")
+        rows = self._rows(response, "load replay artifact")
+        if not rows:
+            return None
+        if len(rows) != 1:
+            raise DecisionTracePersistenceError(
+                DecisionTraceErrorCode.PERSISTENCE_INTEGRITY_FAILURE,
+                "replay artifact identity is not unique",
+            )
+        row = rows[0]
+        try:
+            if UUID(str(row["revision_id"])) != revision_id or UUID(str(row["university_id"])) != university_id:
+                raise ValueError("scope")
+            return P6ReplayArtifactV1(
+                replay_contract_version=str(row["replay_contract_version"]),
+                engine_id=str(row["engine_id"]),
+                engine_version=str(row["engine_version"]),
+                canonical_payload=str(row["canonical_payload"]),
+                canonical_sha256=str(row["canonical_sha256"]),
+                source_versions=tuple(row["source_versions"]),
+            )
+        except (KeyError, TypeError, ValueError) as exc:
+            raise DecisionTracePersistenceError(
+                DecisionTraceErrorCode.PERSISTENCE_INTEGRITY_FAILURE,
+                "replay artifact row is malformed",
+            ) from exc
 
     async def complete_event(
         self,

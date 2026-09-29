@@ -10,6 +10,7 @@ from app.mock_registration.models import (
 )
 from app.mock_registration.resolution import resolve_current_intents
 from app.mock_registration.validation import validate_registration_intent
+from app.mock_registration.replay_artifact import create_p6_replay_artifact
 from app.mock_registration_persistence.errors import (
     MockRegistrationPersistenceError, PersistenceFailureCode,
 )
@@ -61,7 +62,8 @@ class MockRegistrationStudentService:
             domain_period(period), next_revision, IntentLifecycle.SUBMITTED, course_codes,
             _provenance(period.period_class.value), snapshot.snapshot_token,
         )
-        validated = validate_registration_intent(intent, domain_context(snapshot, domain_period(period)))
+        historical_context = domain_context(snapshot, domain_period(period))
+        validated = validate_registration_intent(intent, historical_context)
         if validated.status is ValidationStatus.INVALID:
             raise MockRegistrationServiceError(ServiceErrorCode.INVALID_INTENT,
                                                reasons=validated.reason_codes)
@@ -90,6 +92,7 @@ class MockRegistrationStudentService:
             actor_class="STUDENT_AUTHENTICATED",
             course_ids=tuple(value for value in course_ids if value is not None),
             course_codes=validated.canonical_course_codes,
+            replay_artifact=create_p6_replay_artifact(intent, historical_context, validated),
         ))
         row = await self._persisted_row(snapshot, target_period_id, result.revision)
         current = (CurrentValidity.CURRENT_VALID if validated.status is ValidationStatus.VALID

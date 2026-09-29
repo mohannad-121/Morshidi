@@ -139,6 +139,7 @@ def test_lexical_search_ranking_tie_break_tenant_and_limit_are_real() -> None:
     now = datetime.now(timezone.utc).isoformat()
     token = f"wc038{uuid4().hex[:12]}"
     created_document_ids: list[str] = []
+    created_university_id: str | None = None
     headers = {**_headers(SERVER_KEY or ""), "Prefer": "return=representation"}
 
     def create_document(client: httpx.Client, university_id: str, code_suffix: str, passage_text: str) -> str:
@@ -165,13 +166,20 @@ def test_lexical_search_ranking_tie_break_tenant_and_limit_are_real() -> None:
 
     with httpx.Client(timeout=15.0) as client:
         try:
+            university = client.post(f"{URL}/rest/v1/universities", headers=headers, json={
+                "name_ar": f"جامعة اختبار بحث محلي {token}",
+                "name_en": f"Local lexical isolation test {token}",
+                "country": "Jordan", "active": True,
+            })
+            university.raise_for_status()
+            created_university_id = university.json()[0]["id"]
             phrase_code = f"LEX-{token}-PHRASE"
             tie_a_code = f"LEX-{token}-TIE-A"
             tie_b_code = f"LEX-{token}-TIE-B"
             create_document(client, KNOWN_UNIVERSITY, "PHRASE", f"{token} exact phrase ranking evidence")
             create_document(client, KNOWN_UNIVERSITY, "TIE-A", f"{token} exact phrase ranking evidence")
             create_document(client, KNOWN_UNIVERSITY, "TIE-B", f"{token} exact phrase ranking evidence")
-            create_document(client, "0189e448-5a41-4741-a1a5-880846ec80d4", "OTHER", f"{token} exact phrase ranking evidence")
+            create_document(client, created_university_id, "OTHER", f"{token} exact phrase ranking evidence")
 
             response = client.post(f"{URL}/rest/v1/rpc/search_verified_policy_passages", headers=headers, json={
                 "p_university_id": KNOWN_UNIVERSITY, "p_query": f"{token} exact phrase ranking", "p_limit": 20,
@@ -194,3 +202,11 @@ def test_lexical_search_ranking_tie_break_tenant_and_limit_are_real() -> None:
                     client.delete(f"{URL}/rest/v1/policy_passages?version_id=eq.{version['id']}", headers=headers)
                 client.delete(f"{URL}/rest/v1/policy_document_versions?document_id=eq.{document_id}", headers=headers)
                 client.delete(f"{URL}/rest/v1/policy_documents?id=eq.{document_id}", headers=headers)
+            if created_university_id is not None:
+                cleanup = client.delete(f"{URL}/rest/v1/universities", headers=headers,
+                    params={"id": f"eq.{created_university_id}"})
+                cleanup.raise_for_status()
+                remaining = client.get(f"{URL}/rest/v1/universities", headers=headers,
+                    params={"select": "id", "id": f"eq.{created_university_id}"})
+                remaining.raise_for_status()
+                assert remaining.json() == []

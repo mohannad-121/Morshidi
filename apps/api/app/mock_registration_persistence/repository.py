@@ -94,7 +94,16 @@ class SupabaseMockRegistrationRepository:
             "p_course_ids": [str(item) for item in command.course_ids],
             "p_course_codes": list(command.course_codes),
         }
-        response = await self._request("POST", "rpc/persist_mock_registration_revision", json=body)
+        resource = "rpc/persist_mock_registration_revision"
+        if command.replay_artifact is not None:
+            artifact = command.replay_artifact
+            body.update({
+                "p_replay_canonical_payload": artifact.canonical_payload,
+                "p_replay_canonical_sha256": artifact.canonical_sha256,
+                "p_replay_source_versions": list(artifact.source_versions),
+            })
+            resource = "rpc/persist_mock_registration_revision_with_replay"
+        response = await self._request("POST", resource, json=body)
         self._require_success(response, "persist revision")
         rows = _rows(response, "persist revision")
         if len(rows) != 1:
@@ -154,6 +163,15 @@ class SupabaseMockRegistrationRepository:
             },
         )
         return tuple(_revision(row) for row in rows)
+
+    async def load_revision_by_id(self, revision_id: UUID) -> PersistedIntentRevision | None:
+        """Internal audit lookup; never exposed as a browser endpoint."""
+        rows = await self._get_rows("mock_registration_intent_revisions", {
+            "select": _REVISION_SELECT, "id": f"eq.{revision_id}", "limit": "2",
+        })
+        if len(rows) > 1:
+            raise MockRegistrationPersistenceIntegrityError("load revision by id")
+        return _revision(rows[0]) if rows else None
 
     async def load_institution_period_candidates(
         self,

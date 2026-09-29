@@ -20,6 +20,7 @@ from app.decision_trace import (
     DecisionStatus,
     DecisionType,
     EvidenceReference,
+    IntegrityStatus,
     ProvenanceClass,
     RedactionProfile,
     ReplayStatus,
@@ -29,6 +30,9 @@ from app.decision_trace import (
     verify_integrity_hash,
 )
 from app.mock_registration.models import IntentLifecycle, ValidationStatus
+from app.mock_registration.replay_artifact import (
+    P6ReplayArtifactV1, P6ReplayArtifactError, verify_p6_replay_artifact,
+)
 from app.mock_registration_persistence.models import PersistedIntentRevision
 
 from .errors import DecisionTraceErrorCode, DecisionTracePersistenceError
@@ -106,6 +110,7 @@ class TrustedP6OutboxProjection:
     revision: PersistedIntentRevision
     outbox_required: bool
     outbox_event: P6DecisionTraceOutboxEvent | None
+    replay_artifact: P6ReplayArtifactV1 | None = None
 
 
 def map_verified_mock_registration_submit(
@@ -138,6 +143,31 @@ def map_verified_mock_registration_submit(
         _reject("required P6 outbox event is missing")
     _validate_event_and_snapshot(revision, event)
 
+    artifact = projection.replay_artifact
+    if artifact is not None:
+        try:
+            payload = verify_p6_replay_artifact(artifact)
+            if (
+                payload["intent"]["owner_scope_id"] != str(revision.owner_user_id)
+                or payload["intent"]["university_id"] != str(revision.university_id)
+                or payload["intent"]["major_id"] != str(revision.major_id)
+                or payload["intent"]["study_plan_id"] != str(revision.study_plan_id)
+                or payload["intent"]["study_plan_version"] != revision.study_plan_version
+                or tuple(payload["context"]["source_versions"]) != revision.catalog_source_versions
+                or tuple(payload["context"]["source_versions"]) != revision.prerequisite_source_versions
+                or tuple(payload["context"]["engine_policy_versions"][:2]) != (
+                    revision.phase5_policy_version, revision.phase6_policy_version)
+                or payload["historical_output"]["status"] != revision.validation_status.value
+                or tuple(payload["historical_output"]["reason_codes"]) != tuple(
+                    code.value for code in revision.validation_reason_codes)
+                or payload["historical_output"]["content_fingerprint"] != revision.content_fingerprint
+                or tuple(payload["historical_output"]["canonical_course_codes"]) != tuple(
+                    course.course_code for course in revision.courses)
+            ):
+                _reject("replay artifact does not match immutable P6 revision")
+        except (P6ReplayArtifactError, KeyError, TypeError) as exc:
+            _reject("replay artifact integrity failure")
+
     decision_status = {
         ValidationStatus.VALID: DecisionStatus.VALIDATED,
         ValidationStatus.REVIEW_REQUIRED: DecisionStatus.FLAGGED_REVIEW,
@@ -165,6 +195,11 @@ def map_verified_mock_registration_submit(
             uri=None,
         ),
     )
+    if artifact is not None:
+        evidence += (EvidenceReference(
+            source="P6_REPLAY_ARTIFACT", identifier=str(revision.revision_id),
+            version=artifact.replay_contract_version, locator=None, uri=None,
+        ),)
     entry = create_canonical_ledger_entry(
         ledger_entry_id=str(revision.revision_id),
         decision_type=DecisionType.MOCK_REGISTRATION_SUBMIT,
@@ -193,16 +228,17 @@ def map_verified_mock_registration_submit(
         redaction_profile=RedactionProfile.STUDENT_SAFE,
         previous_entry_hash=None,
         supersedes_entry_id=None,
-        replay_status=ReplayStatus.NOT_REPLAYABLE,
-        limitations=_LIMITATIONS,
+        replay_status=(ReplayStatus.REPLAYABLE_EXACT if artifact is not None
+                       else ReplayStatus.NOT_REPLAYABLE),
+        limitations=(("NON_BINDING_DECLARED_INTENT_NOT_OFFICIAL_REGISTRATION",)
+                     if artifact is not None else _LIMITATIONS),
     )
-    if not verify_integrity_hash(entry):
+    if verify_integrity_hash(entry) is not IntegrityStatus.VERIFIED:
         _reject("Slice 1 canonical hash construction failed")
-    if tuple(item.source for item in entry.evidence_references) != (
-        "P6_INTENT_COURSE_SET",
-        "P6_INTENT_REVISION",
-        "P6_TARGET_PERIOD",
-    ):
+    expected_sources = ("P6_INTENT_COURSE_SET", "P6_INTENT_REVISION", "P6_TARGET_PERIOD")
+    if artifact is not None:
+        expected_sources = tuple(sorted((*expected_sources, "P6_REPLAY_ARTIFACT")))
+    if tuple(item.source for item in entry.evidence_references) != expected_sources:
         _reject("unexpected canonical evidence order")
     return entry
 

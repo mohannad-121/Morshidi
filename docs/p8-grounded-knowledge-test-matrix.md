@@ -68,8 +68,8 @@ This matrix creates no executable test, migration, policy promotion, RAG corpus,
 | TRACE-09 | Scope validation | S1 | Missing/mis-scoped student | Fails validation | Student scope | Unit + Local Supabase | `020-024,038`, owner/advisor tests | VERIFIED |
 | TRACE-10 | Evidence normalization | S1 | Reordered/duplicate refs | Canonical evidence ordering | Provenance | Unit + Local Supabase | `026`, stored evidence-order tests | VERIFIED |
 | TRACE-11 | Supersession | S1 | Correction to entry | New ID; predecessor unchanged | No historical rewrite | Unit + Local Supabase | `015-019`, persisted supersession tests | VERIFIED |
-| TRACE-12 | Exact replay availability | S1 | All historic versions available | Availability contract true; no historical engine execution claimed | Version integrity | Unit | `029`, replay helper | VERIFIED |
-| TRACE-13 | Replay fail-closed | S1 | Missing source/engine/policy | No substitute output | No fabricated replay | Unit | `030-035` | VERIFIED |
+| TRACE-12 | Exact replay availability | S1 | All historic versions available | New replay-contract P6 submits rerun historical P6 V1; legacy traces remain unavailable | Version integrity | Unit + Local Supabase | `029`, availability helper plus distinct P6 executor and real outbox-to-ledger replay | VERIFIED |
+| TRACE-13 | Replay fail-closed | S1 | Missing source/engine/policy | No substitute output | No fabricated replay | Unit + Local Supabase | `030-035`, missing/tampered/unknown-version artifact probes | VERIFIED |
 | TRACE-14 | Structural redaction | S1/U | Public aggregate projection | Student scope redacted | Privacy | Unit | `036,040`; no public viewer runtime | PARTIALLY VERIFIED |
 | TRACE-15 | Persisted append boundary | U/P6/P7 | Service attempts valid append | Insert only; browser denied | RLS/RPC/tenant | Local Supabase adversarial | persistence, outbox, history local tests | VERIFIED |
 | RAG-01 | Verified source admission | U | Unverified source | Reject/hold source | Provenance | Integration | `test_institutional_policy.py::test_02_unverified_source_rejected_or_held`; `test_institutional_policy_local_supabase.py` | VERIFIED |
@@ -122,7 +122,8 @@ WC-007 now has eligibility and material recommendation/planner/path projections
 with student and assigned-advisor API evidence. GRAPH-01/02/03/05 remain
 partial for broader decision/source/scope contracts. WC-040 also remains partial
 because six `LEDGER_REQUIRED` decision types lack trusted runtime producers;
-the two produced types are explicitly `NOT_REPLAYABLE`. The partially verified
+new replay-contract P6 submits are `REPLAYABLE_EXACT`, while legacy P6 and
+WC-046 impact traces remain `NOT_REPLAYABLE`. The partially verified
 and blocked RAG/IMPACT/GRAPH/QUERY rows retain the limitations stated in their
 row evidence; locally verified rows do not certify institutional data.
 WC-039 V1 has local finite-metric, tenant, suppression, safe provider, frontend,
@@ -130,4 +131,5 @@ and no-write evidence, but representative real-data language and source-version
 validation remain open. The reconciled row counts are **37 VERIFIED, 15
 PARTIALLY VERIFIED, 2 BLOCKED, 0 NOT APPLICABLE = 54**. Verified rows establish
 their stated bounded contracts, not full WC or P8 closure. P8 remains PARTIAL:
-no trusted material trace has reconstructable historical deterministic replay.
+bounded trusted P6 historical replay exists, but broader producer coverage and
+institutional/production validation remain incomplete.

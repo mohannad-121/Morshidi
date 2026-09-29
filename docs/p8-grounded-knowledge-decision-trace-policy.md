@@ -125,13 +125,16 @@ institutional adoption.
 - **WC-040:** material-event runtime coverage remains incomplete: of the eight
   `LEDGER_REQUIRED` registered types, `MOCK_REGISTRATION_SUBMIT` has a trusted
   P6 outbox producer and `CHANGE_IMPACT_EVALUATION` has a trusted WC-046
-  evaluator producer. The P6 producer explicitly records
-  `NOT_REPLAYABLE` because historical P6 execution is unavailable. Version-aware replay availability and
-  comparison helpers do not rerun a historical executable. The browser cannot
+  evaluator producer. New P6 submit revisions with a private immutable
+  `P6_REPLAY_ARTIFACT_V1` are mapped `REPLAYABLE_EXACT` and can be reconstructed
+  and rerun by a trusted internal P6 V1 executor. Old P6 and WC-046 traces
+  remain `NOT_REPLAYABLE`. Version-aware availability and comparison helpers
+  alone do not rerun a historical executable. The browser cannot
   append, mutate, replay, delete, or export traces.
 - **WC-038:** document/PDF import and parsing, real institutional source
   onboarding and verification, approved conflict resolution, and the final
-  cited-retrieval plus replayable-ledger exit evidence remain incomplete.
+  institutional cited-retrieval validation remains incomplete; the bounded
+  local technical replayable-ledger evidence does not close the broader P8 gate.
 - **WC-007:** progress/material-ledger adapters, exact academic source-document
   version propagation, and any advisor frontend remain outside this slice.
 - **WC-046 Change Impact Engine — PARTIAL:** owner-approved V1 analyzes four
@@ -160,10 +163,12 @@ Controlled Local Supabase tests establish cited, verified/current policy
 retrieval and bounded grounded answers against a synthetic corpus. They do not
 establish an approved institutional corpus; the owner-confirmed production
 policy document, version, passage, and embedding counts are all zero. The
-official roadmap additionally requires a **replayable trace ledger**. Neither
-trusted material producer has actual reconstructable historical deterministic
-replay, and the replay helper only checks availability/compares references.
-Thus the roadmap P8 exit evidence is **not satisfied**. The 54-scenario matrix
+official roadmap additionally requires a **replayable trace ledger**. New P6
+replay-contract traces now have reconstructable historical inputs and a
+trusted deterministic rerun; old P6 and WC-046 traces do not. The existing
+replay helpers still only check availability/compare references. Thus bounded
+technical replayable-ledger runtime evidence exists, but the roadmap P8 exit
+gate remains **not satisfied** as a whole. The 54-scenario matrix
 also retains partial and blocked rows; documented scenarios are not all
 verified. Local runtime slices and institutional/production validation remain
 separate claims. This reconciliation changes no normative policy or runtime.

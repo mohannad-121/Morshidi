@@ -6,6 +6,10 @@ from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
 from uuid import UUID
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from app.mock_registration.replay_artifact import P6ReplayArtifactV1
 
 from app.mock_registration.models import (
     IntentLifecycle,
@@ -67,6 +71,7 @@ class PersistRevisionCommand:
     actor_class: str
     course_ids: tuple[UUID, ...]
     course_codes: tuple[str, ...]
+    replay_artifact: P6ReplayArtifactV1 | None = None
 
 
 @dataclass(frozen=True)

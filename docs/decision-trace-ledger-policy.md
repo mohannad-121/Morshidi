@@ -99,9 +99,15 @@ other required types cannot be called covered merely because the domain model
 accepts them or a fixture can be appended. No unrelated producer is added by
 this viewer closure. Test outcomes and the full registry coverage assessment
 are recorded in `CODEX_PROGRESS.md`.
-The current P6 submit adapter explicitly writes `NOT_REPLAYABLE` with the
-`P6_HISTORICAL_REPLAY_NOT_AVAILABLE` limitation. Exact replay availability
-helpers therefore do not establish historical replay for that runtime path.
+Older P6 submit traces remain `NOT_REPLAYABLE` with the
+`P6_HISTORICAL_REPLAY_NOT_AVAILABLE` limitation. New submit revisions using
+`P6_REPLAY_ARTIFACT_V1` atomically persist a private, immutable copy of the
+validation-consumed historical inputs and output. Their trusted ledger entries
+are `REPLAYABLE_EXACT` only after artifact integrity and identity verification.
+An internal-only V1 adapter reconstructs those inputs and actually reruns P6
+validation; missing artifacts, tampering, and unavailable engine versions fail
+closed. Current student/catalog state is never substituted. Neither existing
+replay helper executes that historical validation; no ledger history is rewritten.
 
 ### Material-event coverage at this closure
 
@@ -151,13 +157,13 @@ material milestones (**C: registry over-scoped for those current operations**).
 If a future workflow commits a snapshot, trigger, or formal revalidation, its
 `LEDGER_REQUIRED` producer must exist before that workflow is accepted.
 
-Neither current trusted producer is historically replayable: the P6 submit
-mapper and WC-046 impact service both record `NOT_REPLAYABLE`. The replay helper
-checks version availability and compares references; it does not reconstruct
-historical inputs and execute the historical deterministic engine. Canonical
-hash verification is integrity checking, not replay. Consequently, the roadmap
-exit evidence “replayable trace ledger” is not yet met, even though bounded
-student/advisor history viewing and Local Supabase security tests pass.
+New replay-contract P6 submit traces are exactly replayable through the trusted
+internal executor, which compares the full rerun output with the immutable
+historical output and persisted revision. Older P6 traces and WC-046 impact
+traces remain `NOT_REPLAYABLE`. Canonical hash checks alone are integrity checks,
+not replay. This provides bounded technical runtime evidence for the roadmap's
+“replayable trace ledger” gate, but does not complete material-producer coverage,
+the wider P8 matrix, or institutional validation.
 
 ## 5. Open contracts — requires human approval
 

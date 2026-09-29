@@ -5,6 +5,8 @@ from __future__ import annotations
 from copy import deepcopy
 from dataclasses import fields, replace
 from decimal import Decimal
+import hashlib
+import json
 from pathlib import Path
 from time import perf_counter
 
@@ -38,6 +40,10 @@ from app.mock_registration.models import (
 from app.mock_registration.registries import DataQualityFlag, DemandMetricId, ReasonCode
 from app.mock_registration.resolution import resolve_current_intents
 from app.mock_registration.validation import validate_registration_intent
+from app.mock_registration.replay_artifact import (
+    P6ReplayArtifactError, P6ReplayArtifactV1, create_p6_replay_artifact,
+    execute_p6_replay, reconstruct_p6_inputs, verify_p6_replay_artifact,
+)
 from app.planner.models import PlannerConstraints
 from app.progress.engine import calculate_academic_progress
 from app.progress.models import (
@@ -56,6 +62,7 @@ from app.rules.models import (
     DependencyType,
     PlanCourseRule,
     PrerequisiteLogicStatus,
+    StudentCourseAttempt,
 )
 
 UNIVERSITY = "synthetic-university-a"
@@ -563,3 +570,87 @@ def test_all_64_committed_scenarios_have_stable_ids_and_automated_mapping():
     assert len(SCENARIO_TEST_MAPPING) == 64
     assert text.count("| `P6-T") == 64
     assert all(f"`{item}`" in text for item in SCENARIO_TEST_MAPPING)
+
+
+def _replay_fixture(*, conflict=False):
+    intent = _intent(courses=(("B",) if conflict else ("A",)), intent_id="first-generated-id")
+    original_context = _context(_snapshot(owner=intent.owner_scope_id, conflict=conflict), intent.target_period)
+    result = validate_registration_intent(intent, original_context)
+    artifact = create_p6_replay_artifact(intent, original_context, result)
+    return intent, original_context, result, artifact
+
+
+@pytest.mark.parametrize("conflict,expected", [(False, ValidationStatus.VALID),
+                                                 (True, ValidationStatus.REVIEW_REQUIRED)])
+def test_p6_exact_replay_runs_historical_validator_and_matches(conflict, expected, monkeypatch):
+    from app.mock_registration import replay_artifact as module
+
+    intent, context, result, artifact = _replay_fixture(conflict=conflict)
+    assert result.status is expected
+    payload = verify_p6_replay_artifact(artifact)
+    reconstructed_intent, reconstructed_context = reconstruct_p6_inputs(
+        payload, persisted_intent_id=intent.intent_id)
+    assert reconstructed_intent == intent
+    assert reconstructed_context.student_attempts == context.student_attempts
+    assert reconstructed_context.eligibility_catalog.plan_courses[1].dependency_groups == (
+        context.eligibility_catalog.plan_courses[1].dependency_groups)
+    assert reconstructed_context.current_progress.courses[1].state == context.current_progress.courses[1].state
+    called = []
+    real = module.validate_registration_intent
+    def observed(i, c):
+        called.append(True)
+        return real(i, c)
+    monkeypatch.setattr(module, "validate_registration_intent", observed)
+    replay = execute_p6_replay(artifact, persisted_intent_id=intent.intent_id,
+        persisted_status=result.status,
+        persisted_reasons=tuple(code.value for code in result.reason_codes),
+        persisted_fingerprint=result.content_fingerprint,
+        persisted_course_codes=result.canonical_course_codes)
+    assert called == [True]
+    assert replay.status == "MATCHED" and replay.matched
+    assert replay.historical_reason_codes == replay.replayed_reason_codes
+    assert replay.historical_content_fingerprint == replay.replayed_content_fingerprint
+
+
+def test_p6_replay_artifact_canonical_hash_retry_and_tamper():
+    intent, context, result, artifact = _replay_fixture()
+    retry = create_p6_replay_artifact(replace(intent, intent_id="retry-generated-id"),
+        context, replace(result, intent=replace(intent, intent_id="retry-generated-id")))
+    assert retry.canonical_payload == artifact.canonical_payload
+    assert retry.canonical_sha256 == artifact.canonical_sha256
+    changed_context = replace(context, student_attempts=(StudentCourseAttempt("A", AttemptOutcome.PASSED),))
+    changed_result = validate_registration_intent(intent, changed_context)
+    changed = create_p6_replay_artifact(intent, changed_context, changed_result)
+    assert changed.canonical_sha256 != artifact.canonical_sha256
+    with pytest.raises(P6ReplayArtifactError, match="REPLAY_ARTIFACT_INTEGRITY_FAILURE"):
+        verify_p6_replay_artifact(replace(artifact, canonical_payload=artifact.canonical_payload + " "))
+    with pytest.raises(P6ReplayArtifactError, match="ENGINE_VERSION_UNAVAILABLE"):
+        verify_p6_replay_artifact(replace(artifact, engine_version="2.0"))
+    with pytest.raises(P6ReplayArtifactError):
+        reconstruct_p6_inputs({"intent": {}, "context": {}}, persisted_intent_id=intent.intent_id)
+
+
+def test_p6_replay_mismatch_is_audit_evidence_not_substitution():
+    intent, _, result, artifact = _replay_fixture()
+    replay = execute_p6_replay(artifact, persisted_intent_id=intent.intent_id,
+        persisted_status=ValidationStatus.REVIEW_REQUIRED,
+        persisted_reasons=tuple(code.value for code in result.reason_codes),
+        persisted_fingerprint=result.content_fingerprint,
+        persisted_course_codes=result.canonical_course_codes)
+    assert replay.status == "MISMATCH" and not replay.matched
+
+
+def test_p6_replay_rejects_malformed_historical_output_even_with_valid_hash():
+    intent, _, result, artifact = _replay_fixture()
+    payload = json.loads(artifact.canonical_payload)
+    payload["historical_output"]["status"] = "NOT_A_VALID_STATUS"
+    canonical = json.dumps(payload, ensure_ascii=False, sort_keys=True,
+                           separators=(",", ":"), allow_nan=False)
+    malformed = replace(artifact, canonical_payload=canonical,
+                        canonical_sha256=hashlib.sha256(canonical.encode("utf-8")).hexdigest())
+    with pytest.raises(P6ReplayArtifactError, match="REPLAY_ARTIFACT_MALFORMED"):
+        execute_p6_replay(malformed, persisted_intent_id=intent.intent_id,
+            persisted_status=result.status,
+            persisted_reasons=tuple(code.value for code in result.reason_codes),
+            persisted_fingerprint=result.content_fingerprint,
+            persisted_course_codes=result.canonical_course_codes)
