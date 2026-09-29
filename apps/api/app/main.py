@@ -12,6 +12,7 @@ from app.api.routes.advisor import router as advisor_router
 from app.api.routes.mock_registration import router as mock_registration_router
 from app.api.routes.institutional_demand import router as institutional_demand_router
 from app.api.routes.institutional_intelligence import router as institutional_intelligence_router
+from app.api.routes.institutional_ai_query import router as institutional_ai_query_router
 from app.api.routes.advisor_copilot import router as advisor_copilot_router
 from app.api.routes.policies import router as policies_router
 from app.api.routes.decision_history import router as decision_history_router
@@ -44,6 +45,9 @@ from app.institutional_intelligence_service import (
     InstitutionalIntelligenceService,
     InstitutionalIntelligenceServiceError,
 )
+from app.institutional_ai_query.interpreter import UnconfiguredInstitutionalQueryInterpreter
+from app.institutional_ai_query.openai import OpenAIInstitutionalQueryInterpreter
+from app.institutional_ai_query.service import InstitutionalAIQueryService
 from app.advisor.provider import ProviderFailureType, UnconfiguredAdvisorLLMProvider
 from app.providers.advisor_openai import OpenAIAdvisorProvider
 from app.providers.policy_answer_openai import OpenAIPolicyAnswerProvider
@@ -127,6 +131,18 @@ def build_policy_answer_provider(client: httpx.AsyncClient):
     return None
 
 
+def build_institutional_query_interpreter(client: httpx.AsyncClient):
+    if (
+        settings.advisor_llm_api_key is not None
+        and settings.advisor_llm_api_key.get_secret_value().strip()
+        and settings.advisor_llm_model is not None
+        and settings.advisor_llm_model.strip()
+    ):
+        return OpenAIInstitutionalQueryInterpreter(
+            settings.advisor_llm_api_key.get_secret_value(), settings.advisor_llm_model, client)
+    return UnconfiguredInstitutionalQueryInterpreter()
+
+
 @asynccontextmanager
 async def lifespan(application: FastAPI):
     """Own one reusable server-side Data API client for the application lifetime."""
@@ -140,6 +156,7 @@ async def lifespan(application: FastAPI):
     application.state.mock_registration_student_service = None
     application.state.institutional_demand_service = None
     application.state.institutional_intelligence_service = None
+    application.state.institutional_ai_query_service = None
     application.state.advisor_copilot_service = None
     application.state.policy_service = None
     application.state.policy_answer_service = None
@@ -220,6 +237,10 @@ async def lifespan(application: FastAPI):
                 repository,
                 application.state.institutional_demand_service,
             )
+            application.state.institutional_ai_query_service = InstitutionalAIQueryService(
+                application.state.institutional_intelligence_service,
+                persistence, build_institutional_query_interpreter(client),
+            )
         policy_storage = SupabasePolicyReadStorage(
             settings.supabase_url,
             settings.supabase_secret_key.get_secret_value(),
@@ -259,6 +280,7 @@ app.include_router(advisor_router)
 app.include_router(mock_registration_router)
 app.include_router(institutional_demand_router)
 app.include_router(institutional_intelligence_router)
+app.include_router(institutional_ai_query_router)
 app.include_router(advisor_copilot_router)
 app.include_router(policies_router)
 app.include_router(decision_history_router)

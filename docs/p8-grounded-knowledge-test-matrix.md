@@ -42,8 +42,8 @@ All rows marked `SPECIFIED` remain specification coverage only. Structured polic
 persistence, ingestion, semantic and hybrid retrieval, and a bounded grounded
 answer runtime are implemented. WC-046 V1 change-impact semantics are now owner-approved
 and partially implemented; document-source onboarding, broader graph registries,
-published-change authority, general plan revision, approved institutional metric catalog,
-and query-provider controls remain
+published-change authority, general plan revision, representative institutional
+query intent/metric validation, and repeated-query governance remain
 **OPEN CONTRACT / REQUIRES HUMAN APPROVAL**.
 
 ## Security and privacy boundaries
@@ -102,14 +102,14 @@ This matrix creates no executable test, migration, policy promotion, RAG corpus,
 | GRAPH-06 | Missing evidence | U | Missing source | Explicit limitation node/state | No fabrication | Unit | exact-version limitation and review uncertainty tests | VERIFIED |
 | GRAPH-07 | Student projection | U/S1 | Owner graph | Student-safe projection | Ownership | Local integration | authenticated student eligibility, recommendation, planner, degree-path graph routes and real Local Supabase owned-profile tests | VERIFIED |
 | GRAPH-08 | Advisor/analyst projection | U/P7 | Advisor or analyst request | Assigned advisor allowed; analyst denied individual graph | Assignment/privacy | Local integration | P7 authorization-before-load API and real Local Supabase assigned/unassigned/inactive/cross-tenant/analyst tests; no advisor UI | VERIFIED |
-| QUERY-01 | Metric allowlist | U | Approved metric request | Typed permitted metric executes | No arbitrary query | Integration | None | SPECIFIED |
-| QUERY-02 | Unsupported metric | U | Unknown metric | Abstain/reject | Allowlist | Integration | None | SPECIFIED |
-| QUERY-03 | SQL injection | U | SQL-like natural language | No SQL execution | Database boundary | Security | None | SPECIFIED |
-| QUERY-04 | Tenant binding | P6 | Analyst changes university | Server membership scope wins | Cross-tenant | Local integration | None | SPECIFIED |
-| QUERY-05 | Suppression | P6/U | Below threshold cohort | Suppressed output/no raw counts | Inference resistance | Local integration | Existing P6 tests only | SPECIFIED |
-| QUERY-06 | No student drill-down | U/P6 | Ask for student records | Reject/no identifiers | Privacy | Security | None | SPECIFIED |
-| QUERY-07 | Grounded response | U/CAP | Metric/policy answer | Evidence, version, limitation shown | No hallucinated metric | Integration | None | SPECIFIED |
-| QUERY-08 | Prompt injection | U | Override/debug/exfiltration request | Reject; no secret/SQL/raw rows | Model/tool boundary | Security | None | SPECIFIED |
+| QUERY-01 | Metric allowlist | U | Approved metric request | Typed permitted metric executes | No arbitrary query | Unit + Local Supabase | exact 13-ID catalog, controlled Arabic/English interpretation, one-signal P7 parity; representative live intent quality open | PARTIALLY VERIFIED |
+| QUERY-02 | Unsupported metric | U | Unknown metric | Abstain/reject | Allowlist | Unit + API | unknown/multiple/malformed provider selections abstain; unsupported individual/GPA examples | VERIFIED |
+| QUERY-03 | SQL injection | U | SQL-like natural language | No SQL execution | Database boundary | Unit + source review | SQL-like questions abstain; provider has no SQL tool or executor and output only validates to catalog ID | VERIFIED |
+| QUERY-04 | Tenant binding | P6 | Analyst changes university | Server membership scope wins | Cross-tenant | Local integration | real analyst, inactive, wrong-role, cross-university denial before provider | VERIFIED |
+| QUERY-05 | Suppression | P6/U | Below threshold cohort | Suppressed output/no raw counts | Inference resistance | Local integration | real P6 one-intent cohort maps to `SUPPRESSED`/null; single-signal response has no hidden count | VERIFIED |
+| QUERY-06 | No student drill-down | U/P6 | Ask for student records | Reject/no identifiers | Privacy | Unit + Local integration | individual-data questions abstain; serialized response excludes student IDs, rows, traces | VERIFIED |
+| QUERY-07 | Grounded response | U/CAP | Metric/policy answer | Evidence, version, limitation shown | No hallucinated metric | Unit + frontend | exact selected P7 signal, typed scope/version/flags/limitations/fingerprint displayed; representative source-version authority open | PARTIALLY VERIFIED |
+| QUERY-08 | Prompt injection | U | Override/debug/exfiltration request | Reject; no secret/SQL/raw rows | Model/tool boundary | Unit + provider | injection corpus abstains; strict structured response and post-validation prevent widened metric/scope/output fields | VERIFIED |
 
 ## Specification acceptance gate
 
@@ -122,5 +122,7 @@ with student and assigned-advisor API evidence. GRAPH-01/02/03/05 remain
 partial for broader decision/source/scope contracts. WC-040 also remains partial because six `LEDGER_REQUIRED` decision types lack
 trusted runtime producers. Other RAG/IMPACT/GRAPH/QUERY rows still require the
 stated approved design and tests.
-P8 remains PARTIAL; the P8 exit gate is not accepted solely by the current
-implementation.
+WC-039 V1 has local finite-metric, tenant, suppression, safe provider, frontend,
+and no-write evidence, but representative real-data language and source-version
+validation remain open. P8 remains PARTIAL; the P8 exit gate is not accepted
+solely by the current implementation.

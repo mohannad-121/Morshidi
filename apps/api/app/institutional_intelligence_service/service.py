@@ -89,6 +89,13 @@ class InstitutionalIntelligenceService:
             InstitutionalIntelligenceServiceErrorCode.INSTITUTIONAL_ACCESS_DENIED
         )
 
+    async def authorize_analyst_university(
+        self, subject: str | UUID, university_id: UUID | None = None,
+    ) -> UUID:
+        """Expose the existing membership predicate to bounded metric consumers."""
+        membership = await self._resolve_authorized_membership(UUID(str(subject)), university_id)
+        return membership.university_id
+
     async def evaluate(
         self,
         subject: str | UUID,

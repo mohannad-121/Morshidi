@@ -16,3 +16,8 @@ test("protects the focused institutional change-impact route", () => {
   expect(isProtectedStudentPath("/institutional/other")).toBe(false);
   expect(config.matcher).toContain("/institutional/change-impact");
 });
+
+test("protects the focused institutional AI query route", () => {
+  expect(isProtectedStudentPath("/institutional/ai-query")).toBe(true);
+  expect(config.matcher).toContain("/institutional/ai-query");
+});

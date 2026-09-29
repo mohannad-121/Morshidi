@@ -142,8 +142,14 @@ institutional adoption.
   student population scan, advisor queue, or notification. Reports are ephemeral
   and explicitly not historically replayable; published-source authority and
   some exact source-version verification remain outside V1.
-- **WC-039 Institutional AI Query Experience — PLANNED:** no governed
-  natural-language institutional metric-query runtime exists.
+- **WC-039 Institutional AI Query Experience — PARTIAL:** owner-approved V1
+  maps one Arabic/English question to one of the 13 existing governed signals,
+  executes only the existing tenant-scoped Institutional Intelligence service,
+  and presents a focused analyst-only Arabic RTL interpretation/result surface.
+  It inherits suppression, creates no SQL, query history, student drill-down,
+  or Decision Trace entry, and safely abstains on unsupported/provider failure.
+  Real institutional source data and representative intent/metric validation
+  remain open; synthetic Local Supabase evidence is not that validation.
 
 The standing deterministic-engine, citation, source-admission, tenant-isolation,
 privacy, and no-write requirements in this policy remain unchanged.
@@ -157,7 +163,7 @@ The detailed specifications governing Phase P8 are established in:
 2. [institutional-policy-retrieval-policy.md](institutional-policy-retrieval-policy.md): approved canonical policy-retrieval contract; runtime implementation remains partial.
 3. [academic-explainability-graph-policy.md](academic-explainability-graph-policy.md): approved canonical graph contract; eligibility and material recommendation/planning projections are implemented, with broader capability status partial.
 4. [change-impact-policy.md](change-impact-policy.md): Analysis-only version diff evaluation, affected decision identification, and no-write guarantees.
-5. [institutional-ai-query-policy.md](institutional-ai-query-policy.md): approved canonical contract; runtime remains planned.
+5. [institutional-ai-query-policy.md](institutional-ai-query-policy.md): approved canonical contract and bounded V1 local runtime; representative real-data validation remains open.
 6. [p8-grounded-knowledge-test-matrix.md](p8-grounded-knowledge-test-matrix.md): Exhaustive 54-scenario closed verification matrix.
 
 ---
@@ -169,4 +175,4 @@ The following runtime work remains after the current implemented slices:
   material event types and any separately approved viewer/export/erasure capability.
 - **Remaining P8 Policy Retrieval work**: institutional source onboarding and
   verification, document ingestion/parsing, conflict governance, and final exit evidence.
-- **Future P8 Runtime Implementation**: additional approved explainability graph adapters, change impact batch evaluators, and constrained metric query planners.
+- **Future P8 Runtime Implementation**: additional approved explainability graph adapters, change impact batch evaluators, and separately governed institutional query expansion/real-data validation.

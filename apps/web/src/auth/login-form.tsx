@@ -7,7 +7,7 @@ import { EyeIcon, EyeOffIcon } from "@/components/ui/Icons";
 
 function safeReturnTo(value: string | null): string {
   return value && (value === "/student" || value.startsWith("/student/")
-    || value === "/institutional/change-impact")
+    || value === "/institutional/change-impact" || value === "/institutional/ai-query")
     ? value
     : "/student";
 }
