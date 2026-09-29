@@ -14,8 +14,8 @@ Source codes: `U` = P8 umbrella policy; `S1` = Slice 1 model/canonical/validatio
 
 ## Current implementation evidence
 
-The Student Decision History V1 backend baseline is **1,582 passed, 0 failed,
-0 skipped** against Local Supabase. In addition to
+The historical Student Decision History V1 backend baseline was **1,582 passed,
+0 failed, 0 skipped** against Local Supabase. In addition to
 the original Slice 1 evidence, the repository contains executable coverage for
 Decision Trace persistence, P6 outbox mapping/processing boundaries, policy
 domain/retrieval, atomic policy ingestion, student policy API, and Local Supabase
@@ -38,13 +38,14 @@ The existing registries, immutable records, canonicalization, validation, replay
 
 ## Proposed requirements and unresolved contracts
 
-All rows marked `SPECIFIED` remain specification coverage only. Structured policy
-persistence, ingestion, semantic and hybrid retrieval, and a bounded grounded
-answer runtime are implemented. WC-046 V1 change-impact semantics are now owner-approved
-and partially implemented; document-source onboarding, broader graph registries,
-published-change authority, general plan revision, representative institutional
-query intent/metric validation, and repeated-query governance remain
-**OPEN CONTRACT / REQUIRES HUMAN APPROVAL**.
+The RAG rows below are reconciled against executable domain, API, and real Local
+Supabase tests. A verified local contract is not institutional source approval.
+Structured policy persistence, ingestion, semantic and hybrid retrieval, and a
+bounded grounded-answer runtime are implemented. WC-046 V1 change-impact
+semantics are owner-approved and implemented within the stated V1 limits;
+document-source onboarding, broader graph registries, published-change
+authority, general plan revision, representative institutional query
+intent/metric validation, and repeated-query governance remain open.
 
 ## Security and privacy boundaries
 
@@ -71,21 +72,21 @@ This matrix creates no executable test, migration, policy promotion, RAG corpus,
 | TRACE-13 | Replay fail-closed | S1 | Missing source/engine/policy | No substitute output | No fabricated replay | Unit | `030-035` | VERIFIED |
 | TRACE-14 | Structural redaction | S1/U | Public aggregate projection | Student scope redacted | Privacy | Unit | `036,040`; no public viewer runtime | PARTIALLY VERIFIED |
 | TRACE-15 | Persisted append boundary | U/P6/P7 | Service attempts valid append | Insert only; browser denied | RLS/RPC/tenant | Local Supabase adversarial | persistence, outbox, history local tests | VERIFIED |
-| RAG-01 | Verified source admission | U | Unverified source | Reject/hold source | Provenance | Integration | None | SPECIFIED |
-| RAG-02 | Citation anchor | U/S1 | Verified passage | Response names ID/version/locator | Evidence integrity | Integration | None | SPECIFIED |
-| RAG-03 | Missing evidence | U | No matching passage | Explicit abstention | No fabrication | Integration | None | SPECIFIED |
-| RAG-04 | Conflicting evidence | U | Conflicting verified sources | Preserve conflict/abstain | No silent authority | Integration | None | SPECIFIED |
-| RAG-05 | Eligibility handoff | U | Eligibility question | Deterministic engine owns result | AI non-authority | Integration | None | SPECIFIED |
-| RAG-06 | Progress handoff | U | Progress/graduation question | Deterministic engine owns result | AI non-authority | Integration | None | SPECIFIED |
-| RAG-07 | Prompt injection in source | U | Malicious retrieved text | Ignore embedded instructions | Retrieval isolation | Security | None | SPECIFIED |
-| RAG-08 | Prompt injection in query | U | User asks override/exfiltration | Reject unsafe request | Tool/secret boundary | Security | None | SPECIFIED |
-| RAG-09 | Restricted source | Proposed | Restricted document | Citation/content policy enforced | Source classification | Integration | None | SPECIFIED |
-| RAG-10 | Versioned source | U/S1 | Superseded source version | Cite exact version | Replay provenance | Integration | None | SPECIFIED |
-| RAG-11 | Arabic locator | OPEN | Arabic source passage | Exact approved locator returned | Citation accuracy | Integration | None | SPECIFIED |
-| RAG-12 | Student data exclusion | U | Policy query with student ID | No record retrieval | Ownership | Security | None | SPECIFIED |
-| RAG-13 | Advisor case scope | U/P7 | Advisor combines policy + student | P7 predicate first | Assignment/tenant | Local integration | None | SPECIFIED |
-| RAG-14 | Unsupported question | U | Outside corpus/metric | Abstain with limitation | Grounding | Integration | None | SPECIFIED |
-| RAG-15 | No raw reasoning | S1/U | Generated answer/log | No CoT/raw prompt stored | Privacy/security | Unit/integration | `P8_TRACE_036` partial | SPECIFIED |
+| RAG-01 | Verified source admission | U | Unverified source | Reject/hold source | Provenance | Integration | `test_institutional_policy.py::test_02_unverified_source_rejected_or_held`; `test_institutional_policy_local_supabase.py` | VERIFIED |
+| RAG-02 | Citation anchor | U/S1 | Verified passage | Response names ID/version/locator | Evidence integrity | Integration | `test_institutional_policy.py::test_03_exact_citation_version_preserved`; `test_policy_answer_local_supabase.py::test_local_synthetic_verified_passage_produces_exact_server_citation` | VERIFIED |
+| RAG-03 | Missing evidence | U | No matching passage | Explicit abstention | No fabrication | Integration | `test_policy_answer_local_supabase.py::test_local_empty_tenant_abstains_without_embedding_or_generation`; `test_policy_answering.py::test_no_retrieved_evidence_abstains_without_generation` | VERIFIED |
+| RAG-04 | Conflicting evidence | U | Conflicting verified sources | Preserve conflict/abstain | No silent authority | Integration | `test_institutional_policy.py::test_05_conflicting_verified_sources_triggers_conflict_and_abstention`; `test_policy_answering.py::test_conflicting_versions_and_unverified_rows_abstain_before_generation` | VERIFIED |
+| RAG-05 | Eligibility handoff | U | Eligibility question | Deterministic engine owns result | AI non-authority | Integration | `test_institutional_policy.py::test_06_deterministic_eligibility_question_routes_to_engine_handoff`; `test_policy_answering.py::test_computable_questions_handoff_before_retrieval_or_generation` | VERIFIED |
+| RAG-06 | Progress handoff | U | Progress/graduation question | Deterministic engine owns result | AI non-authority | Integration | `test_institutional_policy.py::test_07_deterministic_progress_question_routes_to_engine_handoff`; `test_policy_answering.py::test_computable_questions_handoff_before_retrieval_or_generation` | VERIFIED |
+| RAG-07 | Prompt injection in source | U | Malicious retrieved text | Ignore embedded instructions | Retrieval isolation | Security | `test_policy_answering.py::test_passage_prompt_injection_cannot_authorize_personalized_decision` | VERIFIED |
+| RAG-08 | Prompt injection in query | U | User asks override/exfiltration | Reject unsafe request | Tool/secret boundary | Security | `test_policy_answering.py::test_user_prompt_injection_stops_before_retrieval_and_provider` | VERIFIED |
+| RAG-09 | Restricted source | Proposed | Restricted document | Citation/content policy enforced | Source classification | Integration | No approved restricted-source classification/licensing rule or executable access test | BLOCKED |
+| RAG-10 | Versioned source | U/S1 | Superseded source version | Cite exact version | Replay provenance | Integration | `test_institutional_policy.py::test_09_superseded_source_does_not_silently_replace_exact_version`; `test_policy_semantic_local_supabase.py::test_real_semantic_rpc_filters_ranks_and_preserves_citations` | VERIFIED |
+| RAG-11 | Arabic locator | OPEN | Arabic source passage | Exact approved locator returned | Citation accuracy | Integration | `test_institutional_policy.py::test_03_exact_citation_version_preserved`; synthetic Arabic locator round-trip, but no institution-approved locator corpus | PARTIALLY VERIFIED |
+| RAG-12 | Student data exclusion | U | Policy query with student ID | No record retrieval | Ownership | Security | Policy API is tenant-scoped and does not query student records, but no explicit student-identifier-in-query adversarial case | PARTIALLY VERIFIED |
+| RAG-13 | Advisor case scope | U/P7 | Advisor combines policy + student | P7 predicate first | Assignment/tenant | Local integration | No combined advisor policy/student-case endpoint or executable P7-predicate test for it | BLOCKED |
+| RAG-14 | Unsupported question | U | Outside corpus/metric | Abstain with limitation | Grounding | Integration | `test_institutional_policy.py::test_08_unsupported_question_emits_explicit_limitation`; `test_policy_answering.py::test_empty_corpus_abstains_without_embedding_or_answer_provider` | VERIFIED |
+| RAG-15 | No raw reasoning | S1/U | Generated answer/log | No CoT/raw prompt stored | Privacy/security | Unit/integration | `test_institutional_policy.py::test_13_no_hidden_chain_of_thought_or_raw_reasoning_fields`; no end-to-end log/prompt-storage audit | PARTIALLY VERIFIED |
 | IMPACT-01 | Policy delta | U | Versioned policy change | Read-only affected report | No write | Unit + Local Supabase | policy review and audit-only persistence tests | VERIFIED |
 | IMPACT-02 | Curriculum delta | U | Curriculum revision | Affected plans reported | Tenant/scope | Unit + Local Supabase | requirement/plan-course credit V1; general plan-version revision absent | PARTIALLY VERIFIED |
 | IMPACT-03 | Prerequisite delta | U | Rule change | recompute affected paths with uncertainty | Deterministic precedence | Unit + Local Supabase | add/remove/replace, OR/AND, downstream, overflow, eligibility recomputation and local plan-scoped API; request-specific path recomputation unavailable | PARTIALLY VERIFIED |
@@ -119,10 +120,14 @@ grounded Policy Retrieval slices. `TRACE-14` remains partially verified because
 only the structural public-redaction helper exists; no public viewer is approved.
 WC-007 now has eligibility and material recommendation/planner/path projections
 with student and assigned-advisor API evidence. GRAPH-01/02/03/05 remain
-partial for broader decision/source/scope contracts. WC-040 also remains partial because six `LEDGER_REQUIRED` decision types lack
-trusted runtime producers. Other RAG/IMPACT/GRAPH/QUERY rows still require the
-stated approved design and tests.
+partial for broader decision/source/scope contracts. WC-040 also remains partial
+because six `LEDGER_REQUIRED` decision types lack trusted runtime producers;
+the two produced types are explicitly `NOT_REPLAYABLE`. The partially verified
+and blocked RAG/IMPACT/GRAPH/QUERY rows retain the limitations stated in their
+row evidence; locally verified rows do not certify institutional data.
 WC-039 V1 has local finite-metric, tenant, suppression, safe provider, frontend,
 and no-write evidence, but representative real-data language and source-version
-validation remain open. P8 remains PARTIAL; the P8 exit gate is not accepted
-solely by the current implementation.
+validation remain open. The reconciled row counts are **37 VERIFIED, 15
+PARTIALLY VERIFIED, 2 BLOCKED, 0 NOT APPLICABLE = 54**. Verified rows establish
+their stated bounded contracts, not full WC or P8 closure. P8 remains PARTIAL:
+no trusted material trace has reconstructable historical deterministic replay.

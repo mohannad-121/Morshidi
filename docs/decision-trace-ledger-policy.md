@@ -1,4 +1,4 @@
-# Decision Trace Ledger — Proposed Canonical Recovery
+# Decision Trace Ledger — Approved Canonical Contract
 
 Status: **APPROVED POLICY CONTRACT**
 
@@ -134,6 +134,30 @@ produced. Institutional/aggregate traces have no approved student-level viewer.
 | `EXPLAIN_RECOMMENDATION_DECISION` | `DOMAIN_TRACE_ONLY` | NO | NO | NO |
 | `INSTITUTIONAL_AD_HOC_QUERY` | `NOT_LEDGERED` | NO | NO | NO |
 | `POLICY_AD_HOC_CHAT` | `NOT_LEDGERED` | NO | NO | NO |
+
+### P8 closure-audit classification of missing required producers (2026-09-29)
+
+This classification describes observed runtime events; it does not change the
+approved materiality registry. `MOCK_REGISTRATION_WITHDRAW` is an existing
+immutable P6 transaction without a trusted ledger producer (**D: existing
+capability gap**, and a current P8 material-coverage blocker).
+`ADVISOR_FORMAL_GUIDANCE` depends on the unimplemented formal advisor-decision
+workflow WC-013 (**B: later capability**). `MOCK_REGISTRATION_REVALIDATE` is
+currently a read-time current-validity calculation, not a committed revalidation
+event (**C: registry over-scoped for the current operation**). The institutional
+period-demand and bottleneck “snapshot” values and alert `emitted` flags are
+currently read-time deterministic projections, not published or triggered
+material milestones (**C: registry over-scoped for those current operations**).
+If a future workflow commits a snapshot, trigger, or formal revalidation, its
+`LEDGER_REQUIRED` producer must exist before that workflow is accepted.
+
+Neither current trusted producer is historically replayable: the P6 submit
+mapper and WC-046 impact service both record `NOT_REPLAYABLE`. The replay helper
+checks version availability and compares references; it does not reconstruct
+historical inputs and execute the historical deterministic engine. Canonical
+hash verification is integrity checking, not replay. Consequently, the roadmap
+exit evidence “replayable trace ledger” is not yet met, even though bounded
+student/advisor history viewing and Local Supabase security tests pass.
 
 ## 5. Open contracts — requires human approval
 

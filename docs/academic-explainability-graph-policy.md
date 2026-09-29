@@ -1,4 +1,4 @@
-# Academic Explainability Graph — Proposed Canonical Recovery
+# Academic Explainability Graph — Approved Canonical Contract
 
 Status: **APPROVED POLICY CONTRACT**
 

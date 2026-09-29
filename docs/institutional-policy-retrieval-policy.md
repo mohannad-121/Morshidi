@@ -1,8 +1,8 @@
-# University Regulation RAG / Policy Retrieval — Proposed Canonical Recovery
+# University Regulation RAG / Policy Retrieval — Approved Canonical Contract
 
 Status: **APPROVED POLICY CONTRACT**
 
-This proposed canonical contract recovers the P8 policy-retrieval boundary. It
+This approved canonical contract recovers the P8 policy-retrieval boundary. It
 does not certify an institution's policy corpus, source approval, deployment, or
 generated-answer workflow.
 
@@ -71,12 +71,14 @@ institutional use retains existing minimum-disclosure and suppression controls.
   deterministic engine versions.
 - Evaluation corpus, retrieval ranking, model/provider, and any vector-store or
   embedding adoption.
-- Generated-answer UX, review, and audit controls.
+- Generated-answer review and audit governance beyond the bounded V1 UX.
 
 ## 6. Non-goals and acceptance
 
-This contract does not authorize an LLM to decide academic outcomes or introduce
-an external provider, corpus, policy chat endpoint, or official university data
-claim. Completion requires approved source governance and tests for exact
+This contract does not authorize an LLM to decide academic outcomes, an
+unrestricted policy chat endpoint, or an official university data claim. The
+bounded V1 answer endpoint and server-only provider described above do not
+constitute institutional approval. Completion requires approved source
+governance and tests for exact
 citations, missing/conflicting evidence abstention, prompt-injection resistance,
 tenant/access isolation, and deterministic-engine handoff.

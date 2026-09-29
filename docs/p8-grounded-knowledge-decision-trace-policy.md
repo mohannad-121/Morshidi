@@ -154,6 +154,20 @@ institutional adoption.
 The standing deterministic-engine, citation, source-admission, tenant-isolation,
 privacy, and no-write requirements in this policy remain unchanged.
 
+### Phase-exit reconciliation (2026-09-29)
+
+Controlled Local Supabase tests establish cited, verified/current policy
+retrieval and bounded grounded answers against a synthetic corpus. They do not
+establish an approved institutional corpus; the owner-confirmed production
+policy document, version, passage, and embedding counts are all zero. The
+official roadmap additionally requires a **replayable trace ledger**. Neither
+trusted material producer has actual reconstructable historical deterministic
+replay, and the replay helper only checks availability/compares references.
+Thus the roadmap P8 exit evidence is **not satisfied**. The 54-scenario matrix
+also retains partial and blocked rows; documented scenarios are not all
+verified. Local runtime slices and institutional/production validation remain
+separate claims. This reconciliation changes no normative policy or runtime.
+
 ---
 
 ## 8. Companion Policy Documents
