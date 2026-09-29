@@ -128,6 +128,17 @@ The world-class roadmap contains thirteen future phases. Phase boundaries are ga
 | P15 | Production SIS, SSO, Institutional Integration | Agreements and security review | Reconciliation, audit, access, and failover evidence |
 | P16 | Hardening, Observability, Sandbox, Demo | Production topology known | SLOs, runbooks, recovery drills, repeatable demonstration |
 
+**P8 local delivery reconciliation (2026-09-29):** The stated P8 exit evidence,
+"Cited policy retrieval and replayable trace ledger," is satisfied in the
+controlled local environment: verified/current policy passages return exact
+citations with grounded-answer abstention, and a new trusted P6 submit can
+persist through outbox to the immutable ledger and rerun its preserved P6 V1
+historical validation as `REPLAYABLE_EXACT` / `MATCHED`. P8 local implementation
+is delivered, pending owner closure. This does not promote WC-038, WC-040,
+WC-007, WC-046, or WC-039 beyond `PARTIALLY_ENABLED`, certify every 54-matrix
+scenario, apply the new replay migration to production, or validate a real
+institutional corpus.
+
 ## Immediate next phase
 
 After P4.2 closure, the next eligible phase is **P5 — Digital Twin and general What-If**. P5 may reuse P4 immutable snapshot provenance, Decision Trace, readiness-aware composition, annotations, specialized Delay Consequence, and the external Phase 9 comparison adapter. It must first define scenario identity/lifecycle, cloning and isolation, current-versus-modeled semantics, authorization/privacy, deterministic comparison, and no-write acceptance tests. No predictive model, institutional adapter, or transaction may bypass those gates.

@@ -48,8 +48,12 @@ Phase P8 builds directly upon the accepted and locked outcomes of Phase P7:
 - **Exit Gate**: Cited policy retrieval contracts, canonical ledger envelope, explainability DAG specifications, change impact analysis boundaries, institutional query constraints, and an exhaustive 54-scenario test matrix documented and verified.
 - **Policy and implementation distinction**: P8.1 remains the normative policy
   contract. Subsequent implementation slices now provide Decision Trace and
-  structured Policy Retrieval runtime foundations; those slices do not alter this
-  document's authority boundaries or make the complete P8 exit gate satisfied.
+  structured Policy Retrieval runtime foundations. The P8.1 policy-contract
+  inventory and verification matrix are distinct from the roadmap's narrower
+  P8 local delivery evidence (cited retrieval plus a replayable trace ledger).
+  Neither gate changes this document's authority boundaries or certifies every
+  matrix scenario, full WC completion, production deployment, or institutional
+  validation.
 
 ---
 
@@ -133,8 +137,9 @@ institutional adoption.
   append, mutate, replay, delete, or export traces.
 - **WC-038:** document/PDF import and parsing, real institutional source
   onboarding and verification, approved conflict resolution, and the final
-  institutional cited-retrieval validation remains incomplete; the bounded
-  local technical replayable-ledger evidence does not close the broader P8 gate.
+  institutional cited-retrieval validation remain incomplete. These are full
+  capability and external-validation gaps, not a failure of bounded local
+  cited-retrieval runtime evidence.
 - **WC-007:** progress/material-ledger adapters, exact academic source-document
   version propagation, and any advisor frontend remain outside this slice.
 - **WC-046 Change Impact Engine — PARTIAL:** owner-approved V1 analyzes four
@@ -166,12 +171,18 @@ policy document, version, passage, and embedding counts are all zero. The
 official roadmap additionally requires a **replayable trace ledger**. New P6
 replay-contract traces now have reconstructable historical inputs and a
 trusted deterministic rerun; old P6 and WC-046 traces do not. The existing
-replay helpers still only check availability/compare references. Thus bounded
-technical replayable-ledger runtime evidence exists, but the roadmap P8 exit
-gate remains **not satisfied** as a whole. The 54-scenario matrix
-also retains partial and blocked rows; documented scenarios are not all
-verified. Local runtime slices and institutional/production validation remain
-separate claims. This reconciliation changes no normative policy or runtime.
+replay helpers still only check availability/compare references; the distinct
+trusted P6 V1 executor actually reruns historical validation. Together these
+tested local paths satisfy the roadmap's stated P8 exit evidence, **cited
+policy retrieval and replayable trace ledger**, for local implementation and
+delivery. The P8.1 policy-contract gate has its documented companion
+specifications and exhaustively classified 54-scenario matrix; it does not
+say that every future/full-capability scenario must be VERIFIED to close the
+narrower roadmap delivery phase. Partial and blocked matrix rows remain
+honest full-capability, future-surface, or external-governance gaps. Phase P8
+is **locally delivered, pending owner closure**; no full WC, production, or
+institutional acceptance is implied. This reconciliation changes no
+normative policy or runtime.
 
 ---
 
@@ -189,9 +200,9 @@ The detailed specifications governing Phase P8 are established in:
 
 ## 9. Remaining runtime roadmap
 
-The following runtime work remains after the current implemented slices:
-- **Remaining P8 Decision Trace work**: trusted producers for uncovered required
+The following full-capability and external work remains after local P8 delivery:
+- **Remaining Decision Trace capability work**: trusted producers for uncovered required
   material event types and any separately approved viewer/export/erasure capability.
-- **Remaining P8 Policy Retrieval work**: institutional source onboarding and
-  verification, document ingestion/parsing, conflict governance, and final exit evidence.
-- **Future P8 Runtime Implementation**: additional approved explainability graph adapters, change impact batch evaluators, and separately governed institutional query expansion/real-data validation.
+- **Remaining Policy Retrieval capability work**: institutional source onboarding and
+  verification, document ingestion/parsing, conflict governance, and institutional acceptance.
+- **Further capability work**: additional approved explainability graph adapters, change impact batch evaluators, and separately governed institutional query expansion/real-data validation.

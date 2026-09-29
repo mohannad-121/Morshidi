@@ -22,8 +22,11 @@ domain/retrieval, atomic policy ingestion, student policy API, and Local Supabas
 policy persistence/security, hybrid retrieval, grounded-answer guards, and
 student-owner Decision History list/detail, redaction, integrity, and Local
 Supabase browser-denial checks. That
-evidence establishes implemented slices only;
-it does not accept every row in this matrix or complete the P8 exit gate.
+evidence establishes implemented slices only. The subsequent clean-reset
+backend baseline collected and passed 1,705 tests with zero failures or skips;
+the 2026-09-29 focused replay, ledger, and cited-retrieval run passed 131 tests
+with zero failures or skips. These results do not accept every matrix row or
+complete every WC Definition of Done.
 
 ## Verified existing requirements and coverage
 
@@ -130,6 +133,37 @@ WC-039 V1 has local finite-metric, tenant, suppression, safe provider, frontend,
 and no-write evidence, but representative real-data language and source-version
 validation remain open. The reconciled row counts are **37 VERIFIED, 15
 PARTIALLY VERIFIED, 2 BLOCKED, 0 NOT APPLICABLE = 54**. Verified rows establish
-their stated bounded contracts, not full WC or P8 closure. P8 remains PARTIAL:
-bounded trusted P6 historical replay exists, but broader producer coverage and
-institutional/production validation remain incomplete.
+their stated bounded contracts, not full WC completion. The two roadmap P8
+local exit paths are now verified: cited policy retrieval and new trusted P6
+submit -> outbox -> ledger -> exact historical replay. The phase is locally
+delivered, pending owner closure; broader producer coverage and institutional/
+production validation remain incomplete.
+
+### Roadmap P8 phase-blocker classification of non-verified rows
+
+`P8_PHASE_BLOCKER` assesses the roadmap's local cited-retrieval and replayable-
+ledger exit evidence, not the full WC Definition of Done. The P8.1 policy gate
+requires the 54-scenario matrix to be documented and verified as a coverage
+inventory; it does not say that every scenario must be implemented or marked
+VERIFIED before the narrower roadmap delivery gate can close. Statuses above
+remain unchanged. All 17 non-verified rows are classified below.
+
+| ID | Status | P8_PHASE_BLOCKER | One-line reason |
+| --- | --- | --- | --- |
+| TRACE-14 | PARTIALLY VERIFIED | NO | Public aggregate viewer is unapproved; private replayable ledger path exists. |
+| RAG-09 | BLOCKED | NO | Restricted-source licensing/classification is external governance, not required for verified/current cited local sources. |
+| RAG-11 | PARTIALLY VERIFIED | NO | Institution-approved Arabic locator corpus is external; exact synthetic locator and citation are tested. |
+| RAG-12 | PARTIALLY VERIFIED | NO | Dedicated identifier-in-query adversarial case remains, while policy retrieval has no student-record access. |
+| RAG-13 | BLOCKED | NO | Combined advisor policy/student-case surface is future work; student cited retrieval is implemented. |
+| RAG-15 | PARTIALLY VERIFIED | NO | End-to-end log audit remains; bounded answer shape excludes raw reasoning. |
+| IMPACT-02 | PARTIALLY VERIFIED | NO | General plan-version delta exceeds the approved four-type WC-046 V1 and P8 roadmap exit. |
+| IMPACT-03 | PARTIALLY VERIFIED | NO | Request-specific path recomputation exceeds approved V1 impact scope. |
+| IMPACT-04 | PARTIALLY VERIFIED | NO | PLAN_VERSION_CHANGE is outside approved V1; history is not rewritten. |
+| IMPACT-06 | PARTIALLY VERIFIED | NO | Owner delta submission is outside approved V1; assigned-advisor scope is tested. |
+| IMPACT-07 | PARTIALLY VERIFIED | NO | Population suppression for hypothetical aggregate impact is not exercised; current analyst report is structural-only. |
+| GRAPH-01 | PARTIALLY VERIFIED | NO | Material-ledger adapter is broader WC-007 work; current deterministic decision graphs are typed. |
+| GRAPH-02 | PARTIALLY VERIFIED | NO | General rule/ledger adapters are broader WC-007 work; current causal edges are tested. |
+| GRAPH-03 | PARTIALLY VERIFIED | NO | Academic source-document versions are unavailable and disclosed; current engine versions are linked. |
+| GRAPH-05 | PARTIALLY VERIFIED | NO | Persisted cross-tenant edge namespace does not exist; current owner/advisor tenant gates are tested. |
+| QUERY-01 | PARTIALLY VERIFIED | NO | Representative live language quality is external; exact 13-signal allowlist is tested locally. |
+| QUERY-07 | PARTIALLY VERIFIED | NO | Representative source-version authority is external; bounded grounded metric response is tested. |

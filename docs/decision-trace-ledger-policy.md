@@ -146,7 +146,10 @@ produced. Institutional/aggregate traces have no approved student-level viewer.
 This classification describes observed runtime events; it does not change the
 approved materiality registry. `MOCK_REGISTRATION_WITHDRAW` is an existing
 immutable P6 transaction without a trusted ledger producer (**D: existing
-capability gap**, and a current P8 material-coverage blocker).
+runtime audit gap**). It blocks full WC-040 material-event coverage, but is
+**not a blocker to the roadmap P8 local phase exit**, which requires a
+replayable trace-ledger path rather than every material producer. The withdrawal
+gap must remain visible and be closed before claiming full WC-040 acceptance.
 `ADVISOR_FORMAL_GUIDANCE` depends on the unimplemented formal advisor-decision
 workflow WC-013 (**B: later capability**). `MOCK_REGISTRATION_REVALIDATE` is
 currently a read-time current-validity calculation, not a committed revalidation
@@ -156,6 +159,9 @@ currently read-time deterministic projections, not published or triggered
 material milestones (**C: registry over-scoped for those current operations**).
 If a future workflow commits a snapshot, trigger, or formal revalidation, its
 `LEDGER_REQUIRED` producer must exist before that workflow is accepted.
+`CHANGE_IMPACT_EVALUATION` is an implemented trusted WC-046 producer with an
+immutable ledger entry but remains `NOT_REPLAYABLE`; the P6 submit producer is
+implemented and its new replay-contract entries are `REPLAYABLE_EXACT`.
 
 New replay-contract P6 submit traces are exactly replayable through the trusted
 internal executor, which compares the full rerun output with the immutable
@@ -163,7 +169,8 @@ historical output and persisted revision. Older P6 traces and WC-046 impact
 traces remain `NOT_REPLAYABLE`. Canonical hash checks alone are integrity checks,
 not replay. This provides bounded technical runtime evidence for the roadmap's
 “replayable trace ledger” gate, but does not complete material-producer coverage,
-the wider P8 matrix, or institutional validation.
+the wider P8 matrix, or institutional validation. It supports local P8 phase
+delivery without claiming full WC-040 completion or production deployment.
 
 ## 5. Open contracts — requires human approval
 
