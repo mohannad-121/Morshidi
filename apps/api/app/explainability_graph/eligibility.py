@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import re
 from datetime import datetime, timezone
+from decimal import Decimal
 from enum import Enum
 
 from pydantic import BaseModel, ConfigDict
@@ -31,6 +32,12 @@ class GraphNodeType(str, Enum):
     PREREQUISITE_GROUP = "PREREQUISITE_GROUP"
     ACADEMIC_STATE = "ACADEMIC_STATE"
     LIMITATION = "LIMITATION"
+    RECOMMENDATION = "RECOMMENDATION"
+    CONSTRAINT = "CONSTRAINT"
+    REQUIREMENT_GROUP = "REQUIREMENT_GROUP"
+    SEMESTER = "SEMESTER"
+    DEGREE_PATH = "DEGREE_PATH"
+    POLICY_VERSION = "POLICY_VERSION"
 
 
 class EdgeRelation(str, Enum):
@@ -40,6 +47,12 @@ class EdgeRelation(str, Enum):
     SATISFIED_BY = "SATISFIED_BY"
     BLOCKED_BY = "BLOCKED_BY"
     LIMITED_BY = "LIMITED_BY"
+    CONTRIBUTES_TO = "CONTRIBUTES_TO"
+    CONSTRAINED_BY = "CONSTRAINED_BY"
+    SELECTED_IN = "SELECTED_IN"
+    LEADS_TO = "LEADS_TO"
+    VERSIONED_BY = "VERSIONED_BY"
+    RANKED_AS = "RANKED_AS"
 
 
 class AcademicState(str, Enum):
@@ -56,6 +69,52 @@ class GraphLimitation(str, Enum):
     PREREQUISITE_LOGIC_UNRESOLVED = "PREREQUISITE_LOGIC_UNRESOLVED"
     PREREQUISITE_SOURCE_CONFLICT = "PREREQUISITE_SOURCE_CONFLICT"
     VERIFIED_MODEL_INCOMPLETE = "VERIFIED_MODEL_INCOMPLETE"
+    SOURCE_DOCUMENT_VERSION_UNAVAILABLE = "SOURCE_DOCUMENT_VERSION_UNAVAILABLE"
+    WHY_NOT_EVIDENCE_UNAVAILABLE = "WHY_NOT_EVIDENCE_UNAVAILABLE"
+    MODELED_OUTCOME_NOT_HISTORICAL = "MODELED_OUTCOME_NOT_HISTORICAL"
+
+
+class GraphFactKey(str, Enum):
+    RANK = "RANK"
+    STATUS = "STATUS"
+    REASON_CODE = "REASON_CODE"
+    REQUIREMENT_TYPE = "REQUIREMENT_TYPE"
+    COURSE_STATE = "COURSE_STATE"
+    ELIGIBILITY_DECISION = "ELIGIBILITY_DECISION"
+    CREDIT_HOURS = "CREDIT_HOURS"
+    EFFECTIVE_CREDIT_CONTRIBUTION = "EFFECTIVE_CREDIT_CONTRIBUTION"
+    GROUP_REMAINING_BEFORE = "GROUP_REMAINING_BEFORE"
+    GROUP_REMAINING_AFTER = "GROUP_REMAINING_AFTER"
+    COMPLETES_REQUIREMENT_GROUP = "COMPLETES_REQUIREMENT_GROUP"
+    NEWLY_ELIGIBLE_COUNT = "NEWLY_ELIGIBLE_COUNT"
+    PREVIOUSLY_ATTEMPTED = "PREVIOUSLY_ATTEMPTED"
+    MAX_CREDIT_HOURS = "MAX_CREDIT_HOURS"
+    MAX_COURSES = "MAX_COURSES"
+    MAX_OPTIONS = "MAX_OPTIONS"
+    MAX_SEMESTERS_AHEAD = "MAX_SEMESTERS_AHEAD"
+    MAX_PATHS = "MAX_PATHS"
+    TOTAL_CREDIT_HOURS = "TOTAL_CREDIT_HOURS"
+    TOTAL_COURSES = "TOTAL_COURSES"
+    MANDATORY_COURSE_COUNT = "MANDATORY_COURSE_COUNT"
+    COMPLETED_PLAN_CREDIT_DELTA = "COMPLETED_PLAN_CREDIT_DELTA"
+    NEWLY_SATISFIED_GROUP_COUNT = "NEWLY_SATISFIED_GROUP_COUNT"
+    RECOMMENDATION_RANK_SUM = "RECOMMENDATION_RANK_SUM"
+    SEMESTER_INDEX = "SEMESTER_INDEX"
+    SEMESTER_COUNT = "SEMESTER_COUNT"
+    TOTAL_PLANNED_COURSES = "TOTAL_PLANNED_COURSES"
+    TOTAL_PLANNED_CREDITS = "TOTAL_PLANNED_CREDITS"
+    FINAL_COMPLETED_CREDITS = "FINAL_COMPLETED_CREDITS"
+    FINAL_REMAINING_CREDITS = "FINAL_REMAINING_CREDITS"
+    AGGREGATE_SEMESTER_RANK_SUM = "AGGREGATE_SEMESTER_RANK_SUM"
+    BLOCKER_CODE = "BLOCKER_CODE"
+    POLICY_VERSION = "POLICY_VERSION"
+
+
+class GraphFact(BaseModel):
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    key: GraphFactKey
+    value: str | int | bool | Decimal
 
 
 class GraphNode(BaseModel):
@@ -66,6 +125,7 @@ class GraphNode(BaseModel):
     decision: Decision | None = None
     reason: DecisionReason | None = None
     course_code: str | None = None
+    reference_code: str | None = None
     group_number: int | None = None
     dependency_type: DependencyType | None = None
     option_course_codes: tuple[str, ...] = ()
@@ -73,6 +133,7 @@ class GraphNode(BaseModel):
     non_passed_option_course_codes: tuple[str, ...] = ()
     academic_state: AcademicState | None = None
     limitation: GraphLimitation | None = None
+    facts: tuple[GraphFact, ...] = ()
 
 
 class GraphEdge(BaseModel):
@@ -101,19 +162,27 @@ class ExplainabilityGraph(BaseModel):
 
 
 _COURSE_CODE = re.compile(r"[A-Za-z0-9][A-Za-z0-9_-]{0,31}\Z")
-_MAX_NODES = 200
-_MAX_EDGES = 400
+_MAX_NODES = 5000
+_MAX_EDGES = 10000
 _EDGE_TYPES = {
     EdgeRelation.DECIDED_BY: {(GraphNodeType.DECISION, GraphNodeType.REASON)},
     EdgeRelation.REFERENCES: {
         (GraphNodeType.DECISION, GraphNodeType.COURSE),
         (GraphNodeType.PREREQUISITE_GROUP, GraphNodeType.COURSE),
+        (GraphNodeType.RECOMMENDATION, GraphNodeType.COURSE),
+        (GraphNodeType.SEMESTER, GraphNodeType.COURSE),
+        (GraphNodeType.DEGREE_PATH, GraphNodeType.COURSE),
+        (GraphNodeType.REASON, GraphNodeType.COURSE),
     },
     EdgeRelation.SUPPORTED_BY: {
         (GraphNodeType.REASON, GraphNodeType.PREREQUISITE_GROUP),
         (GraphNodeType.DECISION, GraphNodeType.PREREQUISITE_GROUP),
         (GraphNodeType.COURSE, GraphNodeType.ACADEMIC_STATE),
         (GraphNodeType.REASON, GraphNodeType.ACADEMIC_STATE),
+        (GraphNodeType.RECOMMENDATION, GraphNodeType.ACADEMIC_STATE),
+        (GraphNodeType.RECOMMENDATION, GraphNodeType.REASON),
+        (GraphNodeType.SEMESTER, GraphNodeType.REASON),
+        (GraphNodeType.DEGREE_PATH, GraphNodeType.REASON),
     },
     EdgeRelation.SATISFIED_BY: {(GraphNodeType.PREREQUISITE_GROUP, GraphNodeType.COURSE)},
     EdgeRelation.BLOCKED_BY: {
@@ -121,7 +190,40 @@ _EDGE_TYPES = {
         (GraphNodeType.PREREQUISITE_GROUP, GraphNodeType.COURSE),
     },
     EdgeRelation.LIMITED_BY: {(GraphNodeType.DECISION, GraphNodeType.LIMITATION)},
+    EdgeRelation.CONTRIBUTES_TO: {
+        (GraphNodeType.RECOMMENDATION, GraphNodeType.REQUIREMENT_GROUP),
+        (GraphNodeType.SEMESTER, GraphNodeType.REQUIREMENT_GROUP),
+        (GraphNodeType.DEGREE_PATH, GraphNodeType.REQUIREMENT_GROUP),
+    },
+    EdgeRelation.CONSTRAINED_BY: {
+        (GraphNodeType.RECOMMENDATION, GraphNodeType.CONSTRAINT),
+        (GraphNodeType.SEMESTER, GraphNodeType.CONSTRAINT),
+        (GraphNodeType.DEGREE_PATH, GraphNodeType.CONSTRAINT),
+    },
+    EdgeRelation.SELECTED_IN: {
+        (GraphNodeType.SEMESTER, GraphNodeType.COURSE),
+        (GraphNodeType.DEGREE_PATH, GraphNodeType.SEMESTER),
+    },
+    EdgeRelation.LEADS_TO: {
+        (GraphNodeType.RECOMMENDATION, GraphNodeType.COURSE),
+        (GraphNodeType.SEMESTER, GraphNodeType.COURSE),
+    },
+    EdgeRelation.VERSIONED_BY: {
+        (GraphNodeType.RECOMMENDATION, GraphNodeType.POLICY_VERSION),
+        (GraphNodeType.SEMESTER, GraphNodeType.POLICY_VERSION),
+        (GraphNodeType.DEGREE_PATH, GraphNodeType.POLICY_VERSION),
+    },
+    EdgeRelation.RANKED_AS: {
+        (GraphNodeType.RECOMMENDATION, GraphNodeType.RECOMMENDATION),
+        (GraphNodeType.SEMESTER, GraphNodeType.SEMESTER),
+        (GraphNodeType.DEGREE_PATH, GraphNodeType.DEGREE_PATH),
+    },
 }
+_EDGE_TYPES[EdgeRelation.LIMITED_BY].update({
+    (GraphNodeType.RECOMMENDATION, GraphNodeType.LIMITATION),
+    (GraphNodeType.SEMESTER, GraphNodeType.LIMITATION),
+    (GraphNodeType.DEGREE_PATH, GraphNodeType.LIMITATION),
+})
 _REVIEW_LIMITATION = {
     DecisionReason.PREREQUISITE_LOGIC_UNRESOLVED: GraphLimitation.PREREQUISITE_LOGIC_UNRESOLVED,
     DecisionReason.PREREQUISITE_SOURCE_CONFLICT: GraphLimitation.PREREQUISITE_SOURCE_CONFLICT,
@@ -281,7 +383,10 @@ def validate_graph(graph: ExplainabilityGraph) -> None:
     by_id = {node.id: node for node in graph.nodes}
     ids = set(by_id)
     if (len(ids) != len(graph.nodes) or graph.root_node_id not in ids
-            or by_id[graph.root_node_id].type is not GraphNodeType.DECISION):
+            or by_id[graph.root_node_id].type not in {
+                GraphNodeType.DECISION, GraphNodeType.RECOMMENDATION,
+                GraphNodeType.SEMESTER, GraphNodeType.DEGREE_PATH,
+            }):
         raise ValueError("graph node identities are invalid")
     if len({(edge.from_node_id, edge.to_node_id, edge.relation) for edge in graph.edges}) != len(graph.edges):
         raise ValueError("duplicate graph edge")

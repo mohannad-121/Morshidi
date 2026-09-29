@@ -92,14 +92,14 @@ This matrix creates no executable test, migration, policy promotion, RAG corpus,
 | IMPACT-06 | Owner/advisor scope | P7 | Individual impact request | Owner/P7 predicate enforced | BOLA/tenant | Local integration | None | SPECIFIED |
 | IMPACT-07 | Analyst aggregate | P6/U | Small cohort impact | Suppress result | Privacy | Local integration | None | SPECIFIED |
 | IMPACT-08 | No queue/write | U | Any impact run | No mutations/notifications | No side effect | Unit/audit | None | SPECIFIED |
-| GRAPH-01 | Typed decision node | U/CAP | Material decision | Closed node kind/provenance | No raw reasoning | Unit | eligibility-only typed decision; no material-ledger adapter | PARTIALLY VERIFIED |
-| GRAPH-02 | Rule/course/requirement links | U/CAP | Deterministic outcome | Typed causal edges | Engine precedence | Unit | eligibility course/prerequisite groups only; no requirement groups | PARTIALLY VERIFIED |
-| GRAPH-03 | Evidence/source links | U/S1 | Evidence reference | Versioned source edge | Provenance | Unit | existing eligibility evidence; exact source versions absent and disclosed | PARTIALLY VERIFIED |
+| GRAPH-01 | Typed decision node | U/CAP | Material decision | Closed node kind/provenance | No raw reasoning | Unit | eligibility decision plus typed recommendation/planner/path nodes; no material-ledger adapter | PARTIALLY VERIFIED |
+| GRAPH-02 | Rule/course/requirement links | U/CAP | Deterministic outcome | Typed causal edges | Engine precedence | Unit | closed reason, course, prerequisite, requirement, constraint, semester, path, and version edges tested; no general rule or ledger adapter | PARTIALLY VERIFIED |
+| GRAPH-03 | Evidence/source links | U/S1 | Evidence reference | Versioned source edge | Provenance | Unit | exact engine policy versions linked; academic source-document versions absent and disclosed | PARTIALLY VERIFIED |
 | GRAPH-04 | Cycle rejection | U/CAP | Edge closes cycle | Builder rejects | DAG integrity | Unit | `test_explainability_graph.py` | VERIFIED |
-| GRAPH-05 | Scope mismatch | U/P7 | Cross-tenant edge | Reject | Tenant isolation | Unit | real owner-only API; no cross-tenant graph-edge namespace | PARTIALLY VERIFIED |
+| GRAPH-05 | Scope mismatch | U/P7 | Cross-tenant edge | Reject | Tenant isolation | Unit | real owner and exact assigned-advisor tenant gate; no persisted cross-tenant graph-edge namespace | PARTIALLY VERIFIED |
 | GRAPH-06 | Missing evidence | U | Missing source | Explicit limitation node/state | No fabrication | Unit | exact-version limitation and review uncertainty tests | VERIFIED |
-| GRAPH-07 | Student projection | U/S1 | Owner graph | Student-safe projection | Ownership | Local integration | authenticated student route and Local Supabase owned-profile test | VERIFIED |
-| GRAPH-08 | Advisor/analyst projection | U/P7 | Advisor or analyst request | Assigned advisor allowed; analyst denied individual graph | Assignment/privacy | Local integration | no advisor/analyst graph route | SPECIFIED |
+| GRAPH-07 | Student projection | U/S1 | Owner graph | Student-safe projection | Ownership | Local integration | authenticated student eligibility, recommendation, planner, degree-path graph routes and real Local Supabase owned-profile tests | VERIFIED |
+| GRAPH-08 | Advisor/analyst projection | U/P7 | Advisor or analyst request | Assigned advisor allowed; analyst denied individual graph | Assignment/privacy | Local integration | P7 authorization-before-load API and real Local Supabase assigned/unassigned/inactive/cross-tenant/analyst tests; no advisor UI | VERIFIED |
 | QUERY-01 | Metric allowlist | U | Approved metric request | Typed permitted metric executes | No arbitrary query | Integration | None | SPECIFIED |
 | QUERY-02 | Unsupported metric | U | Unknown metric | Abstain/reject | Allowlist | Integration | None | SPECIFIED |
 | QUERY-03 | SQL injection | U | SQL-like natural language | No SQL execution | Database boundary | Security | None | SPECIFIED |
@@ -115,8 +115,9 @@ The 54 rows remain the normative scenario inventory. The repository now has addi
 runtime and Local Supabase evidence for the implemented Decision Trace and
 grounded Policy Retrieval slices. `TRACE-14` remains partially verified because
 only the structural public-redaction helper exists; no public viewer is approved.
-WC-007 now has a bounded eligibility-only runtime; GRAPH-01/02/03/05 remain
-partial and GRAPH-08 is not implemented. WC-040 also remains partial because seven `LEDGER_REQUIRED` decision types lack
+WC-007 now has eligibility and material recommendation/planner/path projections
+with student and assigned-advisor API evidence. GRAPH-01/02/03/05 remain
+partial for broader decision/source/scope contracts. WC-040 also remains partial because seven `LEDGER_REQUIRED` decision types lack
 trusted runtime producers. Other RAG/IMPACT/GRAPH/QUERY rows still require the
 stated approved design and tests.
 P8 remains PARTIAL; the P8 exit gate is not accepted solely by the current

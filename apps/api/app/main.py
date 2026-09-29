@@ -16,6 +16,7 @@ from app.api.routes.advisor_copilot import router as advisor_copilot_router
 from app.api.routes.policies import router as policies_router
 from app.api.routes.decision_history import router as decision_history_router
 from app.api.routes.advisor_decision_history import router as advisor_decision_history_router
+from app.api.routes.advisor_explainability_graph import router as advisor_explainability_graph_router
 from app.decision_trace_persistence import (
     DecisionTraceErrorCode, DecisionTracePersistenceError, DecisionTraceService,
     SupabaseDecisionTraceRepository,
@@ -138,6 +139,7 @@ async def lifespan(application: FastAPI):
     application.state.policy_service = None
     application.state.policy_answer_service = None
     application.state.decision_trace_service = None
+    application.state.advisor_authorization_service = None
     if settings.supabase_url and settings.supabase_secret_key:
         repository = SupabaseAcademicCatalogRepository(
             settings.supabase_url,
@@ -175,6 +177,7 @@ async def lifespan(application: FastAPI):
             client,
         )
         advisor_auth_service = AdvisorAuthorizationService(advisor_assignment_repo)
+        application.state.advisor_authorization_service = advisor_auth_service
         trace_repository = SupabaseDecisionTraceRepository(
             settings.supabase_url, settings.supabase_secret_key.get_secret_value(), client,
         )
@@ -251,6 +254,7 @@ app.include_router(advisor_copilot_router)
 app.include_router(policies_router)
 app.include_router(decision_history_router)
 app.include_router(advisor_decision_history_router)
+app.include_router(advisor_explainability_graph_router)
 
 
 @app.exception_handler(DecisionTracePersistenceError)

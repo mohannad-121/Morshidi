@@ -1,10 +1,12 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useAuth } from "@/auth/auth-provider";
 import { useAuthenticatedApi } from "@/lib/api/use-authenticated-api";
 import { StudentApiService } from "@/lib/api/student-api";
+import { AcademicGraphExplanation } from "@/components/academic/AcademicGraphExplanation";
+import type { AcademicExplanationGraph } from "@/lib/api/student-types";
 import type {
   DashboardError,
   RecommendationCandidateResponse,
@@ -31,6 +33,25 @@ export default function RecommendationsPage() {
   const [data, setData] = useState<RecommendationResponse | null>(null);
   const [error, setError] = useState<DashboardError | null>(null);
   const [loading, setLoading] = useState(true);
+  const [graph, setGraph] = useState<AcademicExplanationGraph | null>(null);
+  const [graphLoading, setGraphLoading] = useState(false);
+  const [graphError, setGraphError] = useState(false);
+  const [expandedCourse, setExpandedCourse] = useState<string | null>(null);
+  const graphRequestRef = useRef(0);
+
+  const fetchGraph = async () => {
+    const requestId = ++graphRequestRef.current;
+    setGraphLoading(true);
+    setGraphError(false);
+    try {
+      const nextGraph = await new StudentApiService(client).getRecommendationGraph();
+      if (requestId === graphRequestRef.current) setGraph(nextGraph);
+    } catch {
+      if (requestId === graphRequestRef.current) setGraphError(true);
+    } finally {
+      if (requestId === graphRequestRef.current) setGraphLoading(false);
+    }
+  };
 
   // Filter
   const [filterType, setFilterType] = useState<"ALL" | "UNLOCKS" | "COMPLETES">("ALL");
@@ -38,10 +59,14 @@ export default function RecommendationsPage() {
   const fetchRecommendations = async () => {
     setLoading(true);
     setError(null);
+    graphRequestRef.current += 1;
+    setGraph(null);
+    setGraphError(false);
     try {
       const api = new StudentApiService(client);
       const res = await api.getRecommendations();
       setData(res);
+      void fetchGraph();
     } catch {
       setError("SERVER_ERROR");
     } finally {
@@ -294,6 +319,15 @@ export default function RecommendationsPage() {
                       )}
                     </div>
                   </div>
+                  <button type="button" onClick={() => setExpandedCourse(expandedCourse === rec.course_code ? null : rec.course_code)}
+                    aria-expanded={expandedCourse === rec.course_code}
+                    className="mt-4 rounded-xl border border-[#EDE2C5] px-3 py-2 text-xs font-bold">
+                    لماذا هذه النتيجة؟
+                  </button>
+                  {expandedCourse === rec.course_code ? <div className="mt-3">
+                    <AcademicGraphExplanation graph={graph} focusId={`recommendation:${rec.rank}:${rec.course_code}`}
+                      loading={graphLoading} error={graphError} onRetry={() => { void fetchGraph(); }} />
+                  </div> : null}
                 </div>
               ))}
             </div>
@@ -325,6 +359,8 @@ export default function RecommendationsPage() {
                       <strong>سبب المراجعة: </strong>
                       {course.review_reason}
                     </p>
+                    <AcademicGraphExplanation graph={graph} focusId={`recommendation:review:${course.course_code}`}
+                      loading={graphLoading} error={graphError} onRetry={() => { void fetchGraph(); }} />
                   </div>
                 ))}
               </div>

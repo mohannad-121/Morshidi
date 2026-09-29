@@ -158,6 +158,27 @@ const mockEligibilityGraph = {
   policy_versions: [], source_versions: [], generated_at: '2026-09-29T00:00:00Z',
 } satisfies EligibilityExplanationGraph;
 
+function materialGraph(
+  subject_type: EligibilityExplanationGraph['subject_type'],
+  root_node_id: string,
+  type: 'RECOMMENDATION' | 'SEMESTER' | 'DEGREE_PATH',
+): EligibilityExplanationGraph {
+  const base = mockEligibilityGraph.nodes[0];
+  return {
+    ...mockEligibilityGraph, subject_type, root_node_id, graph_id: `${subject_type}:test`,
+    policy_versions: ['2026-p7'], source_versions: [],
+    limitations: ['SOURCE_DOCUMENT_VERSION_UNAVAILABLE'],
+    nodes: [{ ...base, id: root_node_id, type, decision: null, facts: [
+      { key: 'RANK', value: 1 }, { key: 'STATUS', value: 'RANKED' },
+    ] }],
+    edges: [],
+  };
+}
+
+const mockRecommendationGraph = materialGraph('COURSE_RECOMMENDATIONS', 'recommendation:1:1501211', 'RECOMMENDATION');
+const mockPlannerGraph = materialGraph('SEMESTER_PLANNER', 'semester-planner:option:1', 'SEMESTER');
+const mockPathGraph = materialGraph('DEGREE_PATH', 'degree-path:1', 'DEGREE_PATH');
+
 const mockRecommendations: RecommendationResponse = {
   study_plan_id: 'test-plan-uuid',
   recommendation_policy_version: '2026-p7',
@@ -397,6 +418,15 @@ function setupMockFetch() {
         headers: { 'Content-Type': 'application/json' },
       });
     }
+    if (url.includes('/course-recommendations/explanation-graph')) {
+      return new Response(JSON.stringify(mockRecommendationGraph), { status: 200 });
+    }
+    if (url.includes('/semester-plans/explanation-graph')) {
+      return new Response(JSON.stringify(mockPlannerGraph), { status: 200 });
+    }
+    if (url.includes('/degree-paths/explanation-graph')) {
+      return new Response(JSON.stringify(mockPathGraph), { status: 200 });
+    }
     if (url.includes('/explanation-graph')) {
       return new Response(JSON.stringify(mockEligibilityGraph), {
         status: 200,
@@ -522,12 +552,15 @@ describe('Morshidi Student Portal Pages Suite', () => {
   });
 
   it('renders RecommendationsPage with ranked courses and impact tags', async () => {
+    const user = userEvent.setup();
     renderWithAuth(<RecommendationsPage />);
     expect(screen.getByText('التوصيات الأكاديمية الذكية')).toBeDefined();
     await waitFor(() => {
       expect(screen.getByText('#1')).toBeDefined();
     });
     expect(screen.getByText(/تفتح 2 مواد لاحقة/)).toBeDefined();
+    await user.click(screen.getByRole('button', { name: 'لماذا هذه النتيجة؟' }));
+    await waitFor(() => expect(screen.getByText('توصية #1')).toBeDefined());
   });
 
   it('renders PlannerPage and generates plan options', async () => {
@@ -542,6 +575,7 @@ describe('Morshidi Student Portal Pages Suite', () => {
       expect(screen.getByText('الخيار #1 (الأفضل تقييماً)')).toBeDefined();
     });
     expect(screen.getByText('برمجة كينونية')).toBeDefined();
+    await waitFor(() => expect(screen.getByText('خيار فصل #1')).toBeDefined());
   });
 
   it('renders DegreePathPage and simulates path until graduation', async () => {
@@ -556,6 +590,7 @@ describe('Morshidi Student Portal Pages Suite', () => {
       expect(screen.getByText('تخرج كامل')).toBeDefined();
     });
     expect(screen.getByText(/الفصل الدراسي القادم #1/)).toBeDefined();
+    await waitFor(() => expect(screen.getByText('مسار نموذجي #1')).toBeDefined());
   });
 
   it('renders MockRegistrationPage with active submitted intent and non-binding notice', async () => {

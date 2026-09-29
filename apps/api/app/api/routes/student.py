@@ -23,7 +23,10 @@ from app.api.schemas.degree_path import (
 )
 from app.core.auth import CurrentUser, get_current_user
 from app.rules.models import CanTakeDecision, Decision
-from app.explainability_graph import ExplainabilityGraph, GraphMode, build_eligibility_graph
+from app.explainability_graph import (
+    ExplainabilityGraph, GraphMode, build_eligibility_graph,
+    build_recommendation_graph, build_semester_planner_graph, build_degree_path_graph,
+)
 from app.services.student import StudentConfigurationError, StudentService
 from app.student.models import StudentAcademicState, StudentCourseAttemptRecord
 from app.progress.models import AcademicProgress
@@ -172,6 +175,23 @@ def _recommendation_response(result: RecommendationResult) -> RecommendationResp
     return RecommendationResponse.model_validate(result, from_attributes=True)
 
 
+@router.get("/course-recommendations/explanation-graph", response_model=ExplainabilityGraph)
+async def get_course_recommendations_explanation_graph(
+    user: AuthenticatedUser, service: StudentServiceDependency, request: Request,
+    limit: Annotated[int | None, Query(ge=1, le=100)] = None,
+    mode: GraphMode = GraphMode.WHY, course_code: str | None = None,
+) -> ExplainabilityGraph:
+    if set(request.query_params) - {"limit", "mode", "course_code"}:
+        raise HTTPException(status_code=422, detail="Unsupported graph query parameter")
+    if (mode is GraphMode.WHY and course_code is not None) or (mode is GraphMode.WHY_NOT and course_code is None):
+        raise HTTPException(status_code=422, detail="Invalid graph query mode")
+    result = await service.get_course_recommendations(user.user_id, limit=limit)
+    try:
+        return build_recommendation_graph(result, mode=mode, course_code=course_code)
+    except ValueError as error:
+        raise HTTPException(status_code=409, detail="Recommendation evidence cannot be safely graphed") from error
+
+
 @router.post("/semester-plans", response_model=SemesterPlannerResponse)
 async def create_semester_plans(
     request: SemesterPlanRequest,
@@ -189,6 +209,23 @@ async def create_semester_plans(
 
 def _planner_response(result: SemesterPlannerResult) -> SemesterPlannerResponse:
     return SemesterPlannerResponse.model_validate(result, from_attributes=True)
+
+
+@router.post("/semester-plans/explanation-graph", response_model=ExplainabilityGraph)
+async def create_semester_plans_explanation_graph(
+    request: SemesterPlanRequest, user: AuthenticatedUser, service: StudentServiceDependency,
+    http_request: Request,
+) -> ExplainabilityGraph:
+    if http_request.query_params:
+        raise HTTPException(status_code=422, detail="Unsupported graph query parameter")
+    result = await service.get_semester_plans(
+        user.user_id, max_credit_hours=request.max_credit_hours,
+        max_courses=request.max_courses, max_options=request.max_options,
+    )
+    try:
+        return build_semester_planner_graph(result)
+    except ValueError as error:
+        raise HTTPException(status_code=409, detail="Planner evidence cannot be safely graphed") from error
 
 
 @router.post("/degree-paths", response_model=DegreePathResponse)
@@ -209,3 +246,22 @@ async def create_degree_paths(
 
 def _degree_path_response(result: DegreePathResult) -> DegreePathResponse:
     return DegreePathResponse.model_validate(result, from_attributes=True)
+
+
+@router.post("/degree-paths/explanation-graph", response_model=ExplainabilityGraph)
+async def create_degree_paths_explanation_graph(
+    request: DegreePathRequest, user: AuthenticatedUser, service: StudentServiceDependency,
+    http_request: Request,
+) -> ExplainabilityGraph:
+    if http_request.query_params:
+        raise HTTPException(status_code=422, detail="Unsupported graph query parameter")
+    result = await service.get_degree_paths(
+        user.user_id,
+        max_credit_hours_per_semester=request.max_credit_hours_per_semester,
+        max_courses_per_semester=request.max_courses_per_semester,
+        max_semesters_ahead=request.max_semesters_ahead, max_paths=request.max_paths,
+    )
+    try:
+        return build_degree_path_graph(result)
+    except ValueError as error:
+        raise HTTPException(status_code=409, detail="Degree-path evidence cannot be safely graphed") from error

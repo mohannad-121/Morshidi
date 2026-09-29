@@ -166,10 +166,17 @@ export interface CanTakeDecisionResponse {
 export type EligibilityGraphMode = "why" | "why_not";
 export type EligibilityGraphNodeType =
   | "DECISION" | "COURSE" | "REASON" | "PREREQUISITE_GROUP"
-  | "ACADEMIC_STATE" | "LIMITATION";
+  | "ACADEMIC_STATE" | "LIMITATION" | "RECOMMENDATION" | "CONSTRAINT"
+  | "REQUIREMENT_GROUP" | "SEMESTER" | "DEGREE_PATH" | "POLICY_VERSION";
 export type EligibilityGraphEdgeRelation =
   | "DECIDED_BY" | "REFERENCES" | "SUPPORTED_BY" | "SATISFIED_BY"
-  | "BLOCKED_BY" | "LIMITED_BY";
+  | "BLOCKED_BY" | "LIMITED_BY" | "CONTRIBUTES_TO" | "CONSTRAINED_BY"
+  | "SELECTED_IN" | "LEADS_TO" | "VERSIONED_BY" | "RANKED_AS";
+
+export interface AcademicGraphFact {
+  key: string;
+  value: string | number | boolean;
+}
 
 export interface EligibilityGraphNode {
   id: string;
@@ -177,6 +184,7 @@ export interface EligibilityGraphNode {
   decision: Decision | null;
   reason: DecisionReason | null;
   course_code: string | null;
+  reference_code?: string | null;
   group_number: number | null;
   dependency_type: DependencyType | null;
   option_course_codes: string[];
@@ -184,6 +192,7 @@ export interface EligibilityGraphNode {
   non_passed_option_course_codes: string[];
   academic_state: "PASSED" | "NOT_PASSED" | "TARGET_COMPLETED" | "TARGET_IN_PROGRESS" | null;
   limitation: string | null;
+  facts?: AcademicGraphFact[];
 }
 
 export interface EligibilityGraphEdge {
@@ -194,7 +203,7 @@ export interface EligibilityGraphEdge {
 
 export interface EligibilityExplanationGraph {
   graph_id: string;
-  subject_type: "ELIGIBILITY";
+  subject_type: "ELIGIBILITY" | "COURSE_RECOMMENDATIONS" | "SEMESTER_PLANNER" | "DEGREE_PATH";
   subject_reference: string;
   root_node_id: string;
   mode: EligibilityGraphMode;
@@ -206,6 +215,8 @@ export interface EligibilityExplanationGraph {
   source_versions: string[];
   limitations: string[];
 }
+
+export type AcademicExplanationGraph = EligibilityExplanationGraph;
 
 export interface RecommendationCandidateResponse {
   course_code: string;

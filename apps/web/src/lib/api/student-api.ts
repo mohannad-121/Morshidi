@@ -12,6 +12,7 @@ import type {
   CanTakeDecisionResponse,
   EligibilityExplanationGraph,
   EligibilityGraphMode,
+  AcademicExplanationGraph,
   CourseAttemptResponse,
   DegreePathRequest,
   DegreePathResponse,
@@ -111,6 +112,12 @@ export class StudentApiService {
     return parseJson<RecommendationResponse>(res);
   }
 
+  async getRecommendationGraph(limit?: number): Promise<AcademicExplanationGraph> {
+    const query = limit ? `?limit=${encodeURIComponent(limit)}` : "";
+    const res = await this.client.request(`/api/v1/me/course-recommendations/explanation-graph${query}`);
+    return parseJson<AcademicExplanationGraph>(res);
+  }
+
   async createSemesterPlans(
     request: SemesterPlanRequest,
   ): Promise<SemesterPlannerResponse> {
@@ -122,6 +129,13 @@ export class StudentApiService {
     return parseJson<SemesterPlannerResponse>(res);
   }
 
+  async createSemesterPlanGraph(request: SemesterPlanRequest): Promise<AcademicExplanationGraph> {
+    const res = await this.client.request("/api/v1/me/semester-plans/explanation-graph", {
+      method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(request),
+    });
+    return parseJson<AcademicExplanationGraph>(res);
+  }
+
   async createDegreePaths(
     request: DegreePathRequest,
   ): Promise<DegreePathResponse> {
@@ -131,6 +145,13 @@ export class StudentApiService {
       body: JSON.stringify(request),
     });
     return parseJson<DegreePathResponse>(res);
+  }
+
+  async createDegreePathGraph(request: DegreePathRequest): Promise<AcademicExplanationGraph> {
+    const res = await this.client.request("/api/v1/me/degree-paths/explanation-graph", {
+      method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(request),
+    });
+    return parseJson<AcademicExplanationGraph>(res);
   }
 
   async getCurrentMockRegistration(

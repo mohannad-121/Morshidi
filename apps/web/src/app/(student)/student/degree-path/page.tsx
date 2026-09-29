@@ -1,9 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useAuth } from "@/auth/auth-provider";
 import { useAuthenticatedApi } from "@/lib/api/use-authenticated-api";
 import { StudentApiService } from "@/lib/api/student-api";
+import { AcademicGraphExplanation } from "@/components/academic/AcademicGraphExplanation";
+import type { AcademicExplanationGraph } from "@/lib/api/student-types";
 import type {
   DegreePathOptionResponse,
   DegreePathRequest,
@@ -40,12 +42,34 @@ export default function DegreePathPage() {
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [selectedPathIndex, setSelectedPathIndex] = useState<number>(0);
+  const [graph, setGraph] = useState<AcademicExplanationGraph | null>(null);
+  const [graphLoading, setGraphLoading] = useState(false);
+  const [graphError, setGraphError] = useState(false);
+  const lastGraphRequest = useRef<DegreePathRequest | null>(null);
+  const graphRequestId = useRef(0);
+
+  const loadGraph = async (request: DegreePathRequest) => {
+    const currentId = ++graphRequestId.current;
+    setGraphLoading(true);
+    setGraphError(false);
+    try {
+      const nextGraph = await new StudentApiService(client).createDegreePathGraph(request);
+      if (currentId === graphRequestId.current) setGraph(nextGraph);
+    } catch {
+      if (currentId === graphRequestId.current) setGraphError(true);
+    } finally {
+      if (currentId === graphRequestId.current) setGraphLoading(false);
+    }
+  };
 
   const handleGeneratePath = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     setLoading(true);
     setErrorMessage(null);
     setResult(null);
+    graphRequestId.current += 1;
+    setGraph(null);
+    setGraphError(false);
 
     try {
       const api = new StudentApiService(client);
@@ -57,6 +81,9 @@ export default function DegreePathPage() {
       const data = await api.createDegreePaths(req);
       setResult(data);
       setSelectedPathIndex(0);
+      lastGraphRequest.current = req;
+      setLoading(false);
+      void loadGraph(req);
     } catch {
       setErrorMessage("تعذر توليد مسار التخرج. يرجى التحقق من توفر الخطة الدراسية وسجل المواد.");
     } finally {
@@ -340,6 +367,10 @@ export default function DegreePathPage() {
                   ))}
                 </div>
               </div>
+
+              <AcademicGraphExplanation graph={graph} focusId={`degree-path:${selectedPath.rank}`}
+                loading={graphLoading} error={graphError}
+                onRetry={() => { if (lastGraphRequest.current) void loadGraph(lastGraphRequest.current); }} />
 
               {/* Disclaimer */}
               <div className="rounded-2xl border border-[#EDE2C5] bg-[#FFF9E8] p-4 text-xs text-[#726B5E] flex items-center gap-3">
