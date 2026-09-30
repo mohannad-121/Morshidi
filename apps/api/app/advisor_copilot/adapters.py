@@ -32,8 +32,8 @@ from app.decision_intelligence.models import (
     SimulationStateKind,
 )
 from app.decision_intelligence.recommendation import integrate_recommendations
-from app.degree_path.engine import plan_degree_paths
 from app.degree_path.models import DEGREE_PATH_POLICY_VERSION, DegreePathConstraints
+from app.core.academic_compute import AcademicComputeLimiter
 from app.mock_registration.resolution import resolve_current_intents
 from app.mock_registration_persistence.errors import (
     MockRegistrationPersistenceError,
@@ -54,6 +54,7 @@ from app.recommendations.engine import recommend_courses
 from app.recommendations.models import RECOMMENDATION_POLICY_VERSION
 from app.rules.models import CanTakeError, Decision
 from app.services.eligibility import EligibilityService
+from app.services.student import StudentService
 from app.student.errors import (
     StudentProfileIntegrityError,
     StudentProfileNotFound,
@@ -418,6 +419,10 @@ class RecommendationsAdapter(BaseAdvisorAdapter):
 
 
 class SemesterPlansAdapter(BaseAdvisorAdapter):
+    def __init__(self, student_repository, catalog_repository, academic_compute_limiter=None) -> None:
+        super().__init__(student_repository, catalog_repository)
+        self._academic_compute_limiter = academic_compute_limiter or AcademicComputeLimiter()
+
     async def execute(
         self, context: AdvisorAccessContext, request: GetSemesterPlansRequest
     ) -> SemesterPlansResultDTO:
@@ -444,15 +449,18 @@ class SemesterPlansAdapter(BaseAdvisorAdapter):
             max_options=request.max_options,
         )
 
-        result = plan_semester(
-            progress_catalog,
-            eligibility_catalog,
-            state.attempts,
-            full_recommendations,
-            constraints,
-            reported_cumulative_gpa=state.reported_cumulative_gpa,
-            reported_gpa_scale=state.reported_gpa_scale,
-            reported_earned_credit_hours=state.reported_earned_credit_hours,
+        result = await self._academic_compute_limiter.run(
+            lambda check_budget: plan_semester(
+                progress_catalog,
+                eligibility_catalog,
+                state.attempts,
+                full_recommendations,
+                constraints,
+                reported_cumulative_gpa=state.reported_cumulative_gpa,
+                reported_gpa_scale=state.reported_gpa_scale,
+                reported_earned_credit_hours=state.reported_earned_credit_hours,
+                check_budget=check_budget,
+            ),
         )
 
         options_dto = [
@@ -477,14 +485,22 @@ class SemesterPlansAdapter(BaseAdvisorAdapter):
 
 
 class DegreePathsAdapter(BaseAdvisorAdapter):
+    def __init__(
+        self,
+        student_repository: StudentAcademicRepository,
+        catalog_repository: AcademicCatalogRepository,
+        academic_compute_limiter: AcademicComputeLimiter | None = None,
+    ) -> None:
+        super().__init__(student_repository, catalog_repository)
+        self._degree_path_service = StudentService(
+            student_repository, None, catalog_repository, academic_compute_limiter,  # type: ignore[arg-type]
+        )
+
     async def execute(
         self, context: AdvisorAccessContext, request: GetDegreePathsRequest
     ) -> DegreePathsResultDTO:
-        state = await self._student_repo.load_student_academic_state(context.student_user_id)
-        progress_catalog = await self._catalog_repo.load_progress_catalog(state.study_plan_id)
-        eligibility_catalog = await self._catalog_repo.load_plan_eligibility_catalog(state.study_plan_id)
-
-        constraints = DegreePathConstraints(
+        result = await self._degree_path_service.get_degree_paths(
+            context.student_user_id,
             max_credit_hours_per_semester=(
                 request.max_credit_hours_per_semester
                 if request.max_credit_hours_per_semester is not None
@@ -493,16 +509,6 @@ class DegreePathsAdapter(BaseAdvisorAdapter):
             max_courses_per_semester=request.max_courses_per_semester,
             max_semesters_ahead=request.max_semesters_ahead,
             max_paths=request.max_paths,
-        )
-
-        result = plan_degree_paths(
-            progress_catalog,
-            eligibility_catalog,
-            state.attempts,
-            constraints,
-            reported_cumulative_gpa=state.reported_cumulative_gpa,
-            reported_gpa_scale=state.reported_gpa_scale,
-            reported_earned_credit_hours=state.reported_earned_credit_hours,
         )
 
         paths_dto = []
@@ -532,7 +538,7 @@ class DegreePathsAdapter(BaseAdvisorAdapter):
         )
 
         return DegreePathsResultDTO(
-            study_plan_id=str(state.study_plan_id),
+            study_plan_id=str(result.study_plan_id),
             paths=paths_dto,
             modeled_summary=modeled_summary,
             limitations=[
@@ -681,9 +687,11 @@ class WhatIfAdapter(BaseAdvisorAdapter):
         student_repository: StudentAcademicRepository,
         catalog_repository: AcademicCatalogRepository,
         context_loader: AcademicContextLoader,
+        academic_compute_limiter: AcademicComputeLimiter | None = None,
     ) -> None:
         super().__init__(student_repository, catalog_repository)
         self._context_loader = context_loader
+        self._academic_compute_limiter = academic_compute_limiter or AcademicComputeLimiter()
 
     async def execute(
         self, context: AdvisorAccessContext, request: RunWhatIfRequest
@@ -836,7 +844,11 @@ class WhatIfAdapter(BaseAdvisorAdapter):
             operations=(op,),
         )
 
-        result = evaluate_scenario(snapshot, identity)
+        result = await self._academic_compute_limiter.run(
+            lambda check_budget: evaluate_scenario(
+                snapshot, identity, check_budget=check_budget,
+            ),
+        )
 
         deltas_dto = [
             WhatIfDeltaDTO(

@@ -13,6 +13,8 @@ from app.degree_path.models import (
     PLANNING_SCOPE,
     BlockerType,
     DegreePathConstraintError,
+    DegreePathCapacityError,
+    DegreePathComputationTimeout,
     DegreePathConstraints,
     DegreePathIntegrityError,
     DegreePathOption,
@@ -213,6 +215,7 @@ class FakeStudentService:
         max_courses_per_semester: int | None = None,
         max_semesters_ahead: int = 8,
         max_paths: int = 3,
+        cancel_event=None,
     ) -> DegreePathResult:
         self.calls.append({
             "owner": owner,
@@ -623,4 +626,22 @@ def test_51_zero_semester_modeled_complete(client: TestClient, fake_service: Fak
     assert path["semesters"] == []
     assert "REACHES_MODELED_PLAN_COMPLETION" in path["reason_codes"]
     assert data["total_parent_states_expanded"] == 0
+
+
+@pytest.mark.parametrize(
+    ("error", "status", "code"),
+    [
+        (DegreePathComputationTimeout("expired"), 504, "DEGREE_PATH_COMPUTATION_TIMEOUT"),
+        (DegreePathCapacityError("busy"), 503, "DEGREE_PATH_CAPACITY_BUSY"),
+    ],
+)
+def test_bounded_degree_path_errors_are_safe_and_typed(
+    client: TestClient, fake_service: FakeStudentService,
+    error: Exception, status: int, code: str,
+) -> None:
+    fake_service.error = error
+    response = client.post("/api/v1/me/degree-paths", json={"max_credit_hours_per_semester": 15})
+    assert response.status_code == status
+    assert response.json()["error_code"] == code
+    assert "expired" not in response.text and "busy" not in response.text
 

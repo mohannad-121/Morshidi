@@ -9,6 +9,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from decimal import Decimal
+from time import monotonic
+from typing import Callable
 
 from app.degree_path.models import (
     DEFAULT_BEAM_WIDTH,
@@ -268,6 +270,8 @@ def plan_degree_paths(
     reported_cumulative_gpa: Decimal | None = None,
     reported_gpa_scale: Decimal | None = None,
     reported_earned_credit_hours: Decimal | None = None,
+    check_budget: Callable[[], None] | None = None,
+    metrics: dict[str, float | int] | None = None,
 ) -> DegreePathResult:
     """Generate and rank multi-semester degree paths deterministically.
 
@@ -290,6 +294,13 @@ def plan_degree_paths(
     """
     study_plan_id = progress_catalog.study_plan.study_plan_id
 
+    def record(name: str, started: float) -> None:
+        if metrics is not None:
+            metrics[name] = metrics.get(name, 0) + (monotonic() - started) * 1000
+
+    if check_budget is not None:
+        check_budget()
+
     # 1. Structural Integrity Checks
     if eligibility_catalog.study_plan_id != study_plan_id:
         raise DegreePathIntegrityError("Mismatched study_plan_id between progress and eligibility catalogs")
@@ -305,6 +316,7 @@ def plan_degree_paths(
         raise DegreePathConstraintError("semester_branch_width must be at least 1")
 
     # 2. Initial Academic Progress Baseline
+    phase_started = monotonic()
     initial_progress = calculate_academic_progress(
         progress_catalog,
         student_attempts,
@@ -312,6 +324,7 @@ def plan_degree_paths(
         reported_gpa_scale=reported_gpa_scale,
         reported_earned_credit_hours=reported_earned_credit_hours,
     )
+    record("initial_progress_ms", phase_started)
 
     persisted_in_progress = tuple(
         sorted(
@@ -324,6 +337,7 @@ def plan_degree_paths(
     )
 
     # Initial recommendation result to identify global review-required courses
+    phase_started = monotonic()
     initial_rec = recommend_courses(
         progress_catalog,
         eligibility_catalog,
@@ -332,6 +346,7 @@ def plan_degree_paths(
         reported_gpa_scale=reported_gpa_scale,
         reported_earned_credit_hours=reported_earned_credit_hours,
     )
+    record("recommendations_ms", phase_started)
     unresolved_review_required = tuple(
         sorted(rc.course_code for rc in initial_rec.review_required_courses)
     )
@@ -410,7 +425,10 @@ def plan_degree_paths(
     group_by_id = {rg.group_id: rg for rg in progress_catalog.requirement_groups}
 
     # 5. Deterministic Beam Search Loop
+    search_started = monotonic()
     while active_beam:
+        if check_budget is not None:
+            check_budget()
         candidates_to_expand: list[_PathState] = []
 
         # Check termination conditions for current beam states
@@ -423,6 +441,7 @@ def plan_degree_paths(
             # Priority 2: Horizon Reached
             if state.depth == constraints.max_semesters_ahead:
                 # Gather final-state blocker diagnostics
+                phase_started = monotonic()
                 final_rec = recommend_courses(
                     progress_catalog,
                     eligibility_catalog,
@@ -438,6 +457,7 @@ def plan_degree_paths(
                     final_rec,
                     constraints,
                 )
+                record("blocker_diagnostics_ms", phase_started)
 
                 finalized_states.append(
                     (state, PathStatus.HORIZON_REACHED, evidence.diagnostic_codes)
@@ -454,8 +474,13 @@ def plan_degree_paths(
         generated_children_for_depth: list[_PathState] = []
 
         for state in candidates_to_expand:
+            if check_budget is not None:
+                check_budget()
             total_parent_states_expanded += 1
+            if metrics is not None:
+                metrics["expanded_states"] = total_parent_states_expanded
 
+            phase_started = monotonic()
             rec_result = recommend_courses(
                 progress_catalog,
                 eligibility_catalog,
@@ -464,6 +489,7 @@ def plan_degree_paths(
                 reported_gpa_scale=reported_gpa_scale,
                 reported_earned_credit_hours=reported_earned_credit_hours,
             )
+            record("recommendations_ms", phase_started)
 
             planner_constraints = PlannerConstraints(
                 max_credit_hours=constraints.max_credit_hours_per_semester,
@@ -471,6 +497,7 @@ def plan_degree_paths(
                 max_options=semester_branch_width,
             )
 
+            phase_started = monotonic()
             planner_result = plan_semester(
                 progress_catalog,
                 eligibility_catalog,
@@ -481,7 +508,10 @@ def plan_degree_paths(
                 reported_cumulative_gpa=reported_cumulative_gpa,
                 reported_gpa_scale=reported_gpa_scale,
                 reported_earned_credit_hours=reported_earned_credit_hours,
+                check_budget=check_budget,
+                metrics=metrics,
             )
+            record("semester_planner_ms", phase_started)
 
             # Check if Phase 8 produced zero valid combinations
             if planner_result.valid_combination_count == 0 or not planner_result.plan_options:
@@ -526,6 +556,8 @@ def plan_degree_paths(
             current_passed_set = _completed_passed_codes(state.academic_progress)
 
             for opt in planner_result.plan_options[:semester_branch_width]:
+                if check_budget is not None:
+                    check_budget()
                 if len(opt.courses) == 0:
                     raise DegreePathIntegrityError("Child transition produces no academic-state progress")
 
@@ -543,6 +575,7 @@ def plan_degree_paths(
                 )
 
                 # Recompute Phase 6
+                phase_started = monotonic()
                 child_progress = calculate_academic_progress(
                     progress_catalog,
                     new_attempts,
@@ -550,6 +583,7 @@ def plan_degree_paths(
                     reported_gpa_scale=reported_gpa_scale,
                     reported_earned_credit_hours=reported_earned_credit_hours,
                 )
+                record("child_progress_ms", phase_started)
 
                 # Monotonicity check
                 child_passed_set = _completed_passed_codes(child_progress)
@@ -599,6 +633,7 @@ def plan_degree_paths(
 
         # 6. Deduplication of Child States at Current Depth
         # Group by AcademicStateKey = (frozenset(passed), frozenset(in_progress))
+        phase_started = monotonic()
         grouped_children: dict[tuple[frozenset[str], frozenset[str]], list[_PathState]] = {}
         for child in generated_children_for_depth:
             key = (
@@ -637,8 +672,11 @@ def plan_degree_paths(
         # Sort surviving children by partial priority tuple ascending
         surviving_children.sort(key=lambda c: _partial_priority_tuple(c, initial_progress))
         active_beam = surviving_children[:beam_width]
+        record("beam_pruning_ms", phase_started)
+    record("path_search_ms", search_started)
 
     # 8. Post-Process Finalized States into DegreePathOption instances
+    phase_started = monotonic()
     if not finalized_states:
         # Fallback: initial state as no-valid-next-plan if nothing generated
         finalized_states.append((initial_state, PathStatus.NO_VALID_NEXT_PLAN, ()))
@@ -820,6 +858,7 @@ def plan_degree_paths(
 
     # 11. Presentation Truncation (max_paths)
     final_paths = tuple(ranked_options[:constraints.max_paths])
+    record("path_ranking_ms", phase_started)
 
     return DegreePathResult(
         study_plan_id=study_plan_id,

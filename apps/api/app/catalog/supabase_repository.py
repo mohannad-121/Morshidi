@@ -3,11 +3,14 @@
 from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
+import logging
+from time import perf_counter
 from typing import Any
 from uuid import UUID
 
 import httpx
 
+from app.core.request_timing import request_id_context
 from app.advisor.models import ResolvedCourseReference
 from app.catalog.errors import (
     CatalogIntegrityError,
@@ -330,6 +333,7 @@ class SupabaseAcademicCatalogRepository:
                     options_by_group[gid].append(identity)
                     option_identities.append(identity)
 
+        mapping_started = perf_counter()
         # Index groups by study_plan_course_id
         groups_by_pc: dict[str, list[Mapping[str, Any]]] = {pid: [] for pid in plan_course_ids}
         for grow in group_rows:
@@ -426,6 +430,10 @@ class SupabaseAcademicCatalogRepository:
 
         all_identities = _sorted_unique_course_identities(
             (*plan_course_identities, *option_identities)
+        )
+        logging.getLogger("uvicorn.error").info(
+            "degree_path_phase request_id=%s phase=prerequisite_graph_creation_ms value=%.1f",
+            request_id_context.get(), (perf_counter() - mapping_started) * 1000,
         )
         return CanTakeCatalog(
             study_plan_id=plan_id,

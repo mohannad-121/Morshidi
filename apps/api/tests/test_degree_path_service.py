@@ -1,6 +1,9 @@
 """StudentService degree path planner orchestration unit tests (Phase 9.3)."""
 
+import asyncio
 from decimal import Decimal
+from threading import Event
+from time import sleep
 from unittest.mock import patch
 import pytest
 
@@ -8,6 +11,8 @@ from app.degree_path.models import (
     DEFAULT_BEAM_WIDTH,
     DEFAULT_SEMESTER_BRANCH_WIDTH,
     DegreePathConstraintError,
+    DegreePathCapacityError,
+    DegreePathComputationTimeout,
     DegreePathConstraints,
     DegreePathIntegrityError,
     DegreePathResult,
@@ -420,3 +425,56 @@ async def test_14_zero_semester_modeled_complete_service() -> None:
     assert path.semesters == ()
     assert any(rc.value == "REACHES_MODELED_PLAN_COMPLETION" for rc in path.reason_codes)
     assert res.total_parent_states_expanded == 0
+
+
+@pytest.mark.anyio
+async def test_degree_path_worker_does_not_block_event_loop_and_limits_overlap() -> None:
+    p_cat, e_cat = _make_catalogs()
+    service = StudentService(
+        FakeStudentRepository(_make_state()), None, FakeCatalogRepository(p_cat, e_cat)
+    )  # type: ignore[arg-type]
+    entered = Event()
+    release = Event()
+
+    def slow_plan(*args, **kwargs):
+        entered.set()
+        assert release.wait(2)
+        return "result"
+
+    with patch("app.services.student.plan_degree_paths", side_effect=slow_plan):
+        first = asyncio.create_task(service.get_degree_paths(OWNER, max_credit_hours_per_semester=Decimal("15")))
+        try:
+            assert await asyncio.to_thread(entered.wait, 1)
+            await asyncio.wait_for(asyncio.sleep(0.01), 0.5)
+            with pytest.raises(DegreePathCapacityError):
+                await service.get_degree_paths(OWNER, max_credit_hours_per_semester=Decimal("15"))
+        finally:
+            release.set()
+        assert await first == "result"
+
+
+@pytest.mark.anyio
+async def test_degree_path_deadline_stops_worker_and_releases_capacity() -> None:
+    p_cat, e_cat = _make_catalogs()
+    service = StudentService(
+        FakeStudentRepository(_make_state()), None, FakeCatalogRepository(p_cat, e_cat)
+    )  # type: ignore[arg-type]
+    entered = Event()
+
+    def cooperative_plan(*args, **kwargs):
+        entered.set()
+        while True:
+            kwargs["check_budget"]()
+            sleep(0.001)
+
+    with patch("app.services.student.DEGREE_PATH_BUDGET_SECONDS", 0.05), patch(
+        "app.services.student.plan_degree_paths", side_effect=cooperative_plan
+    ):
+        with pytest.raises(DegreePathComputationTimeout):
+            await service.get_degree_paths(OWNER, max_credit_hours_per_semester=Decimal("15"))
+        assert entered.is_set()
+        for _ in range(100):
+            if service._academic_compute_limiter.in_use == 0:
+                break
+            await asyncio.sleep(0.005)
+        assert service._academic_compute_limiter.in_use == 0

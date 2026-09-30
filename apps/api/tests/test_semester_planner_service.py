@@ -259,3 +259,38 @@ async def test_11_plan_id_mismatch_raises_integrity_error() -> None:
     with pytest.raises(PlannerIntegrityError):
         await service.get_semester_plans(OWNER, max_credit_hours=Decimal("15"))
 
+
+@pytest.mark.anyio
+async def test_planner_cpu_is_offloaded_and_shares_capacity() -> None:
+    import asyncio
+    from threading import Event
+    from time import perf_counter
+    from unittest.mock import patch
+
+    from app.degree_path.models import DegreePathCapacityError
+    from app.planner.engine import plan_semester as real_plan_semester
+
+    service, _, _ = _make_service(state=_make_state())
+    entered = Event()
+    release = Event()
+
+    def slow_plan(*args, **kwargs):
+        entered.set()
+        assert release.wait(2)
+        return real_plan_semester(*args, **kwargs)
+
+    with patch("app.services.student.plan_semester", side_effect=slow_plan):
+        first = asyncio.create_task(service.get_semester_plans(
+            OWNER, max_credit_hours=Decimal("15"),
+        ))
+        try:
+            assert await asyncio.to_thread(entered.wait, 1)
+            started = perf_counter()
+            await asyncio.wait_for(asyncio.sleep(0.01), 0.5)
+            assert perf_counter() - started < 0.5
+            with pytest.raises(DegreePathCapacityError):
+                await service.get_semester_plans(OWNER, max_credit_hours=Decimal("15"))
+        finally:
+            release.set()
+        assert isinstance(await first, SemesterPlannerResult)
+

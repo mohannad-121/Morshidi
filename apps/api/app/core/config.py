@@ -1,4 +1,5 @@
 from pydantic import SecretStr
+from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -19,6 +20,7 @@ class Settings(BaseSettings):
     mock_registration_minimum_disclosure_group_size: int = 3
     mock_registration_max_intents: int = 1000
     mock_registration_max_catalog_courses: int = 10000
+    academic_compute_max_concurrent: int = Field(default=1, ge=1, le=4)
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 

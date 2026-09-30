@@ -16,6 +16,7 @@ from app.academic_digital_twin.comparison import (
 )
 from app.academic_digital_twin.deltas import delay_delta, extract_deltas
 from app.academic_digital_twin.engine import evaluate_scenario
+from app.degree_path.models import DegreePathComputationTimeout
 from app.academic_digital_twin.fingerprint import calculate_base_state_fingerprint
 from app.academic_digital_twin.models import (
     AuthoritativeAcademicSnapshot,
@@ -167,6 +168,21 @@ def test_valid_completion_uses_separate_modeled_pass_and_recomputes():
     assert result.base_outputs is not None and result.modeled_outputs is not None
     assert snapshot == original
     assert snapshot.attempts == ()
+
+
+def test_what_if_propagates_bounded_degree_path_cancellation() -> None:
+    snapshot = _snapshot()
+    calls = 0
+
+    def check_budget() -> None:
+        nonlocal calls
+        calls += 1
+        if calls >= 4:
+            raise DegreePathComputationTimeout("expired")
+
+    with pytest.raises(DegreePathComputationTimeout):
+        evaluate_scenario(snapshot, _identity(snapshot, _completion("A")), check_budget=check_budget)
+    assert calls >= 4
 
 
 def test_elective_with_remaining_need_is_supported():

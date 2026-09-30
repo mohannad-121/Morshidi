@@ -4,7 +4,7 @@ from decimal import Decimal
 
 import pytest
 
-from app.progress.engine import calculate_academic_progress
+from app.progress.engine import calculate_academic_progress, prepare_progress_projection
 from app.progress.models import (
     AcademicProgressCatalog,
     CourseProgressState,
@@ -56,6 +56,41 @@ def by_course(progress):
 
 def by_group(progress):
     return {row.group_code: row for row in progress.requirement_groups}
+
+
+@pytest.mark.parametrize("total", ["9", "12"])
+@pytest.mark.parametrize(
+    "history",
+    [
+        (),
+        (("R1", AttemptOutcome.PASSED),),
+        (("E1", AttemptOutcome.PASSED), ("R2", AttemptOutcome.IN_PROGRESS)),
+        (("R1", AttemptOutcome.PASSED), ("R2", AttemptOutcome.PASSED)),
+        (("R-ZERO", AttemptOutcome.FAILED), ("E3", AttemptOutcome.WITHDRAWN)),
+    ],
+)
+def test_projected_passes_match_full_phase6_recalculation(total, history) -> None:
+    from itertools import combinations
+
+    progress_catalog = catalog(total)
+    baseline_attempts = attempts(*history)
+    baseline = calculate_academic_progress(progress_catalog, baseline_attempts)
+    projection = prepare_progress_projection(baseline)
+    codes = tuple(course.course_code for course in progress_catalog.plan_courses)
+    for size in range(len(codes) + 1):
+        for selected in combinations(codes, size):
+            projected_delta, projected_groups = projection.selected_passes(set(selected))
+            hypothetical = calculate_academic_progress(
+                progress_catalog,
+                baseline_attempts + attempts(*((code, AttemptOutcome.PASSED) for code in selected)),
+            )
+            expected_groups = tuple(
+                group.group_code
+                for group, original in zip(hypothetical.requirement_groups, baseline.requirement_groups)
+                if group.is_satisfied and not original.is_satisfied
+            )
+            assert projected_delta == hypothetical.completed_plan_credits - baseline.completed_plan_credits
+            assert projected_groups == expected_groups
 
 
 def test_no_attempts_marks_every_plan_course_not_attempted() -> None:

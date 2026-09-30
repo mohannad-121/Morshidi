@@ -8,6 +8,7 @@ existing Phase 5-9 engines.
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import Callable
 from decimal import Decimal
 
 from app.advisor.models import (
@@ -73,6 +74,7 @@ class AdvisorContext:
     reported_gpa_scale: Decimal | None = None
     reported_earned_credit_hours: Decimal | None = None
     comparison_result: ComparisonResult | None = None
+    check_budget: Callable[[], None] | None = None
 
     def __post_init__(self) -> None:
         if self.progress_catalog is not None and self.eligibility_catalog is not None:
@@ -287,6 +289,7 @@ def _semester_result(
         reported_cumulative_gpa=context.reported_cumulative_gpa,
         reported_gpa_scale=context.reported_gpa_scale,
         reported_earned_credit_hours=context.reported_earned_credit_hours,
+        **({"check_budget": context.check_budget} if context.check_budget is not None else {}),
     )
     recommendation_evidence = _recommendation_evidence(recommendations)
     planner_evidence = _semester_evidence(planner_result)
@@ -338,6 +341,7 @@ def _degree_path_result(
         reported_cumulative_gpa=context.reported_cumulative_gpa,
         reported_gpa_scale=context.reported_gpa_scale,
         reported_earned_credit_hours=context.reported_earned_credit_hours,
+        **({"check_budget": context.check_budget} if context.check_budget is not None else {}),
     )
     evidence: list[AdvisorEvidence] = [_degree_path_evidence(result)]
     catalog_review_evidence = _review_status_evidence(result, context.eligibility_catalog)

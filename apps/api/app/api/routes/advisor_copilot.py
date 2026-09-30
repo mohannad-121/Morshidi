@@ -47,6 +47,7 @@ CopilotServiceDependency = Annotated[AdvisorCopilotService, Depends(get_advisor_
         404: {"description": "Scoped student academic resource is unavailable"},
         422: {"description": "Tool input parameters or tool identifier are invalid"},
         503: {"description": "Storage or upstream service is unavailable"},
+        504: {"description": "Academic computation timed out"},
     },
 )
 async def execute_advisor_tool(

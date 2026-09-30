@@ -35,6 +35,14 @@ class DegreePathIntegrityError(RuntimeError):
     """Raised when input catalogs, student history, or search transitions violate integrity invariants."""
 
 
+class DegreePathComputationTimeout(RuntimeError):
+    """Raised when a bounded degree-path calculation expires or is cancelled."""
+
+
+class DegreePathCapacityError(RuntimeError):
+    """Raised when this worker is already calculating a degree path."""
+
+
 # ---------------------------------------------------------------------------
 # Enums
 # ---------------------------------------------------------------------------

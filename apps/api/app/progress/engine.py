@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from collections import defaultdict
+from dataclasses import dataclass
 from decimal import Decimal
 
 from app.progress.models import (
@@ -17,6 +18,55 @@ from app.progress.models import (
 from app.rules.models import AttemptOutcome, StudentCourseAttempt
 
 ZERO = Decimal("0")
+
+
+@dataclass(frozen=True)
+class ProgressProjection:
+    """Project selected PASSED plan courses from a validated Phase 6 baseline.
+
+    Semester planning needs only the credited-plan delta and newly satisfied
+    groups. Re-evaluating the entire catalog for every combination is redundant:
+    PASSED can change only the selected courses' groups.
+    """
+
+    baseline: AcademicProgress
+    course_by_code: dict[str, CourseProgress]
+
+    def selected_passes(self, selected_codes: set[str]) -> tuple[Decimal, tuple[str, ...]]:
+        added_credits: dict[str, Decimal] = defaultdict(lambda: ZERO)
+        added_counts: dict[str, int] = defaultdict(int)
+        for code in selected_codes:
+            course = self.course_by_code.get(code)
+            if course is None or course.state is CourseProgressState.COMPLETED:
+                continue
+            added_credits[course.requirement_group_id] += course.credit_hours
+            added_counts[course.requirement_group_id] += 1
+
+        credited_sum = ZERO
+        newly_satisfied: list[str] = []
+        for group in self.baseline.requirement_groups:
+            completed = group.completed_listed_credits + added_credits[group.group_id]
+            credited = min(completed, group.required_credits)
+            credited_sum += credited
+            completed_count = group.completed_course_count + added_counts[group.group_id]
+            satisfied = credited >= group.required_credits and (
+                group.requirement_type is RequirementType.ELECTIVE
+                or completed_count == group.total_listed_course_count
+            )
+            if satisfied and not group.is_satisfied:
+                newly_satisfied.append(group.group_code)
+
+        completed_plan = min(credited_sum, self.baseline.plan_total_required_credits)
+        return completed_plan - self.baseline.completed_plan_credits, tuple(newly_satisfied)
+
+
+def prepare_progress_projection(baseline: AcademicProgress) -> ProgressProjection:
+    """Reuse the fully validated progress result for repeated hypothetical passes."""
+
+    return ProgressProjection(
+        baseline=baseline,
+        course_by_code={course.course_code: course for course in baseline.courses},
+    )
 
 
 def calculate_academic_progress(

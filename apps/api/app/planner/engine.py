@@ -9,6 +9,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from decimal import Decimal
+from time import monotonic
+from typing import Callable
 
 from app.planner.models import (
     DEFAULT_CANDIDATE_WINDOW_SIZE,
@@ -22,7 +24,7 @@ from app.planner.models import (
     SemesterPlanOption,
     SemesterPlannerResult,
 )
-from app.progress.engine import calculate_academic_progress
+from app.progress.engine import calculate_academic_progress, prepare_progress_projection
 from app.progress.models import (
     AcademicProgressCatalog,
     CourseProgressState,
@@ -39,6 +41,8 @@ from app.rules.models import (
     CanTakeDecision,
     CanTakeRequest,
     Decision,
+    DependencyType,
+    PrerequisiteLogicStatus,
     StudentCourseAttempt,
 )
 
@@ -104,6 +108,8 @@ def plan_semester(
     reported_cumulative_gpa: Decimal | None = None,
     reported_gpa_scale: Decimal | None = None,
     reported_earned_credit_hours: Decimal | None = None,
+    check_budget: Callable[[], None] | None = None,
+    metrics: dict[str, float | int] | None = None,
 ) -> SemesterPlannerResult:
     """Generate and rank optimal semester course combinations deterministically.
 
@@ -126,6 +132,13 @@ def plan_semester(
         raise PlannerConstraintError("candidate_window_size must be an integer")
     if candidate_window_size < 1:
         raise PlannerConstraintError("candidate_window_size must be at least 1")
+
+    def record(name: str, started: float) -> None:
+        if metrics is not None:
+            metrics[name] = metrics.get(name, 0) + (monotonic() - started) * 1000
+
+    if check_budget is not None:
+        check_budget()
 
     study_plan_id = progress_catalog.study_plan.study_plan_id
 
@@ -170,6 +183,7 @@ def plan_semester(
         )
 
     # 3. Current Academic Baseline
+    phase_started = monotonic()
     baseline_progress = calculate_academic_progress(
         progress_catalog,
         student_attempts,
@@ -177,7 +191,7 @@ def plan_semester(
         reported_gpa_scale=reported_gpa_scale,
         reported_earned_credit_hours=reported_earned_credit_hours,
     )
-    baseline_group_satisfied = {gp.group_id: gp.is_satisfied for gp in baseline_progress.requirement_groups}
+    progress_projection = prepare_progress_projection(baseline_progress)
 
     # Identify incomplete plan courses and baseline eligible courses
     completed_or_ip_codes = {
@@ -191,9 +205,13 @@ def plan_semester(
         for pc in progress_catalog.plan_courses
         if pc.course_code not in completed_or_ip_codes
     ]
+    record("remaining_courses_ms", phase_started)
 
+    phase_started = monotonic()
     baseline_eligible_codes: set[str] = set()
     for code in incomplete_plan_courses:
+        if check_budget is not None:
+            check_budget()
         decision = evaluate_can_take(
             eligibility_catalog,
             CanTakeRequest(
@@ -204,11 +222,35 @@ def plan_semester(
         )
         if isinstance(decision, CanTakeDecision) and decision.decision is Decision.ELIGIBLE:
             baseline_eligible_codes.add(code)
+    record("baseline_eligibility_ms", phase_started)
+
+    # A selected course can unlock only targets that cite it as a prerequisite.
+    # Keep the authoritative evaluator for those targets; this index only avoids
+    # repeating decisions that cannot change from the baseline.
+    unlock_targets_by_option: dict[str, set[str]] = {}
+    incomplete_codes = set(incomplete_plan_courses)
+    for rule in eligibility_catalog.plan_courses:
+        if (
+            rule.course_code not in incomplete_codes
+            or rule.course_code in baseline_eligible_codes
+            or rule.prerequisite_logic_status is not PrerequisiteLogicStatus.VERIFIED
+        ):
+            continue
+        for group in rule.dependency_groups:
+            if group.dependency_type is DependencyType.PREREQUISITE:
+                for option_code in group.option_course_codes:
+                    unlock_targets_by_option.setdefault(option_code, set()).add(rule.course_code)
 
     # 4. Deterministic Depth-First Branch-and-Bound Search
+    phase_started = monotonic()
     valid_combinations: list[tuple[RecommendationCandidate, ...]] = []
+    visited_nodes = 0
 
     def _dfs(index: int, current_courses: list[RecommendationCandidate], current_credits: Decimal) -> None:
+        nonlocal visited_nodes
+        visited_nodes += 1
+        if check_budget is not None and visited_nodes % 128 == 0:
+            check_budget()
         if index == len(candidate_pool):
             if current_courses:
                 valid_combinations.append(tuple(current_courses))
@@ -232,6 +274,9 @@ def plan_semester(
         _dfs(index + 1, current_courses, current_credits)
 
     _dfs(0, [], Decimal("0"))
+    record("combination_generation_ms", phase_started)
+    if metrics is not None:
+        metrics["valid_combinations"] = metrics.get("valid_combinations", 0) + len(valid_combinations)
 
     # Empty valid combinations edge case
     if not valid_combinations:
@@ -255,6 +300,8 @@ def plan_semester(
     evaluated_combinations: list[_EvaluatedCombination] = []
 
     for combination in valid_combinations:
+        if check_budget is not None:
+            check_budget()
         plan_course_codes = {c.course_code for c in combination}
 
         # Construct in-memory synthetic PASSED attempts
@@ -265,29 +312,19 @@ def plan_semester(
         combined_attempts = student_attempts + synthetic_attempts
 
         # Phase 6 Progress Simulation
-        hypo_progress = calculate_academic_progress(
-            progress_catalog,
-            combined_attempts,
-            reported_cumulative_gpa=reported_cumulative_gpa,
-            reported_gpa_scale=reported_gpa_scale,
-            reported_earned_credit_hours=reported_earned_credit_hours,
-        )
-        credit_delta = hypo_progress.completed_plan_credits - baseline_progress.completed_plan_credits
-
-        # Newly satisfied requirement groups
-        newly_satisfied_groups = tuple(
-            gp.group_code
-            for gp in hypo_progress.requirement_groups
-            if not baseline_group_satisfied.get(gp.group_id, False) and gp.is_satisfied
-        )
+        phase_started = monotonic()
+        credit_delta, newly_satisfied_groups = progress_projection.selected_passes(plan_course_codes)
         newly_satisfied_group_count = len(newly_satisfied_groups)
+        record("semester_simulation_ms", phase_started)
 
         # Phase 5 Eligibility Simulation (Unlocks)
+        phase_started = monotonic()
         newly_unlocked: list[str] = []
-        for target_code in incomplete_plan_courses:
+        affected_targets: set[str] = set()
+        for selected_code in plan_course_codes:
+            affected_targets.update(unlock_targets_by_option.get(selected_code, ()))
+        for target_code in sorted(affected_targets):
             if target_code in plan_course_codes:
-                continue
-            if target_code in baseline_eligible_codes:
                 continue
 
             target_decision = evaluate_can_take(
@@ -303,8 +340,10 @@ def plan_semester(
 
         newly_eligible_course_codes = tuple(sorted(newly_unlocked))
         newly_eligible_count = len(newly_eligible_course_codes)
+        record("eligibility_calculation_ms", phase_started)
 
         # Plan metric calculations
+        phase_started = monotonic()
         total_credit_hours = sum((c.credit_hours for c in combination), Decimal("0"))
         total_courses = len(combination)
         mandatory_course_count = sum(
@@ -369,8 +408,10 @@ def plan_semester(
                 has_previously_attempted=has_previously_attempted,
             )
         )
+        record("scenario_generation_ms", phase_started)
 
     # 6. Global Maximum Modeled Credit Progress Across ALL Valid Combinations
+    phase_started = monotonic()
     max_modeled_credit_delta = max(
         (item.modeled_credit_delta for item in evaluated_combinations),
         default=Decimal("0"),
@@ -444,6 +485,7 @@ def plan_semester(
         )
         for idx, item in enumerate(top_k)
     )
+    record("path_ranking_ms", phase_started)
 
     return SemesterPlannerResult(
         study_plan_id=study_plan_id,

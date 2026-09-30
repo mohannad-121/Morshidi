@@ -1,5 +1,8 @@
 """Authenticated self-service profile, attempt, and eligibility routes."""
 
+import asyncio
+from contextlib import suppress
+from threading import Event
 from typing import Annotated
 from uuid import UUID
 
@@ -46,6 +49,42 @@ def get_student_service(request: Request) -> StudentService:
 
 
 StudentServiceDependency = Annotated[StudentService, Depends(get_student_service)]
+
+
+async def _watch_degree_path_disconnect(request: Request, cancelled: Event) -> None:
+    """Signal the pure search loop when a client leaves after request parsing."""
+    while True:
+        # Request.is_disconnected() uses an immediately-cancelled AnyIO scope,
+        # which can swallow cancellation from our cleanup on some ASGI receives.
+        message = await request.receive()
+        if message["type"] == "http.disconnect":
+            cancelled.set()
+            return
+
+
+async def _request_degree_path(
+    request: DegreePathRequest,
+    user: CurrentUser,
+    service: StudentService,
+    http_request: Request,
+) -> DegreePathResult:
+    cancelled = Event()
+    watcher = asyncio.create_task(
+        _watch_degree_path_disconnect(http_request, cancelled), name="degree-path-disconnect",
+    )
+    try:
+        return await service.get_degree_paths(
+            user.user_id,
+            max_credit_hours_per_semester=request.max_credit_hours_per_semester,
+            max_courses_per_semester=request.max_courses_per_semester,
+            max_semesters_ahead=request.max_semesters_ahead,
+            max_paths=request.max_paths,
+            cancel_event=cancelled,
+        )
+    finally:
+        watcher.cancel()
+        with suppress(asyncio.CancelledError):
+            await watcher
 
 
 @router.get("/academic-profile", response_model=AcademicProfileResponse)
@@ -239,13 +278,7 @@ async def create_degree_paths(
     import logging
 
     started = perf_counter()
-    result = await service.get_degree_paths(
-        user.user_id,
-        max_credit_hours_per_semester=request.max_credit_hours_per_semester,
-        max_courses_per_semester=request.max_courses_per_semester,
-        max_semesters_ahead=request.max_semesters_ahead,
-        max_paths=request.max_paths,
-    )
+    result = await _request_degree_path(request, user, service, http_request)
     service_ms = (perf_counter() - started) * 1000
     response = _degree_path_response(result)
     logging.getLogger(__name__).info(
@@ -268,12 +301,7 @@ async def create_degree_paths_explanation_graph(
 ) -> ExplainabilityGraph:
     if http_request.query_params:
         raise HTTPException(status_code=422, detail="Unsupported graph query parameter")
-    result = await service.get_degree_paths(
-        user.user_id,
-        max_credit_hours_per_semester=request.max_credit_hours_per_semester,
-        max_courses_per_semester=request.max_courses_per_semester,
-        max_semesters_ahead=request.max_semesters_ahead, max_paths=request.max_paths,
-    )
+    result = await _request_degree_path(request, user, service, http_request)
     try:
         return build_degree_path_graph(result)
     except ValueError as error:

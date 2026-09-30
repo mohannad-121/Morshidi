@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import replace
+from typing import Callable
 
 from app.academic_digital_twin.deltas import delay_delta, extract_deltas
 from app.academic_digital_twin.models import (
@@ -67,8 +68,12 @@ def build_scenario_context(
 def evaluate_scenario(
     snapshot: AuthoritativeAcademicSnapshot,
     identity: ScenarioIdentity,
+    *,
+    check_budget: Callable[[], None] | None = None,
 ) -> DigitalTwinEvaluationResult:
     """Validate atomically, then run unchanged domain engines over isolated tuples."""
+    if check_budget is not None:
+        check_budget()
     context = build_scenario_context(snapshot, identity)
     failure_status, issues = validate_scenario(snapshot, identity)
     base_summary = _summary(StateKind.AUTHORITATIVE_STATE, snapshot.current_progress, len(snapshot.attempts))
@@ -109,6 +114,7 @@ def evaluate_scenario(
         snapshot.baseline_path_constraints,
         identity.scenario_id,
         StateKind.AUTHORITATIVE_STATE,
+        check_budget=check_budget,
     )
 
     if structural_operation and structural_operation.operation_id == OperationId.OMIT_NEXT_PLAN_COURSE.value:
@@ -167,6 +173,7 @@ def evaluate_scenario(
         path_constraints,
         identity.scenario_id,
         StateKind.MODELED_STATE,
+        check_budget=check_budget,
     )
     modeled_summary = _summary(StateKind.MODELED_STATE, modeled_outputs.progress, len(attempts))
     deltas = extract_deltas(base_outputs, modeled_outputs)
@@ -186,7 +193,12 @@ def evaluate_scenario(
     )
 
 
-def _compute_outputs(snapshot, attempts, planner_constraints, path_constraints, scenario_id, kind):
+def _compute_outputs(
+    snapshot, attempts, planner_constraints, path_constraints, scenario_id, kind,
+    *, check_budget: Callable[[], None] | None = None,
+):
+    if check_budget is not None:
+        check_budget()
     progress = calculate_academic_progress(snapshot.progress_catalog, attempts)
     eligibility = []
     for course in sorted(snapshot.progress_catalog.plan_courses, key=lambda item: item.course_code):
@@ -216,12 +228,14 @@ def _compute_outputs(snapshot, attempts, planner_constraints, path_constraints, 
         attempts,
         recommendations,
         planner_constraints,
+        check_budget=check_budget,
     )
     path = plan_degree_paths(
         snapshot.progress_catalog,
         snapshot.eligibility_catalog,
         attempts,
         path_constraints,
+        check_budget=check_budget,
     )
     return EngineOutputs(
         tuple(eligibility),

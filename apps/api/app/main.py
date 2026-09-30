@@ -61,6 +61,8 @@ from app.catalog.errors import (
 )
 from app.catalog.supabase_repository import SupabaseAcademicCatalogRepository
 from app.core.config import settings
+from app.core.academic_compute import AcademicComputeLimiter
+from app.core.request_timing import RequestTimingMiddleware
 from app.services.eligibility import EligibilityConfigurationError, EligibilityService
 from app.services.student import StudentConfigurationError, StudentService
 from app.services.advisor import (
@@ -77,6 +79,8 @@ from app.student.supabase_repository import SupabaseStudentAcademicRepository
 from app.progress.models import ProgressIntegrityError
 from app.planner.models import PlannerIntegrityError
 from app.degree_path.models import (
+    DegreePathCapacityError,
+    DegreePathComputationTimeout,
     DegreePathConstraintError,
     DegreePathIntegrityError,
 )
@@ -148,6 +152,8 @@ async def lifespan(application: FastAPI):
     """Own one reusable server-side Data API client for the application lifetime."""
 
     client = httpx.AsyncClient()
+    academic_compute_limiter = AcademicComputeLimiter(settings.academic_compute_max_concurrent)
+    application.state.academic_compute_limiter = academic_compute_limiter
     application.state.catalog_http_client = client
     application.state.auth_http_client = client
     application.state.eligibility_service = None
@@ -179,6 +185,7 @@ async def lifespan(application: FastAPI):
             student_repository,
             application.state.eligibility_service,
             repository,
+            academic_compute_limiter,
         )
         advisor_provider, explanation_provider = build_advisor_providers(client)
         application.state.advisor_service = AdvisorService(
@@ -186,6 +193,7 @@ async def lifespan(application: FastAPI):
             repository,
             advisor_provider,
             explanation_provider,
+            academic_compute_limiter,
         )
         persistence = SupabaseMockRegistrationRepository(
             settings.supabase_url, settings.supabase_secret_key.get_secret_value(), client)
@@ -218,6 +226,7 @@ async def lifespan(application: FastAPI):
             application.state.eligibility_service,
             mock_registration_reader=advisor_mock_reg_reader,
             context_loader=context_loader,
+            academic_compute_limiter=academic_compute_limiter,
         )
         privacy_fields = {
             "mock_registration_minimum_disclosure_group_size",
@@ -272,6 +281,7 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+app.add_middleware(RequestTimingMiddleware)
 
 app.include_router(health_router)
 app.include_router(eligibility_router)
@@ -416,6 +426,20 @@ async def handle_catalog_integrity(_: Request, __: Exception) -> JSONResponse:
 @app.exception_handler(DegreePathConstraintError)
 async def handle_degree_path_constraint(_: Request, exc: DegreePathConstraintError) -> JSONResponse:
     return _catalog_error_response("DEGREE_PATH_CONSTRAINT_INVALID", str(exc), 422)
+
+
+@app.exception_handler(DegreePathComputationTimeout)
+async def handle_degree_path_timeout(_: Request, __: DegreePathComputationTimeout) -> JSONResponse:
+    return _catalog_error_response(
+        "DEGREE_PATH_COMPUTATION_TIMEOUT", "Degree path computation timed out", 504,
+    )
+
+
+@app.exception_handler(DegreePathCapacityError)
+async def handle_degree_path_capacity(_: Request, __: DegreePathCapacityError) -> JSONResponse:
+    return _catalog_error_response(
+        "DEGREE_PATH_CAPACITY_BUSY", "Degree path calculation is already running", 503,
+    )
 
 
 @app.exception_handler(CatalogTransportError)

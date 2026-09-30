@@ -16,6 +16,8 @@ class AdvisorCopilotServiceErrorCode(str, Enum):
     PERSISTENCE_UNAVAILABLE = "PERSISTENCE_UNAVAILABLE"
     DOMAIN_VALIDATION_FAILED = "DOMAIN_VALIDATION_FAILED"
     INTERNAL_ERROR = "INTERNAL_ERROR"
+    COMPUTE_CAPACITY_BUSY = "COMPUTE_CAPACITY_BUSY"
+    COMPUTATION_TIMEOUT = "COMPUTATION_TIMEOUT"
 
 
 HTTP_STATUS: dict[AdvisorCopilotServiceErrorCode, int] = {
@@ -27,6 +29,8 @@ HTTP_STATUS: dict[AdvisorCopilotServiceErrorCode, int] = {
     AdvisorCopilotServiceErrorCode.PERSISTENCE_UNAVAILABLE: 503,
     AdvisorCopilotServiceErrorCode.DOMAIN_VALIDATION_FAILED: 422,
     AdvisorCopilotServiceErrorCode.INTERNAL_ERROR: 500,
+    AdvisorCopilotServiceErrorCode.COMPUTE_CAPACITY_BUSY: 503,
+    AdvisorCopilotServiceErrorCode.COMPUTATION_TIMEOUT: 504,
 }
 
 ERROR_MESSAGES: dict[AdvisorCopilotServiceErrorCode, str] = {
@@ -38,6 +42,8 @@ ERROR_MESSAGES: dict[AdvisorCopilotServiceErrorCode, str] = {
     AdvisorCopilotServiceErrorCode.PERSISTENCE_UNAVAILABLE: "Advisor storage or dependency is unavailable",
     AdvisorCopilotServiceErrorCode.DOMAIN_VALIDATION_FAILED: "Domain operation validation failed",
     AdvisorCopilotServiceErrorCode.INTERNAL_ERROR: "An internal error occurred during tool execution",
+    AdvisorCopilotServiceErrorCode.COMPUTE_CAPACITY_BUSY: "Academic computation capacity is busy",
+    AdvisorCopilotServiceErrorCode.COMPUTATION_TIMEOUT: "Academic computation timed out",
 }
 
 

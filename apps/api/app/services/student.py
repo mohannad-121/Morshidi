@@ -1,11 +1,17 @@
 """Ownership-safe orchestration for self-service student operations."""
 
+import asyncio
 from decimal import Decimal
+import logging
+from threading import Event
+from time import monotonic, perf_counter
 from typing import Any
 from uuid import UUID
 
 from app.degree_path.engine import plan_degree_paths
 from app.degree_path.models import (
+    DegreePathCapacityError,
+    DegreePathComputationTimeout,
     DegreePathConstraints,
     DegreePathResult,
 )
@@ -18,6 +24,8 @@ from app.planner.models import (
 from app.rules.evaluator import CanTakeResult
 from app.rules.models import AttemptOutcome
 from app.catalog.repository import AcademicCatalogRepository
+from app.core.request_timing import request_id_context
+from app.core.academic_compute import AcademicComputeLimiter
 from app.progress.engine import calculate_academic_progress
 from app.progress.models import AcademicProgress
 from app.recommendations.engine import recommend_courses
@@ -32,16 +40,22 @@ class StudentConfigurationError(RuntimeError):
     """The server-side student repository has not been configured."""
 
 
+DEGREE_PATH_BUDGET_SECONDS = 50.0
+logger = logging.getLogger("uvicorn.error")
+
+
 class StudentService:
     def __init__(
         self,
         repository: SupabaseStudentAcademicRepository,
         eligibility: EligibilityService,
         catalog_repository: AcademicCatalogRepository,
+        academic_compute_limiter: AcademicComputeLimiter | None = None,
     ) -> None:
         self._repository = repository
         self._eligibility = eligibility
         self._catalog_repository = catalog_repository
+        self._academic_compute_limiter = academic_compute_limiter or AcademicComputeLimiter()
 
     async def get_profile(self, owner: str) -> StudentAcademicState:
         return await self._repository.load_student_academic_state(owner)
@@ -168,16 +182,19 @@ class StudentService:
             max_options=max_options,
         )
 
-        return plan_semester(
-            progress_catalog,
-            eligibility_catalog,
-            state.attempts,
-            full_recommendations,
-            constraints,
-            candidate_window_size=candidate_window_size,
-            reported_cumulative_gpa=state.reported_cumulative_gpa,
-            reported_gpa_scale=state.reported_gpa_scale,
-            reported_earned_credit_hours=state.reported_earned_credit_hours,
+        return await self._academic_compute_limiter.run(
+            lambda check_budget: plan_semester(
+                progress_catalog,
+                eligibility_catalog,
+                state.attempts,
+                full_recommendations,
+                constraints,
+                candidate_window_size=candidate_window_size,
+                reported_cumulative_gpa=state.reported_cumulative_gpa,
+                reported_gpa_scale=state.reported_gpa_scale,
+                reported_earned_credit_hours=state.reported_earned_credit_hours,
+                check_budget=check_budget,
+            ),
         )
 
     async def get_degree_paths(
@@ -188,6 +205,7 @@ class StudentService:
         max_courses_per_semester: int | None = None,
         max_semesters_ahead: int = 8,
         max_paths: int = 3,
+        cancel_event: Event | None = None,
     ) -> DegreePathResult:
         """Deterministically generate multi-semester degree paths for the authenticated student.
 
@@ -195,43 +213,82 @@ class StudentService:
         constructs DegreePathConstraints from user parameters, and invokes the pure engine.
         Internal engine parameters (beam_width, semester_branch_width) remain engine defaults.
         """
-        from time import perf_counter
-        import logging
-        import asyncio
-
         started = perf_counter()
-        state = await self.get_profile(owner)
-        profile_ms = (perf_counter() - started) * 1000
-        async def timed_catalog(load):
-            phase_started = perf_counter()
-            value = await load(state.study_plan_id)
-            return value, (perf_counter() - phase_started) * 1000
+        deadline = monotonic() + DEGREE_PATH_BUDGET_SECONDS
+        cancellation = cancel_event or Event()
+        metrics: dict[str, float | int] = {}
+        def calculate(progress_catalog, eligibility_catalog, state, constraints, check_budget):
+            engine_started = perf_counter()
+            try:
+                return plan_degree_paths(
+                    progress_catalog,
+                    eligibility_catalog,
+                    state.attempts,
+                    constraints,
+                    reported_cumulative_gpa=state.reported_cumulative_gpa,
+                    reported_gpa_scale=state.reported_gpa_scale,
+                    reported_earned_credit_hours=state.reported_earned_credit_hours,
+                    check_budget=check_budget,
+                    metrics=metrics,
+                )
+            finally:
+                metrics["engine_ms"] = (perf_counter() - engine_started) * 1000
+                for phase, value in sorted(metrics.items()):
+                    logger.info(
+                        "degree_path_phase request_id=%s phase=%s value=%.1f",
+                        request_id_context.get(), phase, value,
+                    )
 
-        (progress_catalog, progress_catalog_ms), (eligibility_catalog, eligibility_catalog_ms) = await asyncio.gather(
-            timed_catalog(self._catalog_repository.load_progress_catalog),
-            timed_catalog(self._catalog_repository.load_plan_eligibility_catalog),
-        )
+        try:
+            async with asyncio.timeout(DEGREE_PATH_BUDGET_SECONDS):
+                phase_started = perf_counter()
+                state = await self.get_profile(owner)
+                metrics["student_resolution_ms"] = (perf_counter() - phase_started) * 1000
+                logger.info(
+                    "degree_path_phase request_id=%s phase=student_resolution_ms value=%.1f",
+                    request_id_context.get(), metrics["student_resolution_ms"],
+                )
 
-        constraints = DegreePathConstraints(
-            max_credit_hours_per_semester=max_credit_hours_per_semester,
-            max_courses_per_semester=max_courses_per_semester,
-            max_semesters_ahead=max_semesters_ahead,
-            max_paths=max_paths,
-        )
+                async def timed_catalog(load):
+                    catalog_started = perf_counter()
+                    value = await load(state.study_plan_id)
+                    return value, (perf_counter() - catalog_started) * 1000
 
-        engine_started = perf_counter()
-        result = plan_degree_paths(
-            progress_catalog,
-            eligibility_catalog,
-            state.attempts,
-            constraints,
-            reported_cumulative_gpa=state.reported_cumulative_gpa,
-            reported_gpa_scale=state.reported_gpa_scale,
-            reported_earned_credit_hours=state.reported_earned_credit_hours,
-        )
-        logging.getLogger(__name__).info(
-            "degree_path_timing profile_attempts_ms=%.1f progress_catalog_ms=%.1f eligibility_catalog_ms=%.1f engine_ms=%.1f total_service_ms=%.1f",
-            profile_ms, progress_catalog_ms, eligibility_catalog_ms,
-            (perf_counter() - engine_started) * 1000, (perf_counter() - started) * 1000,
-        )
-        return result
+                (progress_catalog, progress_ms), (eligibility_catalog, eligibility_ms) = await asyncio.gather(
+                    timed_catalog(self._catalog_repository.load_progress_catalog),
+                    timed_catalog(self._catalog_repository.load_plan_eligibility_catalog),
+                )
+                metrics["progress_catalog_ms"] = progress_ms
+                metrics["eligibility_catalog_ms"] = eligibility_ms
+                logger.info(
+                    "degree_path_phase request_id=%s phase=progress_catalog_ms value=%.1f",
+                    request_id_context.get(), progress_ms,
+                )
+                logger.info(
+                    "degree_path_phase request_id=%s phase=eligibility_catalog_ms value=%.1f",
+                    request_id_context.get(), eligibility_ms,
+                )
+                constraints = DegreePathConstraints(
+                    max_credit_hours_per_semester=max_credit_hours_per_semester,
+                    max_courses_per_semester=max_courses_per_semester,
+                    max_semesters_ahead=max_semesters_ahead,
+                    max_paths=max_paths,
+                )
+                result = await self._academic_compute_limiter.run(
+                    lambda check_budget: calculate(
+                        progress_catalog, eligibility_catalog, state, constraints, check_budget,
+                    ),
+                    deadline=deadline,
+                    cancel_event=cancellation,
+                )
+                logger.info(
+                    "degree_path_timing request_id=%s total_service_ms=%.1f",
+                    request_id_context.get(), (perf_counter() - started) * 1000,
+                )
+                return result
+        except TimeoutError as error:
+            cancellation.set()
+            raise DegreePathComputationTimeout("Degree path computation budget expired") from error
+        except asyncio.CancelledError:
+            cancellation.set()
+            raise

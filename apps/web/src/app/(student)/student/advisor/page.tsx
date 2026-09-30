@@ -259,7 +259,7 @@ export default function AdvisorPage() {
             <div className="rounded-3xl rounded-tl-xs border border-[#EDE2C5] bg-[#FFFCF4] p-4 text-xs shadow-xs">
               <div className="flex items-center gap-2 text-[#726B5E]">
                 <SparklesIcon className="h-4 w-4 animate-spin text-[#A66F00]" />
-                <span>جاري استشارة المحرك الحتمي وتجهيز الشرح الأكاديمي...</span>
+                <span>مرشدي يجهّز الرد...</span>
               </div>
             </div>
           </div>

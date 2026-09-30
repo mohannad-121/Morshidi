@@ -5,11 +5,14 @@ from __future__ import annotations
 from collections.abc import Mapping
 from datetime import date, datetime
 from decimal import Decimal, InvalidOperation
+import logging
+from time import perf_counter
 from typing import Any
 from uuid import UUID
 
 import httpx
 
+from app.core.request_timing import request_id_context
 from app.rules.models import AttemptOutcome, StudentCourseAttempt
 from app.student.errors import (
     StudentProfileIntegrityError,
@@ -59,12 +62,17 @@ class SupabaseStudentAcademicRepository:
 
     async def load_student_academic_state(self, owner_user_id: UUID | str) -> StudentAcademicState:
         owner_id = str(owner_user_id)
+        phase_started = perf_counter()
         profiles = await self._get_rows(
             "student_academic_profiles",
             {
                 "select": "id,owner_user_id,study_plan_id,reported_cumulative_gpa,reported_gpa_scale,reported_earned_credit_hours,created_at,updated_at",
                 "owner_user_id": f"eq.{owner_id}",
             },
+        )
+        logging.getLogger("uvicorn.error").info(
+            "degree_path_phase request_id=%s phase=academic_profile_load_ms value=%.1f",
+            request_id_context.get(), (perf_counter() - phase_started) * 1000,
         )
         if not profiles:
             raise StudentProfileNotFound("Student academic profile was not found")
@@ -74,6 +82,7 @@ class SupabaseStudentAcademicRepository:
         profile_id = _uuid_text(profile, "id", "profile")
         if _uuid_text(profile, "owner_user_id", "profile") != owner_id:
             raise StudentProfileIntegrityError("Profile response did not match requested owner")
+        phase_started = perf_counter()
         attempts = await self._get_rows(
             "student_course_attempts",
             {
@@ -81,6 +90,10 @@ class SupabaseStudentAcademicRepository:
                 "profile_id": f"eq.{profile_id}",
                 "order": "created_at.asc,id.asc",
             },
+        )
+        logging.getLogger("uvicorn.error").info(
+            "degree_path_phase request_id=%s phase=attempts_load_ms value=%.1f",
+            request_id_context.get(), (perf_counter() - phase_started) * 1000,
         )
         mapped: list[StudentCourseAttempt] = []
         for row in attempts:

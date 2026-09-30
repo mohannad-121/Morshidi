@@ -617,6 +617,16 @@ describe('Morshidi Student Portal Pages Suite', () => {
     expect(screen.getByText('المصدر: DETERMINISTIC_RULES_ENGINE')).toBeDefined();
   });
 
+  it('shows neutral advisor pending copy without claiming a backend stage completed', async () => {
+    fetchSpy.mockImplementation(() => new Promise<Response>(() => {}));
+    const user = userEvent.setup();
+    renderWithAuth(<AdvisorPage />);
+    const questions = screen.getAllByRole('button');
+    await user.click(questions.find((button) => button.textContent?.includes('الذكاء الاصطناعي'))!);
+    expect(screen.getByText('مرشدي يجهّز الرد...')).toBeDefined();
+    expect(screen.queryByText(/جاري استشارة المحرك الحتمي/)).toBeNull();
+  });
+
   it('renders PoliciesPage with real policies from API and opens detail modal', async () => {
     const user = userEvent.setup();
     renderWithAuth(<PoliciesPage />);

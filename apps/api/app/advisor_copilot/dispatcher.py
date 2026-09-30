@@ -12,6 +12,8 @@ from app.catalog.repository import AcademicCatalogRepository
 from app.mock_registration_service.context import AcademicContextLoader
 from app.services.eligibility import EligibilityService
 from app.student.repository import StudentAcademicRepository
+from app.core.academic_compute import AcademicComputeLimiter
+from app.degree_path.models import DegreePathCapacityError, DegreePathComputationTimeout
 
 from app.advisor_copilot.adapters import (
     AcademicSnapshotAdapter,
@@ -63,6 +65,7 @@ class AdvisorToolDispatcher:
         eligibility_service: EligibilityService,
         mock_registration_reader: AdvisorMockRegistrationReader,
         context_loader: AcademicContextLoader,
+        academic_compute_limiter: AcademicComputeLimiter | None = None,
     ) -> None:
         if mock_registration_reader is None:
             raise ValueError(
@@ -74,6 +77,7 @@ class AdvisorToolDispatcher:
             )
 
         self._auth_service = authorization_service
+        academic_compute_limiter = academic_compute_limiter or AcademicComputeLimiter()
         self._adapters: dict[AdvisorToolId, AdvisorAdapter] = {
             AdvisorToolId.ADVISOR_TOOL_GET_ACADEMIC_SNAPSHOT: AcademicSnapshotAdapter(
                 student_repository, catalog_repository
@@ -88,10 +92,10 @@ class AdvisorToolDispatcher:
                 student_repository, catalog_repository
             ),
             AdvisorToolId.ADVISOR_TOOL_GET_SEMESTER_PLANS: SemesterPlansAdapter(
-                student_repository, catalog_repository
+                student_repository, catalog_repository, academic_compute_limiter
             ),
             AdvisorToolId.ADVISOR_TOOL_GET_DEGREE_PATHS: DegreePathsAdapter(
-                student_repository, catalog_repository
+                student_repository, catalog_repository, academic_compute_limiter
             ),
             AdvisorToolId.ADVISOR_TOOL_GET_STUDENT_INTELLIGENCE: StudentIntelligenceAdapter(
                 student_repository, catalog_repository
@@ -100,7 +104,8 @@ class AdvisorToolDispatcher:
                 student_repository, catalog_repository
             ),
             AdvisorToolId.ADVISOR_TOOL_RUN_WHAT_IF: WhatIfAdapter(
-                student_repository, catalog_repository, context_loader=context_loader
+                student_repository, catalog_repository, context_loader=context_loader,
+                academic_compute_limiter=academic_compute_limiter,
             ),
             AdvisorToolId.ADVISOR_TOOL_GET_CURRENT_MOCK_REGISTRATION: CurrentMockRegistrationAdapter(
                 mock_registration_reader
@@ -158,6 +163,14 @@ class AdvisorToolDispatcher:
             result_dto = await adapter.execute(auth_context, request)
         except AdvisorCopilotServiceError:
             raise
+        except DegreePathCapacityError as error:
+            raise AdvisorCopilotServiceError(
+                code=AdvisorCopilotServiceErrorCode.COMPUTE_CAPACITY_BUSY,
+            ) from error
+        except DegreePathComputationTimeout as error:
+            raise AdvisorCopilotServiceError(
+                code=AdvisorCopilotServiceErrorCode.COMPUTATION_TIMEOUT,
+            ) from error
         except Exception as error:
             raise AdvisorCopilotServiceError(
                 code=AdvisorCopilotServiceErrorCode.INTERNAL_ERROR,

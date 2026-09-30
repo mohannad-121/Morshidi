@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 import logging
+import asyncio
 import re
 from time import perf_counter
 import unicodedata
@@ -30,6 +31,9 @@ from app.advisor.models import (
 )
 from app.advisor.orchestrator import AdvisorContext, orchestrate_advisor_request
 from app.advisor.provider import AdvisorLLMProvider, ProviderFailure, RawAdvisorInterpretation
+from app.degree_path.models import DegreePathCapacityError, DegreePathComputationTimeout
+from app.core.academic_compute import AcademicComputeLimiter
+from app.services.student import DEGREE_PATH_BUDGET_SECONDS
 from app.catalog.repository import AcademicCatalogRepository
 from app.student.models import StudentAcademicState
 from app.student.repository import StudentAcademicRepository
@@ -104,11 +108,13 @@ class AdvisorService:
         catalog_repository: AcademicCatalogRepository,
         provider: AdvisorLLMProvider,
         explanation_provider: AdvisorExplanationProvider | None = None,
+        academic_compute_limiter: AcademicComputeLimiter | None = None,
     ) -> None:
         self._student_repository = student_repository
         self._catalog_repository = catalog_repository
         self._provider = provider
         self._explanation_provider = explanation_provider
+        self._academic_compute_limiter = academic_compute_limiter or AcademicComputeLimiter()
 
     async def advise(self, owner_user_id: str, message: str) -> StructuredAdvisorResult:
         """Interpret once, load server-owned context in batches, and orchestrate."""
@@ -226,7 +232,22 @@ class AdvisorService:
             reported_earned_credit_hours=state.reported_earned_credit_hours,
         )
         phase_started = perf_counter()
-        result = orchestrate_advisor_request(request, context)
+        if request.intent in (AdvisorIntent.DEGREE_PATH_MODELING, AdvisorIntent.SEMESTER_PLANNING):
+            def calculate(check_budget):
+                bounded_context = AdvisorContext(
+                    progress_catalog=context.progress_catalog,
+                    eligibility_catalog=context.eligibility_catalog,
+                    student_attempts=context.student_attempts,
+                    reported_cumulative_gpa=context.reported_cumulative_gpa,
+                    reported_gpa_scale=context.reported_gpa_scale,
+                    reported_earned_credit_hours=context.reported_earned_credit_hours,
+                    check_budget=check_budget,
+                )
+                return orchestrate_advisor_request(request, bounded_context)
+
+            result = await self._academic_compute_limiter.run(calculate)
+        else:
+            result = orchestrate_advisor_request(request, context)
         deterministic_ms = (perf_counter() - phase_started) * 1000
         logger.info("advisor_timing route=%s routing_ms=%s student_context_ms=%.1f catalog_ms=%.1f deterministic_ms=%.1f total_structured_ms=%.1f", "ACADEMIC_DEEP" if request.intent in (AdvisorIntent.COURSE_RECOMMENDATIONS, AdvisorIntent.SEMESTER_PLANNING, AdvisorIntent.DEGREE_PATH_MODELING) else "ACADEMIC_DIRECT", routing_ms, student_context_ms, catalog_ms, deterministic_ms, (perf_counter() - started) * 1000)
         return result, None

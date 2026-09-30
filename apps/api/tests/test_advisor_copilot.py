@@ -14,12 +14,17 @@ Verifies:
 
 from __future__ import annotations
 
+import asyncio
+from time import perf_counter
 from datetime import date, datetime, timezone
 from decimal import Decimal
 from typing import Any
 from uuid import UUID, uuid4
+from threading import Event
+from unittest.mock import patch
 
 import pytest
+import httpx
 from fastapi.testclient import TestClient
 from pydantic import ValidationError
 
@@ -63,7 +68,10 @@ from app.advisor_service.authorization import (
 )
 from app.catalog.repository import AcademicCatalogRepository
 from app.core.auth import CurrentUser, get_current_user
+from app.core.academic_compute import AcademicComputeLimiter
 from app.main import app
+from app.api.routes.student import get_student_service
+from app.api.routes.advisor import get_advisor_service
 from app.mock_registration.registries import ReasonCode
 from app.mock_registration_persistence.models import InstitutionalMembershipRecord
 from app.progress.engine import calculate_academic_progress
@@ -87,12 +95,17 @@ from app.rules.models import (
     StudentCourseAttempt,
 )
 from app.services.eligibility import EligibilityService
+from app.services.student import StudentService
+from apps.api.tests.test_advisor_api import FakeAdvisorService, _general_result
+from apps.api.tests.test_degree_path_api import _sample_degree_path_result
+from apps.api.tests.test_student_api import FakeStudentService as ProgressResponseService
 from app.student.models import (
     PerformanceProvenance,
     PerformanceVerificationState,
     StudentAcademicState,
     StudentCourseAttemptRecord,
 )
+from app.degree_path.models import DegreePathCapacityError, DegreePathComputationTimeout
 from app.student.repository import StudentAcademicRepository
 
 
@@ -428,6 +441,7 @@ def test_harness():
     auth_service = AdvisorAuthorizationService(assignment_repo)
     eligibility_service = EligibilityService(catalog_repo)
     context_loader = InMemoryAcademicContextLoader()
+    academic_compute_limiter = AcademicComputeLimiter()
 
     dispatcher = AdvisorToolDispatcher(
         authorization_service=auth_service,
@@ -436,6 +450,7 @@ def test_harness():
         eligibility_service=eligibility_service,
         mock_registration_reader=mock_reg_reader,
         context_loader=context_loader,
+        academic_compute_limiter=academic_compute_limiter,
     )
 
     advisor_id = uuid4()
@@ -488,6 +503,7 @@ def test_harness():
             self.eligibility_service = eligibility_service
             self.assignment = assignment
             self.context_loader = context_loader
+            self.academic_compute_limiter = academic_compute_limiter
 
     return Harness()
 
@@ -515,6 +531,148 @@ def test_machine_locked_tool_registry() -> None:
     actual = {tool.value for tool in AdvisorToolId}
     assert actual == expected
     assert len(actual) == 11
+
+
+@pytest.mark.parametrize("tool_id", [
+    AdvisorToolId.ADVISOR_TOOL_GET_DEGREE_PATHS,
+    AdvisorToolId.ADVISOR_TOOL_RUN_WHAT_IF,
+])
+@pytest.mark.parametrize("error,status,code", [
+    (DegreePathCapacityError("private capacity detail"), 503, "COMPUTE_CAPACITY_BUSY"),
+    (DegreePathComputationTimeout("private timeout detail"), 504, "COMPUTATION_TIMEOUT"),
+    (RuntimeError("private unexpected detail"), 500, "INTERNAL_ERROR"),
+])
+def test_copilot_heavy_tool_http_errors_are_safe(test_harness, monkeypatch, tool_id, error, status, code):
+    adapter = test_harness.dispatcher._adapters[tool_id]
+
+    async def failing_execute(*_args, **_kwargs):
+        raise error
+
+    monkeypatch.setattr(adapter, "execute", failing_execute)
+    app.dependency_overrides[get_current_user] = lambda: CurrentUser(user_id=str(test_harness.advisor_id))
+    app.state.advisor_copilot_service = test_harness.dispatcher
+    try:
+        request = _build_request_for_tool(tool_id, test_harness.student_id)
+        client = TestClient(app)
+        response = client.post("/api/v1/advisor/tools/execute", json=request.model_dump(mode="json"))
+        assert response.status_code == status
+        assert response.json()["error_code"] == code
+        assert "private" not in response.text
+    finally:
+        app.dependency_overrides.clear()
+
+
+@pytest.mark.anyio
+async def test_student_and_copilot_heavy_routes_share_one_slot(test_harness):
+    service = StudentService(
+        test_harness.student_repo, None, test_harness.catalog_repo,
+        test_harness.academic_compute_limiter,
+    )
+    entered = Event()
+    release = Event()
+    calls = []
+
+    def slow_plan(*_args, **_kwargs):
+        calls.append("started")
+        entered.set()
+        assert release.wait(2)
+        return "finished"
+
+    request = GetDegreePathsRequest(target_student_user_id=test_harness.student_id)
+    with patch("app.services.student.plan_degree_paths", side_effect=slow_plan):
+        first = asyncio.create_task(service.get_degree_paths(
+            str(test_harness.student_id), max_credit_hours_per_semester=Decimal("15"),
+        ))
+        try:
+            assert await asyncio.to_thread(entered.wait, 1)
+            competing = (
+                request,
+                GetSemesterPlansRequest(target_student_user_id=test_harness.student_id),
+                RunWhatIfRequest(
+                    target_student_user_id=test_harness.student_id,
+                    operation_id=WhatIfOperationId.TWIN_OP_MODEL_COURSE_COMPLETION,
+                    target_course_code="1501221",
+                ),
+            )
+            for competing_request in competing:
+                with pytest.raises(AdvisorCopilotServiceError) as exc:
+                    await test_harness.dispatcher.execute_tool(
+                        test_harness.advisor_id, competing_request,
+                    )
+                assert exc.value.code == AdvisorCopilotServiceErrorCode.COMPUTE_CAPACITY_BUSY
+                assert exc.value.status_code == 503
+            assert calls == ["started"]
+        finally:
+            release.set()
+        assert await first == "finished"
+        await asyncio.sleep(0)
+        assert test_harness.academic_compute_limiter.in_use == 0
+
+
+@pytest.mark.anyio
+async def test_one_loop_lightweight_routes_remain_responsive_during_cpu_job(test_harness):
+    service = StudentService(
+        test_harness.student_repo, None, test_harness.catalog_repo,
+        test_harness.academic_compute_limiter,
+    )
+    entered = Event()
+    advisor = FakeAdvisorService(_general_result())
+    service.get_academic_progress = ProgressResponseService().get_academic_progress
+
+    def cpu_plan(*_args, **kwargs):
+        entered.set()
+        start = perf_counter()
+        while perf_counter() - start < 1.25:
+            kwargs["check_budget"]()
+        return _sample_degree_path_result()
+
+    app.dependency_overrides[get_current_user] = lambda: CurrentUser(user_id=str(test_harness.student_id))
+    app.dependency_overrides[get_student_service] = lambda: service
+    app.dependency_overrides[get_advisor_service] = lambda: advisor
+    try:
+        with patch("app.services.student.plan_degree_paths", side_effect=cpu_plan):
+            async with httpx.AsyncClient(
+                transport=httpx.ASGITransport(app=app), base_url="http://test",
+            ) as client:
+                started = perf_counter()
+                heavy = asyncio.create_task(client.post(
+                    "/api/v1/me/degree-paths", json={"max_credit_hours_per_semester": 15},
+                ))
+                assert await asyncio.to_thread(entered.wait, 1)
+                probes = (
+                    ("health", client.get("/health")),
+                    ("progress", client.get("/api/v1/me/academic-progress")),
+                    ("preflight", client.options(
+                        "/api/v1/me/advisor", headers={
+                            "origin": "http://127.0.0.1:3000",
+                            "access-control-request-method": "POST",
+                        },
+                    )),
+                    ("general", client.post("/api/v1/me/advisor", json={"message": "Hello"})),
+                )
+                results = await asyncio.gather(*(
+                    _timed_probe(name, request) for name, request in probes
+                ))
+                for name, response, latency in results:
+                    assert response.status_code == 200, name
+                    assert latency < 1.0, (name, latency)
+                response = await heavy
+                assert response.status_code == 200
+                heavy_seconds = perf_counter() - started
+                assert heavy_seconds >= 1.25
+                print(
+                    "one_loop_seconds "
+                    + " ".join(f"{name}={latency:.3f}" for name, _, latency in results)
+                    + f" degree_path={heavy_seconds:.3f}"
+                )
+    finally:
+        app.dependency_overrides.clear()
+
+
+async def _timed_probe(name, request):
+    started = perf_counter()
+    response = await request
+    return name, response, perf_counter() - started
 
 
 def test_side_effects_registry_all_none() -> None:
