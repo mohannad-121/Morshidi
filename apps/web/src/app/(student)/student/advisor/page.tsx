@@ -151,7 +151,7 @@ export default function AdvisorPage() {
       </div>
 
       {/* Chat Messages Area */}
-      <div className="flex-1 overflow-y-auto rounded-3xl border border-[#EDE2C5] bg-white p-6 shadow-xs space-y-6">
+      <div role="log" aria-live="polite" aria-relevant="additions" className="flex-1 overflow-y-auto rounded-3xl border border-[#EDE2C5] bg-white p-6 shadow-xs space-y-6">
         {messages.map((msg) => (
           <div
             key={msg.id}
@@ -279,6 +279,7 @@ export default function AdvisorPage() {
         <div className="flex gap-2">
           <input
             type="text"
+            aria-label="الاستفسار الأكاديمي"
             value={inputPrompt}
             onChange={(e) => setInputPrompt(e.target.value)}
             placeholder="اكتب استفسارك الأكاديمي هنا (مثال: هل يمكنني تسجيل مادة معالجة اللغات الطبيعية؟)..."

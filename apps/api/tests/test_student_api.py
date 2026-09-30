@@ -23,6 +23,8 @@ from app.student.errors import (
 )
 from app.student.models import StudentAcademicState, StudentCourseAttemptRecord
 from app.progress.models import AcademicProgress
+from app.roadmap.engine import AcademicRoadmap
+from app.roadmap.report import build_report_snapshot
 
 OWNER = "11111111-1111-1111-1111-111111111111"
 PLAN = "10000000-0000-0000-0000-000000000005"
@@ -100,6 +102,21 @@ class FakeStudentService:
             reported_earned_credit_hours=self.state.reported_earned_credit_hours,
         )
 
+    async def get_academic_roadmap(self, owner):
+        if self.missing: raise StudentProfileNotFound("missing")
+        self.roadmap_owner = owner
+        return AcademicRoadmap(PLAN, "synthetic-1", 2026, None, NOW,
+            Decimal("132"), Decimal("3"), Decimal("0"), Decimal("129"), (), (), ("Modeled only",),
+            snapshot_fingerprint="synthetic-snapshot")
+
+    async def get_academic_report(self, owner):
+        return build_report_snapshot(await self.get_academic_roadmap(owner))
+
+    async def get_modeled_roadmap(self, owner, **kwargs):
+        self.modeled_owner = owner
+        self.modeled_kwargs = kwargs
+        return await self.get_academic_roadmap(owner)
+
 
 @pytest.fixture
 def api() -> Iterator[tuple[TestClient, FakeStudentService]]:
@@ -116,6 +133,9 @@ def test_all_student_routes_require_auth() -> None:
         for method, path in [
             ("GET", "/api/v1/me/academic-profile"),
             ("GET", "/api/v1/me/academic-progress"),
+            ("GET", "/api/v1/me/academic-roadmap"),
+            ("GET", "/api/v1/me/academic-report"),
+            ("POST", "/api/v1/me/academic-roadmap/modeled-path"),
             ("GET", "/api/v1/me/course-recommendations"),
             ("GET", "/api/v1/me/academic-profile/attempts"),
             ("GET", "/api/v1/me/eligibility/1501112"),
@@ -134,6 +154,34 @@ def test_progress_uses_only_authenticated_owner_and_reported_facts_remain_distin
     assert body["reported_earned_credit_hours"] == "15"
     service.missing = True
     assert client.get("/api/v1/me/academic-progress").status_code == 404
+
+
+def test_roadmap_uses_authenticated_owner_and_has_no_client_owner_selector(api) -> None:
+    client, service = api
+    response = client.get("/api/v1/me/academic-roadmap")
+    assert response.status_code == 200
+    assert service.roadmap_owner == OWNER
+    assert response.json()["plan_number"] == "synthetic-1"
+    assert "owner_user_id" not in response.json()
+    service.missing = True
+    assert client.get("/api/v1/me/academic-roadmap").status_code == 404
+
+
+def test_report_and_explicit_modeled_path_remain_owner_scoped(api) -> None:
+    client, service = api
+    report = client.get("/api/v1/me/academic-report")
+    assert report.status_code == 200
+    assert report.headers["cache-control"] == "private, no-store"
+    assert report.json()["modeled_state_marker"] == "MODELED_UNOFFICIAL"
+    assert service.roadmap_owner == OWNER
+    modeled = client.post("/api/v1/me/academic-roadmap/modeled-path", json={
+        "max_credit_hours_per_semester": 18, "max_paths": 1,
+    })
+    assert modeled.status_code == 200
+    assert service.modeled_owner == OWNER
+    assert client.post("/api/v1/me/academic-roadmap/modeled-path", json={
+        "max_credit_hours_per_semester": 18, "owner_user_id": "attacker",
+    }).status_code == 422
 
 
 def test_profile_crud_and_owner_is_never_client_controlled(api) -> None:

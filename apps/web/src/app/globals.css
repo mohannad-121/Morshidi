@@ -43,3 +43,20 @@ textarea:focus-visible {
     @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-[#EDE2C5] bg-white px-5 py-2.5 font-semibold text-[#28241C] shadow-2xs transition-colors hover:bg-[#FFF9E8] disabled:cursor-not-allowed disabled:opacity-50;
   }
 }
+@media print {
+  @page { size: A4; margin: 15mm; }
+  .modeled-report { color: #181818 !important; background: white !important; font-size: 10pt; }
+  .modeled-report .report-controls, body > header, body > footer { display: none !important; }
+  .modeled-report article, .modeled-report section, .modeled-report li, .modeled-report tr { break-inside: avoid; }
+  .modeled-report table { width: 100%; border-collapse: collapse; }
+  .modeled-report th, .modeled-report td { overflow-wrap: anywhere; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

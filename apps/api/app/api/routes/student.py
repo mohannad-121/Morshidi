@@ -15,6 +15,8 @@ from app.api.schemas.student import (
     CourseAttemptResponse, ProfileCreateRequest, ProfileUpdateRequest,
 )
 from app.api.schemas.progress import AcademicProgressResponse
+from app.api.schemas.roadmap import AcademicRoadmapResponse
+from app.api.schemas.academic_report import ModeledAcademicReportResponse
 from app.api.schemas.recommendations import RecommendationResponse
 from app.api.schemas.semester_planner import (
     SemesterPlanRequest,
@@ -98,6 +100,51 @@ async def get_academic_progress(
     service: StudentServiceDependency,
 ) -> AcademicProgressResponse:
     return _progress_response(await service.get_academic_progress(user.user_id))
+
+
+@router.get("/academic-roadmap", response_model=AcademicRoadmapResponse)
+async def get_academic_roadmap(
+    user: AuthenticatedUser, service: StudentServiceDependency,
+) -> AcademicRoadmapResponse:
+    return AcademicRoadmapResponse.model_validate(
+        await service.get_academic_roadmap(user.user_id), from_attributes=True,
+    )
+
+
+@router.get("/academic-report", response_model=ModeledAcademicReportResponse)
+async def get_academic_report(
+    user: AuthenticatedUser, service: StudentServiceDependency, response: Response,
+) -> ModeledAcademicReportResponse:
+    response.headers["Cache-Control"] = "private, no-store"
+    return ModeledAcademicReportResponse.model_validate(
+        await service.get_academic_report(user.user_id), from_attributes=True,
+    )
+
+
+@router.post("/academic-roadmap/modeled-path", response_model=AcademicRoadmapResponse)
+async def generate_modeled_roadmap(
+    body: DegreePathRequest, user: AuthenticatedUser,
+    service: StudentServiceDependency, http_request: Request,
+) -> AcademicRoadmapResponse:
+    """Bounded path search runs only after an explicit authenticated request."""
+    cancelled = Event()
+    watcher = asyncio.create_task(
+        _watch_degree_path_disconnect(http_request, cancelled), name="roadmap-path-disconnect",
+    )
+    try:
+        modeled = await service.get_modeled_roadmap(
+            user.user_id,
+            max_credit_hours_per_semester=body.max_credit_hours_per_semester,
+            max_courses_per_semester=body.max_courses_per_semester,
+            max_semesters_ahead=body.max_semesters_ahead,
+            max_paths=body.max_paths,
+            cancel_event=cancelled,
+        )
+        return AcademicRoadmapResponse.model_validate(modeled, from_attributes=True)
+    finally:
+        watcher.cancel()
+        with suppress(asyncio.CancelledError):
+            await watcher
 
 
 @router.post("/academic-profile", response_model=AcademicProfileResponse, status_code=status.HTTP_201_CREATED)

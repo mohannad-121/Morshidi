@@ -58,6 +58,8 @@ export function GlobalNavbar() {
     pathname.startsWith("/student/eligibility") ||
     pathname.startsWith("/student/recommendations") ||
     pathname.startsWith("/student/degree-path") ||
+    pathname.startsWith("/student/roadmap") ||
+    pathname.startsWith("/student/report") ||
     pathname.startsWith("/student/mock-registration") ||
     pathname.startsWith("/student/policies") ||
     pathname.startsWith("/student/decision-history");
@@ -149,6 +151,8 @@ export function GlobalNavbar() {
                   <button
                     type="button"
                     onClick={() => setMoreDropdownOpen((prev) => !prev)}
+                    aria-expanded={moreDropdownOpen}
+                    aria-controls="student-more-tools"
                     className={`flex items-center gap-1 rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors ${
                       isMoreActive || moreDropdownOpen
                         ? "bg-[#FFF4C7] text-[#805400]"
@@ -164,10 +168,12 @@ export function GlobalNavbar() {
                   </button>
 
                   {moreDropdownOpen && (
-                    <div className="absolute right-0 mt-2 w-64 rounded-2xl border border-[#EDE2C5] bg-white p-2 shadow-lg z-50">
+                    <div id="student-more-tools" className="absolute right-0 mt-2 w-64 rounded-2xl border border-[#EDE2C5] bg-white p-2 shadow-lg z-50">
                       <div className="px-3 py-1.5 text-[10px] font-bold text-[#726B5E]">
                         الأدوات الأكاديمية الذكية
                       </div>
+                      <Link href="/student/roadmap" className="flex rounded-xl px-3 py-2 text-xs font-semibold text-[#28241C] hover:bg-[#FFF9E8]">الخارطة الأكاديمية</Link>
+                      <Link href="/student/report" className="flex rounded-xl px-3 py-2 text-xs font-semibold text-[#28241C] hover:bg-[#FFF9E8]">التقرير المُنمذج غير الرسمي</Link>
                       <Link
                         href="/student/eligibility"
                         className="flex items-center gap-2.5 rounded-xl px-3 py-2 text-xs font-semibold text-[#28241C] hover:bg-[#FFF9E8] hover:text-[#805400] transition-colors"
@@ -401,6 +407,8 @@ export function GlobalNavbar() {
                 >
                   خطتي الأكاديمية
                 </Link>
+                <Link href="/student/roadmap" className="rounded-xl px-3 py-2 text-xs font-semibold text-[#28241C] hover:bg-[#FFF9E8]">الخارطة الأكاديمية</Link>
+                <Link href="/student/report" className="rounded-xl px-3 py-2 text-xs font-semibold text-[#28241C] hover:bg-[#FFF9E8]">التقرير غير الرسمي</Link>
                 <Link
                   href="/student/courses"
                   className={`rounded-xl px-3 py-2 text-xs font-semibold ${

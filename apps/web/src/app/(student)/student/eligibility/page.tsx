@@ -188,7 +188,7 @@ export default function EligibilityPage() {
 
       {/* Error Message */}
       {errorMessage ? (
-        <div className="rounded-2xl border border-red-200 bg-red-50 p-5 text-xs text-red-800">
+        <div role="alert" className="rounded-2xl border border-red-200 bg-red-50 p-5 text-xs text-red-800">
           <div className="flex items-center gap-2 font-bold mb-1">
             <AlertTriangleIcon className="h-4 w-4" />
             <span>تنبيه في فحص المادة</span>
@@ -199,7 +199,7 @@ export default function EligibilityPage() {
 
       {/* Loading Skeleton */}
       {loading ? (
-        <div className="space-y-4">
+        <div role="status" aria-live="polite" aria-label="جارٍ فحص الأهلية" className="space-y-4">
           <LoadingSkeletonCard />
           <LoadingSkeletonCard />
         </div>

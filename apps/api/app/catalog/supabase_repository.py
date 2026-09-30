@@ -12,6 +12,7 @@ import httpx
 
 from app.core.request_timing import request_id_context
 from app.advisor.models import ResolvedCourseReference
+from app.catalog.roadmap_metadata import RoadmapPlanMetadata
 from app.catalog.errors import (
     CatalogIntegrityError,
     CatalogTransportError,
@@ -216,6 +217,37 @@ class SupabaseAcademicCatalogRepository:
             ),
             requirement_groups=groups,
             plan_courses=plan_courses,
+        )
+
+    async def load_roadmap_plan_metadata(self, study_plan_id: UUID | str) -> RoadmapPlanMetadata:
+        plan_id = str(study_plan_id)
+        rows = await self._get_rows(
+            "study_plans",
+            {"select": (
+                "id,plan_number,effective_year,updated_at,"
+                "academic_sources(source_type,retrieved_at,content_hash,snapshot_ref,source_status)"
+            ), "id": f"eq.{plan_id}"},
+        )
+        if not rows:
+            raise StudyPlanNotFound("Study plan was not found")
+        if len(rows) != 1 or _required_text(rows[0], "id", "study_plan") != plan_id:
+            raise CatalogIntegrityError("Roadmap plan metadata did not match requested plan")
+        row = rows[0]
+        year = row.get("effective_year")
+        if year is not None and (isinstance(year, bool) or not isinstance(year, int)):
+            raise CatalogIntegrityError("Roadmap effective year is not valid")
+        source = row.get("academic_sources")
+        if source is not None and not isinstance(source, Mapping):
+            raise CatalogIntegrityError("Roadmap plan source is not valid")
+        source = source or {}
+        for field in ("source_type", "retrieved_at", "content_hash", "snapshot_ref", "source_status"):
+            if source.get(field) is not None and not isinstance(source[field], str):
+                raise CatalogIntegrityError("Roadmap plan source field is not valid")
+        return RoadmapPlanMetadata(
+            plan_id, _required_text(row, "plan_number", "study_plan"), year,
+            _required_text(row, "updated_at", "study_plan"),
+            source.get("source_type"), source.get("retrieved_at"), source.get("content_hash"),
+            source.get("snapshot_ref"), source.get("source_status"),
         )
 
     async def load_advisor_course_catalog(

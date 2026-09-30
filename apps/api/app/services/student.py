@@ -5,7 +5,7 @@ from decimal import Decimal
 import logging
 from threading import Event
 from time import monotonic, perf_counter
-from typing import Any
+from typing import Any, Awaitable, Callable
 from uuid import UUID
 
 from app.degree_path.engine import plan_degree_paths
@@ -22,14 +22,19 @@ from app.planner.models import (
     SemesterPlannerResult,
 )
 from app.rules.evaluator import CanTakeResult
-from app.rules.models import AttemptOutcome
+from app.rules.models import AttemptOutcome, CanTakeCatalog
 from app.catalog.repository import AcademicCatalogRepository
+from app.catalog.roadmap_metadata import RoadmapPlanMetadata
+from app.advisor.models import ResolvedCourseReference
 from app.core.request_timing import request_id_context
 from app.core.academic_compute import AcademicComputeLimiter
 from app.progress.engine import calculate_academic_progress
-from app.progress.models import AcademicProgress
+from app.progress.models import AcademicProgress, AcademicProgressCatalog
 from app.recommendations.engine import recommend_courses
 from app.recommendations.models import RecommendationResult
+from app.roadmap.engine import AcademicRoadmap, build_roadmap, overlay_from_degree_path
+from app.roadmap.fingerprint import academic_input_fingerprint
+from app.roadmap.report import ModeledAcademicReport, build_report_snapshot
 from app.services.eligibility import EligibilityService
 from app.student.errors import StudentAttemptNotFound, StudentProfileValidationError
 from app.student.models import StudentAcademicState, StudentCourseAttemptRecord
@@ -197,6 +202,61 @@ class StudentService:
             ),
         )
 
+    async def get_academic_roadmap(self, owner: str) -> AcademicRoadmap:
+        """One owner lookup, four plan-scoped catalog reads, no degree-path search."""
+        state = await self.get_profile(owner)
+        progress, eligibility, names, metadata = await asyncio.gather(
+            self._catalog_repository.load_progress_catalog(state.study_plan_id),
+            self._catalog_repository.load_plan_eligibility_catalog(state.study_plan_id),
+            self._catalog_repository.load_advisor_course_catalog(state.study_plan_id),
+            self._catalog_repository.load_roadmap_plan_metadata(state.study_plan_id),
+        )
+        return build_roadmap(progress, eligibility, names, state.attempts, plan_metadata=metadata)
+
+    async def get_academic_report(self, owner: str) -> ModeledAcademicReport:
+        """Freeze one owner-scoped roadmap projection for screen and print."""
+        return build_report_snapshot(await self.get_academic_roadmap(owner))
+
+    async def get_modeled_roadmap(
+        self,
+        owner: str,
+        *,
+        max_credit_hours_per_semester: Decimal,
+        max_courses_per_semester: int | None = None,
+        max_semesters_ahead: int = 8,
+        max_paths: int = 1,
+        cancel_event: Event | None = None,
+    ) -> AcademicRoadmap:
+        """Explicit bounded degree path + roadmap from the same owner/catalog inputs."""
+        captured: tuple[StudentAcademicState, AcademicProgressCatalog, CanTakeCatalog,
+                        tuple[ResolvedCourseReference, ...], RoadmapPlanMetadata] | None = None
+
+        async def capture(state: StudentAcademicState, progress: AcademicProgressCatalog,
+                          eligibility: CanTakeCatalog) -> None:
+            nonlocal captured
+            names, metadata = await asyncio.gather(
+                self._catalog_repository.load_advisor_course_catalog(state.study_plan_id),
+                self._catalog_repository.load_roadmap_plan_metadata(state.study_plan_id),
+            )
+            captured = (state, progress, eligibility, names, metadata)
+
+        result = await self.get_degree_paths(
+            owner,
+            max_credit_hours_per_semester=max_credit_hours_per_semester,
+            max_courses_per_semester=max_courses_per_semester,
+            max_semesters_ahead=max_semesters_ahead,
+            max_paths=max_paths,
+            cancel_event=cancel_event,
+            snapshot_callback=capture,
+        )
+        if captured is None:
+            raise StudentConfigurationError("Modeled roadmap input snapshot was not captured")
+        state, progress, eligibility, names, metadata = captured
+        fingerprint = academic_input_fingerprint(progress, eligibility, names, state.attempts, metadata)
+        overlay = overlay_from_degree_path(result, fingerprint)
+        return build_roadmap(progress, eligibility, names, state.attempts,
+                             plan_metadata=metadata, modeled_overlay=overlay)
+
     async def get_degree_paths(
         self,
         owner: str,
@@ -206,6 +266,7 @@ class StudentService:
         max_semesters_ahead: int = 8,
         max_paths: int = 3,
         cancel_event: Event | None = None,
+        snapshot_callback: Callable[[StudentAcademicState, AcademicProgressCatalog, CanTakeCatalog], Awaitable[None]] | None = None,
     ) -> DegreePathResult:
         """Deterministically generate multi-semester degree paths for the authenticated student.
 
@@ -260,6 +321,8 @@ class StudentService:
                 )
                 metrics["progress_catalog_ms"] = progress_ms
                 metrics["eligibility_catalog_ms"] = eligibility_ms
+                if snapshot_callback is not None:
+                    await snapshot_callback(state, progress_catalog, eligibility_catalog)
                 logger.info(
                     "degree_path_phase request_id=%s phase=progress_catalog_ms value=%.1f",
                     request_id_context.get(), progress_ms,

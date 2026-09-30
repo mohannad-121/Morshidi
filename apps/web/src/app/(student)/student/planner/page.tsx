@@ -199,14 +199,14 @@ export default function PlannerPage() {
 
       {/* Error State */}
       {errorMessage ? (
-        <div className="rounded-2xl border border-red-200 bg-red-50 p-5 text-xs text-red-800">
+        <div role="alert" className="rounded-2xl border border-red-200 bg-red-50 p-5 text-xs text-red-800">
           <p className="font-bold">{errorMessage}</p>
         </div>
       ) : null}
 
       {/* Loading Skeleton */}
       {loading ? (
-        <div className="space-y-6">
+        <div role="status" aria-live="polite" aria-label="جارٍ احتساب الخيارات الفصلية" className="space-y-6">
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
             <LoadingSkeletonCard />
             <LoadingSkeletonCard />

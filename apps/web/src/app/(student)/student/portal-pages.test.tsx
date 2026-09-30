@@ -621,6 +621,8 @@ describe('Morshidi Student Portal Pages Suite', () => {
     fetchSpy.mockImplementation(() => new Promise<Response>(() => {}));
     const user = userEvent.setup();
     renderWithAuth(<AdvisorPage />);
+    expect(screen.getByRole('log')).toBeDefined();
+    expect(screen.getByRole('textbox', { name: 'الاستفسار الأكاديمي' })).toBeDefined();
     const questions = screen.getAllByRole('button');
     await user.click(questions.find((button) => button.textContent?.includes('الذكاء الاصطناعي'))!);
     expect(screen.getByText('مرشدي يجهّز الرد...')).toBeDefined();

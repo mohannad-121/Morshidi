@@ -3,6 +3,7 @@
 import os
 import uuid
 from decimal import Decimal
+from time import perf_counter
 
 import httpx
 import pytest
@@ -85,6 +86,32 @@ def test_local_authenticated_student_api_end_to_end() -> None:
                 assert Decimal(progress_one.json()["reported_earned_credit_hours"]) == 15
                 assert "0300103" not in {row["course_code"] for row in progress_one.json()["courses"]}
 
+                roadmap_started = perf_counter()
+                roadmap = client.get("/api/v1/me/academic-roadmap", headers=auth_a)
+                roadmap_ms = (perf_counter() - roadmap_started) * 1000
+                assert roadmap.status_code == 200
+                modeled = roadmap.json()
+                assert modeled["study_plan_id"] == PLAN
+                assert len(modeled["courses"]) == len(progress_one.json()["courses"])
+                assert next(row for row in modeled["courses"] if row["course_code"] == "1501110")["state"] == "COMPLETED"
+                assert "owner_user_id" not in modeled
+                assert modeled["modeling_status"] == "NOT_REQUESTED"
+                assert all(row["state"] != "PLANNED" for row in modeled["courses"])
+                report = client.get("/api/v1/me/academic-report", headers=auth_a)
+                assert report.status_code == 200
+                assert report.headers["cache-control"] == "private, no-store"
+                assert report.json()["modeled_state_marker"] == "MODELED_UNOFFICIAL"
+                assert report.json()["snapshot_fingerprint"] == modeled["snapshot_fingerprint"]
+                assert len(report.json()["courses"]) == len(modeled["courses"])
+                planned = client.post("/api/v1/me/academic-roadmap/modeled-path", headers=auth_a,
+                    json={"max_credit_hours_per_semester": 18, "max_semesters_ahead": 1, "max_paths": 1})
+                assert planned.status_code == 200, planned.text[:300]
+                assert planned.json()["snapshot_fingerprint"] == modeled["snapshot_fingerprint"]
+                assert planned.json()["modeling_status"] in {"MODELED_PATH", "NO_VALID_PATH"}
+                assert all(row["planned_order"] is not None for row in planned.json()["courses"]
+                           if row["state"] == "PLANNED")
+                print(f"local_roadmap_api_ms={roadmap_ms:.1f} course_count={len(modeled['courses'])}")
+
                 updated_profile = client.patch("/api/v1/me/academic-profile", headers=auth_a,
                     json={"reported_cumulative_gpa": 3.5, "reported_gpa_scale": 4,
                         "reported_earned_credit_hours": 18})
@@ -100,6 +127,8 @@ def test_local_authenticated_student_api_end_to_end() -> None:
 
                 assert client.get("/api/v1/me/academic-profile", headers=auth_b).status_code == 404
                 assert client.get("/api/v1/me/academic-progress", headers=auth_b).status_code == 404
+                assert client.get("/api/v1/me/academic-roadmap", headers=auth_b).status_code == 404
+                assert client.get("/api/v1/me/academic-report", headers=auth_b).status_code == 404
                 assert client.patch(f"/api/v1/me/academic-profile/attempts/{passed_id}", headers=auth_b,
                     json={"status": "FAILED"}).status_code == 404
 

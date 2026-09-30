@@ -5,6 +5,8 @@ import {
 import type {
   AcademicProfileResponse,
   AcademicProgressResponse,
+  AcademicRoadmapResponse,
+  ModeledAcademicReportResponse,
   AdvisorRequest,
   AdvisorResponse,
   AttemptCreateRequest,
@@ -110,6 +112,23 @@ export class StudentApiService {
       `/api/v1/me/course-recommendations${query}`,
     );
     return parseJson<RecommendationResponse>(res);
+  }
+
+  async getRoadmap(): Promise<AcademicRoadmapResponse> {
+    const res = await this.client.request("/api/v1/me/academic-roadmap", { cache: "no-store" });
+    return parseJson<AcademicRoadmapResponse>(res);
+  }
+
+  async generateModeledRoadmap(request: DegreePathRequest, signal?: AbortSignal): Promise<AcademicRoadmapResponse> {
+    const res = await this.client.request("/api/v1/me/academic-roadmap/modeled-path", {
+      method: "POST", signal, headers: { "Content-Type": "application/json" }, body: JSON.stringify(request),
+    });
+    return parseJson<AcademicRoadmapResponse>(res);
+  }
+
+  async getModeledReport(): Promise<ModeledAcademicReportResponse> {
+    const res = await this.client.request("/api/v1/me/academic-report", { cache: "no-store" });
+    return parseJson<ModeledAcademicReportResponse>(res);
   }
 
   async getRecommendationGraph(limit?: number): Promise<AcademicExplanationGraph> {

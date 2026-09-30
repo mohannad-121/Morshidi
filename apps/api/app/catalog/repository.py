@@ -8,6 +8,7 @@ from uuid import UUID
 from app.rules.models import CanTakeCatalog
 from app.progress.models import AcademicProgressCatalog
 from app.advisor.models import ResolvedCourseReference
+from app.catalog.roadmap_metadata import RoadmapPlanMetadata
 
 
 class AcademicCatalogRepository(Protocol):
@@ -41,3 +42,6 @@ class AcademicCatalogRepository(Protocol):
         study_plan_id: UUID | str,
     ) -> tuple[ResolvedCourseReference, ...]:
         """Return canonical university-course identities for exact advisor resolution."""
+
+    async def load_roadmap_plan_metadata(self, study_plan_id: UUID | str) -> RoadmapPlanMetadata:
+        """Return plan-facing provenance without changing replay-pinned engine models."""

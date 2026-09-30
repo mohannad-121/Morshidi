@@ -163,6 +163,81 @@ export interface CanTakeDecisionResponse {
   target_name_ar: string | null;
 }
 
+export type RoadmapState = "COMPLETED" | "IN_PROGRESS" | "ELIGIBLE" | "BLOCKED" | "PLANNED" | "REVIEW_REQUIRED";
+
+export interface RoadmapCourse {
+  course_code: string;
+  name_ar: string;
+  name_en: string | null;
+  credit_hours: number;
+  requirement_group_code: string;
+  state: RoadmapState;
+  reasons: string[];
+  missing_prerequisite_groups: string[][];
+  prerequisite_logic_status: PrerequisiteLogicStatus;
+  structural_criticality: boolean;
+  structural_impact_count: number;
+  planned_semester: number | null;
+  planned_order: number | null;
+  critical_path: boolean;
+  critical_path_reason: string | null;
+  critical_path_length: number;
+  critical_path_downstream_codes: string[];
+  critical_path_evidence_chain: string[];
+}
+
+export interface AcademicRoadmapResponse {
+  study_plan_id: string;
+  plan_number: string | null;
+  effective_year: number | null;
+  plan_updated_at: string | null;
+  generated_at: string;
+  plan_total_required_credits: number;
+  completed_plan_credits: number;
+  in_progress_plan_credits: number;
+  remaining_plan_credits: number;
+  courses: RoadmapCourse[];
+  edges: { prerequisite_code: string; target_code: string; dependency_type: DependencyType; group_number: number; option_count: number }[];
+  limitations: string[];
+  snapshot_fingerprint: string;
+  snapshot_contract_version: string;
+  critical_path_policy_version: string;
+  modeling_status: "NOT_REQUESTED" | "NO_VALID_PATH" | "MODELED_PATH";
+  modeled_plan_policy_version: string | null;
+  source_type: string | null;
+  source_retrieved_at: string | null;
+  source_content_hash: string | null;
+  source_snapshot_ref: string | null;
+  source_status: string | null;
+}
+
+export interface ModeledAcademicReportResponse {
+  report_schema_version: string;
+  modeled_state_marker: "MODELED_UNOFFICIAL";
+  study_plan_id: string;
+  plan_number: string | null;
+  effective_year: number | null;
+  plan_updated_at: string | null;
+  source_type: string | null;
+  source_retrieved_at: string | null;
+  source_content_hash: string | null;
+  source_snapshot_ref: string | null;
+  source_status: string | null;
+  snapshot_contract_version: string;
+  snapshot_fingerprint: string;
+  critical_path_policy_version: string;
+  modeled_plan_policy_version: string | null;
+  modeling_status: string;
+  generated_at: string;
+  plan_total_required_credits: number;
+  completed_plan_credits: number;
+  in_progress_plan_credits: number;
+  remaining_plan_credits: number;
+  courses: Pick<RoadmapCourse, "course_code" | "name_ar" | "name_en" | "state" | "credit_hours" | "planned_semester" | "planned_order" | "critical_path">[];
+  limitations: string[];
+  content_fingerprint: string;
+}
+
 export type EligibilityGraphMode = "why" | "why_not";
 export type EligibilityGraphNodeType =
   | "DECISION" | "COURSE" | "REASON" | "PREREQUISITE_GROUP"

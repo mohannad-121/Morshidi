@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { AuthProvider } from "@/auth/auth-provider";
@@ -27,6 +27,8 @@ export const metadata: Metadata = {
     apple: "/brand/morshidi-guide.png",
   },
 };
+
+export const viewport: Viewport = { themeColor: "#805400", width: "device-width", initialScale: 1 };
 
 export default function RootLayout({
   children,
