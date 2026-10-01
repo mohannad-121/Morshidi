@@ -170,6 +170,7 @@ export function GlobalNavbar() {
                   {moreDropdownOpen && (
                     <div id="student-more-tools" className="absolute right-0 mt-2 w-64 rounded-2xl border border-[#EDE2C5] bg-white p-2 shadow-lg z-50">
                       <Link href="/student/intelligence" className="flex rounded-xl px-3 py-2 text-xs font-semibold text-[#28241C] hover:bg-[#FFF9E8]">الذكاء الأكاديمي · عرض تجريبي</Link>
+                      <Link href="/student/plan-transition" className="flex rounded-xl px-3 py-2 text-xs font-semibold text-[#28241C] hover:bg-[#FFF9E8]">مقارنة الخطط · نمذجة غير رسمية</Link>
                       <div className="px-3 py-1.5 text-[10px] font-bold text-[#726B5E]">
                         الأدوات الأكاديمية الذكية
                       </div>

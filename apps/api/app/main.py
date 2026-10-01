@@ -19,6 +19,7 @@ from app.api.routes.institutional_intelligence import router as institutional_in
 from app.api.routes.p11_intelligence import (
     student_router as p11_student_router, institutional_router as p11_institutional_router,
 )
+from app.api.routes.plan_transitions import router as plan_transitions_router
 from app.api.routes.institutional_ai_query import router as institutional_ai_query_router
 from app.api.routes.advisor_copilot import router as advisor_copilot_router
 from app.api.routes.policies import router as policies_router
@@ -189,6 +190,9 @@ async def lifespan(application: FastAPI):
         else UnavailableP11Provider()
     )
     application.state.p11_cohort_threshold = settings.mock_registration_minimum_disclosure_group_size
+    # P12 local artifacts are injected only by explicitly scoped tests/local tooling.
+    # Production has no implicit target, registrar policy, or publication endpoint.
+    application.state.p12_modeling_provider = None
     if settings.supabase_url and settings.supabase_secret_key:
         repository = SupabaseAcademicCatalogRepository(
             settings.supabase_url,
@@ -314,6 +318,7 @@ app.include_router(institutional_capacity_router)
 app.include_router(institutional_intelligence_router)
 app.include_router(p11_student_router)
 app.include_router(p11_institutional_router)
+app.include_router(plan_transitions_router)
 app.include_router(institutional_ai_query_router)
 app.include_router(advisor_copilot_router)
 app.include_router(policies_router)
