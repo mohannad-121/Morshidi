@@ -173,6 +173,7 @@ export function GlobalNavbar() {
                         الأدوات الأكاديمية الذكية
                       </div>
                       <Link href="/student/roadmap" className="flex rounded-xl px-3 py-2 text-xs font-semibold text-[#28241C] hover:bg-[#FFF9E8]">الخارطة الأكاديمية</Link>
+                      <Link href="/student/offerings" className="flex rounded-xl px-3 py-2 text-xs font-semibold text-[#28241C] hover:bg-[#FFF9E8]">العروض والجدول · بيانات تجريبية</Link>
                       <Link href="/student/report" className="flex rounded-xl px-3 py-2 text-xs font-semibold text-[#28241C] hover:bg-[#FFF9E8]">التقرير المُنمذج غير الرسمي</Link>
                       <Link
                         href="/student/eligibility"
@@ -408,6 +409,7 @@ export function GlobalNavbar() {
                   خطتي الأكاديمية
                 </Link>
                 <Link href="/student/roadmap" className="rounded-xl px-3 py-2 text-xs font-semibold text-[#28241C] hover:bg-[#FFF9E8]">الخارطة الأكاديمية</Link>
+                <Link href="/student/offerings" className="rounded-xl px-3 py-2 text-xs font-semibold text-[#28241C] hover:bg-[#FFF9E8]">العروض والجدول · بيانات تجريبية</Link>
                 <Link href="/student/report" className="rounded-xl px-3 py-2 text-xs font-semibold text-[#28241C] hover:bg-[#FFF9E8]">التقرير غير الرسمي</Link>
                 <Link
                   href="/student/courses"

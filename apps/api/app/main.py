@@ -11,6 +11,10 @@ from app.api.routes.student import router as student_router
 from app.api.routes.advisor import router as advisor_router
 from app.api.routes.mock_registration import router as mock_registration_router
 from app.api.routes.institutional_demand import router as institutional_demand_router
+from app.api.routes.offerings import (
+    student_router as student_offerings_router,
+    institutional_router as institutional_capacity_router,
+)
 from app.api.routes.institutional_intelligence import router as institutional_intelligence_router
 from app.api.routes.institutional_ai_query import router as institutional_ai_query_router
 from app.api.routes.advisor_copilot import router as advisor_copilot_router
@@ -91,6 +95,8 @@ from app.mock_registration_service.errors import (
 )
 from app.mock_registration_service.institutional_service import InstitutionalDemandService
 from app.mock_registration_service.student_service import MockRegistrationStudentService
+from app.offerings.fake_provider import FakeUniversityOfferingProvider
+from app.offerings.provider import UnavailableOfferingProvider
 
 
 def build_advisor_providers(client: httpx.AsyncClient):
@@ -169,6 +175,10 @@ async def lifespan(application: FastAPI):
     application.state.decision_trace_service = None
     application.state.advisor_authorization_service = None
     application.state.change_impact_service = None
+    application.state.course_offering_provider = (
+        FakeUniversityOfferingProvider() if settings.app_env in {"development", "test"}
+        else UnavailableOfferingProvider()
+    )
     if settings.supabase_url and settings.supabase_secret_key:
         repository = SupabaseAcademicCatalogRepository(
             settings.supabase_url,
@@ -289,6 +299,8 @@ app.include_router(student_router)
 app.include_router(advisor_router)
 app.include_router(mock_registration_router)
 app.include_router(institutional_demand_router)
+app.include_router(student_offerings_router)
+app.include_router(institutional_capacity_router)
 app.include_router(institutional_intelligence_router)
 app.include_router(institutional_ai_query_router)
 app.include_router(advisor_copilot_router)
