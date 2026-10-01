@@ -27,7 +27,8 @@ class ProviderUnavailable(LookupError):
 
 
 PROVIDER_KINDS = frozenset({"catalog", "policy", "offerings", "historical",
-                            "skills", "career", "internship", "transition"})
+                            "skills", "career", "internship", "transition",
+                            "sis", "identity"})
 CAPABILITY_PROVIDER = {
     "academic_roadmap": "catalog",
     "policy_rag": "policy",
