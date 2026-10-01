@@ -21,3 +21,8 @@ test("protects the focused institutional AI query route", () => {
   expect(isProtectedStudentPath("/institutional/ai-query")).toBe(true);
   expect(config.matcher).toContain("/institutional/ai-query");
 });
+
+test("protects the analyst-only cohort explorer route", () => {
+  expect(isProtectedStudentPath("/institutional/cohorts")).toBe(true);
+  expect(config.matcher).toContain("/institutional/cohorts");
+});

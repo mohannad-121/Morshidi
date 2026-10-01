@@ -6,7 +6,8 @@ import { getPublicSupabaseConfig } from "@/lib/config/public-env";
 export function isProtectedStudentPath(pathname: string): boolean {
   return pathname === "/student" || pathname.startsWith("/student/")
     || pathname === "/institutional/change-impact"
-    || pathname === "/institutional/ai-query";
+    || pathname === "/institutional/ai-query"
+    || pathname === "/institutional/cohorts";
 }
 
 function copySessionState(source: NextResponse, target: NextResponse): NextResponse {
@@ -57,7 +58,7 @@ export async function updateSession(request: NextRequest) {
   if (claims && request.nextUrl.pathname === "/login") {
     const studentUrl = request.nextUrl.clone();
     const destination = request.nextUrl.searchParams.get("returnTo");
-    studentUrl.pathname = destination === "/institutional/change-impact" || destination === "/institutional/ai-query"
+    studentUrl.pathname = destination === "/institutional/change-impact" || destination === "/institutional/ai-query" || destination === "/institutional/cohorts"
       ? destination : "/student";
     studentUrl.search = "";
     return copySessionState(supabaseResponse, NextResponse.redirect(studentUrl));
