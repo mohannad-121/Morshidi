@@ -196,10 +196,13 @@ def test_policy_change_does_not_invent_academic_rule_effect() -> None:
 def test_stable_fingerprint_and_ordering() -> None:
     first = _pre(new_option_course_codes=("B101", "A101"))
     second = _pre(new_option_course_codes=("A101", "B101"))
-    assert fingerprint(first) == fingerprint(second)
-    assert fingerprint(first) == fingerprint(_pre(new_option_course_codes=("A101", "B101"),
-                                                 provenance_reference="different-proposal"))
-    assert fingerprint(first) != fingerprint(_pre())
+    assert fingerprint(first, university_id=TENANT) == fingerprint(second, university_id=TENANT)
+    assert fingerprint(first, university_id=TENANT) == fingerprint(
+        _pre(new_option_course_codes=("A101", "B101"),
+             provenance_reference="different-proposal"), university_id=TENANT)
+    assert fingerprint(first, university_id=TENANT) != fingerprint(_pre(), university_id=TENANT)
+    assert fingerprint(first, university_id=TENANT) != fingerprint(
+        first, university_id=UUID("10000000-0000-0000-0000-000000000002"))
     assert evaluate_change_impact(first, university_id=TENANT,
                                   eligibility_catalog=_prerequisite_catalog()).structurally_affected_courses == (
                                       "NEXT", "TARGET")

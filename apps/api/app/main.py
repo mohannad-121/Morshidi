@@ -20,6 +20,7 @@ from app.api.routes.p11_intelligence import (
     student_router as p11_student_router, institutional_router as p11_institutional_router,
 )
 from app.api.routes.plan_transitions import router as plan_transitions_router
+from app.api.routes.institution_context import router as institution_context_router
 from app.api.routes.institutional_ai_query import router as institutional_ai_query_router
 from app.api.routes.advisor_copilot import router as advisor_copilot_router
 from app.api.routes.policies import router as policies_router
@@ -319,6 +320,7 @@ app.include_router(institutional_intelligence_router)
 app.include_router(p11_student_router)
 app.include_router(p11_institutional_router)
 app.include_router(plan_transitions_router)
+app.include_router(institution_context_router)
 app.include_router(institutional_ai_query_router)
 app.include_router(advisor_copilot_router)
 app.include_router(policies_router)

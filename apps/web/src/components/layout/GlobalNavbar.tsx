@@ -6,6 +6,8 @@ import { useState, useRef, useEffect } from "react";
 import Image from "next/image";
 import { useAuth } from "@/auth/auth-provider";
 import { SignOutButton } from "@/auth/sign-out-button";
+import { AuthenticatedApiClient } from "@/lib/api/authenticated-client";
+import { institutionNavVisible, institutionThemeClass, type CurrentInstitution } from "@/lib/institution-shell";
 import {
   ChevronDownIcon,
   MenuIcon,
@@ -27,9 +29,35 @@ export function GlobalNavbar() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [moreDropdownOpen, setMoreDropdownOpen] = useState(false);
   const [accountDropdownOpen, setAccountDropdownOpen] = useState(false);
+  const [institutionResult, setInstitutionResult] = useState<{ userId: string; context: CurrentInstitution } | null>(null);
+  const institution = auth.isAuthenticated && institutionResult && institutionResult.userId === auth.user?.id
+    ? institutionResult.context : null;
 
   const moreRef = useRef<HTMLDivElement>(null);
   const accountRef = useRef<HTMLDivElement>(null);
+
+  const ownerId = auth.user?.id;
+  const authenticated = auth.isAuthenticated;
+  const isStudentRoute = pathname.startsWith("/student");
+  const getAccessToken = auth.getAccessToken;
+  const refreshAccessToken = auth.refreshAccessToken;
+  const invalidateSession = auth.invalidateSession;
+  useEffect(() => {
+    // Opt in only after a governed server registry is installed; avoid default 503 traffic.
+    if (process.env.NEXT_PUBLIC_INSTITUTION_CONTEXT_ENABLED !== "true" ||
+        !authenticated || !ownerId || !isStudentRoute) return;
+    const controller = new AbortController();
+    const client = new AuthenticatedApiClient({ getAccessToken, refreshAccessToken, invalidateSession });
+    void client.request("/api/v1/me/institution-context", { signal: controller.signal })
+      .then(async (response) => {
+        if (response.ok && !controller.signal.aborted) {
+          const context = await response.json() as CurrentInstitution;
+          if (!controller.signal.aborted) setInstitutionResult({ userId: ownerId, context });
+        }
+      })
+      .catch(() => { /* No governed context: retain the existing neutral shell. */ });
+    return () => controller.abort();
+  }, [authenticated, ownerId, isStudentRoute, getAccessToken, refreshAccessToken, invalidateSession]);
 
   // Close dropdowns on click outside
   useEffect(() => {
@@ -87,6 +115,9 @@ export function GlobalNavbar() {
               <span className="block text-[10px] font-medium text-[#726B5E]">
                 نظام الذكاء الأكاديمي
               </span>
+              {institution && <span className={`block max-w-40 truncate rounded px-1 text-[10px] ${institutionThemeClass(institution.theme_key)}`}>
+                {institution.display_name}
+              </span>}
             </div>
           </Link>
 
@@ -170,12 +201,12 @@ export function GlobalNavbar() {
                   {moreDropdownOpen && (
                     <div id="student-more-tools" className="absolute right-0 mt-2 w-64 rounded-2xl border border-[#EDE2C5] bg-white p-2 shadow-lg z-50">
                       <Link href="/student/intelligence" className="flex rounded-xl px-3 py-2 text-xs font-semibold text-[#28241C] hover:bg-[#FFF9E8]">الذكاء الأكاديمي · عرض تجريبي</Link>
-                      <Link href="/student/plan-transition" className="flex rounded-xl px-3 py-2 text-xs font-semibold text-[#28241C] hover:bg-[#FFF9E8]">مقارنة الخطط · نمذجة غير رسمية</Link>
+                      {institutionNavVisible(institution, "plan_transition") && <Link href="/student/plan-transition" className="flex rounded-xl px-3 py-2 text-xs font-semibold text-[#28241C] hover:bg-[#FFF9E8]">مقارنة الخطط · نمذجة غير رسمية</Link>}
                       <div className="px-3 py-1.5 text-[10px] font-bold text-[#726B5E]">
                         الأدوات الأكاديمية الذكية
                       </div>
                       <Link href="/student/roadmap" className="flex rounded-xl px-3 py-2 text-xs font-semibold text-[#28241C] hover:bg-[#FFF9E8]">الخارطة الأكاديمية</Link>
-                      <Link href="/student/offerings" className="flex rounded-xl px-3 py-2 text-xs font-semibold text-[#28241C] hover:bg-[#FFF9E8]">العروض والجدول · بيانات تجريبية</Link>
+                      {institutionNavVisible(institution, "offerings") && <Link href="/student/offerings" className="flex rounded-xl px-3 py-2 text-xs font-semibold text-[#28241C] hover:bg-[#FFF9E8]">العروض والجدول · بيانات تجريبية</Link>}
                       <Link href="/student/report" className="flex rounded-xl px-3 py-2 text-xs font-semibold text-[#28241C] hover:bg-[#FFF9E8]">التقرير المُنمذج غير الرسمي</Link>
                       <Link
                         href="/student/eligibility"
@@ -411,7 +442,7 @@ export function GlobalNavbar() {
                   خطتي الأكاديمية
                 </Link>
                 <Link href="/student/roadmap" className="rounded-xl px-3 py-2 text-xs font-semibold text-[#28241C] hover:bg-[#FFF9E8]">الخارطة الأكاديمية</Link>
-                <Link href="/student/offerings" className="rounded-xl px-3 py-2 text-xs font-semibold text-[#28241C] hover:bg-[#FFF9E8]">العروض والجدول · بيانات تجريبية</Link>
+                {institutionNavVisible(institution, "offerings") && <Link href="/student/offerings" className="rounded-xl px-3 py-2 text-xs font-semibold text-[#28241C] hover:bg-[#FFF9E8]">العروض والجدول · بيانات تجريبية</Link>}
                 <Link href="/student/report" className="rounded-xl px-3 py-2 text-xs font-semibold text-[#28241C] hover:bg-[#FFF9E8]">التقرير غير الرسمي</Link>
                 <Link
                   href="/student/courses"

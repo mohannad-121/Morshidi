@@ -153,6 +153,46 @@ def test_unverified_attempt_is_not_silently_recognized():
         app.state.p12_modeling_provider = None
 
 
+def test_p13_guessed_foreign_target_and_request_tenant_spoofing_fail_closed():
+    from dataclasses import replace
+
+    provider, source, target, _ = _provider()
+    foreign_institution = "10000000-0000-0000-0000-00000000000b"
+    foreign = replace(target,
+                      identity=replace(target.identity, institution_id=foreign_institution),
+                      courses=tuple(replace(course, identity=replace(
+                          course.identity, institution_id=foreign_institution))
+                                    for course in target.courses),
+                      content_fingerprint="foreign-target")
+    publications = tuple(LocalPublication(IngestionState.PUBLISHED, plan,
+                                          "p13-local", date(2026, 1, 1), "P13_SYNTHETIC")
+                         for plan in (source, target, foreign))
+    scoped = ApprovedLocalModelingProvider(
+        publications, {(INSTITUTION, "owner-plan"): source.identity.key},
+        {source.identity.key: (target.identity.key,)})
+    app.dependency_overrides[get_current_user] = lambda: CurrentUser(OWNER)
+    try:
+        with TestClient(app) as client:
+            app.state.student_service = StudentStub()
+            app.state.p12_modeling_provider = scoped
+            listing = client.get("/api/v1/me/plan-transitions",
+                                 params={"institution_id": foreign_institution})
+            assert listing.status_code == 200
+            assert all(item["institution_id"] == INSTITUTION
+                       for item in listing.json()["targets"])
+            guessed = client.post("/api/v1/me/plan-transitions/evaluate",
+                                  json={"target_plan_key": foreign.identity.key})
+            assert guessed.status_code == 404
+            assert guessed.json()["detail"] == "TARGET_PLAN_UNAVAILABLE"
+            injected = client.post("/api/v1/me/plan-transitions/evaluate",
+                                   json={"target_plan_key": foreign.identity.key,
+                                         "institution_id": foreign_institution})
+            assert injected.status_code == 422
+    finally:
+        app.dependency_overrides.clear()
+        app.state.p12_modeling_provider = None
+
+
 def test_rules_unavailable_conflict_and_version_mismatch_are_explicit():
     provider, source, target, _ = _provider(include_equivalency=True)
 

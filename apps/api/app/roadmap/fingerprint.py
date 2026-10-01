@@ -14,7 +14,7 @@ from app.catalog.roadmap_metadata import RoadmapPlanMetadata
 from app.progress.models import AcademicProgressCatalog
 from app.rules.models import CanTakeCatalog, StudentCourseAttempt
 
-ROADMAP_SNAPSHOT_VERSION = "P9_ROADMAP_INPUT_V1"
+ROADMAP_SNAPSHOT_VERSION = "P13_ROADMAP_INPUT_V2"
 
 
 def academic_input_fingerprint(
@@ -23,10 +23,15 @@ def academic_input_fingerprint(
     names: tuple[ResolvedCourseReference, ...],
     attempts: tuple[StudentCourseAttempt, ...],
     metadata: RoadmapPlanMetadata | None,
+    *,
+    institution_id: str,
 ) -> str:
     """Same normalized plan/rules/names/attempts -> same digest, independent of read order."""
+    if not institution_id or not institution_id.strip():
+        raise ValueError("Roadmap fingerprint requires stable institution identity")
     payload = {
         "schema": ROADMAP_SNAPSHOT_VERSION,
+        "institution_id": institution_id,
         "study_plan_id": progress.study_plan.study_plan_id,
         "plan_total_credits": str(progress.study_plan.total_credit_hours),
         "plan_metadata": None if metadata is None else {

@@ -120,6 +120,7 @@ def build_roadmap(
     course_names: tuple[ResolvedCourseReference, ...],
     attempts: tuple[StudentCourseAttempt, ...],
     *,
+    institution_id: str,
     plan_metadata: RoadmapPlanMetadata | None = None,
     modeled_overlay: ModeledPlanOverlay | None = None,
     generated_at: datetime | None = None,
@@ -136,7 +137,8 @@ def build_roadmap(
     names = {course.course_code: course for course in course_names}
     if len(rules) != len(eligibility_catalog.plan_courses) or codes != set(rules) or codes != set(names):
         raise CatalogIntegrityError("Roadmap catalogs do not describe the same plan courses")
-    fingerprint = academic_input_fingerprint(progress_catalog, eligibility_catalog, course_names, attempts, plan_metadata)
+    fingerprint = academic_input_fingerprint(progress_catalog, eligibility_catalog, course_names, attempts,
+                                             plan_metadata, institution_id=institution_id)
     planned: dict[str, tuple[int, int]] = {}
     if modeled_overlay is not None:
         if modeled_overlay.study_plan_id != plan.study_plan_id or modeled_overlay.base_snapshot_fingerprint != fingerprint:

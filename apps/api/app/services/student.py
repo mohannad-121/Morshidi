@@ -203,15 +203,17 @@ class StudentService:
         )
 
     async def get_academic_roadmap(self, owner: str) -> AcademicRoadmap:
-        """One owner lookup, four plan-scoped catalog reads, no degree-path search."""
-        state = await self.get_profile(owner)
+        """Owner-scoped profile and institution reads, then four plan-scoped catalog reads."""
+        state, institution_id = await asyncio.gather(
+            self.get_profile(owner), self.resolve_student_university_id(owner))
         progress, eligibility, names, metadata = await asyncio.gather(
             self._catalog_repository.load_progress_catalog(state.study_plan_id),
             self._catalog_repository.load_plan_eligibility_catalog(state.study_plan_id),
             self._catalog_repository.load_advisor_course_catalog(state.study_plan_id),
             self._catalog_repository.load_roadmap_plan_metadata(state.study_plan_id),
         )
-        return build_roadmap(progress, eligibility, names, state.attempts, plan_metadata=metadata)
+        return build_roadmap(progress, eligibility, names, state.attempts,
+                             institution_id=institution_id, plan_metadata=metadata)
 
     async def get_academic_report(self, owner: str) -> ModeledAcademicReport:
         """Freeze one owner-scoped roadmap projection for screen and print."""
@@ -229,16 +231,17 @@ class StudentService:
     ) -> AcademicRoadmap:
         """Explicit bounded degree path + roadmap from the same owner/catalog inputs."""
         captured: tuple[StudentAcademicState, AcademicProgressCatalog, CanTakeCatalog,
-                        tuple[ResolvedCourseReference, ...], RoadmapPlanMetadata] | None = None
+                        tuple[ResolvedCourseReference, ...], RoadmapPlanMetadata, str] | None = None
 
         async def capture(state: StudentAcademicState, progress: AcademicProgressCatalog,
                           eligibility: CanTakeCatalog) -> None:
             nonlocal captured
-            names, metadata = await asyncio.gather(
+            names, metadata, institution_id = await asyncio.gather(
                 self._catalog_repository.load_advisor_course_catalog(state.study_plan_id),
                 self._catalog_repository.load_roadmap_plan_metadata(state.study_plan_id),
+                self.resolve_student_university_id(owner),
             )
-            captured = (state, progress, eligibility, names, metadata)
+            captured = (state, progress, eligibility, names, metadata, institution_id)
 
         result = await self.get_degree_paths(
             owner,
@@ -251,11 +254,12 @@ class StudentService:
         )
         if captured is None:
             raise StudentConfigurationError("Modeled roadmap input snapshot was not captured")
-        state, progress, eligibility, names, metadata = captured
-        fingerprint = academic_input_fingerprint(progress, eligibility, names, state.attempts, metadata)
+        state, progress, eligibility, names, metadata, institution_id = captured
+        fingerprint = academic_input_fingerprint(progress, eligibility, names, state.attempts,
+                                                 metadata, institution_id=institution_id)
         overlay = overlay_from_degree_path(result, fingerprint)
         return build_roadmap(progress, eligibility, names, state.attempts,
-                             plan_metadata=metadata, modeled_overlay=overlay)
+                             institution_id=institution_id, plan_metadata=metadata, modeled_overlay=overlay)
 
     async def get_degree_paths(
         self,

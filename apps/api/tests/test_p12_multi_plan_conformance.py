@@ -65,7 +65,7 @@ def snapshot(item):
                                                            "B101", attempts))
     derived = calculate_academic_progress(progress, attempts)
     recommendation = recommend_courses(progress, rules, attempts)
-    roadmap = build_roadmap(progress, rules, names, attempts, plan_metadata=metadata,
+    roadmap = build_roadmap(progress, rules, names, attempts, institution_id=context.identity.institution_id, plan_metadata=metadata,
                             generated_at=datetime(2026, 1, 1, tzinfo=timezone.utc))
     report = build_report_snapshot(roadmap)
     planner = plan_semester(progress, rules, attempts, recommendation,

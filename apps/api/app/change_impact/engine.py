@@ -37,11 +37,14 @@ _CREDIT_DECISIONS = (
     DecisionClass.PROGRESS, DecisionClass.RECOMMENDATIONS,
     DecisionClass.SEMESTER_PLANNER, DecisionClass.DEGREE_PATH,
 )
+CHANGE_FINGERPRINT_VERSION = "P13_TENANT_SCOPED_V2"
 
 
-def fingerprint(delta: ChangeDelta) -> str:
-    """Stable semantic identity; no actor, student identifier, or timestamp."""
-    canonical = json.dumps(delta.model_dump(mode="json", exclude={"provenance_reference"}), sort_keys=True,
+def fingerprint(delta: ChangeDelta, *, university_id: UUID) -> str:
+    """Stable tenant-scoped semantic identity; no actor, student ID, or timestamp."""
+    canonical = json.dumps({"schema": CHANGE_FINGERPRINT_VERSION,
+                            "university_id": str(university_id),
+                            "delta": delta.model_dump(mode="json", exclude={"provenance_reference"})}, sort_keys=True,
                            separators=(",", ":"), ensure_ascii=True)
     return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
 
@@ -265,7 +268,7 @@ def _report(
     limitations: tuple[ImpactLimitation, ...] = (), review: bool = False,
 ) -> ChangeImpactReport:
     return ChangeImpactReport(
-        change_id=fingerprint(delta), change_type=delta.change_type,
+        change_id=fingerprint(delta, university_id=university_id), change_type=delta.change_type,
         change_authority=ChangeAuthority.PROPOSED_ANALYST_CHANGE,
         provenance_reference="sha256:" + hashlib.sha256(
             delta.provenance_reference.encode("utf-8")).hexdigest(),
