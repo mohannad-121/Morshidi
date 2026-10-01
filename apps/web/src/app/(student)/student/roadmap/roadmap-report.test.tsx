@@ -7,12 +7,13 @@ import ReportPage from "../report/page";
 import type { AcademicRoadmapResponse } from "@/lib/api/student-types";
 
 const getRoadmap = vi.fn();
+const getAdaptiveCourseIntelligence = vi.fn();
 const generateModeledRoadmap = vi.fn();
 const getModeledReport = vi.fn();
 const stableClient = {};
 vi.mock("@/auth/auth-provider", () => ({ useAuth: () => ({ isAuthenticated: true }) }));
 vi.mock("@/lib/api/use-authenticated-api", () => ({ useAuthenticatedApi: () => stableClient }));
-vi.mock("@/lib/api/student-api", () => ({ StudentApiService: class { getRoadmap = getRoadmap; generateModeledRoadmap = generateModeledRoadmap; getModeledReport = getModeledReport; } }));
+vi.mock("@/lib/api/student-api", () => ({ StudentApiService: class { getRoadmap = getRoadmap; getAdaptiveCourseIntelligence = getAdaptiveCourseIntelligence; generateModeledRoadmap = generateModeledRoadmap; getModeledReport = getModeledReport; } }));
 
 const roadmap: AcademicRoadmapResponse = {
   study_plan_id: "synthetic-plan", plan_number: "SYN-1", effective_year: 2026,
@@ -38,6 +39,10 @@ const roadmap: AcademicRoadmapResponse = {
 
 beforeEach(() => {
   getRoadmap.mockReset(); getRoadmap.mockResolvedValue(roadmap);
+  getAdaptiveCourseIntelligence.mockReset(); getAdaptiveCourseIntelligence.mockResolvedValue({ courses: roadmap.courses.map((item) => ({
+    course_code: item.course_code, general: { score: 64, level: "HARD", provenance: "MODEL_BASED", model_version: "GENERAL_DIFFICULTY_MODEL_V1" },
+    personalized: { score: 56, level: "MODERATE", confidence: "LOW", provenance: "MODELED_STRUCTURAL_FALLBACK_NO_GRADE_MASTERY", model_version: "PERSONAL_DIFFICULTY_MODEL_V1", reason_codes: ["INSUFFICIENT_VERIFIED_GRADE_EVIDENCE"], contributing_skills: [], risk_factors: [] },
+  })) });
   generateModeledRoadmap.mockReset(); generateModeledRoadmap.mockResolvedValue({ ...roadmap, modeling_status: "MODELED_PATH" });
   getModeledReport.mockReset(); getModeledReport.mockResolvedValue({ ...roadmap, report_schema_version: "P9_MODELED_REPORT_V1",
     modeled_state_marker: "MODELED_UNOFFICIAL", content_fingerprint: "synthetic-report-fingerprint" });
@@ -67,6 +72,7 @@ describe("P9 student roadmap", () => {
     expect(await screen.findByRole("heading", { name: "خارطتي الأكاديمية" })).toBeTruthy();
     expect(container.querySelector("section[lang='ar'][dir='rtl']")).not.toBeNull();
     expect(screen.getByRole("button", { name: /مقدمة تجريبية/ })).toBeTruthy();
+    expect(screen.getAllByText(/الصعوبة العامة/).length).toBeGreaterThan(0);
     screen.getByRole("button", { name: /دراسة متقدمة/ }).focus();
     await user.keyboard("{Enter}");
     expect(screen.getByRole("heading", { name: /دراسة متقدمة/ })).toBeTruthy();

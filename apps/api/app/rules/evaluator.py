@@ -2,8 +2,17 @@
 
 from __future__ import annotations
 
+from dataclasses import replace
+from decimal import Decimal
+
+from app.rules.project_credits import (
+    MIN_EARNED_CREDITS, RULE_ID, RULE_PROVENANCE, RULE_VERSION,
+    credits_from_complete_rules, is_plan12_project,
+)
+
 from app.rules.models import (
     AttemptOutcome,
+    AcademicRuleTrace,
     CanTakeCatalog,
     CanTakeDecision,
     CanTakeError,
@@ -24,6 +33,40 @@ CanTakeResult = CanTakeDecision | CanTakeError
 
 
 def evaluate_can_take(catalog: CanTakeCatalog, request: CanTakeRequest) -> CanTakeResult:
+    """Apply verified prerequisites and any exact plan-scoped academic rule."""
+    result = _evaluate_prerequisites(catalog, request)
+    if not isinstance(result, CanTakeDecision) or not is_plan12_project(
+        request.study_plan_id, request.target_course_code,
+    ):
+        return result
+    earned = request.earned_completed_credits
+    if earned is None:
+        earned = credits_from_complete_rules(catalog, request.student_attempts)
+    if earned is None:
+        trace_result = "UNKNOWN"
+        decision = Decision.REVIEW_REQUIRED if result.decision is Decision.ELIGIBLE else result.decision
+        reason = DecisionReason.GRADUATION_PROJECT_CREDIT_EVIDENCE_UNKNOWN
+    elif earned < MIN_EARNED_CREDITS:
+        trace_result = "BLOCKED"
+        decision = Decision.NOT_ELIGIBLE
+        reason = DecisionReason.GRADUATION_PROJECT_MIN_EARNED_CREDITS
+    else:
+        trace_result = "SATISFIED"
+        decision = result.decision  # 90 credits never bypasses prerequisites.
+        reason = DecisionReason.GRADUATION_PROJECT_MIN_EARNED_CREDITS
+    trace = AcademicRuleTrace(
+        RULE_ID, RULE_VERSION, RULE_PROVENANCE, MIN_EARNED_CREDITS, earned,
+        trace_result,
+        "يتطلب مشروع الذكاء الاصطناعي إكمال 90 ساعة معتمدة بنجاح على الأقل.",
+        "AI Project requires at least 90 successfully earned credit hours.",
+    )
+    return replace(result, decision=decision, reasons=(*result.reasons, reason),
+                   review_reasons=(*result.review_reasons, reason)
+                   if trace_result == "UNKNOWN" else result.review_reasons,
+                   academic_rule_traces=(trace,))
+
+
+def _evaluate_prerequisites(catalog: CanTakeCatalog, request: CanTakeRequest) -> CanTakeResult:
     """Evaluate only verified prerequisite eligibility for one plan-course target.
 
     Catalog resolution is deliberately external. This function does not parse raw
@@ -111,6 +154,9 @@ def _validate_request(request: CanTakeRequest) -> CanTakeError | None:
     if not request.study_plan_id or not request.target_course_code:
         return _error(RequestErrorCode.INVALID_REQUEST, request)
     if any(not attempt.course_code for attempt in request.student_attempts):
+        return _error(RequestErrorCode.INVALID_REQUEST, request)
+    credits = request.earned_completed_credits
+    if credits is not None and (not isinstance(credits, Decimal) or not credits.is_finite() or credits < 0):
         return _error(RequestErrorCode.INVALID_REQUEST, request)
     return None
 

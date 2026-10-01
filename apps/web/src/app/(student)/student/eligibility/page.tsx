@@ -4,7 +4,9 @@ import { useRef, useState } from "react";
 import { useAuth } from "@/auth/auth-provider";
 import { useAuthenticatedApi } from "@/lib/api/use-authenticated-api";
 import { StudentApiService } from "@/lib/api/student-api";
+import { CourseDifficulty } from "@/components/academic/CourseDifficulty";
 import type {
+  AdaptiveCourseResponse,
   CanTakeDecisionResponse,
   Decision,
   DecisionReason,
@@ -72,6 +74,7 @@ export default function EligibilityPage() {
 
   const [courseCodeInput, setCourseCodeInput] = useState("");
   const [result, setResult] = useState<CanTakeDecisionResponse | null>(null);
+  const [adaptive, setAdaptive] = useState<AdaptiveCourseResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [graph, setGraph] = useState<EligibilityExplanationGraph | null>(null);
@@ -115,8 +118,11 @@ export default function EligibilityPage() {
 
     try {
       const api = new StudentApiService(client);
-      const data = await api.checkEligibility(code);
+      const [data, intelligence] = await Promise.all([
+        api.checkEligibility(code), api.getAdaptiveCourseIntelligence().catch(() => null),
+      ]);
       setResult(data);
+      setAdaptive(intelligence);
       setLoading(false);
       void loadGraph(data.target_course_code, "why");
     } catch (err: unknown) {
@@ -289,6 +295,13 @@ export default function EligibilityPage() {
             onModeChange={(mode) => { void loadGraph(result.target_course_code, mode); }}
             onRetry={() => { void loadGraph(result.target_course_code, graphMode); }}
           />
+
+          <section className="rounded-xl border border-[#EDE2C5] bg-white p-4" aria-label="تقدير صعوبة المادة وقاعدة الساعات">
+            <CourseDifficulty course={adaptive?.courses.find((item) => item.course_code === result.target_course_code)} />
+            {result.academic_rule_traces?.map((trace) => <p key={trace.rule_id} className="mt-2 text-sm" role="status">
+              {trace.reason_ar} / {trace.reason_en} · {trace.earned_completed_credits ?? "غير معروف"}/{trace.required_credits} · {trace.result}
+            </p>)}
+          </section>
 
           {/* Details Grid */}
           <div className="grid grid-cols-1 gap-6 md:grid-cols-2">

@@ -4,8 +4,9 @@ import { useRef, useState } from "react";
 import { useAuth } from "@/auth/auth-provider";
 import { useAuthenticatedApi } from "@/lib/api/use-authenticated-api";
 import { StudentApiService } from "@/lib/api/student-api";
+import { CourseDifficulty } from "@/components/academic/CourseDifficulty";
 import { AcademicGraphExplanation } from "@/components/academic/AcademicGraphExplanation";
-import type { AcademicExplanationGraph } from "@/lib/api/student-types";
+import type { AcademicExplanationGraph, AdaptiveCourseResponse } from "@/lib/api/student-types";
 import type {
   DegreePathOptionResponse,
   DegreePathRequest,
@@ -46,6 +47,7 @@ export default function DegreePathPage() {
 
   // States
   const [result, setResult] = useState<DegreePathResponse | null>(null);
+  const [adaptive, setAdaptive] = useState<AdaptiveCourseResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [selectedPathIndex, setSelectedPathIndex] = useState<number>(0);
@@ -84,6 +86,9 @@ export default function DegreePathPage() {
     try {
       timeoutSignal = AbortSignal.timeout(60_000);
       const api = new StudentApiService(client);
+      void api.getAdaptiveCourseIntelligence().then((intelligence) => {
+        if (currentRequest === requestId.current) setAdaptive(intelligence);
+      }).catch(() => { if (currentRequest === requestId.current) setAdaptive(null); });
       const req: DegreePathRequest = {
         max_credit_hours_per_semester: maxCreditsPerSemester,
         max_semesters_ahead: maxSemestersAhead,
@@ -372,6 +377,7 @@ export default function DegreePathPage() {
                                     {course.course_name_ar}
                                   </span>
                                 ) : null}
+                                <CourseDifficulty course={adaptive?.courses.find((item) => item.course_code === course.course_code)} />
                               </div>
 
                               <div className="text-left font-mono">

@@ -309,7 +309,7 @@ class SupabaseAcademicCatalogRepository:
             "study_plan_courses",
             {
                 "select": (
-                    "id,prerequisite_logic_status,raw_prerequisite_text,display_order,"
+                    "id,prerequisite_logic_status,raw_prerequisite_text,display_order,credit_hours,"
                     "courses(id,course_code,name_ar,catalog_status,university_id)"
                 ),
                 "study_plan_id": f"eq.{plan_id}",
@@ -457,6 +457,7 @@ class SupabaseAcademicCatalogRepository:
                     dependency_groups=dep_groups,
                     raw_prerequisite_text=raw_text,
                     target_name_ar=name_ar,
+                    credit_hours=_required_decimal(row, "credit_hours", "study_plan_course"),
                 )
             )
 
@@ -471,6 +472,7 @@ class SupabaseAcademicCatalogRepository:
             study_plan_id=plan_id,
             plan_courses=tuple(plan_rules),
             courses=all_identities,
+            complete_plan_credits=True,
         )
 
     async def _load_study_plan(self, plan_id: str) -> Mapping[str, Any]:

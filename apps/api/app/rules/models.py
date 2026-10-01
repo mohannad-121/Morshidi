@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from decimal import Decimal
 from enum import Enum
 
 
@@ -48,6 +49,8 @@ class DecisionReason(str, Enum):
     VERIFIED_PREREQUISITE_MODEL_INCOMPLETE = "VERIFIED_PREREQUISITE_MODEL_INCOMPLETE"
     TARGET_ALREADY_COMPLETED = "TARGET_ALREADY_COMPLETED"
     TARGET_CURRENTLY_ENROLLED = "TARGET_CURRENTLY_ENROLLED"
+    GRADUATION_PROJECT_MIN_EARNED_CREDITS = "GRADUATION_PROJECT_MIN_EARNED_CREDITS"
+    GRADUATION_PROJECT_CREDIT_EVIDENCE_UNKNOWN = "GRADUATION_PROJECT_CREDIT_EVIDENCE_UNKNOWN"
 
 
 class RequestErrorCode(str, Enum):
@@ -86,6 +89,7 @@ class PlanCourseRule:
     dependency_groups: tuple[DependencyGroup, ...] = ()
     raw_prerequisite_text: str | None = None
     target_name_ar: str | None = None
+    credit_hours: Decimal | None = None
 
 
 @dataclass(frozen=True)
@@ -99,6 +103,7 @@ class CanTakeCatalog:
     study_plan_id: str
     plan_courses: tuple[PlanCourseRule, ...]
     courses: tuple[CourseIdentity, ...]
+    complete_plan_credits: bool = False
 
 
 @dataclass(frozen=True)
@@ -106,6 +111,19 @@ class CanTakeRequest:
     study_plan_id: str
     target_course_code: str
     student_attempts: tuple[StudentCourseAttempt, ...]
+    earned_completed_credits: Decimal | None = None
+
+
+@dataclass(frozen=True)
+class AcademicRuleTrace:
+    rule_id: str
+    rule_version: str
+    provenance: str
+    required_credits: Decimal
+    earned_completed_credits: Decimal | None
+    result: str
+    reason_ar: str
+    reason_en: str
 
 
 @dataclass(frozen=True)
@@ -137,6 +155,7 @@ class CanTakeDecision:
     review_reasons: tuple[DecisionReason, ...]
     raw_prerequisite_text: str | None
     target_name_ar: str | None
+    academic_rule_traces: tuple[AcademicRuleTrace, ...] = ()
 
 
 @dataclass(frozen=True)

@@ -4,6 +4,7 @@ import {
 } from "@/lib/api/authenticated-client";
 import type {
   AcademicProfileResponse,
+  AdaptiveCourseResponse,
   AcademicProgressResponse,
   AcademicRoadmapResponse,
   ModeledAcademicReportResponse,
@@ -112,6 +113,11 @@ export class StudentApiService {
       `/api/v1/me/course-recommendations${query}`,
     );
     return parseJson<RecommendationResponse>(res);
+  }
+
+  async getAdaptiveCourseIntelligence(): Promise<AdaptiveCourseResponse> {
+    const res = await this.client.request("/api/v1/me/adaptive-course-intelligence", { cache: "no-store" });
+    return parseJson<AdaptiveCourseResponse>(res);
   }
 
   async getRoadmap(): Promise<AcademicRoadmapResponse> {

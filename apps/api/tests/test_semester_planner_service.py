@@ -30,6 +30,8 @@ from app.rules.models import (
     StudentCourseAttempt,
 )
 from app.services.student import StudentService
+from app.planner.engine import plan_semester
+from app.recommendations.engine import recommend_courses
 from app.student.errors import StudentProfileNotFound
 from app.student.models import StudentAcademicState
 
@@ -51,6 +53,12 @@ class FakeStudentRepository:
         if self.state is None:
             raise StudentProfileNotFound("Student profile was not found")
         return self.state
+
+    async def resolve_student_university_id(self, owner: str) -> str:
+        return "test-institution"
+
+    async def load_attempt_records(self, owner: str) -> tuple:
+        return ()
 
     async def create_profile(self, *args, **kwargs):
         self.write_calls.append("create_profile")
@@ -150,6 +158,23 @@ def _make_service(state: StudentAcademicState | None = None, plan_id: str = PLAN
         catalog_repository=catalog_repo,
     )
     return service, student_repo, catalog_repo
+
+
+def test_adaptive_candidate_window_never_admits_ineligible_courses() -> None:
+    progress, eligibility = _make_catalogs()
+    recs = recommend_courses(progress, eligibility, ())
+    eligible = [item.course_code for item in recs.ranked_recommendations]
+    assert len(eligible) >= 2
+    score = {eligible[1]: 100}
+    result = plan_semester(progress, eligibility, (), recs,
+                           PlannerConstraints(max_credit_hours=Decimal("15")),
+                           candidate_window_size=1, adaptive_scores=score)
+    assert result.evaluated_candidate_count == 1
+    assert result.plan_options[0].courses[0].course_code == eligible[1]
+    with pytest.raises(PlannerIntegrityError):
+        plan_semester(progress, eligibility, (), recs,
+                      PlannerConstraints(max_credit_hours=Decimal("15")),
+                      adaptive_scores={"1505311": 100})
 
 
 @pytest.mark.anyio

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from uuid import UUID
+from decimal import Decimal
 
 from app.catalog.repository import AcademicCatalogRepository
 from app.rules.evaluator import CanTakeResult, evaluate_can_take
@@ -24,6 +25,7 @@ class EligibilityService:
         study_plan_id: UUID,
         target_course_code: str,
         student_attempts: tuple[StudentCourseAttempt, ...],
+        earned_completed_credits: Decimal | None = None,
     ) -> CanTakeResult:
         """Load canonical rules and delegate the decision unchanged to the engine."""
 
@@ -34,5 +36,6 @@ class EligibilityService:
                 study_plan_id=str(study_plan_id),
                 target_course_code=target_course_code,
                 student_attempts=student_attempts,
+                earned_completed_credits=earned_completed_credits,
             ),
         )

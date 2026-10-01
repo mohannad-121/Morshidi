@@ -10,7 +10,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from decimal import Decimal
 from time import monotonic
-from typing import Callable
+from typing import Callable, Mapping
 
 from app.planner.models import (
     DEFAULT_CANDIDATE_WINDOW_SIZE,
@@ -61,11 +61,11 @@ _METHODOLOGY_NOTE = (
 
 _LIMITATIONS: tuple[str, ...] = (
     "Planning is bounded strictly by modeled academic study plan structure.",
-    "Search is exact within the candidate window (top M candidates); results are not guaranteed globally optimal across unexamined eligible courses outside this window.",
+    "Search is exact within the candidate window (top M eligible candidates under the supplied ranking); results are not guaranteed globally optimal across unexamined eligible courses outside this window.",
     "Course offering schedules, section capacities, and timetable time conflicts are unmodeled.",
     "Midterm and final examination clash detection is unmodeled.",
     "No course equivalency, substitution, or transfer-credit model exists.",
-    "No instructor ratings, grading leniency, or course difficulty models exist.",
+    "Modeled course difficulty may reorder eligible candidates when supplied; it is not trained historical outcome evidence, instructor rating, or grading-leniency evidence.",
     "No GPA calculation, GPA probation rules, or GPA optimization exists.",
     "max_credit_hours represents a user planning preference, not an authorized university registration limit.",
     "Derived plan options do not constitute official university graduation clearance.",
@@ -86,6 +86,7 @@ class _EvaluatedCombination:
     newly_eligible_course_codes: tuple[str, ...]
     newly_eligible_count: int
     recommendation_rank_sum: int
+    adaptive_score_sum: int
     canonical_course_codes: tuple[str, ...]
     priority_tuple: tuple[int, int, Decimal, int, Decimal, int, tuple[str, ...]]
     has_previously_attempted: bool
@@ -110,6 +111,7 @@ def plan_semester(
     reported_earned_credit_hours: Decimal | None = None,
     check_budget: Callable[[], None] | None = None,
     metrics: dict[str, float | int] | None = None,
+    adaptive_scores: Mapping[str, int] | None = None,
 ) -> SemesterPlannerResult:
     """Generate and rank optimal semester course combinations deterministically.
 
@@ -159,9 +161,20 @@ def plan_semester(
         course.course_code: getattr(course, "name_en", None) for course in eligibility_catalog.courses
     }
 
-    # 2. Candidate Universe Bounding (Top M)
+    # 2. Candidate Universe Bounding (Top M).  Adaptive preference never adds
+    # an ineligible course; the Phase 7 eligible set remains authoritative.
+    if adaptive_scores is not None:
+        eligible_codes = {item.course_code for item in recommendation_result.ranked_recommendations}
+        if any(code not in eligible_codes or isinstance(score, bool) or not isinstance(score, int)
+               or score < 0 or score > 100 for code, score in adaptive_scores.items()):
+            raise PlannerIntegrityError("Invalid adaptive scores for eligible candidate set")
     applied_window_size = candidate_window_size
-    candidate_pool = recommendation_result.ranked_recommendations[:applied_window_size]
+    ranked_candidates = recommendation_result.ranked_recommendations
+    if adaptive_scores is not None:
+        ranked_candidates = tuple(sorted(ranked_candidates, key=lambda item: (
+            -adaptive_scores.get(item.course_code, 0), item.rank, item.course_code,
+        )))
+    candidate_pool = ranked_candidates[:applied_window_size]
     evaluated_candidate_count = len(candidate_pool)
 
     # Empty candidate pool edge case
@@ -357,6 +370,7 @@ def plan_semester(
             if c.requirement_type in (RequirementType.REQUIRED.value, "required") and c.credit_hours == Decimal("0")
         )
         recommendation_rank_sum = sum(c.rank for c in combination)
+        adaptive_score_sum = sum(adaptive_scores.get(c.course_code, 0) for c in combination) if adaptive_scores else 0
         canonical_course_codes = tuple(sorted(c.course_code for c in combination))
         has_previously_attempted = any(c.previously_attempted for c in combination)
 
@@ -403,6 +417,7 @@ def plan_semester(
                 newly_eligible_course_codes=newly_eligible_course_codes,
                 newly_eligible_count=newly_eligible_count,
                 recommendation_rank_sum=recommendation_rank_sum,
+                adaptive_score_sum=adaptive_score_sum,
                 canonical_course_codes=canonical_course_codes,
                 priority_tuple=priority_tuple,
                 has_previously_attempted=has_previously_attempted,
@@ -458,6 +473,7 @@ def plan_semester(
             -item.modeled_credit_delta,
             -item.newly_eligible_count,
             -item.total_credit_hours,
+            -item.adaptive_score_sum,
             item.recommendation_rank_sum,
             item.canonical_course_codes,
         )

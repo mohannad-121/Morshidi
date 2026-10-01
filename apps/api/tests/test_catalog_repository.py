@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import inspect
+from decimal import Decimal
 from collections.abc import Callable
 from typing import Any
 
@@ -58,6 +59,7 @@ class FixtureData:
                 "id": PLAN_COURSE_ID,
                 "prerequisite_logic_status": "verified",
                 "raw_prerequisite_text": "1501110",
+                "credit_hours": 3,
                 "courses": {
                     "id": TARGET_ID,
                     "course_code": "1501112",
@@ -474,6 +476,8 @@ def test_plan_eligibility_catalog_loads_all_courses_and_dependencies() -> None:
     assert len(catalog.plan_courses) == 1
     rule = catalog.plan_courses[0]
     assert rule.course_code == "1501112"
+    assert rule.credit_hours == Decimal("3")
+    assert catalog.complete_plan_credits is True
     assert rule.prerequisite_logic_status == PrerequisiteLogicStatus.VERIFIED
     assert len(rule.dependency_groups) == 1
     assert rule.dependency_groups[0].option_course_codes == ("1501110",)

@@ -18,6 +18,7 @@ from app.api.schemas.progress import AcademicProgressResponse
 from app.api.schemas.roadmap import AcademicRoadmapResponse
 from app.api.schemas.academic_report import ModeledAcademicReportResponse
 from app.api.schemas.recommendations import RecommendationResponse
+from app.api.schemas.adaptive_courses import AdaptiveCourseResponse
 from app.api.schemas.semester_planner import (
     SemesterPlanRequest,
     SemesterPlannerResponse,
@@ -255,6 +256,18 @@ async def get_course_recommendations(
 ) -> RecommendationResponse:
     result = await service.get_course_recommendations(user.user_id, limit=limit)
     return _recommendation_response(result)
+
+
+@router.get("/adaptive-course-intelligence", response_model=AdaptiveCourseResponse)
+async def get_adaptive_course_intelligence(
+    user: AuthenticatedUser, service: StudentServiceDependency, response: Response, request: Request,
+) -> AdaptiveCourseResponse:
+    if request.query_params:
+        raise HTTPException(status_code=422, detail="Unsupported query parameters")
+    response.headers["Cache-Control"] = "private, no-store"
+    return AdaptiveCourseResponse.model_validate(
+        await service.get_adaptive_course_intelligence(user.user_id), from_attributes=True,
+    )
 
 
 def _recommendation_response(result: RecommendationResult) -> RecommendationResponse:

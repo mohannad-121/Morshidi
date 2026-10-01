@@ -6,6 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request, status
 
 from app.api.schemas.eligibility import (
     ApiErrorResponse,
+    AcademicRuleTraceResponse,
     CanTakeDecisionResponse,
     CanTakeRequestBody,
     DependencyGroupEvidenceResponse,
@@ -81,6 +82,8 @@ def _decision_response(result: CanTakeDecision) -> CanTakeDecisionResponse:
         review_reasons=list(result.review_reasons),
         raw_prerequisite_text=result.raw_prerequisite_text,
         target_name_ar=result.target_name_ar,
+        academic_rule_traces=[AcademicRuleTraceResponse.model_validate(item, from_attributes=True)
+                              for item in result.academic_rule_traces],
     )
 
 

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from typing import Annotated, Literal
+from decimal import Decimal
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, Strict, field_validator
@@ -59,6 +60,17 @@ class DependencyGroupEvidenceResponse(BaseModel):
     non_passed_option_course_codes: list[str]
 
 
+class AcademicRuleTraceResponse(BaseModel):
+    rule_id: str
+    rule_version: str
+    provenance: str
+    required_credits: Decimal
+    earned_completed_credits: Decimal | None
+    result: str
+    reason_ar: str
+    reason_en: str
+
+
 class CanTakeDecisionResponse(BaseModel):
     kind: Literal["decision"] = "decision"
     decision: Decision
@@ -72,6 +84,7 @@ class CanTakeDecisionResponse(BaseModel):
     review_reasons: list[DecisionReason]
     raw_prerequisite_text: str | None
     target_name_ar: str | None
+    academic_rule_traces: list[AcademicRuleTraceResponse] = Field(default_factory=list)
 
 
 class ApiErrorResponse(BaseModel):

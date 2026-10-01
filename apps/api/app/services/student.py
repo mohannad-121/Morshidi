@@ -19,6 +19,7 @@ from app.planner.engine import plan_semester
 from app.planner.models import (
     DEFAULT_CANDIDATE_WINDOW_SIZE,
     PlannerConstraints,
+    PlannerIntegrityError,
     SemesterPlannerResult,
 )
 from app.rules.evaluator import CanTakeResult
@@ -30,6 +31,8 @@ from app.core.request_timing import request_id_context
 from app.core.academic_compute import AcademicComputeLimiter
 from app.progress.engine import calculate_academic_progress
 from app.progress.models import AcademicProgress, AcademicProgressCatalog
+from app.rules.project_credits import is_plan12_project, passed_plan_credits
+from app.student_intelligence.adaptive import AdaptiveCourseResult, GradePolicy, build_adaptive_courses
 from app.recommendations.engine import recommend_courses
 from app.recommendations.models import RecommendationResult
 from app.roadmap.engine import AcademicRoadmap, build_roadmap, overlay_from_degree_path
@@ -56,11 +59,13 @@ class StudentService:
         eligibility: EligibilityService,
         catalog_repository: AcademicCatalogRepository,
         academic_compute_limiter: AcademicComputeLimiter | None = None,
+        grade_policy: GradePolicy | None = None,
     ) -> None:
         self._repository = repository
         self._eligibility = eligibility
         self._catalog_repository = catalog_repository
         self._academic_compute_limiter = academic_compute_limiter or AcademicComputeLimiter()
+        self._grade_policy = grade_policy
 
     async def get_profile(self, owner: str) -> StudentAcademicState:
         return await self._repository.load_student_academic_state(owner)
@@ -108,7 +113,15 @@ class StudentService:
 
     async def evaluate_can_take(self, owner: str, target_course_code: str) -> CanTakeResult:
         state = await self.get_profile(owner)
-        return await self._eligibility.evaluate_can_take(UUID(state.study_plan_id), target_course_code, state.attempts)
+        earned = None
+        if is_plan12_project(state.study_plan_id, target_course_code):
+            progress_catalog = await self._catalog_repository.load_progress_catalog(state.study_plan_id)
+            progress = calculate_academic_progress(progress_catalog, state.attempts)
+            earned = passed_plan_credits(progress)
+        return await self._eligibility.evaluate_can_take(
+            UUID(state.study_plan_id), target_course_code, state.attempts,
+            earned_completed_credits=earned,
+        )
 
     async def get_academic_progress(self, owner: str) -> AcademicProgress:
         state = await self.get_profile(owner)
@@ -152,6 +165,36 @@ class StudentService:
             )
         return result
 
+    async def get_adaptive_course_intelligence(self, owner: str) -> AdaptiveCourseResult:
+        """One owner-scoped batch; no browser-provided student or institution key."""
+        state, institution_id = await asyncio.gather(
+            self.get_profile(owner), self.resolve_student_university_id(owner),
+        )
+        progress_catalog, eligibility_catalog, records = await asyncio.gather(
+            self._catalog_repository.load_progress_catalog(state.study_plan_id),
+            self._catalog_repository.load_plan_eligibility_catalog(state.study_plan_id),
+            self.list_attempts(owner),
+        )
+        def calculate(check_budget):
+            progress = calculate_academic_progress(
+                progress_catalog, state.attempts,
+                reported_cumulative_gpa=state.reported_cumulative_gpa,
+                reported_gpa_scale=state.reported_gpa_scale,
+                reported_earned_credit_hours=state.reported_earned_credit_hours,
+            )
+            recommendations = recommend_courses(
+                progress_catalog, eligibility_catalog, state.attempts,
+                reported_cumulative_gpa=state.reported_cumulative_gpa,
+                reported_gpa_scale=state.reported_gpa_scale,
+                reported_earned_credit_hours=state.reported_earned_credit_hours,
+            )
+            check_budget()
+            return build_adaptive_courses(
+                state, institution_id, progress_catalog, eligibility_catalog,
+                progress, recommendations, records, grade_policy=self._grade_policy,
+            )
+        return await self._academic_compute_limiter.run(calculate)
+
     async def get_semester_plans(
         self,
         owner: str,
@@ -170,6 +213,9 @@ class StudentService:
         state = await self.get_profile(owner)
         progress_catalog = await self._catalog_repository.load_progress_catalog(state.study_plan_id)
         eligibility_catalog = await self._catalog_repository.load_plan_eligibility_catalog(state.study_plan_id)
+        if (progress_catalog.study_plan.study_plan_id != state.study_plan_id
+                or eligibility_catalog.study_plan_id != state.study_plan_id):
+            raise PlannerIntegrityError("Mismatched study_plan_id between catalogs and student")
 
         # Compute full Phase 7 recommendations without any presentation limit
         full_recommendations = recommend_courses(
@@ -181,14 +227,25 @@ class StudentService:
             reported_earned_credit_hours=state.reported_earned_credit_hours,
         )
 
+        institution_id, records = await asyncio.gather(
+            self.resolve_student_university_id(owner), self.list_attempts(owner),
+        )
         constraints = PlannerConstraints(
             max_credit_hours=max_credit_hours,
             max_courses=max_courses,
             max_options=max_options,
         )
 
-        return await self._academic_compute_limiter.run(
-            lambda check_budget: plan_semester(
+        def calculate(check_budget):
+            progress = calculate_academic_progress(progress_catalog, state.attempts)
+            adaptive = build_adaptive_courses(
+                state, institution_id, progress_catalog, eligibility_catalog, progress,
+                full_recommendations, records, grade_policy=self._grade_policy,
+            )
+            adaptive_scores = {item.course_code: item.recommendation_score
+                               for item in adaptive.recommendations}
+            check_budget()
+            return plan_semester(
                 progress_catalog,
                 eligibility_catalog,
                 state.attempts,
@@ -198,9 +255,10 @@ class StudentService:
                 reported_cumulative_gpa=state.reported_cumulative_gpa,
                 reported_gpa_scale=state.reported_gpa_scale,
                 reported_earned_credit_hours=state.reported_earned_credit_hours,
+                adaptive_scores=adaptive_scores,
                 check_budget=check_budget,
-            ),
-        )
+            )
+        return await self._academic_compute_limiter.run(calculate)
 
     async def get_academic_roadmap(self, owner: str) -> AcademicRoadmap:
         """Owner-scoped profile and institution reads, then four plan-scoped catalog reads."""

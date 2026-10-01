@@ -5,8 +5,9 @@ import Link from "next/link";
 import { useAuth } from "@/auth/auth-provider";
 import { useAuthenticatedApi } from "@/lib/api/use-authenticated-api";
 import { StudentApiService } from "@/lib/api/student-api";
+import { CourseDifficulty } from "@/components/academic/CourseDifficulty";
 import { AcademicGraphExplanation } from "@/components/academic/AcademicGraphExplanation";
-import type { AcademicExplanationGraph } from "@/lib/api/student-types";
+import type { AcademicExplanationGraph, AdaptiveCourseResponse } from "@/lib/api/student-types";
 import type {
   DashboardError,
   RecommendationCandidateResponse,
@@ -31,6 +32,7 @@ export default function RecommendationsPage() {
   const auth = useAuth();
   const client = useAuthenticatedApi();
   const [data, setData] = useState<RecommendationResponse | null>(null);
+  const [adaptive, setAdaptive] = useState<AdaptiveCourseResponse | null>(null);
   const [error, setError] = useState<DashboardError | null>(null);
   const [loading, setLoading] = useState(true);
   const [graph, setGraph] = useState<AcademicExplanationGraph | null>(null);
@@ -64,8 +66,11 @@ export default function RecommendationsPage() {
     setGraphError(false);
     try {
       const api = new StudentApiService(client);
-      const res = await api.getRecommendations();
+      const [res, intelligence] = await Promise.all([
+        api.getRecommendations(), api.getAdaptiveCourseIntelligence().catch(() => null),
+      ]);
       setData(res);
+      setAdaptive(intelligence);
       void fetchGraph();
     } catch {
       setError("SERVER_ERROR");
@@ -91,12 +96,15 @@ export default function RecommendationsPage() {
 
   const filteredRecommendations = useMemo(() => {
     if (!data?.ranked_recommendations) return [];
+    const ranks = new Map(adaptive?.recommendations.map((item) => [item.course_code, item.rank]) ?? []);
     return data.ranked_recommendations.filter((r) => {
       if (filterType === "UNLOCKS") return r.newly_eligible_count > 0;
       if (filterType === "COMPLETES") return r.completes_requirement_group;
       return true;
-    });
-  }, [data, filterType]);
+    }).sort((a, b) => (ranks.get(a.course_code) ?? a.rank) - (ranks.get(b.course_code) ?? b.rank));
+  }, [data, adaptive, filterType]);
+  const difficultyByCode = useMemo(() => new Map(adaptive?.courses.map((item) => [item.course_code, item]) ?? []), [adaptive]);
+  const recommendationByCode = useMemo(() => new Map(adaptive?.recommendations.map((item) => [item.course_code, item]) ?? []), [adaptive]);
 
   return (
     <div className="space-y-8">
@@ -150,12 +158,17 @@ export default function RecommendationsPage() {
       {/* Content */}
       {!loading && !error && data ? (
         <div className="space-y-8">
+          {adaptive ? <section className="rounded-2xl border border-[#EDE2C5] bg-[#FFF9E8] p-4" aria-label="ملخص وضعك الأكاديمي">
+            <h2 className="font-bold">وضعك الأكاديمي · Your academic situation</h2>
+            <p className="mt-1 text-sm">المعدل المُبلّغ / Reported GPA: {adaptive.profile.cumulative_gpa ?? "غير متاح"} / {adaptive.profile.gpa_scale ?? "—"} · الساعات المجتازة / Earned credits: {adaptive.profile.earned_completed_credits} · المواد المكتملة / Completed courses: {adaptive.profile.completed_courses.length}</p>
+            <p className="mt-1 text-xs text-[#726B5E]">ترتيب نمذجي مبني على الأهلية الحتمية والأدلة المتاحة؛ ليس قرار تسجيل رسمي. Modeled ranking, not registration approval. Grade-based personalization requires verified grades and an approved scale.</p>
+          </section> : <p role="status" className="rounded-xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900">تعذر تحميل التقدير الشخصي حالياً؛ الترتيب المعروض عام وليس توصية مخصصة. Personalized estimates are unavailable; the displayed order is generic.</p>}
           {/* Summary Stat Cards */}
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
             <StatCard
               title="إجمالي الموصى بها"
               value={stats.total}
-              subtitle="مواد جاهزة ومستوفاة للتسجيل"
+              subtitle="مواد مؤهلة وفق القواعد المنمذجة"
               icon={<RecommendationsIcon className="h-5 w-5" />}
             />
             <StatCard
@@ -232,7 +245,7 @@ export default function RecommendationsPage() {
                     <div className="flex items-start gap-4">
                       {/* Rank Badge */}
                       <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[#FFF4C7] font-mono text-base font-extrabold text-[#A66F00] border border-[#EDE2C5]">
-                        #{rec.rank}
+                        #{recommendationByCode.get(rec.course_code)?.rank ?? rec.rank}
                       </div>
 
                       <div className="space-y-1.5">
@@ -248,6 +261,11 @@ export default function RecommendationsPage() {
                           <span className="rounded-md bg-[#FFF9E8] px-2 py-0.5 text-[10px] font-mono font-bold text-[#A66F00] border border-[#EDE2C5]" dir="ltr">
                             {rec.credit_hours} ساعات
                           </span>
+                        </div>
+
+                        <div className="mt-2">
+                          <CourseDifficulty course={difficultyByCode.get(rec.course_code)} />
+                          {adaptive ? <p className="text-xs">درجة التوصية النمذجية / Modeled score: {recommendationByCode.get(rec.course_code)?.recommendation_score ?? "—"}/100 · {recommendationByCode.get(rec.course_code)?.confidence ?? "LOW"} confidence</p> : null}
                         </div>
 
                         <div className="flex flex-wrap items-center gap-2 pt-1">

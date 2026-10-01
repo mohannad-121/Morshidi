@@ -5,8 +5,9 @@ import Link from "next/link";
 import { useAuth } from "@/auth/auth-provider";
 import { useAuthenticatedApi } from "@/lib/api/use-authenticated-api";
 import { StudentApiService } from "@/lib/api/student-api";
+import { CourseDifficulty } from "@/components/academic/CourseDifficulty";
 import { AcademicGraphExplanation } from "@/components/academic/AcademicGraphExplanation";
-import type { AcademicExplanationGraph } from "@/lib/api/student-types";
+import type { AcademicExplanationGraph, AdaptiveCourseResponse } from "@/lib/api/student-types";
 import type {
   PlannedCourseEntryResponse,
   SemesterPlanOptionResponse,
@@ -38,6 +39,7 @@ export default function PlannerPage() {
 
   // States
   const [result, setResult] = useState<SemesterPlannerResponse | null>(null);
+  const [adaptive, setAdaptive] = useState<AdaptiveCourseResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [selectedOptionIndex, setSelectedOptionIndex] = useState<number>(0);
@@ -77,8 +79,11 @@ export default function PlannerPage() {
         max_courses: maxCourses && maxCourses > 0 ? maxCourses : null,
         max_options: maxOptions,
       };
-      const data = await api.createSemesterPlans(req);
+      const [data, intelligence] = await Promise.all([
+        api.createSemesterPlans(req), api.getAdaptiveCourseIntelligence().catch(() => null),
+      ]);
       setResult(data);
+      setAdaptive(intelligence);
       setSelectedOptionIndex(0);
       lastGraphRequest.current = req;
       setLoading(false);
@@ -307,6 +312,7 @@ export default function PlannerPage() {
                           </td>
                           <td className="px-6 py-4 font-bold text-[#28241C]">
                             {course.course_name_ar ?? "—"}
+                            <CourseDifficulty course={adaptive?.courses.find((item) => item.course_code === course.course_code)} />
                           </td>
                           <td className="px-6 py-4 font-mono text-[#28241C]">
                             {course.credit_hours} ساعات

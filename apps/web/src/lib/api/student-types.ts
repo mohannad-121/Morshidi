@@ -161,6 +161,27 @@ export interface CanTakeDecisionResponse {
   review_reasons: DecisionReason[];
   raw_prerequisite_text: string | null;
   target_name_ar: string | null;
+  academic_rule_traces?: Array<{ rule_id: string; rule_version: string; provenance: string;
+    required_credits: number; earned_completed_credits: number | null; result: string;
+    reason_ar: string; reason_en: string }>;
+}
+
+export interface AdaptiveCourseResponse {
+  profile: {
+    cumulative_gpa: number | null; gpa_scale: number | null; gpa_provenance: string;
+    grade_scale_version: string | null; grade_scale_provenance: string;
+    earned_completed_credits: number; completed_courses: string[]; strong_courses: string[];
+    weak_courses: string[]; academic_stage: string; freshness: string;
+  };
+  courses: Array<{ course_code: string; general: { score: number; level: string; provenance: string; model_version: string };
+    personalized: { score: number; level: string; confidence: string; provenance: string;
+      model_version: string; reason_codes: string[];
+      contributing_skills: string[]; risk_factors: string[] } }>;
+  recommendations: Array<{ course_code: string; rank: number; recommendation_score: number;
+    eligible: boolean; fit_score: number; confidence: string; deterministic_reasons: string[];
+    risk_factors: string[] }>;
+  model_version: string;
+  limitations: string[];
 }
 
 export type RoadmapState = "COMPLETED" | "IN_PROGRESS" | "ELIGIBLE" | "BLOCKED" | "PLANNED" | "REVIEW_REQUIRED";

@@ -5,7 +5,8 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useAuth } from "@/auth/auth-provider";
 import { useAuthenticatedApi } from "@/lib/api/use-authenticated-api";
 import { StudentApiService } from "@/lib/api/student-api";
-import type { AcademicRoadmapResponse, RoadmapCourse, RoadmapState } from "@/lib/api/student-types";
+import { CourseDifficulty } from "@/components/academic/CourseDifficulty";
+import type { AcademicRoadmapResponse, AdaptiveCourseResponse, RoadmapCourse, RoadmapState } from "@/lib/api/student-types";
 
 type Locale = "ar" | "en";
 const STATES: RoadmapState[] = ["COMPLETED", "IN_PROGRESS", "ELIGIBLE", "BLOCKED", "PLANNED", "REVIEW_REQUIRED"];
@@ -18,7 +19,7 @@ const LABELS: Record<RoadmapState, { ar: string; en: string }> = {
   REVIEW_REQUIRED: { ar: "تحتاج مراجعة", en: "Review required" },
 };
 const COPY = {
-  ar: { title: "خارطتي الأكاديمية", intro: "عرض مُنمذج من سجلّك وخطتك. الأهلية هنا للمتطلبات السابقة فقط؛ لا تؤكد الطرح أو التسجيل.",
+  ar: { title: "خارطتي الأكاديمية", intro: "عرض مُنمذج من سجلّك وخطتك. الأهلية الحتمية لا تؤكد الطرح أو التسجيل.",
     report: "عرض التقرير غير الرسمي", loading: "جارٍ تحميل الخارطة الأكاديمية", error: "تعذّر تحميل الخارطة.", retry: "إعادة المحاولة",
     empty: "لا توجد مواد في هذه الخطة أو لا توجد نتائج مطابقة.", all: "جميع الحالات", search: "ابحث برمز المادة أو اسمها",
     details: "تفاصيل المادة", select: "اختر مادة لعرض تفاصيلها.", credits: "ساعات", group: "مجموعة المتطلبات",
@@ -27,7 +28,7 @@ const COPY = {
     noVersion: "غير متاح", legend: "دليل الحالات", next: "المتاح الآن", blocked: "المقيّدة", critical: "ذات تأثير بنيوي",
     source: "تاريخ تحديث مصدر الخطة", review: "بيانات المتطلبات تحتاج مراجعة بشرية.", noMissing: "لا توجد مجموعة متطلبات ناقصة مثبتة.",
   },
-  en: { title: "My academic roadmap", intro: "Modeled from your record and study plan. Prerequisite eligibility does not confirm offering or registration.",
+  en: { title: "My academic roadmap", intro: "Modeled from your record and study plan. Deterministic eligibility does not confirm offering or registration.",
     report: "View unofficial report", loading: "Loading academic roadmap", error: "Could not load the roadmap.", retry: "Try again",
     empty: "No plan courses or matching results.", all: "All states", search: "Search course code or name",
     details: "Course details", select: "Select a course to view its details.", credits: "Credits", group: "Requirement group",
@@ -48,6 +49,7 @@ export default function RoadmapPage() {
   const auth = useAuth();
   const client = useAuthenticatedApi();
   const [data, setData] = useState<AcademicRoadmapResponse | null>(null);
+  const [adaptive, setAdaptive] = useState<AdaptiveCourseResponse | null>(null);
   const [locale, setLocale] = useState<Locale>("ar");
   const [filter, setFilter] = useState<RoadmapState | "ALL" | "CRITICAL">("ALL");
   const [query, setQuery] = useState("");
@@ -59,7 +61,13 @@ export default function RoadmapPage() {
   const copy = COPY[locale];
   const load = useCallback(async () => {
     setLoading(true); setError(false);
-    try { setData(await new StudentApiService(client).getRoadmap()); }
+    try {
+      const api = new StudentApiService(client);
+      const [roadmap, intelligence] = await Promise.all([
+        api.getRoadmap(), api.getAdaptiveCourseIntelligence().catch(() => null),
+      ]);
+      setData(roadmap); setAdaptive(intelligence);
+    }
     catch { setError(true); setData(null); }
     finally { setLoading(false); }
   }, [client]);
@@ -84,6 +92,7 @@ export default function RoadmapPage() {
     `${course.course_code} ${course.name_ar} ${course.name_en ?? ""}`.toLowerCase().includes(query.trim().toLowerCase())) ?? [],
   [data, filter, query]);
   const detail = data?.courses.find((course) => course.course_code === selected) ?? null;
+  const difficultyByCode = useMemo(() => new Map(adaptive?.courses.map((course) => [course.course_code, course]) ?? []), [adaptive]);
   const count = (state: RoadmapState) => data?.courses.filter((course) => course.state === state).length ?? 0;
 
   return <section lang={locale} dir={locale === "ar" ? "rtl" : "ltr"} className="space-y-6">
@@ -118,12 +127,13 @@ export default function RoadmapPage() {
           {courses.length === 0 && <p className="p-4">{copy.empty}</p>}
           {courses.map((course: RoadmapCourse) => <button key={course.course_code} type="button" aria-pressed={selected === course.course_code} onClick={() => setSelected(course.course_code)} className="rounded-xl border border-[#CBBE9E] bg-white p-4 text-start focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#805400]">
             <span className="block text-xs font-bold" dir="ltr"><bdi>{course.course_code}</bdi></span><span className="mt-1 block font-semibold">{locale === "ar" ? course.name_ar : course.name_en ?? course.name_ar}</span><span className="mt-2 block text-xs">{LABELS[course.state][locale]}{course.critical_path ? ` · ${copy.critical}` : ""}{course.planned_semester ? ` · ${copy.semester} ${course.planned_semester}` : ""}</span>
+            <CourseDifficulty course={difficultyByCode.get(course.course_code)} locale={locale} />
           </button>)}
         </section>
         <aside aria-label={copy.details} aria-live="polite" className="rounded-2xl border border-[#EDE2C5] bg-[#FFFDF7] p-5 lg:sticky lg:top-20">
           <h2 className="text-lg font-bold">{copy.details}</h2>{!detail && <p className="mt-3 text-sm">{copy.select}</p>}
           {detail && <><h3 className="mt-3 text-xl font-bold">{locale === "ar" ? detail.name_ar : detail.name_en ?? detail.name_ar} <bdi dir="ltr" className="text-sm">{detail.course_code}</bdi></h3>
-            <p className="mt-3 font-semibold">{LABELS[detail.state][locale]}</p><dl className="mt-3 space-y-2 text-sm"><div><dt>{copy.credits}</dt><dd>{detail.credit_hours}</dd></div><div><dt>{copy.group}</dt><dd><bdi>{detail.requirement_group_code}</bdi></dd></div>{detail.planned_semester && <div><dt>{copy.semester}</dt><dd>{detail.planned_semester} · {locale === "ar" ? "الترتيب" : "order"} {detail.planned_order}</dd></div>}</dl>
+            <p className="mt-3 font-semibold">{LABELS[detail.state][locale]}</p><CourseDifficulty course={difficultyByCode.get(detail.course_code)} locale={locale} /><dl className="mt-3 space-y-2 text-sm"><div><dt>{copy.credits}</dt><dd>{detail.credit_hours}</dd></div><div><dt>{copy.group}</dt><dd><bdi>{detail.requirement_group_code}</bdi></dd></div>{detail.planned_semester && <div><dt>{copy.semester}</dt><dd>{detail.planned_semester} · {locale === "ar" ? "الترتيب" : "order"} {detail.planned_order}</dd></div>}</dl>
             <h4 className="mt-4 font-bold">{copy.missing}</h4>{detail.missing_prerequisite_groups.length ? <ul className="mt-1 list-inside list-disc text-sm">{detail.missing_prerequisite_groups.map((group, index) => <li key={index} dir="ltr"><bdi>{group.join(" OR ")}</bdi></li>)}</ul> : <p className="text-sm">{copy.noMissing}</p>}
             {detail.state === "REVIEW_REQUIRED" && <p className="mt-3 text-sm">{copy.review}</p>}
             {detail.structural_criticality && <p className="mt-3 text-sm">{copy.impact}: {detail.structural_impact_count}. {copy.impactNote}</p>}
