@@ -44,7 +44,7 @@ test("bounded sensitivity view keeps suppressed demand unknown", async () => {
   fireEvent.click(screen.getByRole("button", { name: "Compare modeled capacities" }));
   expect((await screen.findByText("MODELLED SENSITIVITY ONLY")).textContent).toContain("MODELLED");
   expect(screen.getByText(/gap: UNKNOWN \/ SUPPRESSED/)).toBeTruthy();
-  const body = JSON.parse(api.request.mock.calls[2][1].body as string);
+  const body = JSON.parse(api.request.mock.calls.find(call => call[0].includes("/sensitivity"))![1].body as string);
   expect(body).toMatchObject({ kind: "CAPACITY", section_id: "SYN-CS101-A",
     start: 30, stop: 50, step: 10 });
 });
@@ -67,7 +67,7 @@ test("Arabic RTL capacity metrics and modeled scenario labeling", async () => {
   fireEvent.click(screen.getByRole("button", { name: "شغّل المحاكاة" }));
   expect((await screen.findByText("MODELLED ASSUMPTIONS ONLY")).textContent).toContain("MODELLED");
   expect(document.querySelector("main[dir='rtl']")).toBeTruthy();
-  const body = JSON.parse(api.request.mock.calls[2][1].body as string);
+  const body = JSON.parse(api.request.mock.calls.find(call => call[0].includes("/simulation"))![1].body as string);
   expect(body.section_id).toBe("MODELLED-CS101-C");
   expect(body.university_id).toBe(university);
 });

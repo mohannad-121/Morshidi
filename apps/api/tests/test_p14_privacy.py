@@ -247,7 +247,8 @@ def test_api_requires_auth_and_no_production_provider():
             app.dependency_overrides.clear()
 
 
-def test_api_owner_scope_spoofing_and_idor():
+def test_api_owner_scope_spoofing_and_idor(monkeypatch):
+    monkeypatch.setattr("app.p14_privacy.store.utc_now", lambda: NOW)
     identity = {"owner": OWNER}
     store = LocalPrivacyStore((study(),))
     app.dependency_overrides[get_current_user] = lambda: CurrentUser(identity["owner"])
@@ -291,3 +292,57 @@ def test_api_owner_scope_spoofing_and_idor():
         app.dependency_overrides.clear()
         app.state.p14_privacy_store = None
         app.state.student_service = None
+
+
+def test_chat_export_and_deletion_request_are_owner_scoped_and_non_destructive():
+    from uuid import uuid4
+    from app.student_conversation.store import ConversationNotFound
+
+    thread_id = str(uuid4())
+    identity = {"owner": OWNER}
+    thread = {"id": thread_id, "owner_user_id": OWNER, "institution_id": TENANT,
+              "title": "Private academic chat", "summary_text": "regular_load=15",
+              "status": "ARCHIVED"}
+
+    class ChatStore:
+        async def get_thread(self, owner, institution, candidate):
+            if (owner, institution, candidate) != (OWNER, TENANT, thread_id):
+                raise ConversationNotFound("Conversation not found")
+            return thread
+
+        async def export_owned_chats(self, owner, institution):
+            if (owner, institution) != (OWNER, TENANT):
+                return {"threads": [], "messages": [], "active_planning_preferences": {},
+                        "retention_policy": "RETENTION_POLICY_NOT_VERIFIED"}
+            return {"threads": [thread], "messages": [{"thread_id": thread_id,
+                    "role": "USER", "content": "I prefer 15 credits"}],
+                    "active_planning_preferences": {"regular_load": "15"},
+                    "retention_policy": "RETENTION_POLICY_NOT_VERIFIED"}
+
+    app.dependency_overrides[get_current_user] = lambda: CurrentUser(identity["owner"])
+    try:
+        with TestClient(app) as client:
+            app.state.student_service = StudentStub()
+            app.state.p14_privacy_store = LocalPrivacyStore()
+            app.state.student_conversation_store = ChatStore()
+            exported = client.post("/api/v1/me/privacy/export").json()
+            assert exported["source_sections"]["conversations"]["threads"][0]["id"] == thread_id
+            assert exported["source_sections"]["conversations"]["active_planning_preferences"] == {
+                "regular_load": "15"}
+            assert "reasoning" not in str(exported).lower()
+            body = {"kind": "DELETION", "category": "DELETABLE_OPTIONAL_DATA", "reason": "Review",
+                    "source_kind": "CONVERSATION_THREAD", "source_reference": thread_id}
+            request = client.post("/api/v1/me/privacy/requests", json=body)
+            assert request.status_code == 200
+            assert request.json()["source_reference"] == f"CONVERSATION_THREAD:{thread_id}"
+            assert request.json()["retained_reason"] == "HUMAN_REVIEW_REQUIRED_RETENTION_POLICY_NOT_VERIFIED"
+            assert thread["status"] == "ARCHIVED"
+            identity["owner"] = OTHER
+            assert client.post("/api/v1/me/privacy/export").json()["source_sections"]["conversations"]["threads"] == []
+            assert client.post("/api/v1/me/privacy/requests", json=body).status_code == 404
+            assert client.get(f"/api/v1/me/privacy/requests/{request.json()['request_id']}").status_code == 404
+    finally:
+        app.dependency_overrides.clear()
+        app.state.student_service = None
+        app.state.p14_privacy_store = None
+        app.state.student_conversation_store = None

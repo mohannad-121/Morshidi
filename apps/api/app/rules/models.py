@@ -90,6 +90,7 @@ class PlanCourseRule:
     raw_prerequisite_text: str | None = None
     target_name_ar: str | None = None
     credit_hours: Decimal | None = None
+    target_name_en: str | None = None
 
 
 @dataclass(frozen=True)
@@ -156,6 +157,7 @@ class CanTakeDecision:
     raw_prerequisite_text: str | None
     target_name_ar: str | None
     academic_rule_traces: tuple[AcademicRuleTrace, ...] = ()
+    target_name_en: str | None = None
 
 
 @dataclass(frozen=True)

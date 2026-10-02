@@ -2,6 +2,8 @@
 
 import { useMemo, useState, type FormEvent } from "react";
 import { useAuthenticatedApi } from "@/lib/api/use-authenticated-api";
+import { useCourseIdentities } from "@/lib/api/use-course-identities";
+import { CourseIdentity, CourseReferences } from "@/components/academic/CourseIdentity";
 import { P10OfferingsApi, type OfferingPlannerView, type OfferingView } from "@/lib/api/p10-offerings";
 
 const messages = {
@@ -37,6 +39,7 @@ export default function OfferingsPage() {
   const [period, setPeriod] = useState("");
   const [result, setResult] = useState<OfferingView | null>(null);
   const [planner, setPlanner] = useState<OfferingPlannerView | null>(null);
+  const identities = useCourseIdentities(Boolean(result || planner));
   const [maxCredits, setMaxCredits] = useState(15);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(false);
@@ -73,6 +76,7 @@ export default function OfferingsPage() {
     {busy && <p role="status">{t.loading}</p>}
     {error && <p role="alert">{t.error}</p>}
     {result && <section aria-live="polite" className="space-y-3">
+      <CourseIdentity courseCode={result.course_code} identities={identities} locale={language} />
       {result.source_type === "SYNTHETIC" && <p className="rounded bg-amber-100 p-2 font-semibold">{t.synthetic}</p>}
       <p>{t.academic}: {result.academic_decision} · {t.operational}: {result.operational_state}</p>
       <p>{result.source_version ?? t.unknown} · {result.fresh_until ?? t.unknown}</p>
@@ -98,7 +102,7 @@ export default function OfferingsPage() {
       {planner && <div aria-live="polite" className="space-y-2">
         {planner.source_type === "SYNTHETIC" && <p className="rounded bg-amber-100 p-2 font-semibold">{t.synthetic}</p>}
         {planner.offering_overlay.map(option => <div key={option.academic_rank} className="rounded border p-2">
-          <p>#{option.academic_rank} · {option.course_codes.join(", ")}</p>
+          <p>#{option.academic_rank} · <CourseReferences codes={option.course_codes} identities={identities} locale={language} /></p>
           <p>{option.operational_status}</p>
           <p>{option.selected_section_ids?.join(", ") ?? t.unknown}</p>
           {option.possible_pair_conflicts?.map((item, index) => <p key={index}>

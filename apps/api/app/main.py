@@ -9,6 +9,8 @@ from app.api.routes.eligibility import router as eligibility_router
 from app.api.routes.health import router as health_router
 from app.api.routes.student import router as student_router
 from app.api.routes.advisor import router as advisor_router
+from app.api.routes.student_conversations import router as student_conversations_router
+from app.student_conversation.store import ConversationUnavailable
 from app.api.routes.mock_registration import router as mock_registration_router
 from app.api.routes.institutional_demand import router as institutional_demand_router
 from app.api.routes.offerings import (
@@ -86,6 +88,7 @@ from app.student.errors import (
     StudentProfileTransportError, StudentProfileValidationError, StudentStudyPlanNotFound,
 )
 from app.student.supabase_repository import SupabaseStudentAcademicRepository
+from app.student_conversation.store import SupabaseConversationStore
 from app.progress.models import ProgressIntegrityError
 from app.planner.models import PlannerIntegrityError
 from app.degree_path.models import (
@@ -173,6 +176,7 @@ async def lifespan(application: FastAPI):
     application.state.eligibility_service = None
     application.state.student_service = None
     application.state.advisor_service = None
+    application.state.student_conversation_store = None
     application.state.mock_registration_student_service = None
     application.state.institutional_demand_service = None
     application.state.institutional_intelligence_service = None
@@ -238,6 +242,8 @@ async def lifespan(application: FastAPI):
         trace_repository = SupabaseDecisionTraceRepository(
             settings.supabase_url, settings.supabase_secret_key.get_secret_value(), client,
         )
+        application.state.student_conversation_store = SupabaseConversationStore(
+            settings.supabase_url, settings.supabase_secret_key.get_secret_value(), client)
         application.state.decision_trace_service = DecisionTraceService(
             trace_repository, advisor_assignment_repo, advisor_auth_service,
         )
@@ -313,6 +319,7 @@ app.include_router(health_router)
 app.include_router(eligibility_router)
 app.include_router(student_router)
 app.include_router(advisor_router)
+app.include_router(student_conversations_router)
 app.include_router(mock_registration_router)
 app.include_router(institutional_demand_router)
 app.include_router(student_offerings_router)
@@ -427,6 +434,11 @@ async def handle_http_exception(_: Request, exc: HTTPException) -> JSONResponse:
         })
     return JSONResponse(status_code=exc.status_code, content={"detail": exc.detail},
                         headers=exc.headers)
+
+
+@app.exception_handler(ConversationUnavailable)
+async def handle_conversation_unavailable(_: Request, __: ConversationUnavailable) -> JSONResponse:
+    return JSONResponse(status_code=503, content={"detail": "Conversation storage unavailable"})
 
 
 @app.exception_handler(StudyPlanNotFound)

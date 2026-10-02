@@ -9,6 +9,7 @@ from app.rules.models import CanTakeCatalog
 from app.progress.models import AcademicProgressCatalog
 from app.advisor.models import ResolvedCourseReference
 from app.catalog.roadmap_metadata import RoadmapPlanMetadata
+from app.catalog.display import CourseDisplayIdentity
 
 
 class AcademicCatalogRepository(Protocol):
@@ -17,6 +18,11 @@ class AcademicCatalogRepository(Protocol):
     TODO(Phase 5.4): replace raw database UUID exposure with a stable public
     study-plan selector once the catalog defines one.
     """
+
+    async def load_university_course_identities(
+        self, university_id: UUID | str,
+    ) -> tuple[CourseDisplayIdentity, ...]:
+        """Batch display identities for an already-authorized university."""
 
     async def load_target_rules(
         self,

@@ -166,6 +166,10 @@ class SemesterPlanOption:
     recommendation_rank_sum: int  # P6 (sum of phase7_rank)
     priority_tuple: tuple[int, int, Decimal, int, Decimal, int, tuple[str, ...]]
     reason_codes: tuple[PlanReasonCode, ...]
+    memorization_heavy_count: int = 0
+    learning_type_counts: tuple[tuple[str, int], ...] = ()
+    estimated_workload: str = "UNKNOWN"
+    balance_warning: str | None = None
 
 
 @dataclass(frozen=True)
@@ -185,4 +189,6 @@ class SemesterPlannerResult:
     excluded_in_progress: tuple[str, ...]
     methodology_note: str
     limitations: tuple[str, ...]
+    balance_relaxation_required: bool = False
+    balance_policy_version: str = "MODELED_COURSE_LOAD_PROFILE_V1"
 

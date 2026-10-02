@@ -49,6 +49,8 @@ class ProgressPlanCourse:
     catalog_status: CourseCatalogStatus
     credit_hours: Decimal
     display_order: int
+    course_name_ar: str | None = None
+    course_name_en: str | None = None
 
 
 @dataclass(frozen=True)
@@ -65,6 +67,8 @@ class CourseProgress:
     requirement_group_id: str
     requirement_group_code: str
     state: CourseProgressState
+    course_name_ar: str | None = None
+    course_name_en: str | None = None
 
 
 @dataclass(frozen=True)

@@ -5,12 +5,13 @@ from __future__ import annotations
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends, Request, Response
 from pydantic import BaseModel, ConfigDict
 
 from app.change_impact.models import ChangeDelta, ChangeImpactReport
 from app.change_impact.service import ChangeImpactService, ImpactServiceCode, ImpactServiceError
 from app.core.auth import CurrentUser, get_current_user
+from app.catalog.display import CourseDisplayIdentity
 
 
 institutional_router = APIRouter(prefix="/api/v1/institutional/change-impact",
@@ -52,6 +53,14 @@ async def institutional_change_access(
 ) -> AnalystAccessResponse:
     return AnalystAccessResponse(
         university_ids=await service.available_analyst_universities(user.user_id))
+
+
+@institutional_router.get("/course-identities", response_model=list[CourseDisplayIdentity])
+async def institutional_course_identities(
+    university_id: UUID, user: AuthenticatedUser, service: ImpactService, response: Response,
+):
+    response.headers["Cache-Control"] = "private, no-store"
+    return await service.course_identities(user.user_id, university_id)
 
 
 @institutional_router.post("/evaluate", response_model=ChangeImpactReport)

@@ -68,6 +68,8 @@ def _summary(plan: PlanVersion) -> dict:
             "source_version": identity.source_version,
             "content_fingerprint": plan.content_fingerprint, "source_fingerprint": plan.source_fingerprint,
             "source": plan.source, "synthetic": plan.synthetic,
+            "display_course_codes": {course.identity.course_id: course.identity.code
+                                     for course in plan.courses},
             "label": "MODELED_UNOFFICIAL"}
 
 

@@ -6,6 +6,8 @@ import { useAuth } from "@/auth/auth-provider";
 import { useAuthenticatedApi } from "@/lib/api/use-authenticated-api";
 import { StudentApiService } from "@/lib/api/student-api";
 import { CourseDifficulty } from "@/components/academic/CourseDifficulty";
+import { CourseIdentity, CourseReferences } from "@/components/academic/CourseIdentity";
+import { useCourseIdentities } from "@/lib/api/use-course-identities";
 import type { AcademicRoadmapResponse, AdaptiveCourseResponse, RoadmapCourse, RoadmapState } from "@/lib/api/student-types";
 
 type Locale = "ar" | "en";
@@ -49,6 +51,7 @@ export default function RoadmapPage() {
   const auth = useAuth();
   const client = useAuthenticatedApi();
   const [data, setData] = useState<AcademicRoadmapResponse | null>(null);
+  const identities = useCourseIdentities(Boolean(data));
   const [adaptive, setAdaptive] = useState<AdaptiveCourseResponse | null>(null);
   const [locale, setLocale] = useState<Locale>("ar");
   const [filter, setFilter] = useState<RoadmapState | "ALL" | "CRITICAL">("ALL");
@@ -126,18 +129,18 @@ export default function RoadmapPage() {
         <section aria-label={copy.list} className="grid max-h-[70vh] gap-3 overflow-y-auto rounded-2xl border border-[#EDE2C5] p-3 sm:grid-cols-2">
           {courses.length === 0 && <p className="p-4">{copy.empty}</p>}
           {courses.map((course: RoadmapCourse) => <button key={course.course_code} type="button" aria-pressed={selected === course.course_code} onClick={() => setSelected(course.course_code)} className="rounded-xl border border-[#CBBE9E] bg-white p-4 text-start focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#805400]">
-            <span className="block text-xs font-bold" dir="ltr"><bdi>{course.course_code}</bdi></span><span className="mt-1 block font-semibold">{locale === "ar" ? course.name_ar : course.name_en ?? course.name_ar}</span><span className="mt-2 block text-xs">{LABELS[course.state][locale]}{course.critical_path ? ` · ${copy.critical}` : ""}{course.planned_semester ? ` · ${copy.semester} ${course.planned_semester}` : ""}</span>
+            <CourseIdentity courseCode={course.course_code} nameAr={course.name_ar} nameEn={course.name_en} locale={locale} /><span className="mt-2 block text-xs">{LABELS[course.state][locale]}{course.critical_path ? ` · ${copy.critical}` : ""}{course.planned_semester ? ` · ${copy.semester} ${course.planned_semester}` : ""}</span>
             <CourseDifficulty course={difficultyByCode.get(course.course_code)} locale={locale} />
           </button>)}
         </section>
         <aside aria-label={copy.details} aria-live="polite" className="rounded-2xl border border-[#EDE2C5] bg-[#FFFDF7] p-5 lg:sticky lg:top-20">
           <h2 className="text-lg font-bold">{copy.details}</h2>{!detail && <p className="mt-3 text-sm">{copy.select}</p>}
-          {detail && <><h3 className="mt-3 text-xl font-bold">{locale === "ar" ? detail.name_ar : detail.name_en ?? detail.name_ar} <bdi dir="ltr" className="text-sm">{detail.course_code}</bdi></h3>
+          {detail && <><h3 className="mt-3 text-xl font-bold"><CourseIdentity courseCode={detail.course_code} nameAr={detail.name_ar} nameEn={detail.name_en} locale={locale} /></h3>
             <p className="mt-3 font-semibold">{LABELS[detail.state][locale]}</p><CourseDifficulty course={difficultyByCode.get(detail.course_code)} locale={locale} /><dl className="mt-3 space-y-2 text-sm"><div><dt>{copy.credits}</dt><dd>{detail.credit_hours}</dd></div><div><dt>{copy.group}</dt><dd><bdi>{detail.requirement_group_code}</bdi></dd></div>{detail.planned_semester && <div><dt>{copy.semester}</dt><dd>{detail.planned_semester} · {locale === "ar" ? "الترتيب" : "order"} {detail.planned_order}</dd></div>}</dl>
-            <h4 className="mt-4 font-bold">{copy.missing}</h4>{detail.missing_prerequisite_groups.length ? <ul className="mt-1 list-inside list-disc text-sm">{detail.missing_prerequisite_groups.map((group, index) => <li key={index} dir="ltr"><bdi>{group.join(" OR ")}</bdi></li>)}</ul> : <p className="text-sm">{copy.noMissing}</p>}
+            <h4 className="mt-4 font-bold">{copy.missing}</h4>{detail.missing_prerequisite_groups.length ? <ul className="mt-1 list-inside list-disc text-sm">{detail.missing_prerequisite_groups.map((group, index) => <li key={index}>{group.map((code, option) => <span key={code}>{option > 0 ? (locale === "ar" ? " أو " : " OR ") : ""}<CourseIdentity courseCode={code} identities={identities} locale={locale} compact /></span>)}</li>)}</ul> : <p className="text-sm">{copy.noMissing}</p>}
             {detail.state === "REVIEW_REQUIRED" && <p className="mt-3 text-sm">{copy.review}</p>}
             {detail.structural_criticality && <p className="mt-3 text-sm">{copy.impact}: {detail.structural_impact_count}. {copy.impactNote}</p>}
-            {detail.critical_path && <div className="mt-3 text-sm"><p className="font-semibold">{locale === "ar" ? "مسار حرج بنيوي (غير مضمون زمنياً)" : "Structural critical path (not a time guarantee)"}</p><p>{locale === "ar" ? "عدد روابط المتطلبات في أطول سلسلة" : "Prerequisite edges in longest chain"}: {detail.critical_path_length}</p><p>{locale === "ar" ? "مواد مطلوبة لاحقة متأثرة" : "Affected downstream required courses"}: <bdi dir="ltr">{detail.critical_path_downstream_codes.join(", ") || "—"}</bdi></p><p>{locale === "ar" ? "سلسلة الدليل" : "Evidence chain"}: <bdi dir="ltr">{detail.critical_path_evidence_chain.join(" → ")}</bdi></p><p>{copy.impactNote}</p></div>}
+            {detail.critical_path && <div className="mt-3 text-sm"><p className="font-semibold">{locale === "ar" ? "مسار حرج بنيوي (غير مضمون زمنياً)" : "Structural critical path (not a time guarantee)"}</p><p>{locale === "ar" ? "عدد روابط المتطلبات في أطول سلسلة" : "Prerequisite edges in longest chain"}: {detail.critical_path_length}</p><p>{locale === "ar" ? "مواد مطلوبة لاحقة متأثرة" : "Affected downstream required courses"}: <CourseReferences codes={detail.critical_path_downstream_codes} identities={identities} locale={locale} /></p><p>{locale === "ar" ? "سلسلة الدليل" : "Evidence chain"}: {detail.critical_path_evidence_chain.map((code, index) => <span key={code}>{index > 0 ? " → " : ""}<CourseIdentity courseCode={code} identities={identities} locale={locale} compact /></span>)}</p><p>{copy.impactNote}</p></div>}
           </>}
         </aside>
       </div>

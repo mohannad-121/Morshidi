@@ -10,7 +10,10 @@ const getRoadmap = vi.fn();
 const getAdaptiveCourseIntelligence = vi.fn();
 const generateModeledRoadmap = vi.fn();
 const getModeledReport = vi.fn();
-const stableClient = {};
+const stableClient = { request: async () => new Response(JSON.stringify([
+  { course_id: "syn-1", course_code: "SYN101", name_ar: "مقدمة تجريبية", name_en: "Synthetic Introduction" },
+  { course_id: "syn-2", course_code: "SYN102", name_ar: "دراسة متقدمة", name_en: "Synthetic Advanced" },
+])) };
 vi.mock("@/auth/auth-provider", () => ({ useAuth: () => ({ isAuthenticated: true }) }));
 vi.mock("@/lib/api/use-authenticated-api", () => ({ useAuthenticatedApi: () => stableClient }));
 vi.mock("@/lib/api/student-api", () => ({ StudentApiService: class { getRoadmap = getRoadmap; getAdaptiveCourseIntelligence = getAdaptiveCourseIntelligence; generateModeledRoadmap = generateModeledRoadmap; getModeledReport = getModeledReport; } }));

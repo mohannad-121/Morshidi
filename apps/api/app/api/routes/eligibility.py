@@ -82,6 +82,7 @@ def _decision_response(result: CanTakeDecision) -> CanTakeDecisionResponse:
         review_reasons=list(result.review_reasons),
         raw_prerequisite_text=result.raw_prerequisite_text,
         target_name_ar=result.target_name_ar,
+        target_name_en=result.target_name_en,
         academic_rule_traces=[AcademicRuleTraceResponse.model_validate(item, from_attributes=True)
                               for item in result.academic_rule_traces],
     )

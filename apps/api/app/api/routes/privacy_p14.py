@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from typing import Annotated
+from typing import Annotated, Literal
+from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from pydantic import BaseModel, ConfigDict, Field
@@ -11,6 +12,7 @@ from app.core.auth import CurrentUser, get_current_user
 from app.p14_privacy.domain import DataCategory, MeasureKind
 from app.p14_privacy.store import LocalPrivacyStore, PrivacyDenied
 from app.services.student import StudentService
+from app.student_conversation.store import ConversationNotFound
 
 router = APIRouter(prefix="/api/v1/me/privacy", tags=["privacy-p14"])
 User = Annotated[CurrentUser, Depends(get_current_user)]
@@ -29,6 +31,7 @@ class PrivacyRequestBody(ClosedBody):
     category: DataCategory
     reason: str = Field(min_length=1, max_length=500)
     source_reference: str | None = Field(default=None, max_length=160)
+    source_kind: Literal["CONVERSATION_THREAD"] | None = None
 
 
 class MeasureBody(ClosedBody):
@@ -85,6 +88,22 @@ async def withdraw_consent(consent_id: str, user: User, request: Request, respon
 async def create_request(body: PrivacyRequestBody, user: User, request: Request, response: Response):
     store, institution = await _scope(user, request, response)
     try:
+        if body.source_kind == "CONVERSATION_THREAD":
+            if (body.kind != "DELETION" or body.category is not DataCategory.DELETABLE_OPTIONAL_DATA
+                    or body.source_reference is None):
+                raise ValueError("Invalid conversation deletion request")
+            try:
+                thread_id = str(UUID(body.source_reference))
+            except ValueError as error:
+                raise ValueError("Invalid conversation reference") from error
+            chat_store = getattr(request.app.state, "student_conversation_store", None)
+            if chat_store is None:
+                raise HTTPException(503, "CONVERSATION_STORAGE_UNAVAILABLE")
+            try:
+                thread = await chat_store.get_thread(user.user_id, institution, thread_id)
+            except ConversationNotFound as error:
+                raise PrivacyDenied("OPTIONAL_DATA_UNAVAILABLE") from error
+            return store.request_conversation_deletion(user.user_id, institution, thread, body.reason)
         return store.request(user.user_id, institution, body.kind, body.category,
                              body.reason, body.source_reference)
     except PrivacyDenied:
@@ -105,7 +124,15 @@ async def get_request(request_id: str, user: User, request: Request, response: R
 @router.post("/export")
 async def export_privacy_data(user: User, request: Request, response: Response):
     store, institution = await _scope(user, request, response)
-    return store.export(user.user_id, institution)
+    result = store.export(user.user_id, institution)
+    chat_store = getattr(request.app.state, "student_conversation_store", None)
+    if chat_store is not None and hasattr(chat_store, "export_owned_chats"):
+        result["source_sections"]["conversations"] = await chat_store.export_owned_chats(
+            user.user_id, institution)
+        result["conversation_export_status"] = "OWNER_SCOPED_BOUNDED"
+    else:
+        result["conversation_export_status"] = "CONVERSATION_STORAGE_UNAVAILABLE_NOT_INCLUDED"
+    return result
 
 
 @router.post("/studies/{study_id}/join")

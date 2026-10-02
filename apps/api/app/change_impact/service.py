@@ -13,6 +13,7 @@ from app.advisor_service.authorization import AdvisorAuthorizationService
 from app.advisor_service.errors import AdvisorAuthorizationError, AdvisorAuthorizationErrorCode
 from app.catalog.errors import CatalogIntegrityError, CatalogRepositoryError, CatalogTransportError
 from app.catalog.repository import AcademicCatalogRepository
+from app.catalog.display import CourseDisplayIdentity
 from app.decision_trace import (
     ActorClass, DecisionStatus, DecisionType, EvidenceReference, IntegrityStatus,
     ProvenanceClass, RedactionProfile, ReplayStatus, SubjectScopeType,
@@ -73,6 +74,15 @@ class ChangeImpactService:
         if not rows:
             raise ImpactServiceError(ImpactServiceCode.ACCESS_DENIED)
         return tuple(sorted({row.university_id for row in rows}))
+
+    async def course_identities(self, actor_user_id: str, university_id: UUID
+                                ) -> tuple[CourseDisplayIdentity, ...]:
+        if university_id not in await self.available_analyst_universities(actor_user_id):
+            raise ImpactServiceError(ImpactServiceCode.ACCESS_DENIED)
+        try:
+            return await self._catalog.load_university_course_identities(university_id)
+        except CatalogRepositoryError as error:
+            raise ImpactServiceError(ImpactServiceCode.IMPACT_SERVICE_UNAVAILABLE) from error
 
     async def evaluate_institutional(
         self, actor_user_id: str, delta: ChangeDelta, *, university_id: UUID | None = None,

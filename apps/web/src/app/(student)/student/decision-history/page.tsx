@@ -5,6 +5,8 @@ import type { ReactNode } from "react";
 import { DecisionHistoryIcon } from "@/components/ui/Icons";
 import { StudentApiService } from "@/lib/api/student-api";
 import { useAuthenticatedApi } from "@/lib/api/use-authenticated-api";
+import { useCourseIdentities, type CourseIdentityMap } from "@/lib/api/use-course-identities";
+import { CourseIdentity } from "@/components/academic/CourseIdentity";
 import type { StudentDecisionHistoryDetail, StudentDecisionHistoryItem } from "@/lib/api/student-types";
 
 const PAGE_SIZE = 20;
@@ -51,6 +53,14 @@ function Information({ label, children }: { label: string; children: ReactNode }
   </div>;
 }
 
+function EvidenceIdentity({ source, identifier, identities }: {
+  source: string; identifier: string; identities: CourseIdentityMap;
+}) {
+  return /course|catalog/i.test(source) && identities.has(identifier)
+    ? <span title="اسم العرض من الكتالوج الحالي؛ دليل القرار التاريخي محفوظ"><CourseIdentity courseCode={identifier} identities={identities} compact /></span>
+    : <>{identifier}</>;
+}
+
 export default function DecisionHistoryPage() {
   const client = useAuthenticatedApi();
   const [items, setItems] = useState<StudentDecisionHistoryItem[]>([]);
@@ -60,6 +70,7 @@ export default function DecisionHistoryPage() {
   const [listError, setListError] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [detail, setDetail] = useState<StudentDecisionHistoryDetail | null>(null);
+  const identities = useCourseIdentities(Boolean(detail?.evidence.some(item => /course|catalog/i.test(item.source))));
   const [detailState, setDetailState] = useState<DetailState>("idle");
   const detailRequest = useRef(0);
 
@@ -133,7 +144,7 @@ export default function DecisionHistoryPage() {
           {detailState === "success" && detail ? <>
             <section aria-label="القرار"><h3 className="mb-2 font-bold">القرار</h3><dl className="grid grid-cols-1 gap-2 sm:grid-cols-2"><Information label="النوع">{decisionLabel(detail.decision_type)}</Information><Information label="الحالة">{STATUSES[detail.decision_status] ?? "حالة موثقة"}</Information><Information label="التاريخ">{dateLabel(detail.created_at)}</Information><Information label="فئة المصدر">{detail.provenance_class}</Information></dl></section>
             <section aria-label="المصدر والإصدارات"><h3 className="mb-2 font-bold">المصدر والإصدارات</h3><dl className="grid grid-cols-1 gap-2 sm:grid-cols-2"><Information label="المحرك">{detail.source_engine} · {detail.source_engine_version}</Information><Information label="إصدار السياسة">{detail.policy_version}</Information></dl><ul className="mt-2 list-inside list-disc text-xs text-[#544D42]">{detail.source_versions.map((version) => <li key={version}>{version}</li>)}</ul></section>
-            <section aria-label="الأدلة"><h3 className="mb-2 font-bold">الأدلة</h3>{detail.evidence.length ? <div className="space-y-2">{detail.evidence.map((evidence, index) => { const uri = safeUrl(evidence.uri); return <article key={`${index}-${evidence.source}-${evidence.identifier}`} className="rounded-xl border border-[#EDE2C5] bg-[#FFFDF7] p-3 text-xs"><p className="font-semibold">{evidence.source} · {evidence.identifier}</p><p className="mt-1 text-[#726B5E]">الإصدار: {evidence.version}{evidence.locator ? ` · الموضع: ${evidence.locator}` : ""}</p>{uri ? <a href={uri} target="_blank" rel="noopener noreferrer" className="mt-2 inline-block text-[#805400] underline">فتح المصدر ↗</a> : null}</article>; })}</div> : <p className="text-xs text-[#726B5E]">لا توجد مراجع أدلة إضافية لهذا السجل.</p>}</section>
+            <section aria-label="الأدلة"><h3 className="mb-2 font-bold">الأدلة</h3>{detail.evidence.length ? <div className="space-y-2">{detail.evidence.map((evidence, index) => { const uri = safeUrl(evidence.uri); return <article key={`${index}-${evidence.source}-${evidence.identifier}`} className="rounded-xl border border-[#EDE2C5] bg-[#FFFDF7] p-3 text-xs"><p className="font-semibold">{evidence.source} · <EvidenceIdentity source={evidence.source} identifier={evidence.identifier} identities={identities} /></p><p className="mt-1 text-[#726B5E]">الإصدار: {evidence.version}{evidence.locator ? ` · الموضع: ${evidence.locator}` : ""}</p>{uri ? <a href={uri} target="_blank" rel="noopener noreferrer" className="mt-2 inline-block text-[#805400] underline">فتح المصدر ↗</a> : null}</article>; })}</div> : <p className="text-xs text-[#726B5E]">لا توجد مراجع أدلة إضافية لهذا السجل.</p>}</section>
             <section aria-label="سلامة السجل"><h3 className="mb-2 font-bold">سلامة السجل</h3><p className="text-xs text-[#31633A]">تم التحقق من سلامة السجل. هذا فحص سلامة بيانات، وليس توقيعاً رقمياً رسمياً.</p></section>
             <section aria-label="قابلية إعادة التحقق"><h3 className="mb-2 font-bold">قابلية إعادة التحقق</h3><p className="text-xs text-[#544D42]">{REPLAY[detail.replay_status] ?? "حالة إعادة التحقق غير معروفة"}. لم تُشغَّل إعادة تحقق أو إعادة حساب في هذه الصفحة.</p></section>
             <section aria-label="القيود"><h3 className="mb-2 font-bold">القيود</h3>{detail.limitations.length ? <ul className="list-inside list-disc text-xs text-[#544D42]">{detail.limitations.map((value) => <li key={value}>{value}</li>)}</ul> : <p className="text-xs text-[#726B5E]">لا توجد قيود إضافية مسجلة.</p>}</section>

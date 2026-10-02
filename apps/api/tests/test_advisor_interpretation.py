@@ -428,7 +428,9 @@ def test_51b_prompt_lists_every_supported_intent() -> None:
 
 
 def test_52_provider_receives_only_minimal_input() -> None:
-    assert {field.name for field in dataclasses.fields(AdvisorInterpretationInput)} == {"user_message"}
+    assert {field.name for field in dataclasses.fields(AdvisorInterpretationInput)} == {
+        "user_message", "conversation_context"}
+    assert AdvisorInterpretationInput("status?").conversation_context == ""
 
 
 def test_53_provider_is_called_once() -> None:

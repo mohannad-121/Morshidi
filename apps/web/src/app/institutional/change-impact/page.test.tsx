@@ -29,7 +29,9 @@ function response(body: unknown) {
 beforeEach(() => {
   api.request.mockReset();
   api.request.mockImplementation(async (path: string) =>
-    response(path.endsWith("/access") ? { university_ids: [tenant] } : report));
+    response(path.endsWith("/access") ? { university_ids: [tenant] } :
+      path.includes("/course-identities") ? [{ course_id: "course-401", course_code: "CS401",
+        name_ar: "تحليل البيانات", name_en: "Data Analysis" }] : report));
 });
 
 async function ready() {
@@ -71,14 +73,18 @@ test("submits typed proposal and shows bounded structural result, review and aud
   fireEvent.change(screen.getByLabelText("مرجع مصدر المقترح"), { target: { value: "review-1" } });
   await userEvent.click(screen.getByRole("button", { name: "تحليل الأثر المقترح" }));
   await screen.findByRole("heading", { name: "ملخص الأثر" });
-  const request = api.request.mock.calls[1];
+  const request = api.request.mock.calls.find(call => call[0].endsWith("/evaluate"))!;
   expect(request[0]).toBe("/api/v1/institutional/change-impact/evaluate");
   const body = JSON.parse(request[1].body as string);
   expect(body.university_id).toBe(tenant);
   expect(body.delta.old_option_course_codes).toEqual(["CS101"]);
   expect(body.delta.new_option_course_codes).toEqual(["CS102"]);
   expect(body.delta).not.toHaveProperty("ledger_entry_id");
-  expect(screen.getByText("CS401")).toBeDefined();
+  expect(screen.getAllByText("CS401").length).toBeGreaterThan(0);
+  expect(screen.getAllByText("تحليل البيانات").length).toBeGreaterThan(0);
+  const courseLabel = screen.getAllByText("تحليل البيانات").at(-1)!.parentElement!;
+  expect(courseLabel.textContent).toBe("تحليل البياناتCS401");
+  expect(api.request.mock.calls.filter(call => call[0].includes("/course-identities"))).toHaveLength(1);
   expect(screen.getByText("سُجل أثر التحليل")).toBeDefined();
   expect(screen.getByText("مطلوبة")).toBeDefined();
   expect(document.body.textContent).not.toContain("تم تطبيق التغيير");
@@ -124,6 +130,7 @@ test.each(["UNCHANGED", "UNKNOWN", "REVIEW_REQUIRED"] as const)(
 
 test("audit failure does not show a successful report and permits resubmission", async () => {
   api.request.mockImplementationOnce(async () => response({ university_ids: [tenant] }))
+    .mockResolvedValueOnce(response([]))
     .mockRejectedValueOnce(new AuthenticatedApiError("SERVICE_UNAVAILABLE", 503))
     .mockResolvedValueOnce(response({ ...report, change_type: "POLICY_VERSION_CHANGE" }));
   await ready();

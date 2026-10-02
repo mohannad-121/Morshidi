@@ -2,6 +2,8 @@
 
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { useAuthenticatedApi } from "@/lib/api/use-authenticated-api";
+import { useCourseIdentities } from "@/lib/api/use-course-identities";
+import { CourseIdentity, CourseOptions } from "@/components/academic/CourseIdentity";
 import { P10OfferingsApi, type CapacityView, type ScenarioView, type SensitivityView } from "@/lib/api/p10-offerings";
 import { InstitutionalAIQueryApi } from "@/lib/api/institutional-ai-query";
 
@@ -22,6 +24,7 @@ export default function CapacityPage() {
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [access, setAccess] = useState<"checking" | "allowed" | "denied">("checking");
+  const identities = useCourseIdentities(access === "allowed", university);
   const ar = language === "ar";
 
   useEffect(() => {
@@ -69,10 +72,12 @@ export default function CapacityPage() {
     {access === "checking" && <p role="status">{ar ? "جارٍ التحقق من الصلاحية…" : "Checking access…"}</p>}
     {access === "denied" && <p role="alert">{ar ? "مطلوبة عضوية محلل مؤسسي فعّالة." : "Active institutional analyst membership required."}</p>}
     {access === "allowed" && <>
+    {course.trim() && <CourseIdentity courseCode={course.trim().toUpperCase()} identities={identities} locale={language} />}
     <form onSubmit={load} className="grid gap-3 sm:grid-cols-2">
       <label className="grid gap-1">{ar ? "معرّف الجامعة" : "University ID"}<input required value={university} onChange={e => setUniversity(e.target.value)} className="rounded border p-2" /></label>
       <label className="grid gap-1">{ar ? "معرّف الفصل" : "Period ID"}<input required value={period} onChange={e => setPeriod(e.target.value)} className="rounded border p-2" /></label>
-      <label className="grid gap-1">{ar ? "رمز المادة" : "Course code"}<input required value={course} onChange={e => setCourse(e.target.value)} className="rounded border p-2" /></label>
+      <label className="grid gap-1">{ar ? "رمز المادة" : "Course code"}<input list="capacity-course-identities" required value={course} onChange={e => setCourse(e.target.value)} className="rounded border p-2" /></label>
+      <CourseOptions id="capacity-course-identities" identities={identities} locale={language} />
       <button disabled={busy} className="self-end rounded bg-amber-800 p-2 text-white disabled:opacity-50">{ar ? "عرض المقارنة" : "Compare demand and supply"}</button>
     </form>
     {busy && <p role="status">{ar ? "جارٍ التحميل…" : "Loading…"}</p>}

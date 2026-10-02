@@ -13,6 +13,7 @@ import httpx
 from app.core.request_timing import request_id_context
 from app.advisor.models import ResolvedCourseReference
 from app.catalog.roadmap_metadata import RoadmapPlanMetadata
+from app.catalog.display import CourseDisplayIdentity
 from app.catalog.errors import (
     CatalogIntegrityError,
     CatalogTransportError,
@@ -65,6 +66,36 @@ class SupabaseAcademicCatalogRepository:
 
         if self._owns_client:
             await self._client.aclose()
+
+    async def load_university_course_identities(
+        self, university_id: UUID | str,
+    ) -> tuple[CourseDisplayIdentity, ...]:
+        scope = str(UUID(str(university_id)))
+        identities: list[CourseDisplayIdentity] = []
+        for offset in range(0, 10000, 500):
+            rows = await self._get_rows("courses", {
+                "select": "id,course_code,name_ar,name_en,university_id",
+                "university_id": f"eq.{scope}", "order": "id.asc",
+                "limit": "500", "offset": str(offset),
+            })
+            for row in rows:
+                if _required_text(row, "university_id", "course") != scope:
+                    raise CatalogIntegrityError("Display course belongs to another university")
+                names = tuple(row.get(key) for key in ("name_ar", "name_en"))
+                if any(value is not None and not isinstance(value, str) for value in names):
+                    raise CatalogIntegrityError("Invalid course display name")
+                identities.append(CourseDisplayIdentity(
+                    _required_text(row, "id", "course"),
+                    _required_text(row, "course_code", "course"),
+                    names[0].strip() or None if names[0] is not None else None,
+                    names[1].strip() or None if names[1] is not None else None,
+                ))
+            if len(rows) < 500:
+                if (len({item.course_id for item in identities}) != len(identities) or
+                        len({item.course_code for item in identities}) != len(identities)):
+                    raise CatalogIntegrityError("Ambiguous course display identities")
+                return tuple(identities)
+        raise CatalogIntegrityError("Course display catalog exceeds bounded size")
 
     async def load_target_rules(
         self,
@@ -203,7 +234,7 @@ class SupabaseAcademicCatalogRepository:
             {
                 "select": (
                     "id,study_plan_id,requirement_group_id,credit_hours,display_order,"
-                    "courses(course_code,catalog_status)"
+                    "courses(course_code,name_ar,name_en,catalog_status)"
                 ),
                 "study_plan_id": f"eq.{plan_id}",
                 "order": "display_order.asc,id.asc",
@@ -310,7 +341,7 @@ class SupabaseAcademicCatalogRepository:
             {
                 "select": (
                     "id,prerequisite_logic_status,raw_prerequisite_text,display_order,credit_hours,"
-                    "courses(id,course_code,name_ar,catalog_status,university_id)"
+                    "courses(id,course_code,name_ar,name_en,catalog_status,university_id)"
                 ),
                 "study_plan_id": f"eq.{plan_id}",
                 "order": "display_order.asc,id.asc",
@@ -401,6 +432,9 @@ class SupabaseAcademicCatalogRepository:
             name_ar = nested_course.get("name_ar")
             if name_ar is not None and not isinstance(name_ar, str):
                 raise CatalogIntegrityError("course name_ar is not text")
+            name_en = nested_course.get("name_en")
+            if name_en is not None and not isinstance(name_en, str):
+                raise CatalogIntegrityError("course name_en is not text")
 
             pc_groups = groups_by_pc[pc_id]
             if status is PrerequisiteLogicStatus.NOT_APPLICABLE:
@@ -457,6 +491,7 @@ class SupabaseAcademicCatalogRepository:
                     dependency_groups=dep_groups,
                     raw_prerequisite_text=raw_text,
                     target_name_ar=name_ar,
+                    target_name_en=name_en,
                     credit_hours=_required_decimal(row, "credit_hours", "study_plan_course"),
                 )
             )
@@ -693,6 +728,8 @@ def _progress_plan_course(row: Mapping[str, Any]) -> ProgressPlanCourse:
         ),
         credit_hours=_required_decimal(row, "credit_hours", "study_plan_course"),
         display_order=_required_nonnegative_int(row, "display_order", "study_plan_course"),
+        course_name_ar=_optional_text(nested_course, "name_ar", "course"),
+        course_name_en=_optional_text(nested_course, "name_en", "course"),
     )
 
 

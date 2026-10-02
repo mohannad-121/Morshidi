@@ -3,6 +3,8 @@
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 
 import { useAuthenticatedApi } from "@/lib/api/use-authenticated-api";
+import { useCourseIdentities } from "@/lib/api/use-course-identities";
+import { CourseIdentity, CourseReferences } from "@/components/academic/CourseIdentity";
 import { AuthenticatedApiError } from "@/lib/api/authenticated-client";
 import { ChangeImpactApi, type ChangeDelta, type ChangeImpactReport, type ChangeType } from "@/lib/api/change-impact";
 
@@ -87,6 +89,7 @@ export default function InstitutionalChangeImpactPage() {
   const api = useMemo(() => new ChangeImpactApi(client), [client]);
   const [universities, setUniversities] = useState<string[] | null>(null);
   const [universityId, setUniversityId] = useState("");
+  const identities = useCourseIdentities(Boolean(universities?.includes(universityId)), universityId);
   const [accessError, setAccessError] = useState<string | null>(null);
   const [form, setForm] = useState<FormState>(initial);
   const [result, setResult] = useState<ChangeImpactReport | null>(null);
@@ -178,6 +181,7 @@ export default function InstitutionalChangeImpactPage() {
           <Field id="study-plan" label="معرّف الخطة الدراسية" value={form.study_plan_id} onChange={set("study_plan_id")} />}
         {form.change_type === "PREREQUISITE_GROUP_CHANGE" && <>
           <Field id="target-course" label="المادة المستهدفة" value={form.target_course_code} onChange={set("target_course_code")} />
+          <CourseIdentity courseCode={form.target_course_code.trim().toUpperCase()} identities={identities} />
           <Field id="group-number" label="رقم مجموعة المتطلب" value={form.group_number} onChange={set("group_number")}
             type="number" min="1" max="100" />
           <div className="space-y-1.5"><label htmlFor="dependency-type" className="block text-sm font-semibold">النوع</label>
@@ -190,6 +194,8 @@ export default function InstitutionalChangeImpactPage() {
             onChange={set("old_option_course_codes")} hint="افصل رموز المواد بفاصلة؛ كل مجموعة بدائل OR." />
           <Field id="new-options" label="المتطلبات المقترحة" value={form.new_option_course_codes}
             onChange={set("new_option_course_codes")} hint="افصل رموز المواد بفاصلة." />
+          <CourseReferences codes={parseCodes(form.old_option_course_codes)} identities={identities} />
+          <CourseReferences codes={parseCodes(form.new_option_course_codes)} identities={identities} />
         </>}
         {form.change_type === "REQUIREMENT_GROUP_CREDIT_CHANGE" && <>
           <Field id="requirement-group" label="مجموعة المتطلبات" value={form.requirement_group_code}
@@ -201,6 +207,7 @@ export default function InstitutionalChangeImpactPage() {
         </>}
         {form.change_type === "COURSE_CREDIT_HOURS_CHANGE" && <>
           <Field id="course-code" label="المادة" value={form.course_code} onChange={set("course_code")} />
+          <CourseIdentity courseCode={form.course_code.trim().toUpperCase()} identities={identities} />
           <Field id="old-hours" label="الساعات الحالية" value={form.old_credit_hours}
             onChange={set("old_credit_hours")} type="number" min="0.01" max="30" />
           <Field id="new-hours" label="الساعات المقترحة" value={form.new_credit_hours}
@@ -235,7 +242,7 @@ export default function InstitutionalChangeImpactPage() {
         <p>يتطلب مراجعة بشرية لأن تغيير نص اللائحة غير مربوط بقاعدة حتمية.</p>}
       <div><h3 className="font-semibold">المواد المتأثرة بنيويًا</h3>
         {result.structurally_affected_courses.length ? <ul className="list-inside list-disc">
-          {result.structurally_affected_courses.map((code) => <li key={code} dir="ltr">{code}</li>)}
+          {result.structurally_affected_courses.map((code) => <li key={code}><CourseIdentity courseCode={code} identities={identities} /></li>)}
         </ul> : <p className="text-sm text-stone-600">لا توجد مواد محددة.</p>}</div>
       <div><h3 className="font-semibold">مجموعات المتطلبات</h3>
         <p className="text-sm">{result.affected_requirement_groups.join("، ") || "لا توجد مجموعات محددة."}</p></div>
@@ -243,7 +250,7 @@ export default function InstitutionalChangeImpactPage() {
         <p className="text-sm">{result.affected_decision_types.join("، ") || "لم تُحدّد نتائج حتمية."}</p></div>
       {result.comparisons.length > 0 && <div><h3 className="font-semibold">مقارنات محسوبة فعليًا</h3>
         <ul className="space-y-1 text-sm">{result.comparisons.map((item) =>
-          <li key={`${item.decision_class}:${item.reference}`}>{item.decision_class} — {item.reference}: {item.before} → {item.after}</li>)}</ul>
+          <li key={`${item.decision_class}:${item.reference}`}>{item.decision_class} — {identities.has(item.reference) ? <CourseIdentity courseCode={item.reference} identities={identities} compact /> : item.reference}: {item.before} → {item.after}</li>)}</ul>
       </div>}
       {result.limitations.length > 0 && <div><h3 className="font-semibold">القيود</h3>
         <ul className="list-inside list-disc text-sm">{result.limitations.map((item) => <li key={item}>{item}</li>)}</ul></div>}

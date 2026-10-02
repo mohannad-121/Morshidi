@@ -2,6 +2,8 @@ import type {
   AcademicExplanationGraph, AcademicGraphFact, EligibilityGraphNode,
   EligibilityGraphEdgeRelation,
 } from "@/lib/api/student-types";
+import { CourseIdentity } from "./CourseIdentity";
+import type { CourseIdentityMap } from "@/lib/api/use-course-identities";
 
 const factLabels: Record<string, string> = {
   RANK: "الترتيب", STATUS: "الحالة", REASON_CODE: "سبب حتمي",
@@ -110,16 +112,18 @@ type Props = {
   loading: boolean;
   error: boolean;
   onRetry: () => void;
+  identities?: CourseIdentityMap;
 };
 
-export function AcademicGraphExplanation({ graph, focusId, loading, error, onRetry }: Props) {
+export function AcademicGraphExplanation({ graph, focusId, loading, error, onRetry, identities }: Props) {
   const nodes = new Map(graph?.nodes.map((node) => [node.id, node]) ?? []);
   const root = nodes.get(focusId);
 
   const branch = (node: EligibilityGraphNode, depth: number, visited: Set<string>): React.ReactNode => {
     const relations = graph?.edges.filter((edge) => edge.from_node_id === node.id) ?? [];
     return <div className="space-y-2">
-      <h4 className="text-sm font-bold text-[#28241C]">{title(node)}</h4>
+      <h4 className="text-sm font-bold text-[#28241C]">{node.course_code || (node.type === "COURSE" && node.reference_code)
+        ? <CourseIdentity courseCode={node.course_code ?? node.reference_code!} identities={identities} /> : title(node)}</h4>
       {node.facts?.length ? <dl className="grid grid-cols-1 gap-x-4 gap-y-1 text-xs sm:grid-cols-2">
         {node.facts.map((fact, index) => <div key={`${fact.key}-${index}`} className="flex flex-wrap gap-1">
           <dt className="font-bold text-[#726B5E]">{factLabels[fact.key] ?? "حقيقة"}:</dt>

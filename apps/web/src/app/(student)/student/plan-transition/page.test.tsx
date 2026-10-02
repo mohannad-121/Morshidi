@@ -29,8 +29,11 @@ const projection = { status: "EQUIVALENCY_UNRESOLVED", kind: "CROSS_MAJOR_PROJEC
 
 beforeEach(() => {
   client.request.mockReset();
-  client.request.mockResolvedValueOnce(new Response(JSON.stringify(listing)));
-  client.request.mockResolvedValueOnce(new Response(JSON.stringify(projection)));
+  client.request.mockImplementation(async (path: string) => new Response(JSON.stringify(
+    path.endsWith("course-identities") ? [
+      { course_id: "a", course_code: "CS101", name_ar: "مقدمة", name_en: "Introduction" },
+      { course_id: "b", course_code: "CS201", name_ar: "مادة متقدمة", name_en: "Advanced course" },
+    ] : path.endsWith("evaluate") ? projection : listing)));
 });
 
 test("Arabic-first modeled page uses server targets and shows no-write evidence", async () => {
@@ -42,8 +45,10 @@ test("Arabic-first modeled page uses server targets and shows no-write evidence"
   expect(await screen.findByText(/إسقاط انتقال تخصص نموذجي/)).toBeTruthy();
   expect(screen.getByText(/eq-1/)).toBeTruthy();
   expect(screen.getByText(/للقراءة فقط/)).toBeTruthy();
-  expect(client.request).toHaveBeenLastCalledWith("/api/v1/me/plan-transitions/evaluate",
+  expect(client.request).toHaveBeenCalledWith("/api/v1/me/plan-transitions/evaluate",
     expect.objectContaining({ method: "POST", body: JSON.stringify({ target_plan_key: target.plan_key }) }));
+  expect(await screen.findByText("مقدمة")).toBeTruthy();
+  expect(screen.getByText("CS101")).toBeTruthy();
 });
 
 test("English mode keeps unofficial warning and review state", async () => {
@@ -55,6 +60,7 @@ test("English mode keeps unofficial warning and review state", async () => {
   await userEvent.click(screen.getByRole("button", { name: "View modeled comparison" }));
   expect(await screen.findByText(/This result requires human review/)).toBeTruthy();
   expect(screen.getByText(/Read-only/)).toBeTruthy();
+  expect(await screen.findByText("Introduction")).toBeTruthy();
 });
 
 test("unavailable target and API error do not offer a write action", async () => {

@@ -3,6 +3,8 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { useAuthenticatedApi } from "@/lib/api/use-authenticated-api";
+import { useCourseIdentities } from "@/lib/api/use-course-identities";
+import { CourseReferences } from "@/components/academic/CourseIdentity";
 import { P11IntelligenceApi, type StudentIntelligenceView } from "@/lib/api/p11-intelligence";
 
 const copy = {
@@ -43,6 +45,7 @@ export default function StudentIntelligencePage() {
   const api = useMemo(() => new P11IntelligenceApi(client), [client]);
   const [language, setLanguage] = useState<"ar" | "en">("ar");
   const [view, setView] = useState<StudentIntelligenceView | null>(null);
+  const identities = useCourseIdentities(Boolean(view));
   const [state, setState] = useState<"loading" | "ready" | "error">("loading");
   const ar = language === "ar";
   const t = copy[language];
@@ -65,10 +68,10 @@ export default function StudentIntelligencePage() {
         <p>{t.existing}</p>
         <h3 className="mt-2 font-medium">{ar ? "أدلة القوة" : "Strength evidence"}</h3>
         {view.strength_difficulty.strengths.signals.length === 0 && <p>{t.noSignal}</p>}
-        <ul>{view.strength_difficulty.strengths.signals.map(item => <li key={item.rule_id}>{ar ? arabicSignals[item.value] ?? item.value : item.value}: {item.course_codes.join(", ")}</li>)}</ul>
+        <ul>{view.strength_difficulty.strengths.signals.map(item => <li key={item.rule_id}>{ar ? arabicSignals[item.value] ?? item.value : item.value}: <CourseReferences codes={item.course_codes} identities={identities} locale={language} /></li>)}</ul>
         <h3 className="mt-2 font-medium">{ar ? "إشارات الصعوبة" : "Difficulty signals"}</h3>
         {view.strength_difficulty.difficulty.signals.length === 0 && <p>{t.noSignal}</p>}
-        <ul>{view.strength_difficulty.difficulty.signals.map(item => <li key={item.rule_id}>{ar ? arabicSignals[item.value] ?? item.value : item.value}: {item.course_codes.join(", ")}</li>)}</ul>
+        <ul>{view.strength_difficulty.difficulty.signals.map(item => <li key={item.rule_id}>{ar ? arabicSignals[item.value] ?? item.value : item.value}: <CourseReferences codes={item.course_codes} identities={identities} locale={language} /></li>)}</ul>
         <p>{ar ? "الإشارات تصف أدلة موثقة، ولا تصنف القدرة أو السبب أو الشخصية." :
           `${view.strength_difficulty.strengths.limitations.join(" ")} ${view.strength_difficulty.difficulty.limitations.join(" ")}`}</p>
         <Link className="underline" href="/student/progress">{t.progress}</Link></section>

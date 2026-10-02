@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useAuth } from "@/auth/auth-provider";
 import { useAuthenticatedApi } from "@/lib/api/use-authenticated-api";
 import { StudentApiService } from "@/lib/api/student-api";
+import { CourseIdentity } from "@/components/academic/CourseIdentity";
 import type { ModeledAcademicReportResponse, RoadmapState } from "@/lib/api/student-types";
 
 type Locale = "ar" | "en";
@@ -67,7 +68,7 @@ export default function ModeledReportPage() {
       </section>
       <section className="rounded-2xl border border-[#EDE2C5] p-6"><h2 className="text-xl font-bold">{copy.courses}</h2>
         <ul className="mt-4 grid gap-3 sm:grid-cols-2">{STATES.map((state, index) => <li key={state} className="break-inside-avoid rounded-lg border border-[#EDE2C5] p-3"><strong>{copy.states[index]}</strong>: {data.courses.filter((course) => course.state === state).length}</li>)}</ul>
-        <table className="mt-5 w-full text-sm"><caption className="sr-only">{copy.courses}</caption><thead><tr><th scope="col" className="p-2 text-start">{locale === "ar" ? "المادة" : "Course"}</th><th scope="col" className="p-2 text-start">{locale === "ar" ? "الحالة" : "State"}</th></tr></thead><tbody>{data.courses.map((course) => <tr key={course.course_code} className="break-inside-avoid border-t border-[#EDE2C5]"><th scope="row" className="p-2 text-start font-medium"><bdi dir="ltr">{course.course_code}</bdi> — {locale === "ar" ? course.name_ar : course.name_en ?? course.name_ar}</th><td className="p-2">{copy.states[STATES.indexOf(course.state)]}</td></tr>)}</tbody></table>
+        <table className="mt-5 w-full text-sm"><caption className="sr-only">{copy.courses}</caption><thead><tr><th scope="col" className="p-2 text-start">{locale === "ar" ? "المادة" : "Course"}</th><th scope="col" className="p-2 text-start">{locale === "ar" ? "الحالة" : "State"}</th></tr></thead><tbody>{data.courses.map((course) => <tr key={course.course_code} className="break-inside-avoid border-t border-[#EDE2C5]"><th scope="row" className="p-2 text-start font-medium"><CourseIdentity courseCode={course.course_code} nameAr={course.name_ar} nameEn={course.name_en} locale={locale} /></th><td className="p-2">{copy.states[STATES.indexOf(course.state)]}</td></tr>)}</tbody></table>
       </section>
       <footer className="break-inside-avoid rounded-2xl border border-[#EDE2C5] p-6"><h2 className="font-bold">{copy.limitations}</h2><p className="mt-2 text-sm">{copy.note}</p><p className="mt-2 text-xs font-bold">MODELED / UNOFFICIAL · {copy.title}</p></footer>
     </>}

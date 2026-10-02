@@ -46,6 +46,7 @@ class SemesterPlanRequest(BaseModel):
             description="Maximum number of ranked plan options to return (1 to 10).",
         ),
     ] = 5
+    accept_heavy_balance: bool = False
 
 
 class PlannerConstraintsResponse(BaseModel):
@@ -80,6 +81,10 @@ class SemesterPlanOptionResponse(BaseModel):
     recommendation_rank_sum: int
     priority_tuple: tuple[int, int, Decimal, int, Decimal, int, list[str]]
     reason_codes: list[PlanReasonCode]
+    memorization_heavy_count: int = 0
+    learning_type_counts: list[tuple[str, int]] = []
+    estimated_workload: str = "UNKNOWN"
+    balance_warning: str | None = None
 
 
 class SemesterPlannerResponse(BaseModel):
@@ -96,4 +101,6 @@ class SemesterPlannerResponse(BaseModel):
     excluded_in_progress: list[str]
     methodology_note: str
     limitations: list[str]
+    balance_relaxation_required: bool = False
+    balance_policy_version: str = "MODELED_COURSE_LOAD_PROFILE_V1"
 

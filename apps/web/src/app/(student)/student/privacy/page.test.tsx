@@ -84,3 +84,20 @@ test("keyboard language control is reachable", async () => {
   await userEvent.keyboard("{Enter}");
   expect(document.querySelector("main[dir='ltr']")).toBeTruthy();
 });
+
+test("owned archived chat can be submitted for human review without a DELETE call", async () => {
+  const threadId = "11111111-1111-1111-1111-111111111111";
+  client.request.mockImplementation((path: string) => Promise.resolve(new Response(JSON.stringify(
+    path.startsWith("/api/v1/me/conversations") ? [{ id: threadId, title: "Owned archived chat", status: "ARCHIVED" }] :
+    path.endsWith("/studies") ? studies : summary))));
+  render(<PrivacyPage />);
+  await screen.findByRole("option", { name: "Owned archived chat · ARCHIVED" });
+  await userEvent.selectOptions(screen.getByRole("combobox", { name: "محادثتك" }), threadId);
+  await userEvent.type(screen.getByRole("textbox", { name: "سبب طلب حذف المحادثة" }), "Please review removal");
+  await userEvent.click(screen.getByRole("button", { name: "إرسال طلب مراجعة المحادثة" }));
+  const call = client.request.mock.calls.find(([path]) => path === "/api/v1/me/privacy/requests")!;
+  expect(JSON.parse(call[1].body)).toEqual({ kind: "DELETION", category: "DELETABLE_OPTIONAL_DATA",
+    source_kind: "CONVERSATION_THREAD", source_reference: threadId, reason: "Please review removal" });
+  expect(client.request.mock.calls.some(([, init]) => init?.method === "DELETE")).toBe(false);
+  expect(screen.getByText(/الأرشفة لا تحذف/)).toBeTruthy();
+});

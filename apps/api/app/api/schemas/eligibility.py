@@ -84,6 +84,7 @@ class CanTakeDecisionResponse(BaseModel):
     review_reasons: list[DecisionReason]
     raw_prerequisite_text: str | None
     target_name_ar: str | None
+    target_name_en: str | None = None
     academic_rule_traces: list[AcademicRuleTraceResponse] = Field(default_factory=list)
 
 

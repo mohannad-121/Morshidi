@@ -97,6 +97,8 @@ class AttemptUpdateRequest(_StrictRequest):
 class CourseAttemptResponse(BaseModel):
     id: UUID
     course_code: str
+    course_name_ar: str | None = None
+    course_name_en: str | None = None
     status: AttemptOutcome
     attempt_sequence: int | None
     term_label: str | None

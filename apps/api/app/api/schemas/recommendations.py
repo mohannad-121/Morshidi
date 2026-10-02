@@ -13,6 +13,7 @@ from app.recommendations.models import RecommendationReason
 class RecommendationCandidateResponse(BaseModel):
     course_code: str
     course_name_ar: str | None
+    course_name_en: str | None = None
     credit_hours: Decimal
     requirement_group_code: str
     requirement_type: str
@@ -33,6 +34,7 @@ class RecommendationCandidateResponse(BaseModel):
 class ReviewRequiredCourseResponse(BaseModel):
     course_code: str
     course_name_ar: str | None
+    course_name_en: str | None = None
     credit_hours: Decimal
     requirement_group_code: str
     requirement_type: str

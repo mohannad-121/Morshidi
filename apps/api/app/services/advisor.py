@@ -123,11 +123,12 @@ class AdvisorService:
         return structured
 
     async def _advise_interpreted(
-        self, owner_user_id: str, message: str,
+        self, owner_user_id: str, message: str, conversation_context: str = "",
     ) -> tuple[StructuredAdvisorResult, str | None]:
         started = perf_counter()
 
-        provider_output = await invoke_advisor_provider_async(self._provider, message)
+        provider_output = await invoke_advisor_provider_async(
+            self._provider, message, conversation_context)
         routing_ms = round((perf_counter() - started) * 1000, 1)
         if isinstance(provider_output, ProviderFailure):
             raise AdvisorProviderError(provider_output)
@@ -256,10 +257,12 @@ class AdvisorService:
         self,
         owner_user_id: str,
         message: str,
+        conversation_context: str = "",
     ) -> AdvisorServiceResult:
         """Add presentational prose after orchestration without changing its result."""
 
-        structured, general_response = await self._advise_interpreted(owner_user_id, message)
+        structured, general_response = await self._advise_interpreted(
+            owner_user_id, message, conversation_context)
         if general_response is not None:
             return AdvisorServiceResult(
                 structured, general_response, ExplanationStatus.GENERATED,

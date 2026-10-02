@@ -244,6 +244,7 @@ def _decision(
         review_reasons=review_reasons,
         raw_prerequisite_text=target.raw_prerequisite_text,
         target_name_ar=target.target_name_ar,
+        target_name_en=target.target_name_en,
     )
 
 

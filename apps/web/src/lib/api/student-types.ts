@@ -61,6 +61,8 @@ export interface ProfileUpdateRequest {
 export interface CourseAttemptResponse {
   id: string;
   course_code: string;
+  course_name_ar?: string | null;
+  course_name_en?: string | null;
   status: AttemptOutcome;
   attempt_sequence: number | null;
   term_label: string | null;
@@ -113,6 +115,8 @@ export interface RequirementGroupProgressResponse {
 
 export interface CourseProgressResponse {
   course_code: string;
+  course_name_ar?: string | null;
+  course_name_en?: string | null;
   credit_hours: number;
   requirement_group_id: string | null;
   requirement_group_code: string | null;
@@ -161,6 +165,7 @@ export interface CanTakeDecisionResponse {
   review_reasons: DecisionReason[];
   raw_prerequisite_text: string | null;
   target_name_ar: string | null;
+  target_name_en?: string | null;
   academic_rule_traces?: Array<{ rule_id: string; rule_version: string; provenance: string;
     required_credits: number; earned_completed_credits: number | null; result: string;
     reason_ar: string; reason_en: string }>;
@@ -173,7 +178,7 @@ export interface AdaptiveCourseResponse {
     earned_completed_credits: number; completed_courses: string[]; strong_courses: string[];
     weak_courses: string[]; academic_stage: string; freshness: string;
   };
-  courses: Array<{ course_code: string; general: { score: number; level: string; provenance: string; model_version: string };
+  courses: Array<{ course_code: string; course_name_ar?: string | null; general: { score: number; level: string; provenance: string; model_version: string };
     personalized: { score: number; level: string; confidence: string; provenance: string;
       model_version: string; reason_codes: string[];
       contributing_skills: string[]; risk_factors: string[] } }>;
@@ -317,6 +322,7 @@ export type AcademicExplanationGraph = EligibilityExplanationGraph;
 export interface RecommendationCandidateResponse {
   course_code: string;
   course_name_ar: string | null;
+  course_name_en?: string | null;
   credit_hours: number;
   requirement_group_code: string;
   requirement_type: string;
@@ -336,6 +342,7 @@ export interface RecommendationCandidateResponse {
 export interface ReviewRequiredCourseResponse {
   course_code: string;
   course_name_ar: string | null;
+  course_name_en?: string | null;
   credit_hours: number;
   requirement_group_code: string;
   requirement_type: string;
@@ -357,6 +364,7 @@ export interface SemesterPlanRequest {
   max_credit_hours: number;
   max_courses?: number | null;
   max_options?: number;
+  accept_heavy_balance?: boolean;
 }
 
 export interface PlannedCourseEntryResponse {
@@ -384,6 +392,10 @@ export interface SemesterPlanOptionResponse {
   newly_eligible_count: number;
   recommendation_rank_sum: number;
   reason_codes: string[];
+  memorization_heavy_count?: number;
+  learning_type_counts?: Array<[string, number]>;
+  estimated_workload?: string;
+  balance_warning?: string | null;
 }
 
 export interface PlannerConstraintsResponse {
@@ -406,6 +418,7 @@ export interface SemesterPlannerResponse {
   excluded_in_progress: string[];
   methodology_note: string;
   limitations: string[];
+  balance_relaxation_required?: boolean;
 }
 
 export interface DegreePathRequest {
@@ -590,6 +603,46 @@ export interface StudentPolicyDocumentDetail {
   language: string;
   active_version: StudentPolicyVersionDetail;
   passages: StudentPolicyPassage[];
+}
+
+export interface ConversationThread {
+  id: string; title: string; status: "ACTIVE" | "ARCHIVED";
+  created_at: string; updated_at: string; last_message_at: string | null;
+  summary_text: string | null;
+}
+
+export interface ConversationMessage {
+  id: string; thread_id: string; role: "USER" | "ASSISTANT";
+  content: string; message_type: string; provenance: string; created_at: string;
+}
+
+export interface ConversationReply {
+  thread_id: string; user_message: ConversationMessage;
+  assistant_message: ConversationMessage; advisor: AdvisorResponse;
+}
+
+export interface CreditTimelineRequest {
+  regular_load: number; summer_enabled: boolean; summer_load: number;
+  start_year: number; start_term: "FIRST_SEMESTER" | "SECOND_SEMESTER" | "SUMMER";
+}
+
+export interface CreditTimelineResponse {
+  policy_version: string; total_required_credits: number; earned_credits: number;
+  initial_remaining_credits: number; regular_load: number; summer_enabled: boolean;
+  summer_load: number; regular_semester_count: number; summer_count: number;
+  completion_year: number | null; completion_term: CreditTimelineRequest["start_term"] | null;
+  terms: Array<{ academic_year: number; term: CreditTimelineRequest["start_term"];
+    planned_credits: number; remaining_after: number }>;
+  assumptions: string[]; warnings: string[];
+}
+
+export interface CreditComparisonResponse {
+  policy_version: string; evaluated_scenarios: number; limitations: string[];
+  scenarios: Array<{ scenario_id: string; mode: "FASTEST" | "BALANCED" | "LOWER_LOAD";
+    timeline: CreditTimelineResponse; total_modeled_terms: number;
+    workload_indicator: string; preference_match: boolean;
+    provenance: string; difficulty_evidence: string; confidence: string;
+    current_workload_risk: number | null }>;
 }
 
 export interface StudentPolicySearchResult {

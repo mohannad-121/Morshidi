@@ -16,6 +16,7 @@ from app.degree_path.models import (
     DegreePathResult,
 )
 from app.planner.engine import plan_semester
+from app.planner.learning_profile import resolve_learning_profile
 from app.planner.models import (
     DEFAULT_CANDIDATE_WINDOW_SIZE,
     PlannerConstraints,
@@ -25,6 +26,7 @@ from app.planner.models import (
 from app.rules.evaluator import CanTakeResult
 from app.rules.models import AttemptOutcome, CanTakeCatalog
 from app.catalog.repository import AcademicCatalogRepository
+from app.catalog.display import CourseDisplayIdentity
 from app.catalog.roadmap_metadata import RoadmapPlanMetadata
 from app.advisor.models import ResolvedCourseReference
 from app.core.request_timing import request_id_context
@@ -32,6 +34,8 @@ from app.core.academic_compute import AcademicComputeLimiter
 from app.progress.engine import calculate_academic_progress
 from app.progress.models import AcademicProgress, AcademicProgressCatalog
 from app.rules.project_credits import is_plan12_project, passed_plan_credits
+from app.degree_path.credit_timeline import (AcademicTerm, CreditTimeline, CreditComparison, ComparisonMode,
+                                             simulate_credit_timeline, compare_credit_timelines)
 from app.student_intelligence.adaptive import AdaptiveCourseResult, GradePolicy, build_adaptive_courses
 from app.recommendations.engine import recommend_courses
 from app.recommendations.models import RecommendationResult
@@ -76,6 +80,10 @@ class StudentService:
 
     async def create_profile(self, owner: str, **values: Any) -> StudentAcademicState:
         return await self._repository.create_profile(owner, **values)
+
+    async def get_course_identities(self, owner: str) -> tuple[CourseDisplayIdentity, ...]:
+        university_id = await self.resolve_student_university_id(owner)
+        return await self._catalog_repository.load_university_course_identities(university_id)
 
     async def update_profile(self, owner: str, changes: dict[str, Any]) -> StudentAcademicState:
         current = await self.get_profile(owner)
@@ -170,6 +178,7 @@ class StudentService:
         state, institution_id = await asyncio.gather(
             self.get_profile(owner), self.resolve_student_university_id(owner),
         )
+
         progress_catalog, eligibility_catalog, records = await asyncio.gather(
             self._catalog_repository.load_progress_catalog(state.study_plan_id),
             self._catalog_repository.load_plan_eligibility_catalog(state.study_plan_id),
@@ -195,6 +204,39 @@ class StudentService:
             )
         return await self._academic_compute_limiter.run(calculate)
 
+    async def get_credit_timeline(self, owner: str, *, regular_load: Decimal,
+                                  summer_enabled: bool, summer_load: Decimal,
+                                  start_year: int, start_term: AcademicTerm) -> CreditTimeline:
+        progress = await self.get_academic_progress(owner)
+        return simulate_credit_timeline(
+            required=progress.plan_total_required_credits,
+            earned=progress.completed_plan_credits,
+            regular_load=regular_load, summer_enabled=summer_enabled,
+            summer_load=summer_load, start_year=start_year, start_term=start_term,
+        )
+
+    async def compare_credit_timelines(self, owner: str, *, start_year: int,
+                                       start_term: AcademicTerm,
+                                       preferred_regular_load: Decimal | None = None,
+                                       preferred_summer_enabled: bool | None = None,
+                                       preferred_summer_load: Decimal | None = None,
+                                       graduation_pace: ComparisonMode | None = None) -> CreditComparison:
+        progress, intelligence = await asyncio.gather(
+            self.get_academic_progress(owner), self.get_adaptive_course_intelligence(owner))
+        risks = [course.workload_risk for course in intelligence.recommendations]
+        return compare_credit_timelines(
+            required=progress.plan_total_required_credits,
+            earned=progress.completed_plan_credits,
+            start_year=start_year, start_term=start_term,
+            preferred_regular_load=preferred_regular_load,
+            preferred_summer_enabled=preferred_summer_enabled,
+            preferred_summer_load=preferred_summer_load,
+            graduation_pace=graduation_pace,
+            current_workload_risk=round(sum(risks) / len(risks)) if risks else None,
+            difficulty_evidence=(f"CURRENT_ELIGIBLE_COURSES_ONLY:{intelligence.model_version}"
+                                 if risks else "NO_FUTURE_COURSE_ALLOCATION"),
+        )
+
     async def get_semester_plans(
         self,
         owner: str,
@@ -203,6 +245,7 @@ class StudentService:
         max_courses: int | None = None,
         max_options: int = 5,
         candidate_window_size: int = DEFAULT_CANDIDATE_WINDOW_SIZE,
+        accept_heavy_balance: bool = False,
     ) -> SemesterPlannerResult:
         """Deterministically generate optimal semester plans for the authenticated student.
 
@@ -256,6 +299,10 @@ class StudentService:
                 reported_gpa_scale=state.reported_gpa_scale,
                 reported_earned_credit_hours=state.reported_earned_credit_hours,
                 adaptive_scores=adaptive_scores,
+                learning_profiles={course.course_code: resolve_learning_profile(
+                    course.course_code, plan_id=state.study_plan_id)
+                    for course in progress_catalog.plan_courses},
+                accept_heavy_balance=accept_heavy_balance,
                 check_budget=check_budget,
             )
         return await self._academic_compute_limiter.run(calculate)

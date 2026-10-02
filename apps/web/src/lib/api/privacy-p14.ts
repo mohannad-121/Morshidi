@@ -51,5 +51,9 @@ export class PrivacyP14Api {
   request(kind: "CORRECTION" | "DELETION", category: string, reason: string): Promise<RequestView> {
     return this.post("/requests", { kind, category, reason });
   }
+  requestChatDeletion(threadId: string, reason: string): Promise<RequestView> {
+    return this.post("/requests", { kind: "DELETION", category: "DELETABLE_OPTIONAL_DATA",
+      source_kind: "CONVERSATION_THREAD", source_reference: threadId, reason });
+  }
   export(): Promise<object> { return this.post("/export"); }
 }

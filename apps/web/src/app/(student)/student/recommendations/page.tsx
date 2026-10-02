@@ -5,7 +5,9 @@ import Link from "next/link";
 import { useAuth } from "@/auth/auth-provider";
 import { useAuthenticatedApi } from "@/lib/api/use-authenticated-api";
 import { StudentApiService } from "@/lib/api/student-api";
+import { useCourseIdentities } from "@/lib/api/use-course-identities";
 import { CourseDifficulty } from "@/components/academic/CourseDifficulty";
+import { CourseIdentity } from "@/components/academic/CourseIdentity";
 import { AcademicGraphExplanation } from "@/components/academic/AcademicGraphExplanation";
 import type { AcademicExplanationGraph, AdaptiveCourseResponse } from "@/lib/api/student-types";
 import type {
@@ -31,6 +33,7 @@ import {
 export default function RecommendationsPage() {
   const auth = useAuth();
   const client = useAuthenticatedApi();
+  const identities = useCourseIdentities(auth.isAuthenticated);
   const [data, setData] = useState<RecommendationResponse | null>(null);
   const [adaptive, setAdaptive] = useState<AdaptiveCourseResponse | null>(null);
   const [error, setError] = useState<DashboardError | null>(null);
@@ -250,14 +253,7 @@ export default function RecommendationsPage() {
 
                       <div className="space-y-1.5">
                         <div className="flex flex-wrap items-center gap-2">
-                          <span className="font-mono text-sm font-bold text-[#28241C]" dir="ltr">
-                            {rec.course_code}
-                          </span>
-                          {rec.course_name_ar ? (
-                            <span className="text-sm font-bold text-[#28241C]">
-                              • {rec.course_name_ar}
-                            </span>
-                          ) : null}
+                          <CourseIdentity courseCode={rec.course_code} nameAr={rec.course_name_ar} nameEn={rec.course_name_en} />
                           <span className="rounded-md bg-[#FFF9E8] px-2 py-0.5 text-[10px] font-mono font-bold text-[#A66F00] border border-[#EDE2C5]" dir="ltr">
                             {rec.credit_hours} ساعات
                           </span>
@@ -325,7 +321,7 @@ export default function RecommendationsPage() {
                                 className="rounded-md bg-white px-2 py-0.5 font-mono text-[11px] font-bold text-[#A66F00] border border-[#EDE2C5]"
                                 dir="ltr"
                               >
-                                {c}
+                                <CourseIdentity courseCode={c} identities={identities} compact />
                               </span>
                             ))}
                           </div>
@@ -343,7 +339,7 @@ export default function RecommendationsPage() {
                     لماذا هذه النتيجة؟
                   </button>
                   {expandedCourse === rec.course_code ? <div className="mt-3">
-                    <AcademicGraphExplanation graph={graph} focusId={`recommendation:${rec.rank}:${rec.course_code}`}
+                    <AcademicGraphExplanation graph={graph} identities={identities} focusId={`recommendation:${rec.rank}:${rec.course_code}`}
                       loading={graphLoading} error={graphError} onRetry={() => { void fetchGraph(); }} />
                   </div> : null}
                 </div>
@@ -368,16 +364,14 @@ export default function RecommendationsPage() {
                     className="rounded-2xl border border-amber-200 bg-amber-50/50 p-4 text-xs space-y-1.5"
                   >
                     <div className="flex items-center justify-between">
-                      <span className="font-mono font-bold text-[#28241C]" dir="ltr">
-                        {course.course_code} {course.course_name_ar ? `(${course.course_name_ar})` : ""}
-                      </span>
+                      <CourseIdentity courseCode={course.course_code} nameAr={course.course_name_ar} nameEn={course.course_name_en} />
                       <Badge variant="review" size="sm">مراجعة مرشد</Badge>
                     </div>
                     <p className="text-[11px] text-amber-900">
                       <strong>سبب المراجعة: </strong>
                       {course.review_reason}
                     </p>
-                    <AcademicGraphExplanation graph={graph} focusId={`recommendation:review:${course.course_code}`}
+                    <AcademicGraphExplanation graph={graph} identities={identities} focusId={`recommendation:review:${course.course_code}`}
                       loading={graphLoading} error={graphError} onRetry={() => { void fetchGraph(); }} />
                   </div>
                 ))}

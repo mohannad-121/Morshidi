@@ -37,7 +37,7 @@ _ATTEMPT_RECORD_SELECT = (
     "reported_grade_text,record_source,raw_numeric_grade,raw_letter_grade,"
     "raw_grade_points,raw_academic_year,raw_term,attempt_credit_hours,"
     "performance_provenance,performance_verification_state,"
-    "performance_source_reference,created_at,updated_at,courses(course_code)"
+    "performance_source_reference,created_at,updated_at,courses(course_code,name_ar,name_en)"
 )
 
 
@@ -379,6 +379,7 @@ def _attempt_record(row: Mapping[str, Any], profile_id: str) -> StudentCourseAtt
     return StudentCourseAttemptRecord(
         attempt_id=_uuid_text(row, "id", "attempt"), profile_id=profile_id,
         course_code=_required_text(course, "course_code", "course"), outcome=outcome,
+        course_name_ar=course.get("name_ar"), course_name_en=course.get("name_en"),
         attempt_sequence=sequence, term_label=row.get("term_label"),
         attempted_on=_optional_date(row.get("attempted_on"), "attempt attempted_on"),
         reported_grade_text=row.get("reported_grade_text"),

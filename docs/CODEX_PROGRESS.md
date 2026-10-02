@@ -1,5 +1,132 @@
 # Morshidi — Codex Progress Record
 
+## P15.6 owner closure — local architecture ready (2026-10-02)
+
+**P15.6 LOCAL ARCHITECTURE = READY FOR OWNER REVIEW.** Starting and current HEAD: `f66b4aff8c593340490b5e30c0b6123e0f0edeb7` on main. Objective: close the owner's local name-first, governed-chat, and deterministic graduation-comparison blockers while preserving inherited P15.6 work. This checkpoint supersedes the historical October 1 blocker assessment below; it does not promote any canonical WC status.
+
+**Name-first coverage:** Student catalog/progress/eligibility/recommendation/planner/roadmap/report/degree-path, advisor clarification, decision-history course evidence, modeled plan-transition, offering/intelligence, and institutional query/capacity/change-impact surfaces now prefer the canonical localized name and retain the stable code second. Arabic/English alternate-language and unavailable-name fallback are explicit. Batched owner/analyst-authorized catalog maps are indexed by ID/code, reject foreign scope, and avoid per-course network calls; general chat does not trigger the clarification catalog fetch. Historical evidence IDs and domain fingerprints are not rewritten. Repository searches for raw course-code renderings were inspected in context; remaining matches are machine identities, keys, input values with name previews, or the shared display component. No known code-only human-facing gap remains on reviewed surfaces where canonical names exist. Academic graph/trace labels use available catalog metadata without changing rule outcomes.
+
+**Chat and P14 governance:** Server-backed conversation architecture persists threads/messages and explicit preference history, not localStorage. Refresh/logout/archive/inactivity do not delete chats. Owner + institution + thread scope is checked before read/archive/export/deletion requests. P14 export allowlists owned metadata/messages/current preferences, includes archived chats, excludes hidden/provider fields, and declares bounded truncation (500 threads/1,000 messages). No stored model summary is invented. Chat deletion is classified DELETABLE_OPTIONAL_DATA and routed to human review of the exact owned thread, not destructive deletion. Retention is USER_OWNED_CONVERSATION_DATA / RETENTION_POLICY_NOT_VERIFIED; no legal period is invented. P14 remains local/unconfigured for production governance. Latest explicit regular/summer/pace preferences are resolved through four bounded latest-key reads; arbitrary academic keys are excluded. The explicit poisoned-memory test proves GPA/grade/credit/prerequisite claims leave the deterministic result and repository state unchanged with zero write calls.
+
+**Graduation comparison and semester balance:** FASTEST, BALANCED, and LOWER_LOAD reuse the deterministic credit simulator. Presets are regular 12/15/18 and summer off/3/6/9; validated custom preferences add at most 20 total scenarios. Stable tie-breaking and preference matching expose time/load tradeoffs, never a universally best plan. BALANCED combines duration/load penalties, stated preferences, and available P15.5 current-eligible workload risk; it does not invent future course difficulty. Summer enabled is 3–9, disabled is 0. Student-supplied start and First/Second/Summer sequence are MODELED_ACADEMIC_CALENDAR, not an official graduation date or prerequisite/offerings guarantee. Stored preferences prefill but do not overwrite subsequent manual choices; changed inputs invalidate stale comparison responses. The existing course-aware path remains separate. Planner default <=2 MEMORIZATION_HEAVY and explicit BALANCE_CONSTRAINT_RELAXATION_REQUIRED remain, with overload names/codes and deterministic eligibility/credits preserved.
+
+**Migration/security review:** The single existing new migration `20261001200504_add_student_conversation_history.sql` is MIGRATION_CREATED_NOT_APPLIED. Static review checked owner/institution indexes, composite thread/message FK, trigger scope, authenticated owner-only SELECT RLS and server-only writes. Qualified the message policy's outer institution column and changed profile deletion FK to RESTRICT so profile deletion cannot silently cascade-delete chats; auth-user lifecycle FK remains explicit. No duplicate migration, client service-role key, broad authenticated write policy, provider payload logging, or academic-state write path was added. Live enforcement is not inferred from mocked/static tests. Secret/private-key/token and absolute machine-path scan of changed source/test/migration files returned zero pattern matches. Supabase configuration is identical to HEAD. Both protected SQL backups remain untracked and were not opened or modified.
+
+**Verification (focused / directly affected only):** 43 backend files selected by the P15.6/P14/advisor/catalog/planner/degree-path/progress/recommendation/student/change-impact/P12/P15.5/explainability filename families, excluding local_supabase, ran with `python -m pytest <selected files> -q -rs`: **1,065 passed, 0 failed, 0 skipped, 2 dependency deprecation warnings, 17.47s**. Fifteen directly affected frontend suites ran with `npm run test -- <selected files>`: **93 passed, 0 failed, 0 skipped, 10.17s** (course identities, graph, portal, roadmap/report, eligibility graph, intelligence, offerings, transition, privacy, recommendations, history, institutional change-impact/query/capacity). `npm run typecheck` passed. ESLint on all 38 changed/new TS/TSX files: **0 errors, 35 warnings** (unused imports and existing effect patterns on affected pages). React review checked async cleanup, scope-safe maps, stale comparison protection, and stable academic identifiers. `git diff --check` passed, with only Git LF/CRLF notices. No full comprehensive regression, production smoke, or live database test was run.
+
+**Failures found and corrected:** Restored the misplaced adaptive-intelligence service method body; added response from_attributes for nested credit-term dataclasses after an API serialization failure; resolved planner warning names from the loaded canonical catalog; stabilized the existing synthetic P14 study clock fixture; updated endpoint-specific frontend mocks/selectors after new batch requests. Earlier intermediate failed runs are not represented as passes; the final selected suites above passed after fixes.
+
+**Deferrals / acceptance / next start:** CHAT MIGRATION LIVE VERIFICATION, live DB/RLS owner/tenant isolation, and actual deployed cross-device persistence = DEFERRED_TO_POST_P16_FINAL_VALIDATION by explicit owner decision. REAL ACADEMIC CALENDAR = EXTERNAL / NOT VERIFIED. Real institutional grade-scale calibration, approved retention/deletion operations, and comprehensive post-P16 regression remain deferred. These are not local architecture blockers. No production persistence/governance or institution readiness is claimed. All 89 project files remain unstaged (71 modified tracked + 18 new); two additional untracked files are protected backups. No stage/commit/push/deploy/migration/Supabase startup occurred. Next exact start: owner review of this complete uncommitted P15.6 slice, then separately authorized staging; later apply/test the migration only in approved local final validation. Recommended eventual commit: `feat(student-experience): persist chat and improve academic planning`.
+
+**Verified on-disk inventory:** All listed implementation/test files exist and have nonzero byte sizes. Sizes measured after final code verification; this self-referential progress file is measured separately in the final report.
+
+| File | Bytes |
+| --- | ---: |
+| `apps/api/app/advisor/explanation.py` | 14228 |
+| `apps/api/app/advisor/interpretation.py` | 16509 |
+| `apps/api/app/advisor/models.py` | 21988 |
+| `apps/api/app/advisor/provider.py` | 5499 |
+| `apps/api/app/api/routes/change_impact.py` | 3124 |
+| `apps/api/app/api/routes/eligibility.py` | 3966 |
+| `apps/api/app/api/routes/plan_transitions.py` | 7487 |
+| `apps/api/app/api/routes/privacy_p14.py` | 8081 |
+| `apps/api/app/api/routes/student.py` | 19506 |
+| `apps/api/app/api/routes/student_conversations.py` | 7277 |
+| `apps/api/app/api/schemas/credit_timeline.py` | 2272 |
+| `apps/api/app/api/schemas/eligibility.py` | 2942 |
+| `apps/api/app/api/schemas/progress.py` | 1692 |
+| `apps/api/app/api/schemas/recommendations.py` | 1561 |
+| `apps/api/app/api/schemas/semester_planner.py` | 3178 |
+| `apps/api/app/api/schemas/student.py` | 3919 |
+| `apps/api/app/catalog/display.py` | 263 |
+| `apps/api/app/catalog/repository.py` | 2012 |
+| `apps/api/app/catalog/supabase_repository.py` | 34670 |
+| `apps/api/app/change_impact/service.py` | 15797 |
+| `apps/api/app/degree_path/credit_timeline.py` | 10229 |
+| `apps/api/app/main.py` | 26485 |
+| `apps/api/app/p14_privacy/store.py` | 20696 |
+| `apps/api/app/planner/engine.py` | 25823 |
+| `apps/api/app/planner/learning_profile.py` | 1561 |
+| `apps/api/app/planner/models.py` | 8166 |
+| `apps/api/app/progress/engine.py` | 9805 |
+| `apps/api/app/progress/models.py` | 3091 |
+| `apps/api/app/providers/advisor_openai.py` | 8848 |
+| `apps/api/app/recommendations/engine.py` | 23129 |
+| `apps/api/app/recommendations/models.py` | 6450 |
+| `apps/api/app/rules/evaluator.py` | 10032 |
+| `apps/api/app/rules/models.py` | 4821 |
+| `apps/api/app/services/advisor.py` | 16027 |
+| `apps/api/app/services/student.py` | 24261 |
+| `apps/api/app/student/models.py` | 2055 |
+| `apps/api/app/student/supabase_repository.py` | 23191 |
+| `apps/api/app/student_conversation/__init__.py` | 71 |
+| `apps/api/app/student_conversation/context.py` | 2765 |
+| `apps/api/app/student_conversation/store.py` | 10932 |
+| `apps/api/tests/test_advisor_interpretation.py` | 21080 |
+| `apps/api/tests/test_advisor_service.py` | 21661 |
+| `apps/api/tests/test_p14_privacy.py` | 20027 |
+| `apps/api/tests/test_p156_balance.py` | 3705 |
+| `apps/api/tests/test_p156_closure.py` | 9624 |
+| `apps/api/tests/test_p156_conversations.py` | 10703 |
+| `apps/api/tests/test_p156_credit_comparison.py` | 3862 |
+| `apps/api/tests/test_p156_credit_timeline.py` | 2777 |
+| `apps/web/src/app/(student)/student/advisor/page.tsx` | 18015 |
+| `apps/web/src/app/(student)/student/courses/page.tsx` | 27520 |
+| `apps/web/src/app/(student)/student/decision-history/page.tsx` | 14470 |
+| `apps/web/src/app/(student)/student/degree-path/page.tsx` | 32512 |
+| `apps/web/src/app/(student)/student/eligibility/EligibilityExplanationGraph.tsx` | 8721 |
+| `apps/web/src/app/(student)/student/eligibility/page.tsx` | 23719 |
+| `apps/web/src/app/(student)/student/intelligence/page.tsx` | 9065 |
+| `apps/web/src/app/(student)/student/mock-registration/page.tsx` | 19022 |
+| `apps/web/src/app/(student)/student/offerings/page.test.tsx` | 5363 |
+| `apps/web/src/app/(student)/student/offerings/page.tsx` | 7554 |
+| `apps/web/src/app/(student)/student/planner/page.tsx` | 20464 |
+| `apps/web/src/app/(student)/student/plan-transition/page.test.tsx` | 4661 |
+| `apps/web/src/app/(student)/student/plan-transition/page.tsx` | 8373 |
+| `apps/web/src/app/(student)/student/portal-pages.test.tsx` | 42749 |
+| `apps/web/src/app/(student)/student/privacy/page.test.tsx` | 6418 |
+| `apps/web/src/app/(student)/student/privacy/page.tsx` | 15052 |
+| `apps/web/src/app/(student)/student/progress/page.tsx` | 20298 |
+| `apps/web/src/app/(student)/student/recommendations/page.test.tsx` | 3406 |
+| `apps/web/src/app/(student)/student/recommendations/page.tsx` | 20822 |
+| `apps/web/src/app/(student)/student/report/page.tsx` | 7698 |
+| `apps/web/src/app/(student)/student/roadmap/page.tsx` | 15493 |
+| `apps/web/src/app/(student)/student/roadmap/roadmap-report.test.tsx` | 8860 |
+| `apps/web/src/app/institutional/ai-query/page.test.tsx` | 7191 |
+| `apps/web/src/app/institutional/ai-query/page.tsx` | 12535 |
+| `apps/web/src/app/institutional/capacity/page.test.tsx` | 6909 |
+| `apps/web/src/app/institutional/capacity/page.tsx` | 11372 |
+| `apps/web/src/app/institutional/change-impact/page.test.tsx` | 9888 |
+| `apps/web/src/app/institutional/change-impact/page.tsx` | 17603 |
+| `apps/web/src/components/academic/AcademicGraphExplanation.test.tsx` | 5742 |
+| `apps/web/src/components/academic/AcademicGraphExplanation.tsx` | 10921 |
+| `apps/web/src/components/academic/CourseIdentity.test.tsx` | 982 |
+| `apps/web/src/components/academic/CourseIdentity.tsx` | 1981 |
+| `apps/web/src/lib/api/plan-transitions.ts` | 2835 |
+| `apps/web/src/lib/api/privacy-p14.ts` | 3021 |
+| `apps/web/src/lib/api/student-api.ts` | 14205 |
+| `apps/web/src/lib/api/student-types.ts` | 22937 |
+| `apps/web/src/lib/api/use-course-identities.test.tsx` | 2938 |
+| `apps/web/src/lib/api/use-course-identities.ts` | 2080 |
+| `docs/morshidi-world-class-capability-matrix.md` | 59208 |
+| `supabase/migrations/20261001200504_add_student_conversation_history.sql` | 7444 |
+
+## P15.6 course UX, durable chat, credit timeline, and plan balance (2026-10-01)
+
+**Objective/start:** Owner-requested pre-P16 slice. Starting `main`/`origin/main` SHA `f66b4aff8c593340490b5e30c0b6123e0f0edeb7`. Initial worktree contained only the two protected untracked `production_pre_p8_replay_*.sql` backups; neither was opened or changed. Audited existing course identity, student/advisor flows, planner/degree-path engines, P14 privacy architecture, and migrations before extending them. No stage, commit, push, deployment, production write, Supabase reset, migration application, or final comprehensive regression occurred.
+
+**Implementation:** Reusable bilingual `CourseIdentity` makes canonical Arabic/English names primary and stable codes secondary on the student catalog, progress, eligibility, recommendations, planner, roadmap, degree path, and report pages where names are supplied. Batch catalog/attempt/progress/recommendation fields carry display metadata without changing academic IDs, joins, rules, or authorization. Advisor explanation guidance prefers canonical name plus code, but the LLM must not invent a missing name. Some code-only surfaces with no name metadata, including parts of advisor clarification, decision/What-If traces, and institutional tools, remain to be audited before claiming global name-first coverage.
+
+No existing durable chat table/repository was found. The **created but unapplied** `20261001200504_add_student_conversation_history.sql` migration defines threads, messages, preference history, owner/institution/profile constraints, service-role-only writes, authenticated owner-scoped read RLS, and scope triggers. The authenticated conversation API derives owner and institution server-side, supports list/create/reopen/continue/rename/archive, and returns 404 for foreign/guessed threads. Service-role queries use exact owner and institution filters plus response-scope checks. User text persists before advisor processing; assistant text persists after the deterministic decision/explanation. A storage failure returns a redacted 503, not a transcript. The browser uses this server-backed API instead of localStorage. Explicit planning preferences supersede earlier values by append-only history, and bounded recent text plus a bounded preference summary are marked non-authoritative in advisor context. No raw chat, hidden reasoning, or secret is intentionally logged. P14 export/deletion/retention integration is **not yet implemented**; archive is not deletion.
+
+The separate deterministic credit-only timeline accepts regular planning loads including 12/15/18, optional summer 3–9 (0 when disabled), a student-supplied starting term/year, and emits exact per-term arithmetic, partial final term, provenance warnings, and no course-feasibility guarantee. It does not claim an authoritative institutional calendar or actual graduation date; prerequisites, offerings/capacity, failures, and the 90-credit AI Project rule can change it. The existing course-aware degree path remains separate. The planner now supplies a versioned `MODELED_COURSE_LOAD_PROFILE_V1` for each loaded Plan 12 course, explicitly falls back to unknown elsewhere, and filters >2 memorization-heavy courses by default. Explicit relaxation exposes extra heavy-course codes and retains deterministic eligibility/credit constraints; P15.5 adaptive rank remains a tie-breaker. The modeled classification is not an institution-verified workload survey.
+
+**Verification so far:** Combined focused/affected backend matrix: **834 passed, 0 failed, 0 skipped, 2 dependency deprecation warnings, 9.43s** (planner, advisor, degree path, catalog, eligibility, progress, recommendations, and P15.6 tests). Focused frontend portal/course-identity/recommendations/roadmap-report: **31 passed, 0 failed**; one pre-existing React `act` warning. Typecheck passed. Scoped ESLint: **0 errors, 27 warnings** in touched files, primarily pre-existing unused imports/effect warnings. `git diff --check` and final status are recorded at the final checkpoint. A broader affected backend run initially found an optional planner-argument test-double compatibility regression and a new warning-string assertion; both were corrected and rerun green. An older advisor input-shape assertion was updated for the optional bounded context; its rerun passed. The frontend portal suite initially found stale generic mocks and first-form selectors after adding the credit form; corrected mocks/selectors and malformed-response guard, then all 23 portal tests passed. No live Supabase/DB/RLS migration or two-student persistence proof is claimed.
+
+**Acceptance/remaining problems:** **P15.6 LOCAL VERDICT = IMPLEMENTATION BLOCKERS REMAIN** for the owner's full standard. Global course-name-first coverage across remaining code-only advisor/trace/institutional surfaces is incomplete; live migration/RLS and actual cross-device persistence are unverified; P14 governed export/deletion/retention is not wired to chat; authoritative institutional calendar and course-aware feasibility are unavailable; multi-option `FASTEST`/`BALANCED`/`LOWER_LOAD` tradeoff comparison is not implemented. These must not be presented as production-validated. Next exact starting point: complete remaining name-bearing API/display surfaces and advisor candidate labels, add real local database/RLS owner/tenant migration tests without applying to production, integrate governed P14 chat export/deletion policy, and verify authoritative calendar/feasibility or preserve explicit modeled-only labels. Retain all current work unstaged for owner review; recommended eventual message: `feat(student-experience): persist chat and improve academic planning`.
+
+**Changed-file bytes:** Measured from disk at this checkpoint; paths below are relative to `apps/api/app/`, `apps/api/tests/`, `apps/web/src/`, or repository root. API app: `advisor/{explanation,interpretation,provider}.py` 13699/16475/5499; `api/routes/{eligibility,student,student_conversations}.py` 3966/18167/7277; `api/schemas/{eligibility,progress,recommendations,semester_planner,student,credit_timeline}.py` 2942/1692/1561/3178/3919/1176; `catalog/supabase_repository.py` 32843; `main.py` 26485; `planner/{engine,models,learning_profile}.py` 25664/8166/1561; `progress/{engine,models}.py` 9805/3091; `providers/advisor_openai.py` 8848; `recommendations/{engine,models}.py` 22864/6450; `rules/{evaluator,models}.py` 10032/4821; `services/{advisor,student}.py` 16027/22402; `student/{models,supabase_repository}.py` 2055/23191; `student_conversation/{__init__,context,store}.py` 71/1954/8430; `degree_path/credit_timeline.py` 3419. Backend tests: `test_p156_{balance,conversations,credit_timeline}.py` 3508/10114/2777; `test_advisor_interpretation.py` 21080. Frontend pages: `student/{advisor,courses,degree-path,eligibility,planner,progress,recommendations,report,roadmap}/page.tsx` 17672/27128/27324/23287/20367/20298/20665/7698/15044; `student/portal-pages.test.tsx` 37806; `lib/api/{student-api,student-types}.ts` 13407/22481; `components/academic/{CourseIdentity,CourseIdentity.test}.tsx` 957/982. Migration: `supabase/migrations/20261001200504_add_student_conversation_history.sql` 7310. The progress record and capability matrix are self-referential and measured in the final report.
+
 ## P15.5 owner-decision local closure (2026-10-01)
 
 **Objective/start:** Close only the current uncommitted P15.5 slice after explicit owner decisions. Starting `main` SHA = `origin/main` = `51ea8489b13e4eacbed3fc27b789c9c5e24d7706`; the prior P15.5 checkpoint and its 29 project changes were preserved. The two protected untracked P8 SQL backups were not opened or modified. No stage, commit, push, deploy, migration, Local Supabase start/reset, or comprehensive regression occurred.

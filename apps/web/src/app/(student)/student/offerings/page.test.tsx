@@ -79,6 +79,7 @@ test("explicit planner overlay renders typed timetable conflict without changing
   fireEvent.change(screen.getByLabelText("الفصل"), { target: { value: "SANDBOX-P10-FALL" } });
   fireEvent.click(screen.getByRole("button", { name: "مقارنة الخطة الأكاديمية بالعروض" }));
   expect((await screen.findByText(/TIME_OVERLAP/)).textContent).toContain("SYN-MATH101-A");
-  expect(screen.getByText(/#1 · CS101, MATH101/)).toBeDefined();
+  expect(screen.getByText("CS101")).toBeDefined();
+  expect(screen.getByText("MATH101")).toBeDefined();
   expect(api.request.mock.calls[0][0]).toContain("/api/v1/me/semester-plans/offerings");
 });

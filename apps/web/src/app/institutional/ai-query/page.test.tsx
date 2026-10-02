@@ -80,7 +80,7 @@ test("submits only typed scope and question, then shows interpretation, value an
   await ready();
   await submit();
   await screen.findByText(/كيف فهم مرشدي السؤال/);
-  const [path, init] = api.request.mock.calls[1] as [string, RequestInit];
+  const [path, init] = api.request.mock.calls.find(call => call[0] === "/api/v1/institutional/ai-query") as [string, RequestInit];
   expect(path).toBe("/api/v1/institutional/ai-query");
   const body = JSON.parse(init.body as string);
   expect(body).toEqual({ university_id: tenant, target_period_id: period,
@@ -129,5 +129,5 @@ test("provider/API failure shows retryable safe error", async () => {
   await submit();
   expect((await screen.findByRole("alert")).textContent).toContain("إعادة المحاولة");
   await userEvent.click(screen.getByRole("button", { name: "تحليل السؤال" }));
-  await waitFor(() => expect(api.request).toHaveBeenCalledTimes(3));
+  await waitFor(() => expect(api.request.mock.calls.filter(call => call[0] === "/api/v1/institutional/ai-query")).toHaveLength(2));
 });

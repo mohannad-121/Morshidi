@@ -1,12 +1,15 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useAuth } from "@/auth/auth-provider";
 import { useAuthenticatedApi } from "@/lib/api/use-authenticated-api";
 import { StudentApiService } from "@/lib/api/student-api";
+import { useCourseIdentities } from "@/lib/api/use-course-identities";
 import { CourseDifficulty } from "@/components/academic/CourseDifficulty";
+import { CourseIdentity } from "@/components/academic/CourseIdentity";
 import { AcademicGraphExplanation } from "@/components/academic/AcademicGraphExplanation";
-import type { AcademicExplanationGraph, AdaptiveCourseResponse } from "@/lib/api/student-types";
+import type { AcademicExplanationGraph, AdaptiveCourseResponse, CreditTimelineResponse, CreditComparisonResponse,
+  CreditTimelineRequest } from "@/lib/api/student-types";
 import type {
   DegreePathOptionResponse,
   DegreePathRequest,
@@ -39,11 +42,26 @@ const PATH_STAGES = [
 export default function DegreePathPage() {
   const auth = useAuth();
   const client = useAuthenticatedApi();
+  const identities = useCourseIdentities(auth.isAuthenticated);
 
   // Constraints
   const [maxCreditsPerSemester, setMaxCreditsPerSemester] = useState<number>(15);
   const [maxSemestersAhead, setMaxSemestersAhead] = useState<number>(8);
   const [maxPaths, setMaxPaths] = useState<number>(2);
+  const [regularLoad, setRegularLoad] = useState(15);
+  const [summerEnabled, setSummerEnabled] = useState(false);
+  const [summerLoad, setSummerLoad] = useState(6);
+  const [graduationPace, setGraduationPace] = useState<"FASTEST" | "BALANCED" | "LOWER_LOAD">("BALANCED");
+  const preferencesEdited = useRef(false);
+  const comparisonRequestId = useRef(0);
+  const [startYear, setStartYear] = useState(new Date().getFullYear());
+  const [startTerm, setStartTerm] = useState<CreditTimelineRequest["start_term"]>("FIRST_SEMESTER");
+  const [creditTimeline, setCreditTimeline] = useState<CreditTimelineResponse | null>(null);
+  const [creditComparison, setCreditComparison] = useState<CreditComparisonResponse | null>(null);
+  const [comparisonLoading, setComparisonLoading] = useState(false);
+  const [comparisonError, setComparisonError] = useState(false);
+  const [creditLoading, setCreditLoading] = useState(false);
+  const [creditError, setCreditError] = useState<string | null>(null);
 
   // States
   const [result, setResult] = useState<DegreePathResponse | null>(null);
@@ -57,6 +75,52 @@ export default function DegreePathPage() {
   const lastGraphRequest = useRef<DegreePathRequest | null>(null);
   const graphRequestId = useRef(0);
   const requestId = useRef(0);
+
+  useEffect(() => {
+    if (!auth.isAuthenticated) return;
+    let active = true;
+    void new StudentApiService(client).getConversationPreferences().then((prefs) => {
+      if (!active || preferencesEdited.current) return;
+      if (!prefs || typeof prefs !== "object" || Array.isArray(prefs)) return;
+      const regular = Number(prefs.regular_load);
+      const summer = Number(prefs.summer_load);
+      if (Number.isInteger(regular) && regular >= 3 && regular <= 30) setRegularLoad(regular);
+      if (prefs.summer_enabled === "true" || prefs.summer_enabled === "false")
+        setSummerEnabled(prefs.summer_enabled === "true");
+      if (Number.isInteger(summer) && summer >= 3 && summer <= 9) setSummerLoad(summer);
+      if (prefs.graduation_pace === "FASTEST" || prefs.graduation_pace === "BALANCED" || prefs.graduation_pace === "LOWER_LOAD")
+        setGraduationPace(prefs.graduation_pace);
+    }).catch(() => { /* Preferences are optional; no academic assumption is inferred. */ });
+    return () => { active = false; };
+  }, [auth.isAuthenticated, client]);
+
+  const handleCreditTimeline = async (e: React.FormEvent) => {
+    e.preventDefault(); setCreditLoading(true); setCreditError(null); setCreditTimeline(null);
+    try {
+      setCreditTimeline(await new StudentApiService(client).simulateCreditTimeline({
+        regular_load: regularLoad, summer_enabled: summerEnabled,
+        summer_load: summerEnabled ? summerLoad : 0,
+        start_year: startYear, start_term: startTerm,
+      }));
+    } catch { setCreditError("تعذّر حساب المسار الائتماني. تأكد من الحمل والفصل المختارين."); }
+    finally { setCreditLoading(false); }
+  };
+
+  const handleComparison = async () => {
+    const currentId = ++comparisonRequestId.current;
+    setComparisonLoading(true); setComparisonError(false); setCreditComparison(null);
+    try {
+      const comparison = await new StudentApiService(client).compareCreditTimelines({
+        start_year: startYear, start_term: startTerm,
+        preferred_regular_load: regularLoad,
+        preferred_summer_enabled: summerEnabled,
+        preferred_summer_load: summerEnabled ? summerLoad : undefined,
+        graduation_pace: graduationPace,
+      });
+      if (currentId === comparisonRequestId.current) setCreditComparison(comparison);
+    } catch { if (currentId === comparisonRequestId.current) setComparisonError(true); }
+    finally { if (currentId === comparisonRequestId.current) setComparisonLoading(false); }
+  };
 
   const loadGraph = async (request: DegreePathRequest) => {
     const currentId = ++graphRequestId.current;
@@ -129,9 +193,73 @@ export default function DegreePathPage() {
           المسار الدراسي حتى التخرج
         </h1>
         <p className="text-xs text-[#726B5E]">
-          محاكاة حتمية متكاملة لخطواتك الدراسية فصلاً بفصل، تضمن استيفاء كافة المتطلبات حتى التخرج بأقل عدد فصول ممكن.
+          اختر تقديراً ائتمانياً سريعاً أو مساراً تفصيلياً للمواد. كلاهما نمذجة غير رسمية ولا يضمن التخرج أو توفر المواد.
         </p>
       </div>
+
+      <section className="rounded-3xl border border-[#EDE2C5] bg-white p-6" aria-label="محاكاة ائتمانية حتى التخرج">
+        <h2 className="text-lg font-bold">مسار ائتماني سريع · Credit-only timeline</h2>
+        <p className="text-xs text-[#726B5E]">لا يلزم اختيار مواد. الحمل العادي افتراض تخطيطي، وليس حد تسجيل معتمداً من الجامعة.</p>
+        <form onChange={() => { preferencesEdited.current = true; comparisonRequestId.current += 1; setComparisonLoading(false); setComparisonError(false); setCreditComparison(null); }} onSubmit={(e) => void handleCreditTimeline(e)} className="mt-4 grid gap-3 sm:grid-cols-3">
+          <label className="text-sm">ساعات الفصل العادي / Regular credits
+            <select value={regularLoad} onChange={(e) => setRegularLoad(Number(e.target.value))} className="mt-1 block w-full rounded-lg border p-2">
+              {[12, 15, 18].map((value) => <option key={value} value={value}>{value}</option>)}
+              {![12, 15, 18].includes(regularLoad) ? <option value={regularLoad}>{regularLoad} (preference)</option> : null}
+            </select>
+          </label>
+          <label className="text-sm">السنة الأكاديمية التقريبية / Start year
+            <input type="number" min={2000} max={2200} value={startYear} onChange={(e) => setStartYear(Number(e.target.value))} className="mt-1 block w-full rounded-lg border p-2" />
+          </label>
+          <label className="text-sm">الفصل القادم / Next term
+            <select value={startTerm} onChange={(e) => setStartTerm(e.target.value as CreditTimelineRequest["start_term"])} className="mt-1 block w-full rounded-lg border p-2">
+              <option value="FIRST_SEMESTER">الفصل الأول / First</option><option value="SECOND_SEMESTER">الفصل الثاني / Second</option><option value="SUMMER">الصيفي / Summer</option>
+            </select>
+          </label>
+          <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={summerEnabled} onChange={(e) => setSummerEnabled(e.target.checked)} /> تضمين الصيفي / Include summer</label>
+          {summerEnabled ? <label className="text-sm">ساعات الصيفي / Summer credits
+            <select value={summerLoad} onChange={(e) => setSummerLoad(Number(e.target.value))} className="mt-1 block w-full rounded-lg border p-2">
+              {[3, 4, 5, 6, 7, 8, 9].map((value) => <option key={value} value={value}>{value}</option>)}
+            </select>
+          </label> : null}
+          <label className="text-sm">تفضيل وتيرة التخرج / Preferred pace
+            <select value={graduationPace} onChange={e => setGraduationPace(e.target.value as typeof graduationPace)} className="mt-1 block w-full rounded-lg border p-2">
+              <option value="FASTEST">الأسرع / Fastest</option><option value="BALANCED">المتوازن / Balanced</option><option value="LOWER_LOAD">الحمل الأخف / Lower load</option>
+            </select>
+          </label>
+          <button type="submit" disabled={creditLoading} className="rounded-xl bg-[#E2AD27] px-4 py-2 text-sm font-bold disabled:opacity-50">{creditLoading ? "جارٍ الحساب..." : "حساب المسار الائتماني"}</button>
+        </form>
+        {creditError ? <p role="alert" className="mt-3 text-sm text-red-700">{creditError}</p> : null}
+        {creditTimeline ? <div className="mt-4 space-y-2 text-sm">
+          <p>المتبقي / Remaining: {creditTimeline.initial_remaining_credits} ساعة · فصول عادية / Regular: {creditTimeline.regular_semester_count} · صيفية / Summers: {creditTimeline.summer_count}</p>
+          <p>الفصل المتوقع / Projected term: {creditTimeline.completion_term ?? "Already complete"} {creditTimeline.completion_year ?? ""}</p>
+          <ol className="list-inside list-decimal">{creditTimeline.terms.map((term, index) => <li key={index}>{term.academic_year} · {term.term} · {term.planned_credits} ساعة · متبقي {term.remaining_after}</li>)}</ol>
+          {creditTimeline.warnings.map((warning) => <p key={warning} className="text-amber-900">{warning}</p>)}
+        </div> : null}
+        <div className="mt-5 border-t pt-4">
+          <button type="button" onClick={() => void handleComparison()} disabled={comparisonLoading}
+            className="rounded-xl border border-[#E2AD27] px-4 py-2 text-sm font-bold disabled:opacity-50">
+            {comparisonLoading ? "جارٍ مقارنة السيناريوهات..." : "قارن: الأسرع · المتوازن · الحمل الأخف"}
+          </button>
+          {comparisonError ? <p role="alert" className="mt-2 text-sm text-red-700">تعذّرت مقارنة السيناريوهات الائتمانية.</p> : null}
+          {creditComparison ? <div className="mt-3 grid gap-3 md:grid-cols-3">
+            {creditComparison.scenarios.map((scenario) => <article key={scenario.mode}
+              className="rounded-xl border border-[#EDE2C5] bg-[#FFFCF4] p-3 text-sm">
+              <h3 className="font-bold">{scenario.mode === "FASTEST" ? "الأسرع / Fastest" :
+                scenario.mode === "BALANCED" ? "المتوازن / Balanced" : "الحمل الأخف / Lower load"}</h3>
+              {scenario.preference_match ? <p className="text-green-800">يطابق تفضيلك المعلن / Matches your stated preference</p> : null}
+              <p>{scenario.timeline.regular_load} ساعة عادية · {scenario.timeline.summer_enabled ?
+                `${scenario.timeline.summer_load} صيفية` : "بدون صيفي"}</p>
+              <p>{scenario.total_modeled_terms} فصل تقويمي تقريبي · {scenario.timeline.regular_semester_count} عادي · {scenario.timeline.summer_count} صيفي</p>
+              <p>الاكتمال النموذجي: {scenario.timeline.completion_term ?? "مكتمل"} {scenario.timeline.completion_year ?? ""}</p>
+              <p>العبء النموذجي: {scenario.workload_indicator}</p>
+              <p>فصول إضافية مقارنة بالأسرع / Extra terms versus fastest: {scenario.total_modeled_terms - creditComparison.scenarios[0].total_modeled_terms}</p>
+              <p className="text-xs text-amber-900">{scenario.provenance} · {scenario.confidence}</p>
+              <p className="text-xs">{scenario.difficulty_evidence.startsWith("CURRENT_ELIGIBLE_COURSES_ONLY") ? "تراعي الموازنة صعوبة المواد المتاحة الآن؛ لم تُحدد مواد الفصول المستقبلية. Current eligible-course difficulty informs balance; future courses are unassigned." : "لا تتوفر أدلة كافية لتقدير صعوبة المواد المستقبلية. Future course difficulty is unknown."}</p>
+            </article>)}
+            <p className="md:col-span-3 text-xs text-amber-900">{creditComparison.limitations.join(" ")}</p>
+          </div> : null}
+        </div>
+      </section>
 
       {/* Constraints Box */}
       <div className="rounded-3xl border border-[#EDE2C5] bg-white p-7 shadow-xs">
@@ -369,14 +497,7 @@ export default function DegreePathPage() {
                               className="flex items-center justify-between rounded-2xl border border-[#EDE2C5] bg-[#FFFCF4] p-3 text-xs"
                             >
                               <div>
-                                <span className="font-mono font-bold text-[#28241C]" dir="ltr">
-                                  {course.course_code}
-                                </span>
-                                {course.course_name_ar ? (
-                                  <span className="block text-[11px] text-[#726B5E] truncate max-w-[160px]">
-                                    {course.course_name_ar}
-                                  </span>
-                                ) : null}
+                                <CourseIdentity courseCode={course.course_code} nameAr={course.course_name_ar} nameEn={course.course_name_en} />
                                 <CourseDifficulty course={adaptive?.courses.find((item) => item.course_code === course.course_code)} />
                               </div>
 
@@ -404,7 +525,7 @@ export default function DegreePathPage() {
                 </div>
               </div>
 
-              <AcademicGraphExplanation graph={graph} focusId={`degree-path:${selectedPath.rank}`}
+              <AcademicGraphExplanation graph={graph} identities={identities} focusId={`degree-path:${selectedPath.rank}`}
                 loading={graphLoading} error={graphError}
                 onRetry={() => { if (lastGraphRequest.current) void loadGraph(lastGraphRequest.current); }} />
 

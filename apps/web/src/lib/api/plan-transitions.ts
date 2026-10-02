@@ -6,6 +6,7 @@ export interface PlanSummary {
   plan_id: string; version_id: string; effective_from: string; effective_to: string | null;
   source_version: string; content_fingerprint: string; source_fingerprint: string;
   source: string; synthetic: boolean; label: "MODELED_UNOFFICIAL";
+  display_course_codes?: Record<string, string>;
 }
 export interface TargetList {
   status: "AVAILABLE" | "TARGET_PLAN_UNAVAILABLE"; current: PlanSummary;

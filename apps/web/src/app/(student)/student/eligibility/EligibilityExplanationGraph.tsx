@@ -1,6 +1,8 @@
 import type {
   Decision, EligibilityExplanationGraph, EligibilityGraphMode,
 } from "@/lib/api/student-types";
+import { CourseIdentity } from "@/components/academic/CourseIdentity";
+import type { CourseIdentityMap } from "@/lib/api/use-course-identities";
 
 const decisionLabels: Record<Decision, string> = {
   ELIGIBLE: "مؤهل",
@@ -36,10 +38,11 @@ type Props = {
   onModeChange: (mode: EligibilityGraphMode) => void;
   onRetry: () => void;
   canAskWhyNot: boolean;
+  identities?: CourseIdentityMap;
 };
 
 export function EligibilityExplanationGraphPanel({
-  graph, mode, loading, error, onModeChange, onRetry, canAskWhyNot,
+  graph, mode, loading, error, onModeChange, onRetry, canAskWhyNot, identities,
 }: Props) {
   const valid = graph && Array.isArray(graph.nodes) && Array.isArray(graph.edges);
   const decision = valid
@@ -111,7 +114,7 @@ export function EligibilityExplanationGraphPanel({
                   <p className="mt-1 text-xs text-[#726B5E]">{group.option_course_codes.length > 1 ? "خيارات بديلة (أو)" : "متطلب واحد"}</p>
                   <ul className="mt-2 space-y-1 text-sm">
                     {group.option_course_codes.map((code) => <li key={code} className="flex flex-wrap items-center gap-2">
-                      <bdi dir="ltr" className="font-mono font-bold">{code}</bdi>
+                      <CourseIdentity courseCode={code} identities={identities} compact />
                       <span>{group.passed_option_course_codes.includes(code) ? "مجتاز" : "غير مجتاز"}</span>
                     </li>)}
                   </ul>

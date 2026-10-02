@@ -2,6 +2,8 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useAuthenticatedApi } from "@/lib/api/use-authenticated-api";
+import { useCourseIdentities } from "@/lib/api/use-course-identities";
+import { CourseIdentity, CourseReferences } from "@/components/academic/CourseIdentity";
 import { PlanTransitionsApi, type TargetList, type TransitionView } from "@/lib/api/plan-transitions";
 
 const words = {
@@ -34,6 +36,7 @@ export default function PlanTransitionPage() {
   const [list, setList] = useState<TargetList | null>(null);
   const [selected, setSelected] = useState(0);
   const [result, setResult] = useState<TransitionView | null>(null);
+  const identities = useCourseIdentities(Boolean(result));
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -89,11 +92,11 @@ export default function PlanTransitionPage() {
         <div><dt>{t.unresolved}</dt><dd>{result.projection.unresolved_credits}</dd></div>
         <div><dt>{t.remaining}</dt><dd>{result.projection.remaining_target_credits}</dd></div>
       </dl>
-      <p>{t.new}: {result.projection.new_requirements.join(", ") || t.noItems}</p>
-      <p>{t.removed}: {result.projection.removed_requirements.join(", ") || t.noItems}</p>
+      <p>{t.new}: <CourseReferences codes={result.projection.new_requirements.map(id => result.target.display_course_codes?.[id] ?? id)} identities={identities} locale={lang} /></p>
+      <p>{t.removed}: <CourseReferences codes={result.projection.removed_requirements.map(id => result.current.display_course_codes?.[id] ?? id)} identities={identities} locale={lang} /></p>
       <p>{t.changes}: {result.projection.changed_groups.join(", ") || t.noItems}</p>
       <ul className="space-y-2">{result.projection.lines.map((line, index) => <li key={`${index}-${line.source_course_id}-${line.target_course_id}`} className="rounded border p-2">
-        <span dir="ltr">{line.source_course_id ?? "—"} → {line.target_course_id ?? "—"}</span> · {line.status}
+        <span><CourseIdentity courseCode={result.current.display_course_codes?.[line.source_course_id ?? ""] ?? line.source_course_id ?? "—"} identities={identities} locale={lang} compact /> → <CourseIdentity courseCode={result.target.display_course_codes?.[line.target_course_id ?? ""] ?? line.target_course_id ?? "—"} identities={identities} locale={lang} compact /></span> · {line.status}
         {line.rule_evidence.map(rule => <p key={rule.rule_id} className="text-sm">
           {t.evidence}: <span dir="ltr">{rule.rule_id} / {rule.rule_version}</span> · {rule.authority} · {t.provenance}: {rule.provenance} · {rule.effective_from}–{rule.effective_to ?? "∞"}
         </p>)}

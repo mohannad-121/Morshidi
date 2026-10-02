@@ -5,6 +5,8 @@ import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { AuthenticatedApiError } from "@/lib/api/authenticated-client";
 import { InstitutionalAIQueryApi, type QueryRequest, type QueryResponse } from "@/lib/api/institutional-ai-query";
 import { useAuthenticatedApi } from "@/lib/api/use-authenticated-api";
+import { useCourseIdentities } from "@/lib/api/use-course-identities";
+import { CourseIdentity, CourseOptions } from "@/components/academic/CourseIdentity";
 
 const statusLabels: Record<NonNullable<QueryResponse["result"]>["status"], string> = {
   AVAILABLE: "النتيجة متاحة",
@@ -22,6 +24,7 @@ export default function InstitutionalAIQueryPage() {
   const [universities, setUniversities] = useState<string[] | null>(null);
   const [accessError, setAccessError] = useState<string | null>(null);
   const [universityId, setUniversityId] = useState("");
+  const identities = useCourseIdentities(Boolean(universities?.includes(universityId)), universityId);
   const [periodId, setPeriodId] = useState("");
   const [planId, setPlanId] = useState("");
   const [courseCode, setCourseCode] = useState("");
@@ -99,7 +102,9 @@ export default function InstitutionalAIQueryPage() {
           <div className="space-y-1"><label htmlFor="study-plan-id" className="block text-sm font-semibold">معرّف الخطة الدراسية</label>
             <input id="study-plan-id" required value={planId} onChange={(event) => { setPlanId(event.target.value); clearResult(); }} className={fieldClass} dir="ltr" /></div>
           <div className="space-y-1"><label htmlFor="course-code" className="block text-sm font-semibold">رمز المادة</label>
-            <input id="course-code" required maxLength={50} value={courseCode} onChange={(event) => { setCourseCode(event.target.value); clearResult(); }} className={fieldClass} dir="ltr" /></div>
+            <input id="course-code" list="query-course-identities" required maxLength={50} value={courseCode} onChange={(event) => { setCourseCode(event.target.value); clearResult(); }} className={fieldClass} dir="ltr" />
+            <CourseOptions id="query-course-identities" identities={identities} />
+            {courseCode.trim() && <CourseIdentity courseCode={courseCode.trim().toUpperCase()} identities={identities} />}</div>
         </div>
       </section>
       <section aria-labelledby="question-heading" className="space-y-3 rounded-2xl border border-amber-200 p-4 sm:p-6">
@@ -129,7 +134,7 @@ export default function InstitutionalAIQueryPage() {
           <h2 className="text-lg font-bold">٣. كيف فهم مرشدي السؤال</h2>
           <p className="mt-2">فهم مرشدي السؤال على أنه: {result.interpretation.metric_label}</p>
           <dl className="mt-3 grid gap-2 text-sm sm:grid-cols-2">
-            <div><dt className="font-semibold">المادة</dt><dd dir="ltr">{result.interpretation.course_code}</dd></div>
+            <div><dt className="font-semibold">المادة</dt><dd><CourseIdentity courseCode={result.interpretation.course_code} identities={identities} /></dd></div>
             <div><dt className="font-semibold">الفترة</dt><dd>{result.interpretation.target_period_key}</dd>
               <dd className="break-all text-xs" dir="ltr">{result.interpretation.target_period_id}</dd></div>
             <div><dt className="font-semibold">الخطة</dt><dd className="break-all" dir="ltr">{result.interpretation.study_plan_id}</dd></div>

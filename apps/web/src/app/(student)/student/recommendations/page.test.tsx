@@ -7,7 +7,7 @@ import type { RecommendationResponse } from "@/lib/api/student-types";
 const getRecommendations = vi.fn();
 const getAdaptiveCourseIntelligence = vi.fn();
 const getRecommendationGraph = vi.fn();
-const client = {};
+const client = { request: async () => new Response("[]") };
 vi.mock("@/auth/auth-provider", () => ({ useAuth: () => ({ isAuthenticated: true }) }));
 vi.mock("@/lib/api/use-authenticated-api", () => ({ useAuthenticatedApi: () => client }));
 vi.mock("@/lib/api/student-api", () => ({ StudentApiService: class {

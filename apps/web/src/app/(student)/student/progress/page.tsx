@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useAuth } from "@/auth/auth-provider";
 import { useAuthenticatedApi } from "@/lib/api/use-authenticated-api";
 import { StudentApiService } from "@/lib/api/student-api";
+import { CourseIdentity } from "@/components/academic/CourseIdentity";
 import type {
   AcademicProgressResponse,
   CourseProgressResponse,
@@ -399,8 +400,8 @@ export default function ProgressPage() {
                         const status = getCourseStateLabel(c.state);
                         return (
                           <tr key={c.course_code} className="hover:bg-[#FFFDF7] transition-colors">
-                            <td className="px-6 py-4 font-mono font-bold text-[#28241C]" dir="ltr">
-                              {c.course_code}
+                            <td className="px-6 py-4 text-[#28241C]">
+                              <CourseIdentity courseCode={c.course_code} nameAr={c.course_name_ar} nameEn={c.course_name_en} />
                             </td>
                             <td className="px-6 py-4 font-mono text-[#28241C]">
                               {c.credit_hours} ساعة

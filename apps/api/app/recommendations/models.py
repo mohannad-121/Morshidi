@@ -126,6 +126,7 @@ class RecommendationCandidate:
 
     previously_attempted: bool
     """True when course_state is ATTEMPTED_NOT_COMPLETED."""
+    course_name_en: str | None = None
 
 
 @dataclass(frozen=True)
@@ -140,6 +141,7 @@ class ReviewRequiredCourse:
     review_reason: str
     """Phase 5 DecisionReason string (PREREQUISITE_LOGIC_UNRESOLVED / PREREQUISITE_SOURCE_CONFLICT)."""
     previously_attempted: bool
+    course_name_en: str | None = None
 
 
 @dataclass(frozen=True)

@@ -58,3 +58,5 @@ class StudentCourseAttemptRecord:
     performance_provenance: PerformanceProvenance = PerformanceProvenance.UNVERIFIED
     performance_verification_state: PerformanceVerificationState = PerformanceVerificationState.UNVERIFIED
     performance_source_reference: str | None = None
+    course_name_ar: str | None = None
+    course_name_en: str | None = None

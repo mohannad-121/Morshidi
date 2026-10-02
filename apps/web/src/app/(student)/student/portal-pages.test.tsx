@@ -385,8 +385,30 @@ const mockPolicyDetail: StudentPolicyDocumentDetail = {
 };
 
 function setupMockFetch() {
-  return vi.spyOn(globalThis, 'fetch').mockImplementation(async (input: RequestInfo | URL) => {
+  const thread = { id: 'thread-1', title: 'Academic question', status: 'ACTIVE',
+    created_at: '2026-01-01T00:00:00Z', updated_at: '2026-01-01T00:00:00Z',
+    last_message_at: null, summary_text: null };
+  return vi.spyOn(globalThis, 'fetch').mockImplementation(async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = String(input);
+
+    if (url.includes('/api/v1/me/adaptive-course-intelligence')) {
+      return new Response('{}', { status: 503 });
+    }
+    if (url.includes('/api/v1/me/conversations/preferences')) {
+      return new Response(JSON.stringify({}), { status: 200 });
+    }
+    if (url.includes('/api/v1/me/conversations/')) {
+      if (init?.method !== 'POST') return new Response(JSON.stringify([]), { status: 200 });
+      return new Response(JSON.stringify({ thread_id: thread.id,
+        user_message: { id: 'message-1', thread_id: thread.id, role: 'USER', content: 'Question',
+          message_type: 'TEXT', provenance: 'STUDENT', created_at: '2026-01-01T00:00:00Z' },
+        assistant_message: { id: 'message-2', thread_id: thread.id, role: 'ASSISTANT',
+          content: mockAdvisor.explanation, message_type: 'TEXT', provenance: 'ADVISOR',
+          created_at: '2026-01-01T00:00:01Z' }, advisor: mockAdvisor }), { status: 200 });
+    }
+    if (url.includes('/api/v1/me/conversations')) {
+      return new Response(JSON.stringify(init?.method === 'POST' ? thread : []), { status: 200 });
+    }
 
     if (url.includes('/api/v1/me/policies/')) {
       return new Response(JSON.stringify(mockPolicyDetail), {
@@ -538,7 +560,7 @@ describe('Morshidi Student Portal Pages Suite', () => {
     await waitFor(() => {
       expect(screen.getByText(/مؤهل لتسجيل المادة/)).toBeDefined();
     });
-    expect(screen.getByText(/برمجة كينونية/)).toBeDefined();
+    expect(screen.getAllByText(/برمجة كينونية/).length).toBeGreaterThan(0);
   });
 
   it('renders the graph beneath the authoritative eligibility result', async () => {
@@ -549,6 +571,80 @@ describe('Morshidi Student Portal Pages Suite', () => {
     await waitFor(() => {
       expect(screen.getByRole('heading', { name: 'لماذا هذا القرار؟' })).toBeDefined();
       expect(screen.getByText('استوفيت المتطلبات السابقة')).toBeDefined();
+    });
+  });
+
+  it('loads clarification names in one batch only after academic clarification and preserves submitted codes', async () => {
+    const normalFetch = fetchSpy.getMockImplementation()!;
+    fetchSpy.mockImplementation(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (url.endsWith('/course-identities')) return new Response(JSON.stringify([
+        { course_id: 'one', course_code: 'CS101', name_ar: 'مقدمة البرمجة', name_en: 'Programming Introduction' },
+        { course_id: 'two', course_code: 'CS201', name_ar: 'برمجة متقدمة', name_en: 'Advanced Programming' },
+      ]));
+      const response = await normalFetch(input, init);
+      if (url.includes('/conversations/') && init?.method === 'POST') {
+        const body = await response.json();
+        body.advisor = { ...mockAdvisor, clarification: { reason: 'AMBIGUOUS_COURSE',
+          message_key: 'clarify', candidate_course_codes: ['CS101', 'CS201'] } };
+        return new Response(JSON.stringify(body));
+      }
+      return response;
+    });
+    renderWithAuth(<AdvisorPage />);
+    const user = userEvent.setup();
+    const prompt = await screen.findByRole('textbox', { name: 'الاستفسار الأكاديمي' });
+    await waitFor(() => expect(prompt.hasAttribute('disabled')).toBe(false));
+    expect(fetchSpy.mock.calls.some(([url]: [RequestInfo | URL]) => String(url).endsWith('/course-identities'))).toBe(false);
+    await user.type(prompt, 'What about programming?');
+    await user.keyboard('{Enter}');
+    const option = await screen.findByRole('button', { name: /مقدمة البرمجة.*CS101/ });
+    expect(option.textContent).toBe('مقدمة البرمجةCS101');
+    await user.click(option);
+    await waitFor(() => expect(fetchSpy.mock.calls.some(([, init]: [RequestInfo | URL, RequestInit?]) =>
+      typeof init?.body === 'string' && init.body.includes('CS101'))).toBe(true));
+    expect(fetchSpy.mock.calls.filter(([url]: [RequestInfo | URL]) => String(url).endsWith('/course-identities'))).toHaveLength(1);
+  });
+
+  it('prefills stored planning preferences, compares three modeled strategies, and permits explicit override', async () => {
+    const normalFetch = fetchSpy.getMockImplementation()!;
+    fetchSpy.mockImplementation(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (url.includes('/conversations/preferences')) return new Response(JSON.stringify({
+        regular_load: '15', summer_enabled: 'true', summer_load: '6', graduation_pace: 'BALANCED',
+      }));
+      if (url.endsWith('/credit-comparison')) return new Response(JSON.stringify({
+        policy_version: 'P15_6_CREDIT_COMPARISON_V1', evaluated_scenarios: 12,
+        limitations: ['Credit-only; future courses are unassigned. MODELED_ACADEMIC_CALENDAR'],
+        scenarios: ['FASTEST', 'BALANCED', 'LOWER_LOAD'].map((mode, index) => ({
+          scenario_id: `scenario-${index}`, mode, total_modeled_terms: 5 + index,
+          timeline: { regular_load: [18, 15, 12][index], summer_enabled: true, summer_load: 6,
+            regular_semester_count: 4 + index, summer_count: 1, completion_term: 'FIRST_SEMESTER', completion_year: 2028 },
+          workload_indicator: 'MODERATE', preference_match: mode === 'BALANCED',
+          provenance: 'MODELED_ACADEMIC_CALENDAR', difficulty_evidence: 'CURRENT_ELIGIBLE_COURSES_ONLY',
+          confidence: 'MODELED_CREDIT_ONLY', current_workload_risk: 50,
+        })),
+      }));
+      return normalFetch(input, init);
+    });
+    renderWithAuth(<DegreePathPage />);
+    const user = userEvent.setup();
+    const regular = await screen.findByLabelText(/Regular credits/);
+    await waitFor(() => expect((screen.getByLabelText(/Include summer/) as HTMLInputElement).checked).toBe(true));
+    expect((regular as HTMLSelectElement).value).toBe('15');
+    await user.click(screen.getByRole('button', { name: /قارن: الأسرع/ }));
+    await screen.findByRole('heading', { name: 'المتوازن / Balanced' });
+    expect(screen.getByRole('heading', { name: 'الأسرع / Fastest' })).toBeTruthy();
+    expect(screen.getByRole('heading', { name: 'الحمل الأخف / Lower load' })).toBeTruthy();
+    expect(screen.getAllByText(/MODELED_ACADEMIC_CALENDAR/).length).toBeGreaterThan(0);
+    expect(screen.getByText(/Matches your stated preference/)).toBeTruthy();
+    await user.selectOptions(regular, '18');
+    await user.click(screen.getByRole('button', { name: /قارن: الأسرع/ }));
+    await waitFor(() => {
+      const requests = fetchSpy.mock.calls.filter(([url]: [RequestInfo | URL]) => String(url).endsWith('/credit-comparison'));
+      expect(requests).toHaveLength(2);
+      expect(JSON.parse(requests[1][1].body)).toMatchObject({ preferred_regular_load: 18,
+        preferred_summer_enabled: true, preferred_summer_load: 6, graduation_pace: 'BALANCED' });
     });
   });
 
@@ -609,6 +705,7 @@ describe('Morshidi Student Portal Pages Suite', () => {
     expect(screen.getByText('المرشد الأكاديمي الذكي')).toBeDefined();
 
     const quickBtn = screen.getByText('هل يمكنني تسجيل مادة الذكاء الاصطناعي؟');
+    await waitFor(() => expect((quickBtn as HTMLButtonElement).disabled).toBe(false));
     await user.click(quickBtn);
 
     await waitFor(() => {
@@ -618,13 +715,18 @@ describe('Morshidi Student Portal Pages Suite', () => {
   });
 
   it('shows neutral advisor pending copy without claiming a backend stage completed', async () => {
-    fetchSpy.mockImplementation(() => new Promise<Response>(() => {}));
+    const normalFetch = fetchSpy.getMockImplementation()!;
+    fetchSpy.mockImplementation((input: RequestInfo | URL, init?: RequestInit) =>
+      String(input).includes('/api/v1/me/conversations/') && init?.method === 'POST'
+        ? new Promise<Response>(() => {}) : normalFetch(input, init));
     const user = userEvent.setup();
     renderWithAuth(<AdvisorPage />);
     expect(screen.getByRole('log')).toBeDefined();
     expect(screen.getByRole('textbox', { name: 'الاستفسار الأكاديمي' })).toBeDefined();
     const questions = screen.getAllByRole('button');
-    await user.click(questions.find((button) => button.textContent?.includes('الذكاء الاصطناعي'))!);
+    const quickQuestion = questions.find((button) => button.textContent?.includes('الذكاء الاصطناعي'))!;
+    await waitFor(() => expect((quickQuestion as HTMLButtonElement).disabled).toBe(false));
+    await user.click(quickQuestion);
     expect(screen.getByText('مرشدي يجهّز الرد...')).toBeDefined();
     expect(screen.queryByText(/جاري استشارة المحرك الحتمي/)).toBeNull();
   });
@@ -657,7 +759,7 @@ describe('Morshidi Student Portal Pages Suite', () => {
     });
     const user = userEvent.setup();
     const { container } = renderWithAuth(<DegreePathPage />);
-    await user.click(container.querySelector('form button[type="submit"]') as HTMLButtonElement);
+    await user.click(container.querySelectorAll('form button[type="submit"]')[1] as HTMLButtonElement);
     await screen.findByRole('alert');
     expect(screen.getByRole('alert').textContent).toContain('تعذر إنشاء مسار التخرج الآن');
     expect(screen.getByRole('alert').textContent).not.toContain('استغرق إنشاء');
@@ -671,7 +773,7 @@ describe('Morshidi Student Portal Pages Suite', () => {
     fetchSpy.mockImplementation(async () => new Response('not-json', { status: 200 }));
     const user = userEvent.setup();
     const { container } = renderWithAuth(<DegreePathPage />);
-    await user.click(container.querySelector('form button[type="submit"]') as HTMLButtonElement);
+    await user.click(container.querySelectorAll('form button[type="submit"]')[1] as HTMLButtonElement);
     await screen.findByRole('alert');
     expect(screen.queryByRole('status')).toBeNull();
   });
@@ -680,7 +782,7 @@ describe('Morshidi Student Portal Pages Suite', () => {
     fetchSpy.mockImplementation(async () => new Response('{}', { status: 200 }));
     const user = userEvent.setup();
     const { container } = renderWithAuth(<DegreePathPage />);
-    await user.click(container.querySelector('form button[type="submit"]') as HTMLButtonElement);
+    await user.click(container.querySelectorAll('form button[type="submit"]')[1] as HTMLButtonElement);
     await screen.findByRole('alert');
     expect(screen.queryByRole('status')).toBeNull();
   });
@@ -694,7 +796,7 @@ describe('Morshidi Student Portal Pages Suite', () => {
     try {
       const user = userEvent.setup();
       const { container } = renderWithAuth(<DegreePathPage />);
-      await user.click(container.querySelector('form button[type="submit"]') as HTMLButtonElement);
+      await user.click(container.querySelectorAll('form button[type="submit"]')[1] as HTMLButtonElement);
       await screen.findByRole('alert');
       expect(screen.getByRole('alert').textContent).toContain('استغرق إنشاء مسار التخرج وقتًا أطول');
       expect(screen.queryByRole('status')).toBeNull();

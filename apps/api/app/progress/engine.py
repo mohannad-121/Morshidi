@@ -125,6 +125,8 @@ def calculate_academic_progress(
             requirement_group_id=group.group_id,
             requirement_group_code=group.group_code,
             state=_course_state(outcomes_by_course.get(plan_course.course_code, set())),
+            course_name_ar=plan_course.course_name_ar,
+            course_name_en=plan_course.course_name_en,
         )
         courses_by_group[group.group_id].append(result)
         course_results.append(result)

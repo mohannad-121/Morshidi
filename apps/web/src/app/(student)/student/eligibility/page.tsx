@@ -4,7 +4,9 @@ import { useRef, useState } from "react";
 import { useAuth } from "@/auth/auth-provider";
 import { useAuthenticatedApi } from "@/lib/api/use-authenticated-api";
 import { StudentApiService } from "@/lib/api/student-api";
+import { useCourseIdentities } from "@/lib/api/use-course-identities";
 import { CourseDifficulty } from "@/components/academic/CourseDifficulty";
+import { CourseIdentity, CourseOptions } from "@/components/academic/CourseIdentity";
 import type {
   AdaptiveCourseResponse,
   CanTakeDecisionResponse,
@@ -71,6 +73,7 @@ function translateLogicStatus(status: PrerequisiteLogicStatus): { label: string;
 export default function EligibilityPage() {
   const auth = useAuth();
   const client = useAuthenticatedApi();
+  const identities = useCourseIdentities(auth.isAuthenticated);
 
   const [courseCodeInput, setCourseCodeInput] = useState("");
   const [result, setResult] = useState<CanTakeDecisionResponse | null>(null);
@@ -173,11 +176,14 @@ export default function EligibilityPage() {
                 <input
                   type="text"
                   value={courseCodeInput}
+                  list="eligibility-course-identities"
                   onChange={(e) => setCourseCodeInput(e.target.value.toUpperCase())}
                   placeholder="أدخل رمز المادة هنا..."
                   className="w-full rounded-2xl border border-[#EDE2C5] bg-[#FFFDF7] py-3 pr-12 pl-4 font-mono text-sm font-bold uppercase text-[#28241C] placeholder-[#726B5E]/50 focus:border-[#E2AD27] focus:bg-white focus:outline-hidden focus:ring-2 focus:ring-[#E2AD27]/20"
                   dir="ltr"
                 />
+                <CourseOptions id="eligibility-course-identities" identities={identities} />
+                {courseCodeInput && <CourseIdentity courseCode={courseCodeInput} identities={identities} />}
               </div>
               <button
                 type="submit"
@@ -243,14 +249,7 @@ export default function EligibilityPage() {
                 </div>
                 <div>
                   <div className="flex items-center gap-2">
-                    <span className="font-mono text-xs font-bold text-[#A66F00]" dir="ltr">
-                      {result.target_course_code}
-                    </span>
-                    {result.target_name_ar ? (
-                      <span className="text-xs font-bold text-[#726B5E]">
-                        • {result.target_name_ar}
-                      </span>
-                    ) : null}
+                    <CourseIdentity courseCode={result.target_course_code} nameAr={result.target_name_ar} nameEn={result.target_name_en} />
                   </div>
                   <h2 className="text-xl font-bold tracking-tight text-[#28241C] mt-0.5">
                     {result.decision === "ELIGIBLE"
@@ -287,6 +286,7 @@ export default function EligibilityPage() {
           </div>
 
           <EligibilityExplanationGraphPanel
+            identities={identities}
             graph={graph}
             mode={graphMode}
             loading={graphLoading}
@@ -315,7 +315,7 @@ export default function EligibilityPage() {
                 <div className="flex items-center justify-between">
                   <span className="text-[#726B5E]">رمز المادة:</span>
                   <span className="font-mono font-bold text-[#28241C]" dir="ltr">
-                    {result.target_course_code}
+                    <CourseIdentity courseCode={result.target_course_code} nameAr={result.target_name_ar} nameEn={result.target_name_en} identities={identities} />
                   </span>
                 </div>
 
@@ -413,7 +413,7 @@ export default function EligibilityPage() {
                             className="rounded-lg bg-white px-2 py-0.5 font-mono text-xs font-bold text-emerald-800 border border-emerald-200"
                             dir="ltr"
                           >
-                            {code}
+                            <CourseIdentity courseCode={code} identities={identities} compact />
                           </span>
                         ))}
                       </div>
@@ -455,7 +455,7 @@ export default function EligibilityPage() {
                             className="rounded-lg bg-white px-2 py-0.5 font-mono text-xs font-bold text-red-800 border border-red-200"
                             dir="ltr"
                           >
-                            {code}
+                            <CourseIdentity courseCode={code} identities={identities} compact />
                           </span>
                         ))}
                       </div>

@@ -4,6 +4,8 @@ import { useEffect, useState } from "react";
 import { useAuth } from "@/auth/auth-provider";
 import { useAuthenticatedApi } from "@/lib/api/use-authenticated-api";
 import { StudentApiService } from "@/lib/api/student-api";
+import { useCourseIdentities } from "@/lib/api/use-course-identities";
+import { CourseIdentity, CourseOptions } from "@/components/academic/CourseIdentity";
 import type {
   DashboardError,
   StudentIntentResponse,
@@ -33,6 +35,7 @@ const NOTICE_VERSION = "2026-v1";
 export default function MockRegistrationPage() {
   const auth = useAuth();
   const client = useAuthenticatedApi();
+  const identities = useCourseIdentities(auth.isAuthenticated);
 
   const [targetPeriod, setTargetPeriod] = useState<string>(DEFAULT_PERIOD);
   const [intent, setIntent] = useState<StudentIntentResponse | null>(null);
@@ -266,7 +269,7 @@ export default function MockRegistrationPage() {
                       className="rounded-2xl border border-[#EDE2C5] bg-[#FFF9E8] px-4 py-2 font-mono text-xs font-bold text-[#28241C] shadow-xs"
                       dir="ltr"
                     >
-                      {code}
+                      <CourseIdentity courseCode={code} identities={identities} />
                     </span>
                   ))}
                 </div>
@@ -323,11 +326,13 @@ export default function MockRegistrationPage() {
                   <input
                     type="text"
                     value={newCourseCode}
+                    list="registration-course-identities"
                     onChange={(e) => setNewCourseCode(e.target.value.toUpperCase())}
                     placeholder="أدخل رمز المادة (مثل: CS101 أو AI201)..."
                     className="flex-1 rounded-2xl border border-[#EDE2C5] bg-[#FFFCF4] px-4 py-2.5 font-mono text-xs uppercase text-[#28241C] focus:border-[#E2AD27] focus:bg-white focus:outline-hidden"
                     dir="ltr"
                   />
+                  <CourseOptions id="registration-course-identities" identities={identities} />
                   <button
                     type="submit"
                     className="inline-flex items-center gap-1.5 rounded-2xl bg-[#FFF9E8] border border-[#EDE2C5] px-5 py-2.5 text-xs font-bold text-[#805400] hover:bg-[#FFF4C7] hover:border-[#E2AD27] transition-all"
@@ -355,7 +360,7 @@ export default function MockRegistrationPage() {
                         className="inline-flex items-center gap-2 rounded-2xl border border-[#EDE2C5] bg-[#FFF9E8] px-3.5 py-1.5 font-mono text-xs font-bold text-[#28241C]"
                         dir="ltr"
                       >
-                        <span>{code}</span>
+                        <CourseIdentity courseCode={code} identities={identities} />
                         <button
                           type="button"
                           onClick={() => handleRemoveCourse(code)}

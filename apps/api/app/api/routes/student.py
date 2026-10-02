@@ -28,11 +28,14 @@ from app.api.schemas.degree_path import (
     DegreePathResponse,
 )
 from app.core.auth import CurrentUser, get_current_user
+from app.catalog.display import CourseDisplayIdentity
 from app.rules.models import CanTakeDecision, Decision
 from app.explainability_graph import (
     ExplainabilityGraph, GraphMode, build_eligibility_graph,
     build_recommendation_graph, build_semester_planner_graph, build_degree_path_graph,
 )
+from app.api.schemas.credit_timeline import (CreditTimelineRequest, CreditTimelineResponse,
+                                             CreditComparisonRequest, CreditComparisonResponse)
 from app.services.student import StudentConfigurationError, StudentService
 from app.student.models import StudentAcademicState, StudentCourseAttemptRecord
 from app.progress.models import AcademicProgress
@@ -52,6 +55,13 @@ def get_student_service(request: Request) -> StudentService:
 
 
 StudentServiceDependency = Annotated[StudentService, Depends(get_student_service)]
+
+
+@router.get("/course-identities", response_model=list[CourseDisplayIdentity])
+async def course_identities(user: AuthenticatedUser, service: StudentServiceDependency,
+                            response: Response):
+    response.headers["Cache-Control"] = "private, no-store"
+    return await service.get_course_identities(user.user_id)
 
 
 async def _watch_degree_path_disconnect(request: Request, cancelled: Event) -> None:
@@ -232,6 +242,7 @@ def _profile_response(state: StudentAcademicState) -> AcademicProfileResponse:
 
 def _attempt_response(row: StudentCourseAttemptRecord) -> CourseAttemptResponse:
     return CourseAttemptResponse(id=row.attempt_id, course_code=row.course_code, status=row.outcome,
+        course_name_ar=row.course_name_ar, course_name_en=row.course_name_en,
         attempt_sequence=row.attempt_sequence, term_label=row.term_label, attempted_on=row.attempted_on,
         raw_grade_text=row.reported_grade_text, record_source=row.record_source,
         created_at=row.created_at, updated_at=row.updated_at)
@@ -297,11 +308,14 @@ async def create_semester_plans(
     user: AuthenticatedUser,
     service: StudentServiceDependency,
 ) -> SemesterPlannerResponse:
+    balance_options = ({"accept_heavy_balance": True}
+                       if request.accept_heavy_balance else {})
     result = await service.get_semester_plans(
         user.user_id,
         max_credit_hours=request.max_credit_hours,
         max_courses=request.max_courses,
         max_options=request.max_options,
+        **balance_options,
     )
     return _planner_response(result)
 
@@ -348,6 +362,38 @@ async def create_degree_paths(
         (perf_counter() - started) * 1000,
     )
     return response
+
+
+@router.post("/degree-paths/credit-timeline", response_model=CreditTimelineResponse)
+async def create_credit_timeline(
+    body: CreditTimelineRequest, user: AuthenticatedUser, service: StudentServiceDependency,
+) -> CreditTimelineResponse:
+    try:
+        result = await service.get_credit_timeline(
+            user.user_id, regular_load=body.regular_load,
+            summer_enabled=body.summer_enabled, summer_load=body.summer_load,
+            start_year=body.start_year, start_term=body.start_term,
+        )
+    except ValueError as error:
+        raise HTTPException(status_code=422, detail="Invalid credit planning assumptions") from error
+    return CreditTimelineResponse.model_validate(result)
+
+
+@router.post("/degree-paths/credit-comparison", response_model=CreditComparisonResponse)
+async def create_credit_comparison(
+    body: CreditComparisonRequest, user: AuthenticatedUser, service: StudentServiceDependency,
+) -> CreditComparisonResponse:
+    try:
+        result = await service.compare_credit_timelines(
+            user.user_id, start_year=body.start_year, start_term=body.start_term,
+            preferred_regular_load=body.preferred_regular_load,
+            preferred_summer_enabled=body.preferred_summer_enabled,
+            preferred_summer_load=body.preferred_summer_load,
+            graduation_pace=body.graduation_pace,
+        )
+    except ValueError as error:
+        raise HTTPException(status_code=422, detail="Invalid credit comparison assumptions") from error
+    return CreditComparisonResponse.model_validate(result)
 
 
 def _degree_path_response(result: DegreePathResult) -> DegreePathResponse:

@@ -157,6 +157,11 @@ def recommend_courses(
         rule.course_code: rule.target_name_ar
         for rule in eligibility_catalog.plan_courses
     }
+    name_en_by_code = {rule.course_code: rule.target_name_en
+                       for rule in eligibility_catalog.plan_courses}
+    for course in progress_catalog.plan_courses:
+        name_by_code[course.course_code] = name_by_code.get(course.course_code) or course.course_name_ar
+        name_en_by_code[course.course_code] = name_en_by_code.get(course.course_code) or course.course_name_en
 
     # ------------------------------------------------------------------
     # Step 3: Baseline eligibility for all incomplete plan courses
@@ -241,6 +246,7 @@ def recommend_courses(
             ReviewRequiredCourse(
                 course_code=code,
                 course_name_ar=name_by_code.get(code),
+                course_name_en=name_en_by_code.get(code),
                 credit_hours=meta.credit_hours,
                 requirement_group_code=meta.requirement_group_code,
                 requirement_type=meta.requirement_type.value,
@@ -381,6 +387,7 @@ def recommend_courses(
             RecommendationCandidate(
                 course_code=code,
                 course_name_ar=name_by_code.get(code),
+                course_name_en=name_en_by_code.get(code),
                 credit_hours=meta.credit_hours,
                 requirement_group_code=meta.requirement_group_code,
                 requirement_type=meta.requirement_type.value,
@@ -431,6 +438,7 @@ def recommend_courses(
             RecommendationCandidate(
                 course_code=c.course_code,
                 course_name_ar=c.course_name_ar,
+                course_name_en=c.course_name_en,
                 credit_hours=c.credit_hours,
                 requirement_group_code=c.requirement_group_code,
                 requirement_type=c.requirement_type,

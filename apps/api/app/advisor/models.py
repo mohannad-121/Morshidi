@@ -181,6 +181,7 @@ class CourseResolution:
     status: EntityResolutionStatus
     resolved_course: ResolvedCourseReference | None = None
     candidate_course_codes: tuple[str, ...] = ()
+    candidate_courses: tuple[ResolvedCourseReference, ...] = ()
 
     def __post_init__(self) -> None:
         candidates = _sorted_unique_strings(
@@ -188,6 +189,10 @@ class CourseResolution:
             "candidate_course_codes",
         )
         object.__setattr__(self, "candidate_course_codes", candidates)
+        if self.candidate_courses and (
+                {course.course_code for course in self.candidate_courses} != set(candidates) or
+                len(self.candidate_courses) != len(candidates)):
+            raise AdvisorContractError("Candidate display identities must match candidate codes")
 
         if self.status is EntityResolutionStatus.RESOLVED:
             if self.resolved_course is None:

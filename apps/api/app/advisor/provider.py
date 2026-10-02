@@ -50,12 +50,15 @@ class AdvisorInterpretationInput:
     """Minimal provider input; no identity, token, or academic record."""
 
     user_message: str
+    conversation_context: str = ""
 
     def __post_init__(self) -> None:
         if not isinstance(self.user_message, str) or not self.user_message.strip():
             raise ValueError("user_message must be a non-empty string")
         if self.user_message != self.user_message.strip():
             raise ValueError("user_message must not contain surrounding whitespace")
+        if len(self.conversation_context) > 1600:
+            raise ValueError("conversation_context exceeds bounded input")
 
 
 @dataclass(frozen=True)

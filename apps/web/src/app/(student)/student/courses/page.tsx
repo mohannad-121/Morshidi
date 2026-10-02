@@ -4,6 +4,8 @@ import { useEffect, useMemo, useState } from "react";
 import { useAuth } from "@/auth/auth-provider";
 import { useAuthenticatedApi } from "@/lib/api/use-authenticated-api";
 import { StudentApiService } from "@/lib/api/student-api";
+import { CourseIdentity, CourseOptions } from "@/components/academic/CourseIdentity";
+import { useCourseIdentities } from "@/lib/api/use-course-identities";
 import type {
   AttemptCreateRequest,
   AttemptOutcome,
@@ -59,6 +61,7 @@ function getSourceLabel(source: RecordSource): string {
 export default function CoursesPage() {
   const auth = useAuth();
   const client = useAuthenticatedApi();
+  const identities = useCourseIdentities(auth.isAuthenticated);
   const [attempts, setAttempts] = useState<CourseAttemptResponse[]>([]);
   const [error, setError] = useState<DashboardError | null>(null);
   const [loading, setLoading] = useState(true);
@@ -358,8 +361,8 @@ export default function CoursesPage() {
                       const statusDetails = getStatusDetails(attempt.status);
                       return (
                         <tr key={attempt.id} className="hover:bg-[#FFFDF7] transition-colors">
-                          <td className="px-6 py-4 font-mono font-bold text-[#28241C]" dir="ltr">
-                            {attempt.course_code}
+                          <td className="px-6 py-4 text-[#28241C]">
+                            <CourseIdentity courseCode={attempt.course_code} nameAr={attempt.course_name_ar} nameEn={attempt.course_name_en} />
                           </td>
                           <td className="px-6 py-4 font-mono text-[#726B5E]" dir="ltr">
                             {attempt.term_label ?? "—"}
@@ -440,10 +443,13 @@ export default function CoursesPage() {
                   required
                   placeholder="مثال: CS101 أو MATH101"
                   value={formCourseCode}
+                  list="attempt-course-identities"
                   onChange={(e) => setFormCourseCode(e.target.value.toUpperCase())}
                   className="w-full rounded-xl border border-[#EDE2C5] bg-white p-2.5 font-mono uppercase text-[#28241C] focus:border-[#E2AD27] focus:outline-hidden"
                   dir="ltr"
                 />
+                <CourseOptions id="attempt-course-identities" identities={identities} />
+                {formCourseCode && <CourseIdentity courseCode={formCourseCode} identities={identities} />}
               </div>
 
               <div>
@@ -533,7 +539,7 @@ export default function CoursesPage() {
               <div>
                 <h2 className="text-base font-bold text-[#28241C]">تعديل المحاولة الدراسية</h2>
                 <p className="font-mono text-xs text-[#A66F00] font-bold" dir="ltr">
-                  {editingAttempt.course_code} {editingAttempt.term_label ? `(${editingAttempt.term_label})` : ""}
+                  <CourseIdentity courseCode={editingAttempt.course_code} nameAr={editingAttempt.course_name_ar} nameEn={editingAttempt.course_name_en} /> {editingAttempt.term_label ? `(${editingAttempt.term_label})` : ""}
                 </p>
               </div>
               <button

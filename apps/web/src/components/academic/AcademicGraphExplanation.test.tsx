@@ -3,6 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
 import { AcademicGraphExplanation } from "./AcademicGraphExplanation";
+import { courseIdentityMap } from "@/lib/api/use-course-identities";
 import type {
   AcademicExplanationGraph, EligibilityGraphNode, EligibilityGraphNodeType,
 } from "@/lib/api/student-types";
@@ -40,6 +41,15 @@ const graph: AcademicExplanationGraph = {
 };
 
 describe("AcademicGraphExplanation", () => {
+  it("shows canonical name before code without rewriting trace node identity", () => {
+    const before = JSON.stringify(graph);
+    render(<AcademicGraphExplanation graph={graph} focusId="recommendation:1:CS401"
+      identities={courseIdentityMap([{ course_id: "id-401", course_code: "CS401",
+        name_ar: "تحليل البيانات", name_en: "Data Analysis" }])}
+      loading={false} error={false} onRetry={vi.fn()} />);
+    expect(screen.getByText("تحليل البيانات").parentElement!.textContent).toBe("تحليل البياناتCS401");
+    expect(JSON.stringify(graph)).toBe(before);
+  });
   it("renders Arabic typed facts, constraints, version and relationship labels without IDs", () => {
     const { container } = render(<AcademicGraphExplanation graph={graph} focusId="recommendation:1:CS401"
       loading={false} error={false} onRetry={vi.fn()} />);

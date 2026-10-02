@@ -10,6 +10,8 @@ from app.progress.models import CourseProgressState, RequirementType
 
 class CourseProgressResponse(BaseModel):
     course_code: str
+    course_name_ar: str | None = None
+    course_name_en: str | None = None
     credit_hours: Decimal
     requirement_group_id: UUID
     requirement_group_code: str

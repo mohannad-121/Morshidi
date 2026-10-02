@@ -6,6 +6,7 @@ import hashlib
 from dataclasses import asdict, replace
 from datetime import datetime
 from threading import RLock
+from typing import Mapping, Any
 from uuid import uuid4
 
 from .domain import (AccessDecision, AccessRequest, Consent, ConsentStatus, DataCategory,
@@ -150,6 +151,21 @@ class LocalPrivacyStore:
             if item is None or item.subject_id != owner or item.institution_id != institution:
                 raise PrivacyDenied("REQUEST_UNAVAILABLE")
             return item
+
+    def request_conversation_deletion(self, owner: str, institution: str,
+                                      owned_thread: Mapping[str, Any], reason: str) -> PrivacyRequest:
+        """Queue human review of an already owner-verified thread; never delete chat."""
+        thread_id = owned_thread.get("id")
+        if (owned_thread.get("owner_user_id") != owner or
+                owned_thread.get("institution_id") != institution or not thread_id):
+            raise PrivacyDenied("OPTIONAL_DATA_UNAVAILABLE")
+        item = self.request(owner, institution, "DELETION", DataCategory.DELETABLE_OPTIONAL_DATA,
+                            reason)
+        with self._lock:
+            item = replace(item, source_reference=f"CONVERSATION_THREAD:{thread_id}",
+                           retained_reason="HUMAN_REVIEW_REQUIRED_RETENTION_POLICY_NOT_VERIFIED")
+            self._requests[item.request_id] = item
+        return item
 
     def study_join(self, owner: str, institution: str, study_id: str,
                    now: datetime | None = None) -> Participation:

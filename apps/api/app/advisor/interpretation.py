@@ -115,11 +115,12 @@ def invoke_advisor_provider(
 async def invoke_advisor_provider_async(
     provider: AdvisorLLMProvider,
     user_message: str,
+    conversation_context: str = "",
 ) -> ProviderInterpretationResponse:
     """Async-safe provider invocation supporting sync test and async production adapters."""
 
     try:
-        provider_input = AdvisorInterpretationInput(user_message)
+        provider_input = AdvisorInterpretationInput(user_message, conversation_context)
     except (TypeError, ValueError):
         return ProviderFailure(
             ProviderFailureType.SCHEMA_MISMATCH,
@@ -284,6 +285,7 @@ def resolve_course_references(
     return CourseResolution(
         EntityResolutionStatus.AMBIGUOUS,
         candidate_course_codes=tuple(course.course_code for course in ordered),
+        candidate_courses=ordered,
     )
 
 

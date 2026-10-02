@@ -5,7 +5,9 @@ import Image from "next/image";
 import { useAuth } from "@/auth/auth-provider";
 import { useAuthenticatedApi } from "@/lib/api/use-authenticated-api";
 import { StudentApiService } from "@/lib/api/student-api";
-import type { AdvisorRequest, AdvisorResponse } from "@/lib/api/student-types";
+import { useCourseIdentities } from "@/lib/api/use-course-identities";
+import { CourseIdentity } from "@/components/academic/CourseIdentity";
+import type { AdvisorResponse, ConversationThread, ConversationMessage } from "@/lib/api/student-types";
 import { Badge } from "@/components/ui/Badge";
 import {
   AdvisorIcon,
@@ -46,6 +48,15 @@ export default function AdvisorPage() {
   const client = useAuthenticatedApi();
 
   const [messages, setMessages] = useState<ChatMessage[]>(INITIAL_MESSAGES);
+  const identities = useCourseIdentities(messages.some(message =>
+    Boolean(message.advisorData?.clarification?.candidate_course_codes?.length)));
+  const [threads, setThreads] = useState<ConversationThread[]>([]);
+  const [olderThreadsAvailable, setOlderThreadsAvailable] = useState(false);
+  const [threadId, setThreadId] = useState<string | null>(null);
+  const [historyReady, setHistoryReady] = useState(false);
+  const [historyError, setHistoryError] = useState(false);
+  const [olderAvailable, setOlderAvailable] = useState(false);
+  const [loadedCount, setLoadedCount] = useState(0);
   const [inputPrompt, setInputPrompt] = useState("");
   const [loading, setLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -58,43 +69,86 @@ export default function AdvisorPage() {
     scrollToBottom();
   }, [messages, loading]);
 
+  const showHistory = (rows: ConversationMessage[]): ChatMessage[] => rows.map((row) => ({
+    id: row.id, sender: row.role === "USER" ? "student" : "advisor",
+    text: row.content,
+    timestamp: new Date(row.created_at).toLocaleTimeString("ar-SA", { hour: "2-digit", minute: "2-digit" }),
+  }));
+
+  useEffect(() => {
+    if (!auth.isAuthenticated) return;
+    let active = true;
+    const api = new StudentApiService(client);
+    void api.listConversations().then(async (items) => {
+      if (!active) return;
+      setThreads(items);
+      setOlderThreadsAvailable(items.length === 100);
+      const first = items.find((item) => item.status === "ACTIVE") ?? items[0];
+      if (first) {
+        const rows = await api.getConversationMessages(first.id);
+        if (!active) return;
+        setThreadId(first.id);
+        setMessages(rows.length ? showHistory(rows) : INITIAL_MESSAGES);
+        setLoadedCount(rows.length);
+        setOlderAvailable(rows.length === 100);
+      }
+      setHistoryReady(true);
+    }).catch(() => { if (active) { setHistoryError(true); setHistoryReady(true); } });
+    return () => { active = false; };
+  }, [auth.isAuthenticated, client]);
+
+  const openThread = async (id: string) => {
+    setHistoryError(false);
+    setHistoryReady(false);
+    try {
+      const rows = await new StudentApiService(client).getConversationMessages(id);
+      setThreadId(id);
+      setMessages(rows.length ? showHistory(rows) : INITIAL_MESSAGES);
+      setLoadedCount(rows.length);
+      setOlderAvailable(rows.length === 100);
+    } catch { setHistoryError(true); }
+    finally { setHistoryReady(true); }
+  };
+
+  const loadOlder = async () => {
+    if (!threadId) return;
+    try {
+      const rows = await new StudentApiService(client).getConversationMessages(threadId, loadedCount);
+      setMessages((current) => [...showHistory(rows), ...current]);
+      setLoadedCount((count) => count + rows.length);
+      setOlderAvailable(rows.length === 100);
+    } catch { setHistoryError(true); }
+  };
+
   const handleSendMessage = async (textToSend?: string) => {
     const query = (textToSend ?? inputPrompt).trim();
-    if (!query || loading) return;
+    if (!query || loading || !historyReady || historyError ||
+        (threadId && threads.find((item) => item.id === threadId)?.status === "ARCHIVED")) return;
 
     setInputPrompt("");
-    const studentMsg: ChatMessage = {
-      id: `student-${Date.now()}`,
-      sender: "student",
-      text: query,
-      timestamp: new Date().toLocaleTimeString("ar-SA", { hour: "2-digit", minute: "2-digit" }),
-    };
-
-    setMessages((prev) => [...prev, studentMsg]);
     setLoading(true);
+    let activeThreadId = threadId;
 
     try {
       const api = new StudentApiService(client);
-      const req: AdvisorRequest = { message: query };
-      const response = await api.askAdvisor(req, AbortSignal.timeout(55_000));
-
+      const id = activeThreadId ?? (await api.createConversation(query.slice(0, 100))).id;
+      activeThreadId = id;
+      if (!threadId) setThreadId(id);
+      const reply = await api.continueConversation(id, query, AbortSignal.timeout(55_000));
       const advisorMsg: ChatMessage = {
-        id: `advisor-${Date.now()}`,
+        id: reply.assistant_message.id,
         sender: "advisor",
-        text: response.explanation ?? "تمت معالجة استفسارك وفق القواعد الحتمية.",
-        advisorData: response,
-        timestamp: new Date().toLocaleTimeString("ar-SA", { hour: "2-digit", minute: "2-digit" }),
+        text: reply.assistant_message.content,
+        advisorData: reply.advisor,
+        timestamp: new Date(reply.assistant_message.created_at).toLocaleTimeString("ar-SA", { hour: "2-digit", minute: "2-digit" }),
       };
-
-      setMessages((prev) => [...prev, advisorMsg]);
+      const studentMsg = showHistory([reply.user_message])[0];
+      setMessages((prev) => [...(prev === INITIAL_MESSAGES ? [] : prev), studentMsg, advisorMsg]);
+      setLoadedCount((count) => count + 2);
+      setThreads(await api.listConversations());
     } catch {
-      const errorMsg: ChatMessage = {
-        id: `error-${Date.now()}`,
-        sender: "advisor",
-        text: "عذراً، حدث خطأ أثناء معالجة استفسارك من خلال محرك الإرشاد. يرجى المحاولة مرة أخرى.",
-        timestamp: new Date().toLocaleTimeString("ar-SA", { hour: "2-digit", minute: "2-digit" }),
-      };
-      setMessages((prev) => [...prev, errorMsg]);
+      if (activeThreadId) await openThread(activeThreadId);
+      setHistoryError(true);
     } finally {
       setLoading(false);
     }
@@ -135,6 +189,24 @@ export default function AdvisorPage() {
       </div>
 
       {/* Suggested Questions */}
+      <nav aria-label="المحادثات السابقة" className="flex shrink-0 flex-wrap items-center gap-2 text-xs">
+        <button type="button" onClick={() => { setThreadId(null); setMessages(INITIAL_MESSAGES); setLoadedCount(0); setOlderAvailable(false); }}
+          className="rounded-lg border px-3 py-1">محادثة جديدة / New chat</button>
+        {threads.map((thread) => <button key={thread.id} type="button" onClick={() => void openThread(thread.id)}
+          aria-current={threadId === thread.id ? "page" : undefined} className="rounded-lg border px-3 py-1">
+          {thread.title} {thread.status === "ARCHIVED" ? "(مؤرشفة)" : ""}
+        </button>)}
+        {olderThreadsAvailable ? <button type="button" onClick={() => {
+          void new StudentApiService(client).listConversations(threads.length).then((older) => {
+            setThreads((current) => [...current, ...older]); setOlderThreadsAvailable(older.length === 100);
+          }).catch(() => setHistoryError(true));
+        }} className="rounded-lg border px-3 py-1">محادثات أقدم / Older chats</button> : null}
+        {threadId && threads.find((item) => item.id === threadId)?.status === "ACTIVE" ?
+          <button type="button" onClick={() => { void new StudentApiService(client).archiveConversation(threadId).then(async () => {
+            setThreads(await new StudentApiService(client).listConversations());
+          }).catch(() => setHistoryError(true)); }} className="rounded-lg border px-3 py-1">أرشفة / Archive</button> : null}
+      </nav>
+      {historyError ? <p role="alert" className="text-sm text-red-700">تعذّر حفظ أو تحميل المحادثة. يرجى إعادة المحاولة؛ لا تُرسل رسالة جديدة حتى يعود التخزين. Conversation storage unavailable.</p> : null}
       <div className="flex shrink-0 flex-wrap items-center gap-2 text-xs">
         <span className="font-bold text-[#726B5E]">أسئلة شائعة سريعة:</span>
         {SUGGESTED_QUESTIONS.map((q) => (
@@ -142,7 +214,8 @@ export default function AdvisorPage() {
             key={q}
             type="button"
             onClick={() => void handleSendMessage(q)}
-            disabled={loading}
+            disabled={loading || !historyReady || historyError ||
+              Boolean(threadId && threads.find((item) => item.id === threadId)?.status === "ARCHIVED")}
             className="rounded-xl border border-[#EDE2C5] bg-[#FFF9E8] px-3 py-1 font-semibold text-[#805400] hover:bg-[#FFF4C7] hover:border-[#E2AD27] transition-colors disabled:opacity-50"
           >
             {q}
@@ -152,6 +225,7 @@ export default function AdvisorPage() {
 
       {/* Chat Messages Area */}
       <div role="log" aria-live="polite" aria-relevant="additions" className="flex-1 overflow-y-auto rounded-3xl border border-[#EDE2C5] bg-white p-6 shadow-xs space-y-6">
+        {olderAvailable ? <button type="button" onClick={() => void loadOlder()} className="rounded-lg border px-3 py-1 text-xs">رسائل أقدم / Older messages</button> : null}
         {messages.map((msg) => (
           <div
             key={msg.id}
@@ -229,7 +303,7 @@ export default function AdvisorPage() {
                             className="rounded-xl bg-white px-3 py-1 font-mono font-bold text-[#A66F00] border border-[#EDE2C5] hover:bg-[#FFF4C7] transition-colors"
                             dir="ltr"
                           >
-                            {code}
+                            <CourseIdentity courseCode={code} identities={identities} />
                           </button>
                         ))}
                       </div>
@@ -287,7 +361,8 @@ export default function AdvisorPage() {
           />
           <button
             type="submit"
-            disabled={loading || !inputPrompt.trim()}
+            disabled={loading || !historyReady || historyError || !inputPrompt.trim() ||
+              Boolean(threadId && threads.find((item) => item.id === threadId)?.status === "ARCHIVED")}
             className="inline-flex items-center gap-2 rounded-2xl bg-[#E2AD27] px-6 py-3 text-xs font-bold text-[#28241C] hover:bg-[#A66F00] hover:text-white transition-all shadow-xs disabled:opacity-50"
           >
             <SendIcon className="h-4 w-4" />

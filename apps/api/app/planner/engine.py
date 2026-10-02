@@ -11,6 +11,7 @@ from dataclasses import dataclass
 from decimal import Decimal
 from time import monotonic
 from typing import Callable, Mapping
+from app.planner.learning_profile import CourseLearningProfile, MAX_MEMORIZATION_HEAVY
 
 from app.planner.models import (
     DEFAULT_CANDIDATE_WINDOW_SIZE,
@@ -112,6 +113,8 @@ def plan_semester(
     check_budget: Callable[[], None] | None = None,
     metrics: dict[str, float | int] | None = None,
     adaptive_scores: Mapping[str, int] | None = None,
+    learning_profiles: Mapping[str, CourseLearningProfile] | None = None,
+    accept_heavy_balance: bool = False,
 ) -> SemesterPlannerResult:
     """Generate and rank optimal semester course combinations deterministically.
 
@@ -134,6 +137,8 @@ def plan_semester(
         raise PlannerConstraintError("candidate_window_size must be an integer")
     if candidate_window_size < 1:
         raise PlannerConstraintError("candidate_window_size must be at least 1")
+    if not isinstance(accept_heavy_balance, bool):
+        raise PlannerConstraintError("accept_heavy_balance must be boolean")
 
     def record(name: str, started: float) -> None:
         if metrics is not None:
@@ -151,6 +156,11 @@ def plan_semester(
         raise PlannerIntegrityError("Mismatched study_plan_id between catalog and recommendation result")
 
     plan_courses_by_code = {pc.course_code: pc for pc in progress_catalog.plan_courses}
+    if learning_profiles is not None and (
+        set(learning_profiles) != set(plan_courses_by_code)
+        or any(profile.course_code != code for code, profile in learning_profiles.items())
+    ):
+        raise PlannerIntegrityError("Incomplete or foreign course learning profiles")
     for cand in recommendation_result.ranked_recommendations:
         if cand.course_code not in plan_courses_by_code:
             raise PlannerIntegrityError(
@@ -158,7 +168,7 @@ def plan_semester(
             )
 
     names_en_by_code: dict[str, str | None] = {
-        course.course_code: getattr(course, "name_en", None) for course in eligibility_catalog.courses
+        rule.course_code: rule.target_name_en for rule in eligibility_catalog.plan_courses
     }
 
     # 2. Candidate Universe Bounding (Top M).  Adaptive preference never adds
@@ -393,7 +403,7 @@ def plan_semester(
             PlannedCourseEntry(
                 course_code=c.course_code,
                 course_name_ar=c.course_name_ar,
-                course_name_en=names_en_by_code.get(c.course_code),
+                course_name_en=names_en_by_code.get(c.course_code) or c.course_name_en,
                 credit_hours=c.credit_hours,
                 requirement_group_code=c.requirement_group_code,
                 requirement_type=c.requirement_type,
@@ -465,6 +475,10 @@ def plan_semester(
 
         item.reason_codes = tuple(codes)
 
+    def heavy_count(item: _EvaluatedCombination) -> int:
+        return sum(learning_profiles[course.course_code].memorization_heavy
+                   for course in item.courses) if learning_profiles is not None else 0
+
     # 8. Deterministic Lexicographic Sorting
     def _sort_key(item: _EvaluatedCombination) -> tuple:
         return (
@@ -475,10 +489,20 @@ def plan_semester(
             -item.total_credit_hours,
             -item.adaptive_score_sum,
             item.recommendation_rank_sum,
+            heavy_count(item),
             item.canonical_course_codes,
         )
 
     sorted_combinations = sorted(evaluated_combinations, key=_sort_key)
+
+    balanced = [item for item in sorted_combinations
+                if heavy_count(item) <= MAX_MEMORIZATION_HEAVY]
+    relaxation_required = bool(learning_profiles and sorted_combinations and
+                               (not balanced or max(item.total_credit_hours for item in balanced) <
+                                min(constraints.max_credit_hours,
+                                    max(item.total_credit_hours for item in sorted_combinations))))
+    if learning_profiles is not None and not accept_heavy_balance:
+        sorted_combinations = balanced
 
     # 9. Top-K Selection and Final Option Presentation
     top_k = sorted_combinations[: constraints.max_options]
@@ -498,6 +522,20 @@ def plan_semester(
             recommendation_rank_sum=item.recommendation_rank_sum,
             priority_tuple=item.priority_tuple,
             reason_codes=item.reason_codes,
+            memorization_heavy_count=heavy_count(item),
+            learning_type_counts=tuple(sorted((kind, sum(
+                learning_profiles[c.course_code].primary_type == kind for c in item.courses))
+                for kind in {learning_profiles[c.course_code].primary_type for c in item.courses}))
+                if learning_profiles is not None else (),
+            estimated_workload=("HIGH" if item.total_credit_hours >= Decimal("18") else
+                                "MODERATE" if item.total_credit_hours >= Decimal("12") else "LIGHT")
+                if learning_profiles is not None else "UNKNOWN",
+            balance_warning=("BALANCE_CONSTRAINT_RELAXATION_REQUIRED: extra heavy course(s) " + ", ".join(
+                [f"{course.course_name_ar or course.course_name_en} ({course.course_code})"
+                 if course.course_name_ar or course.course_name_en else course.course_code for course in item.courses
+                 if learning_profiles[course.course_code].memorization_heavy]
+                [MAX_MEMORIZATION_HEAVY:])
+                             if heavy_count(item) > MAX_MEMORIZATION_HEAVY else None),
         )
         for idx, item in enumerate(top_k)
     )
@@ -517,4 +555,5 @@ def plan_semester(
         excluded_in_progress=recommendation_result.excluded_in_progress,
         methodology_note=_METHODOLOGY_NOTE,
         limitations=_LIMITATIONS,
+        balance_relaxation_required=relaxation_required,
     )

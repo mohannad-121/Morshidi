@@ -10,6 +10,8 @@ import type {
   ModeledAcademicReportResponse,
   AdvisorRequest,
   AdvisorResponse,
+  ConversationThread, ConversationMessage, ConversationReply,
+  CreditTimelineRequest, CreditTimelineResponse, CreditComparisonResponse,
   AttemptCreateRequest,
   AttemptUpdateRequest,
   CanTakeDecisionResponse,
@@ -240,6 +242,68 @@ export class StudentApiService {
   async getPolicyDetail(documentId: string): Promise<StudentPolicyDocumentDetail> {
     const res = await this.client.request(`/api/v1/me/policies/${encodeURIComponent(documentId)}`);
     return parseJson<StudentPolicyDocumentDetail>(res);
+  }
+
+  async listConversations(offset = 0): Promise<ConversationThread[]> {
+    return parseJson<ConversationThread[]>(await this.client.request(
+      `/api/v1/me/conversations?offset=${offset}`, { cache: "no-store" }));
+  }
+
+  async createConversation(title = "New conversation"): Promise<ConversationThread> {
+    return parseJson<ConversationThread>(await this.client.request("/api/v1/me/conversations", {
+      method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ title }),
+    }));
+  }
+
+  async getConversationMessages(id: string, offset = 0): Promise<ConversationMessage[]> {
+    return parseJson<ConversationMessage[]>(await this.client.request(
+      `/api/v1/me/conversations/${encodeURIComponent(id)}/messages?offset=${offset}`, { cache: "no-store" }));
+  }
+
+  async continueConversation(id: string, message: string, signal?: AbortSignal): Promise<ConversationReply> {
+    return parseJson<ConversationReply>(await this.client.request(
+      `/api/v1/me/conversations/${encodeURIComponent(id)}/messages`, {
+        method: "POST", signal, headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message }),
+      }));
+  }
+
+  async archiveConversation(id: string): Promise<ConversationThread> {
+    return parseJson<ConversationThread>(await this.client.request(
+      `/api/v1/me/conversations/${encodeURIComponent(id)}/archive`, { method: "POST" }));
+  }
+
+  async getConversationPreferences(): Promise<Record<string, string>> {
+    return parseJson<Record<string, string>>(await this.client.request(
+      "/api/v1/me/conversations/preferences", { cache: "no-store" }));
+  }
+
+  async simulateCreditTimeline(request: CreditTimelineRequest): Promise<CreditTimelineResponse> {
+    const result = await parseJson<CreditTimelineResponse>(await this.client.request(
+      "/api/v1/me/degree-paths/credit-timeline", {
+        method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(request),
+      }));
+    if (!result || !Array.isArray(result.terms) || !Array.isArray(result.warnings)) {
+      throw new Error("Malformed credit timeline response");
+    }
+    return result;
+  }
+
+  async compareCreditTimelines(request: {
+    start_year: number; start_term: CreditTimelineRequest["start_term"];
+    preferred_regular_load?: number; preferred_summer_enabled?: boolean;
+    preferred_summer_load?: number;
+    graduation_pace?: "FASTEST" | "BALANCED" | "LOWER_LOAD";
+  }): Promise<CreditComparisonResponse> {
+    const result = await parseJson<CreditComparisonResponse>(await this.client.request(
+      "/api/v1/me/degree-paths/credit-comparison", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(request),
+      }));
+    if (!result || !Array.isArray(result.scenarios) || result.scenarios.length !== 3) {
+      throw new Error("Malformed credit comparison response");
+    }
+    return result;
   }
 
   async getEligibilityExplanationGraph(

@@ -5,7 +5,9 @@ import Link from "next/link";
 import { useAuth } from "@/auth/auth-provider";
 import { useAuthenticatedApi } from "@/lib/api/use-authenticated-api";
 import { StudentApiService } from "@/lib/api/student-api";
+import { useCourseIdentities } from "@/lib/api/use-course-identities";
 import { CourseDifficulty } from "@/components/academic/CourseDifficulty";
+import { CourseIdentity } from "@/components/academic/CourseIdentity";
 import { AcademicGraphExplanation } from "@/components/academic/AcademicGraphExplanation";
 import type { AcademicExplanationGraph, AdaptiveCourseResponse } from "@/lib/api/student-types";
 import type {
@@ -31,6 +33,7 @@ import {
 export default function PlannerPage() {
   const auth = useAuth();
   const client = useAuthenticatedApi();
+  const identities = useCourseIdentities(auth.isAuthenticated);
 
   // Constraints
   const [maxCreditHours, setMaxCreditHours] = useState<number>(15);
@@ -43,6 +46,7 @@ export default function PlannerPage() {
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [selectedOptionIndex, setSelectedOptionIndex] = useState<number>(0);
+  const [acceptHeavyBalance, setAcceptHeavyBalance] = useState(false);
   const [graph, setGraph] = useState<AcademicExplanationGraph | null>(null);
   const [graphLoading, setGraphLoading] = useState(false);
   const [graphError, setGraphError] = useState(false);
@@ -78,6 +82,7 @@ export default function PlannerPage() {
         max_credit_hours: maxCreditHours,
         max_courses: maxCourses && maxCourses > 0 ? maxCourses : null,
         max_options: maxOptions,
+        accept_heavy_balance: acceptHeavyBalance,
       };
       const [data, intelligence] = await Promise.all([
         api.createSemesterPlans(req), api.getAdaptiveCourseIntelligence().catch(() => null),
@@ -189,6 +194,7 @@ export default function PlannerPage() {
             </div>
           </div>
 
+          <label className="flex items-center gap-2 text-xs"><input type="checkbox" checked={acceptHeavyBalance} onChange={(e) => setAcceptHeavyBalance(e.target.checked)} /> أوافق على عرض خيارات قد تتجاوز مادتين ثقيلتين حفظياً عندما يلزم ذلك / Allow heavy-balance relaxation</label>
           <div className="flex justify-end pt-2 border-t border-[#EDE2C5]/60">
             <button
               type="submit"
@@ -225,6 +231,7 @@ export default function PlannerPage() {
       {/* Results */}
       {!loading && result && result.plan_options.length > 0 ? (
         <div className="space-y-6">
+          {result.balance_relaxation_required ? <p role="status" className="rounded-xl border border-amber-300 bg-amber-50 p-3 text-xs text-amber-900">BALANCE_CONSTRAINT_RELAXATION_REQUIRED: قد يتطلب بلوغ حمل الساعات المختار أكثر من مادتين ثقيلتين حفظياً. الخيارات المتوازنة معروضة افتراضياً؛ يمكنك الموافقة صراحةً على عرض الخيارات الأثقل.</p> : null}
           {/* Options Selection Header */}
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex flex-wrap items-center gap-2">
@@ -281,6 +288,13 @@ export default function PlannerPage() {
                 />
               </div>
 
+              <section className="rounded-xl border border-[#EDE2C5] bg-white p-4 text-xs" aria-label="توازن الفصل">
+                <h3 className="font-bold">توازن الفصل / Semester balance</h3>
+                <p>المواد المعتمدة على الحفظ / Memorization-heavy: {selectedOption.memorization_heavy_count ?? 0} / 2 · العبء المتوقع / Estimated workload: {selectedOption.estimated_workload ?? "UNKNOWN"}</p>
+                <p>التوازن بين المواد العملية والنظرية / Course-type balance: {selectedOption.learning_type_counts?.map(([kind, count]) => `${kind} ${count}`).join(" · ") ?? "Unknown"}</p>
+                {selectedOption.balance_warning ? <p className="text-amber-900">{selectedOption.balance_warning}</p> : null}
+              </section>
+
               {/* Course List in Selected Option */}
               <div className="overflow-hidden rounded-3xl border border-[#EDE2C5] bg-white shadow-xs">
                 <div className="border-b border-[#EDE2C5] bg-[#FFF9E8]/80 px-6 py-4 flex items-center justify-between">
@@ -296,8 +310,8 @@ export default function PlannerPage() {
                   <table className="w-full text-right text-xs">
                     <thead>
                       <tr className="border-b border-[#EDE2C5] bg-[#FFFDF7] text-[#726B5E]">
-                        <th className="px-6 py-3.5 font-bold">رمز المادة</th>
-                        <th className="px-6 py-3.5 font-bold">اسم المادة</th>
+                        <th className="px-6 py-3.5 font-bold">المادة</th>
+                        <th className="px-6 py-3.5 font-bold">الصعوبة المتوقعة</th>
                         <th className="px-6 py-3.5 font-bold">الساعات</th>
                         <th className="px-6 py-3.5 font-bold">المجموعة التابعة</th>
                         <th className="px-6 py-3.5 font-bold">النوع</th>
@@ -307,11 +321,10 @@ export default function PlannerPage() {
                     <tbody className="divide-y divide-[#EDE2C5]/50">
                       {selectedOption.courses.map((course: PlannedCourseEntryResponse) => (
                         <tr key={course.course_code} className="hover:bg-[#FFFDF7] transition-colors">
-                          <td className="px-6 py-4 font-mono font-bold text-[#28241C]" dir="ltr">
-                            {course.course_code}
+                          <td className="px-6 py-4 text-[#28241C]">
+                            <CourseIdentity courseCode={course.course_code} nameAr={course.course_name_ar} nameEn={course.course_name_en} />
                           </td>
                           <td className="px-6 py-4 font-bold text-[#28241C]">
-                            {course.course_name_ar ?? "—"}
                             <CourseDifficulty course={adaptive?.courses.find((item) => item.course_code === course.course_code)} />
                           </td>
                           <td className="px-6 py-4 font-mono text-[#28241C]">
@@ -349,14 +362,14 @@ export default function PlannerPage() {
                         className="rounded-xl bg-white px-3 py-1 font-mono text-xs font-bold text-[#A66F00] border border-[#EDE2C5] shadow-xs"
                         dir="ltr"
                       >
-                        {code}
+                        <CourseIdentity courseCode={code} identities={identities} compact />
                       </span>
                     ))}
                   </div>
                 </div>
               ) : null}
 
-              <AcademicGraphExplanation graph={graph} focusId={`semester-planner:option:${selectedOption.rank}`}
+              <AcademicGraphExplanation graph={graph} identities={identities} focusId={`semester-planner:option:${selectedOption.rank}`}
                 loading={graphLoading} error={graphError}
                 onRetry={() => { if (lastGraphRequest.current) void loadGraph(lastGraphRequest.current); }} />
 

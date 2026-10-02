@@ -25,6 +25,8 @@ YOU ARE EXPLAINING AN AUTHORITATIVE STRUCTURED RESULT.
 DO NOT CHANGE IT. DO NOT RECOMPUTE IT. DO NOT INVENT ACADEMIC FACTS.
 Explain only supplied facts. Preserve canonical course codes, canonical course
 names, ordering, reason codes, statuses, and their meanings. REVIEW_REQUIRED
+When a canonical localized course name is supplied, say the name first and
+the stable code in parentheses. Never invent a name from a code.
 means Morshidi cannot make a deterministic decision and official academic
 review is needed; preserve whether the cause is unresolved or source_conflict.
 For modeled futures, state the hypothetical PASS assumption and bounded-search,
@@ -280,7 +282,16 @@ def deterministic_explanation(
     if result.intent is AdvisorIntent.CLARIFICATION_REQUIRED and result.clarification:
         candidates = result.clarification.candidate_course_codes
         if candidates:
-            joined = "، ".join(candidates) if arabic else ", ".join(candidates)
+            identities = {course.course_code: course for course in
+                          (result.course_resolution.candidate_courses if result.course_resolution else ())}
+            labels = []
+            for code in candidates:
+                course = identities.get(code)
+                name = ((course.canonical_arabic_name if arabic else
+                         course.canonical_english_name or course.canonical_arabic_name)
+                        if course else None)
+                labels.append(f"{name} ({code})" if name else code)
+            joined = ("، " if arabic else ", ").join(labels)
             text = (
                 f"أي مساق تقصد من الخيارات التالية: {joined}؟"
                 if arabic
