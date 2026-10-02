@@ -6,6 +6,10 @@ This is the canonical world-class capability registry. IDs are stable and never 
 
 Synthetic-demo values are `FULLY_BUILDABLE_LOCALLY`, `DEMO_WITH_SYNTHETIC_DATA`, `REQUIRES_REAL_DATA_FOR_VALIDATION`, or `REQUIRES_INSTITUTIONAL_INTEGRATION`.
 
+## P16 Sandbox Integration checkpoint (no canonical status promotion)
+
+The authoritative contributor Sandbox University (`morshidi-uni`) is integrated via versioned read-only contracts (`manifest.json` schema `1.0.0`, fixture `2026.10.02.v1`), exact-tenant SIS adapter (`SandboxSISAdapter`), and course offering provider (`SandboxOfferingProvider`). Exact counts are verified: 5 synthetic student personas, 68 Plan 12 courses, 204 offered sections, 5 complete academic records. Transport abstraction (`SandboxUniversityTransport`) unifies static fixtures and HTTP read-only endpoints. Automated recursive scanning proves zero credential or session token leakage. Persona selection is strictly a navigation hint; cross-tenant application is rejected with 403 Forbidden. WC-050 Evidence Manifest and WC-053 Observability/SLOs are implemented. All 42 P16 focused tests and 185 regression tests pass. Production integration and live DB/RLS remain deferred to post-P16 final validation. Canonical WC statuses below remain unchanged.
+
 ## P15.6 local student-experience checkpoint (no canonical status promotion)
 
 Relevant student, advisor clarification, decision/trace, modeled transition, and institutional academic surfaces now use canonical localized course names first and stable codes second. Owner/analyst-authorized batch catalog maps resolve codes and IDs without per-course requests; unavailable names safely fall back without invented translations. Historical proof identities and internal machine payloads remain unchanged. No known code-only presentation gap remains on the reviewed surfaces where canonical metadata is available.

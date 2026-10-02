@@ -23,6 +23,7 @@ from app.api.routes.p11_intelligence import (
 )
 from app.api.routes.plan_transitions import router as plan_transitions_router
 from app.api.routes.institution_context import router as institution_context_router
+from app.api.routes.sandbox import router as sandbox_router
 from app.api.routes.privacy_p14 import router as privacy_p14_router
 from app.api.routes.institutional_ai_query import router as institutional_ai_query_router
 from app.api.routes.advisor_copilot import router as advisor_copilot_router
@@ -108,6 +109,7 @@ from app.offerings.fake_provider import FakeUniversityOfferingProvider
 from app.offerings.provider import UnavailableOfferingProvider
 from app.p11_intelligence.fake_provider import FakeP11Provider
 from app.p11_intelligence.providers import UnavailableP11Provider
+from app.p16_sandbox import SandboxOfferingProvider, SandboxSISAdapter
 
 
 def build_advisor_providers(client: httpx.AsyncClient):
@@ -199,6 +201,8 @@ async def lifespan(application: FastAPI):
     # P12 local artifacts are injected only by explicitly scoped tests/local tooling.
     # Production has no implicit target, registrar policy, or publication endpoint.
     application.state.p12_modeling_provider = None
+    application.state.sandbox_sis_adapter = SandboxSISAdapter()
+    application.state.sandbox_offering_provider = SandboxOfferingProvider()
     if settings.supabase_url and settings.supabase_secret_key:
         repository = SupabaseAcademicCatalogRepository(
             settings.supabase_url,
@@ -329,6 +333,7 @@ app.include_router(p11_student_router)
 app.include_router(p11_institutional_router)
 app.include_router(plan_transitions_router)
 app.include_router(institution_context_router)
+app.include_router(sandbox_router)
 app.include_router(privacy_p14_router)
 app.include_router(institutional_ai_query_router)
 app.include_router(advisor_copilot_router)

@@ -1,5 +1,61 @@
 # Morshidi — Codex Progress Record
 
+## P16 Sandbox Integration — Contributor University Integrated & Verified (2026-10-02)
+
+**P16 IMPLEMENTATION = READY FOR OWNER REVIEW.** Starting and current HEAD: `ca52a894850547d6983e6053f14d879bdee1746b` on main. Objective: Integrate the authoritative contributor Sandbox University (`morshidi-uni`) into the Morshidi Academic Intelligence Platform (`Morshidi`) without rebuilding it, adhering strictly to contract-driven architecture, isolated synthetic tenant boundaries, zero credential leakage, and full test verification.
+
+**Architectural Decision & Data Contract:**
+The contributor portal at `d:\morshidi-uni` is the authoritative source of truth for synthetic demo data. Deterministic export script `scripts/export_sandbox_contract.cjs` generates static JSON contracts in `public/api/v1/`: `manifest.json` (schema `1.0.0`, fixture `2026.10.02.v1`), `students.json` (5 personas), `courses.json` (68 courses), `offerings.json` (204 sections), and `academic-records.json` (5 records with semesters and attempts). Static snapshots were mirrored to `apps/api/app/p16_sandbox/fixtures/`. Zero runtime server coupling or cross-repo build dependencies are introduced.
+
+**Bounded Synthetic Tenant (P13 Reuse):**
+The sandbox tenant is registered in `apps/api/app/p16_sandbox/tenant.py` with `institution_id = "morshidi-sandbox"`, `display_name = "جامعة مرشدي — البيئة التجريبية"`, country `JO`, locale `ar`, timezone `Asia/Amman`, and theme `sand`. Provider bindings are explicitly bound to `morshidi-sandbox`. Sandbox provider fallback for real institutions is strictly forbidden by `assert_sandbox_institution()`.
+
+**P15 SIS Read Adapter & P10 Offering Provider:**
+- `SandboxSISAdapter` implements `SISReadAdapter`, supporting `Entity.STUDENT`, `Entity.COURSE`, `Entity.ATTEMPT`, `Entity.OFFERING`. Bounded pagination, healthy diagnostic reporting (`Freshness.FRESH`), and canonical academic record mapping (`CanonicalSISAcademicRecord`, `StudentCourseAttempt`, outcomes `PASSED`, `FAILED`, `WITHDRAWN`, `Decimal` earned credits).
+- `SandboxOfferingProvider` implements `CourseOfferingProvider`, mapping all 204 sections with valid ISO weekdays (1–7), start/end times (`starts_at < ends_at`), `Asia/Amman` timezone, `Modality.IN_PERSON`, capacity, enrolled, and student visibility. Requests for non-sandbox universities return `None` (fail-closed tenant isolation).
+
+**Transport Abstraction & Drift Detection:**
+`SandboxUniversityTransport` Protocol abstracts data loading with `StaticFixtureTransport` (local/CI) and `HTTPReadOnlyTransport` (connected demo). `validate_sandbox_contract()` detects version drift, schema violations, count mismatches, and scans recursively for forbidden credential keys (`password`, `token`, `secret`, `credential`).
+
+**Critical Security Invariants:**
+- `sandbox_student` persona hint is strictly a DEMO NAVIGATION HINT, NEVER authentication or authorization override.
+- `resolve_sandbox_persona()` validates against `ALLOWED_PERSONA_IDS = {"202310001", "202410002", "202410003", "202510004", "202610005"}`. Any persona hint on a non-sandbox institution raises `SandboxPersonaSecurityError` (403 Forbidden). Unknown persona IDs raise `SandboxPersonaNotFoundError` (404 Not Found).
+- `sanitize_persona_view()` removes any credentials and decorates responses with `synthetic: True` and explicit watermark `"SYNTHETIC_SANDBOX_PERSONA — NOT PRODUCTION IDENTITY"`.
+- Sandbox reset (`POST /api/v1/sandbox/reset` and portal UI "إعادة ضبط البيئة التجريبية") clears demo state with zero writes to production databases or other tenants.
+
+**WC-050 Evidence & WC-053 Observability:**
+- `get_wc050_manifest()` provides deterministic tracking of capabilities WC-001 through WC-053 and verification states (`IMPLEMENTED`, `SYNTHETIC_VERIFIED`, `EXTERNAL_DEPENDENCY`).
+- `SandboxObservability` logs structured events with correlation IDs, latency tracking, health status, and runbook indexing, while strictly masking student IDs (`mask_student_id`) and recording zero PII or credentials.
+
+**Verification Results:**
+- P16 test suite `apps/api/tests/test_p16_sandbox.py` (42 tests): **42 passed, 0 failed, 0 skipped, 2.64s**.
+- Selected regression suites (185 tests across P13, P15, rules, progress, P15.6): **185 passed, 0 failed, 0 skipped, 3.54s**.
+- All files verified from disk: non-zero byte sizes, valid syntax, zero unapproved changes.
+- Git status: zero staged files, zero commits, zero pushes, zero migrations applied.
+- Next step: Post-P16 final validation register and human review.
+
+**Verified On-Disk Inventory (P16 Implementation):**
+
+| File | Bytes |
+| --- | ---: |
+| `apps/api/app/main.py` | 26791 |
+| `apps/api/app/api/routes/sandbox.py` | 9207 |
+| `apps/api/app/p16_sandbox/__init__.py` | 1283 |
+| `apps/api/app/p16_sandbox/drift.py` | 5601 |
+| `apps/api/app/p16_sandbox/evidence_manifest.py` | 3665 |
+| `apps/api/app/p16_sandbox/observability.py` | 3389 |
+| `apps/api/app/p16_sandbox/offering_provider.py` | 5116 |
+| `apps/api/app/p16_sandbox/persona.py` | 2541 |
+| `apps/api/app/p16_sandbox/sis_adapter.py` | 7223 |
+| `apps/api/app/p16_sandbox/tenant.py` | 3173 |
+| `apps/api/app/p16_sandbox/transport.py` | 4171 |
+| `apps/api/app/p16_sandbox/fixtures/manifest.json` | 906 |
+| `apps/api/app/p16_sandbox/fixtures/students.json` | 6529 |
+| `apps/api/app/p16_sandbox/fixtures/courses.json` | 23343 |
+| `apps/api/app/p16_sandbox/fixtures/offerings.json` | 104363 |
+| `apps/api/app/p16_sandbox/fixtures/academic-records.json` | 42601 |
+| `apps/api/tests/test_p16_sandbox.py` | 22410 |
+
 ## P15.6 owner closure — local architecture ready (2026-10-02)
 
 **P15.6 LOCAL ARCHITECTURE = READY FOR OWNER REVIEW.** Starting and current HEAD: `f66b4aff8c593340490b5e30c0b6123e0f0edeb7` on main. Objective: close the owner's local name-first, governed-chat, and deterministic graduation-comparison blockers while preserving inherited P15.6 work. This checkpoint supersedes the historical October 1 blocker assessment below; it does not promote any canonical WC status.
