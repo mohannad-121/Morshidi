@@ -16,7 +16,7 @@ const statusLabels: Record<NonNullable<QueryResponse["result"]>["status"], strin
   NOT_APPLICABLE: "المؤشر غير منطبق",
 };
 
-const fieldClass = "min-h-12 w-full rounded-xl border border-amber-300 bg-white px-3 text-sm text-stone-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-700";
+const fieldClass = "min-h-12 w-full rounded-xl border border-amber-300 bg-surface px-3 text-sm text-stone-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-700";
 
 export default function InstitutionalAIQueryPage() {
   const client = useAuthenticatedApi();

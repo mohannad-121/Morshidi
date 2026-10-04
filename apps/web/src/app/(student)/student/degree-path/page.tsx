@@ -17,6 +17,10 @@ import type {
   ModeledSemesterResponse,
   PlannedCourseEntryResponse,
 } from "@/lib/api/student-types";
+import {PathMap} from '@/components/ui/PathMap';
+import {Button,Dial,FriendlyState,SegmentedControl} from '@/components/ui/DesignSystem';
+import {label} from '@/lib/labels';
+import {Compass,Printer} from 'lucide-react';
 import { Badge } from "@/components/ui/Badge";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { ErrorAlert } from "@/components/ui/ErrorAlert";
@@ -179,375 +183,37 @@ export default function DegreePathPage() {
       ? result.paths[selectedPathIndex]
       : null;
 
-  return (
-    <div className="space-y-8">
-      {/* Header */}
-      <div className="border-b border-[#EDE2C5] pb-5">
-        <div className="flex items-center gap-2">
-          <span className="rounded-full bg-[#A66F00]/10 px-2.5 py-0.5 text-xs font-bold text-[#A66F00]">
-            محاكاة التخرج المتعددة الفصول
-          </span>
-          <span className="text-xs text-[#726B5E]">تخطيط مسار الدرجة العلمية</span>
-        </div>
-        <h1 className="mt-1 text-2xl font-bold tracking-tight text-[#28241C]">
-          المسار الدراسي حتى التخرج
-        </h1>
-        <p className="text-xs text-[#726B5E]">
-          اختر تقديراً ائتمانياً سريعاً أو مساراً تفصيلياً للمواد. كلاهما نمذجة غير رسمية ولا يضمن التخرج أو توفر المواد.
-        </p>
-      </div>
 
-      <section className="rounded-3xl border border-[#EDE2C5] bg-white p-6" aria-label="محاكاة ائتمانية حتى التخرج">
-        <h2 className="text-lg font-bold">مسار ائتماني سريع · Credit-only timeline</h2>
-        <p className="text-xs text-[#726B5E]">لا يلزم اختيار مواد. الحمل العادي افتراض تخطيطي، وليس حد تسجيل معتمداً من الجامعة.</p>
-        <form onChange={() => { preferencesEdited.current = true; comparisonRequestId.current += 1; setComparisonLoading(false); setComparisonError(false); setCreditComparison(null); }} onSubmit={(e) => void handleCreditTimeline(e)} className="mt-4 grid gap-3 sm:grid-cols-3">
-          <label className="text-sm">ساعات الفصل العادي / Regular credits
-            <select value={regularLoad} onChange={(e) => setRegularLoad(Number(e.target.value))} className="mt-1 block w-full rounded-lg border p-2">
-              {[12, 15, 18].map((value) => <option key={value} value={value}>{value}</option>)}
-              {![12, 15, 18].includes(regularLoad) ? <option value={regularLoad}>{regularLoad} (preference)</option> : null}
-            </select>
-          </label>
-          <label className="text-sm">السنة الأكاديمية التقريبية / Start year
-            <input type="number" min={2000} max={2200} value={startYear} onChange={(e) => setStartYear(Number(e.target.value))} className="mt-1 block w-full rounded-lg border p-2" />
-          </label>
-          <label className="text-sm">الفصل القادم / Next term
-            <select value={startTerm} onChange={(e) => setStartTerm(e.target.value as CreditTimelineRequest["start_term"])} className="mt-1 block w-full rounded-lg border p-2">
-              <option value="FIRST_SEMESTER">الفصل الأول / First</option><option value="SECOND_SEMESTER">الفصل الثاني / Second</option><option value="SUMMER">الصيفي / Summer</option>
-            </select>
-          </label>
-          <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={summerEnabled} onChange={(e) => setSummerEnabled(e.target.checked)} /> تضمين الصيفي / Include summer</label>
-          {summerEnabled ? <label className="text-sm">ساعات الصيفي / Summer credits
-            <select value={summerLoad} onChange={(e) => setSummerLoad(Number(e.target.value))} className="mt-1 block w-full rounded-lg border p-2">
-              {[3, 4, 5, 6, 7, 8, 9].map((value) => <option key={value} value={value}>{value}</option>)}
-            </select>
-          </label> : null}
-          <label className="text-sm">تفضيل وتيرة التخرج / Preferred pace
-            <select value={graduationPace} onChange={e => setGraduationPace(e.target.value as typeof graduationPace)} className="mt-1 block w-full rounded-lg border p-2">
-              <option value="FASTEST">الأسرع / Fastest</option><option value="BALANCED">المتوازن / Balanced</option><option value="LOWER_LOAD">الحمل الأخف / Lower load</option>
-            </select>
-          </label>
-          <button type="submit" disabled={creditLoading} className="rounded-xl bg-[#E2AD27] px-4 py-2 text-sm font-bold disabled:opacity-50">{creditLoading ? "جارٍ الحساب..." : "حساب المسار الائتماني"}</button>
-        </form>
-        {creditError ? <p role="alert" className="mt-3 text-sm text-red-700">{creditError}</p> : null}
-        {creditTimeline ? <div className="mt-4 space-y-2 text-sm">
-          <p>المتبقي / Remaining: {creditTimeline.initial_remaining_credits} ساعة · فصول عادية / Regular: {creditTimeline.regular_semester_count} · صيفية / Summers: {creditTimeline.summer_count}</p>
-          <p>الفصل المتوقع / Projected term: {creditTimeline.completion_term ?? "Already complete"} {creditTimeline.completion_year ?? ""}</p>
-          <ol className="list-inside list-decimal">{creditTimeline.terms.map((term, index) => <li key={index}>{term.academic_year} · {term.term} · {term.planned_credits} ساعة · متبقي {term.remaining_after}</li>)}</ol>
-          {creditTimeline.warnings.map((warning) => <p key={warning} className="text-amber-900">{warning}</p>)}
-        </div> : null}
-        <div className="mt-5 border-t pt-4">
-          <button type="button" onClick={() => void handleComparison()} disabled={comparisonLoading}
-            className="rounded-xl border border-[#E2AD27] px-4 py-2 text-sm font-bold disabled:opacity-50">
-            {comparisonLoading ? "جارٍ مقارنة السيناريوهات..." : "قارن: الأسرع · المتوازن · الحمل الأخف"}
-          </button>
-          {comparisonError ? <p role="alert" className="mt-2 text-sm text-red-700">تعذّرت مقارنة السيناريوهات الائتمانية.</p> : null}
-          {creditComparison ? <div className="mt-3 grid gap-3 md:grid-cols-3">
-            {creditComparison.scenarios.map((scenario) => <article key={scenario.mode}
-              className="rounded-xl border border-[#EDE2C5] bg-[#FFFCF4] p-3 text-sm">
-              <h3 className="font-bold">{scenario.mode === "FASTEST" ? "الأسرع / Fastest" :
-                scenario.mode === "BALANCED" ? "المتوازن / Balanced" : "الحمل الأخف / Lower load"}</h3>
-              {scenario.preference_match ? <p className="text-green-800">يطابق تفضيلك المعلن / Matches your stated preference</p> : null}
-              <p>{scenario.timeline.regular_load} ساعة عادية · {scenario.timeline.summer_enabled ?
-                `${scenario.timeline.summer_load} صيفية` : "بدون صيفي"}</p>
-              <p>{scenario.total_modeled_terms} فصل تقويمي تقريبي · {scenario.timeline.regular_semester_count} عادي · {scenario.timeline.summer_count} صيفي</p>
-              <p>الاكتمال النموذجي: {scenario.timeline.completion_term ?? "مكتمل"} {scenario.timeline.completion_year ?? ""}</p>
-              <p>العبء النموذجي: {scenario.workload_indicator}</p>
-              <p>فصول إضافية مقارنة بالأسرع / Extra terms versus fastest: {scenario.total_modeled_terms - creditComparison.scenarios[0].total_modeled_terms}</p>
-              <p className="text-xs text-amber-900">{scenario.provenance} · {scenario.confidence}</p>
-              <p className="text-xs">{scenario.difficulty_evidence.startsWith("CURRENT_ELIGIBLE_COURSES_ONLY") ? "تراعي الموازنة صعوبة المواد المتاحة الآن؛ لم تُحدد مواد الفصول المستقبلية. Current eligible-course difficulty informs balance; future courses are unassigned." : "لا تتوفر أدلة كافية لتقدير صعوبة المواد المستقبلية. Future course difficulty is unknown."}</p>
-            </article>)}
-            <p className="md:col-span-3 text-xs text-amber-900">{creditComparison.limitations.join(" ")}</p>
-          </div> : null}
-        </div>
-      </section>
-
-      {/* Constraints Box */}
-      <div className="rounded-3xl border border-[#EDE2C5] bg-white p-7 shadow-xs">
-        <form onSubmit={handleGeneratePath} className="space-y-6">
-          <div className="grid grid-cols-1 gap-6 sm:grid-cols-3">
-            {/* Max Credits */}
-            <div>
-              <label className="block text-xs font-bold text-[#28241C] mb-2">
-                سقف الساعات لكل فصل *
-              </label>
-              <div className="flex items-center gap-2">
-                {[12, 15, 18].map((preset) => (
-                  <button
-                    key={preset}
-                    type="button"
-                    onClick={() => setMaxCreditsPerSemester(preset)}
-                    className={`rounded-xl px-3 py-1.5 font-mono text-xs font-bold transition-colors ${
-                      maxCreditsPerSemester === preset
-                        ? "bg-[#E2AD27] text-[#28241C] shadow-xs"
-                        : "bg-[#FFF9E8] text-[#726B5E] border border-[#EDE2C5] hover:bg-[#FFF4C7]"
-                    }`}
-                  >
-                    {preset} س
-                  </button>
-                ))}
-                <input
-                  type="number"
-                  min={6}
-                  max={21}
-                  value={maxCreditsPerSemester}
-                  onChange={(e) => setMaxCreditsPerSemester(Number(e.target.value))}
-                  className="w-16 rounded-xl border border-[#EDE2C5] bg-white p-2 font-mono text-xs font-bold text-center text-[#28241C] focus:border-[#E2AD27] focus:outline-hidden"
-                />
-              </div>
-            </div>
-
-            {/* Max Semesters Ahead */}
-            <div>
-              <label className="block text-xs font-bold text-[#28241C] mb-2">
-                المدى الزمني للمحاكاة (أقصى فصول)
-              </label>
-              <select
-                value={maxSemestersAhead}
-                onChange={(e) => setMaxSemestersAhead(Number(e.target.value))}
-                className="w-full rounded-xl border border-[#EDE2C5] bg-white p-2.5 text-xs text-[#28241C] focus:border-[#E2AD27] focus:outline-hidden"
-              >
-                <option value={4}>4 فصول دراسية (سنتان)</option>
-                <option value={6}>6 فصول دراسية (3 سنوات)</option>
-                <option value={8}>8 فصول دراسية (4 سنوات - موصى به)</option>
-                <option value={10}>10 فصول دراسية (5 سنوات)</option>
-              </select>
-            </div>
-
-            {/* Max Paths */}
-            <div>
-              <label className="block text-xs font-bold text-[#28241C] mb-2">
-                عدد سيناريوهات المسار
-              </label>
-              <select
-                value={maxPaths}
-                onChange={(e) => setMaxPaths(Number(e.target.value))}
-                className="w-full rounded-xl border border-[#EDE2C5] bg-white p-2.5 text-xs text-[#28241C] focus:border-[#E2AD27] focus:outline-hidden"
-              >
-                <option value={1}>مسار واحد (المسار الأسرع)</option>
-                <option value={2}>مساران للمقارنة</option>
-                <option value={3}>3 مسارات بديلة</option>
-              </select>
-            </div>
-          </div>
-
-          <div className="flex justify-end pt-2 border-t border-[#EDE2C5]/60">
-            <button
-              type="submit"
-              disabled={loading}
-              className="inline-flex items-center justify-center gap-2 rounded-2xl bg-[#E2AD27] px-7 py-3 text-xs font-bold text-[#28241C] shadow-xs hover:bg-[#A66F00] hover:text-white transition-all disabled:opacity-50"
-            >
-              <SparklesIcon className="h-4 w-4" />
-              <span>{loading ? "جاري محاكاة مسار التخرج..." : "توليد ومحاكاة مسار التخرج"}</span>
-            </button>
-          </div>
-        </form>
-      </div>
-
-      {/* Error */}
-      {errorMessage ? (
-        <div role="alert" className="rounded-2xl border border-red-200 bg-red-50 p-5 text-xs text-red-800">
-          <p className="font-bold">{errorMessage}</p>
-          <button type="button" onClick={() => void handleGeneratePath()} className="mt-3 rounded-lg border border-red-300 px-3 py-1">إعادة المحاولة</button>
-        </div>
-      ) : null}
-
-      {/* Loading */}
-      {loading ? (
-        <div role="status" aria-live="polite" className="space-y-6">
-          <div className="rounded-2xl border border-[#EDE2C5] bg-white p-5 text-sm text-[#28241C]">
-            <p className="font-bold">جارٍ إعداد مسار التخرج...</p>
-            <p className="mt-2 text-[#726B5E]">يقرأ الخادم خطتك وسجلك الأكاديمي، ويفحص المتطلبات السابقة، ثم يحاكي المسارات. لا تصلنا حالة كل خطوة على حدة؛ سنعرض النتيجة عند اكتمال الحساب.</p>
-            <ol className="mt-4 space-y-2" aria-label="مراحل إنشاء المسار">
-              {PATH_STAGES.map((stage, index) => (
-                <li key={stage} className="flex gap-2 text-[#726B5E]">
-                  <span aria-hidden="true">{index + 1}.</span>
-                  <span>{stage} — قيد الانتظار من الخادم</span>
-                </li>
-              ))}
-            </ol>
-          </div>
-          <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-            <LoadingSkeletonCard />
-            <LoadingSkeletonCard />
-            <LoadingSkeletonCard />
-            <LoadingSkeletonCard />
-          </div>
-          <LoadingSkeletonCard />
-        </div>
-      ) : null}
-
-      {/* Result Path */}
-      {!loading && result && result.paths.length > 0 ? (
-        <div className="space-y-8">
-          <div role="status" className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-900">
-            ✓ اكتملت قراءة البيانات الأكاديمية وفحص المتطلبات ومحاكاة المسارات وتجهيز النتيجة.
-          </div>
-          {/* Paths Selection */}
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="text-xs font-bold text-[#726B5E]">سيناريوهات المسار المتاحة:</span>
-              {result.paths.map((p, idx) => (
-                <button
-                  key={p.rank}
-                  type="button"
-                  onClick={() => setSelectedPathIndex(idx)}
-                  className={`rounded-2xl px-4 py-2 text-xs font-bold transition-all ${
-                    selectedPathIndex === idx
-                      ? "bg-[#E2AD27] text-[#28241C] shadow-xs font-extrabold"
-                      : "bg-white text-[#726B5E] border border-[#EDE2C5] hover:bg-[#FFF9E8]"
-                  }`}
-                >
-                  المسار #{p.rank} ({p.semester_count} فصول)
-                </button>
-              ))}
-            </div>
-
-            <div className="text-xs text-[#726B5E]">
-              الساعات المكتسبة الحالية:{" "}
-              <strong className="font-mono text-[#28241C]">{result.initial_completed_credits} س</strong>
-            </div>
-          </div>
-
-          {selectedPath ? (
-            <div className="space-y-6">
-              {/* Path Overview Cards */}
-              <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-                <StatCard
-                  title="حالة المسار"
-                  value={selectedPath.status === "COMPLETE" ? "تخرج كامل" : selectedPath.status}
-                  subtitle={
-                    selectedPath.status === "COMPLETE"
-                      ? "يضمن استيفاء متطلبات التخرج 100%"
-                      : "مسار جزئي ضمن سقف الفصول"
-                  }
-                  icon={<CheckCircleIcon className="h-5 w-5" />}
-                  variant={selectedPath.status === "COMPLETE" ? "gold" : "warm"}
-                />
-                <StatCard
-                  title="عدد الفصول المتوقعة"
-                  value={`${selectedPath.semester_count} فصول`}
-                  subtitle="لإتمام كافة المواد المتبقية"
-                  icon={<ClockIcon className="h-5 w-5" />}
-                />
-                <StatCard
-                  title="إجمالي الساعات المخططة"
-                  value={`${selectedPath.total_planned_credits} س`}
-                  subtitle={`موزعة على ${selectedPath.total_planned_courses} مادة`}
-                  icon={<CoursesIcon className="h-5 w-5" />}
-                />
-                <StatCard
-                  title="الرصيد المتبقي عند الانتهاء"
-                  value={`${selectedPath.final_remaining_plan_credits} س`}
-                  subtitle={
-                    selectedPath.final_remaining_plan_credits === 0
-                      ? "تصفير كامل لمتطلبات الخطة"
-                      : "ساعات متبقية بعد أقصى مدى"
-                  }
-                  icon={<SparklesIcon className="h-5 w-5" />}
-                />
-              </div>
-
-              {/* Semester Stepper Timeline */}
-              <div className="space-y-6">
-                <div className="border-b border-[#EDE2C5] pb-3">
-                  <h2 className="text-base font-bold text-[#28241C]">
-                    التوزيع الفصلي المقترح للمسار #{selectedPath.rank}
-                  </h2>
-                  <p className="text-xs text-[#726B5E]">
-                    تسلسل الفصول القادمة والمواد المجدولة في كل فصل وفق شجرة المتطلبات السابقة.
-                  </p>
-                </div>
-
-                <div className="relative space-y-6 before:absolute before:right-6 before:top-4 before:bottom-4 before:w-0.5 before:bg-[#EDE2C5]">
-                  {selectedPath.semesters.map((sem: ModeledSemesterResponse) => (
-                    <div key={sem.semester_index} className="relative pr-14">
-                      {/* Timeline Dot */}
-                      <div className="absolute right-3.5 top-5 flex h-6 w-6 -translate-y-1/2 items-center justify-center rounded-full bg-[#E2AD27] font-mono text-xs font-bold text-[#28241C] ring-4 ring-white shadow-xs">
-                        {sem.semester_index}
-                      </div>
-
-                      {/* Semester Card */}
-                      <div className="rounded-3xl border border-[#EDE2C5] bg-white p-6 shadow-xs space-y-4">
-                        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between border-b border-[#EDE2C5]/60 pb-3">
-                          <div>
-                            <span className="font-mono text-xs font-bold text-[#A66F00]">
-                              الفصل الدراسي القادم #{sem.semester_index}
-                            </span>
-                            <h3 className="text-sm font-bold text-[#28241C]">
-                              عبء فصلي: {sem.plan_option.total_credit_hours} ساعات معتمدة ({sem.plan_option.total_courses} مواد)
-                            </h3>
-                          </div>
-
-                          <div className="flex items-center gap-2 text-xs">
-                            <span className="text-[#726B5E]">الرصيد بعد هذا الفصل:</span>
-                            <span className="font-mono font-bold text-emerald-800">
-                              {sem.completed_plan_credits_after} س منجزة
-                            </span>
-                            <span className="text-[11px] text-[#726B5E]">
-                              (المتبقي: {sem.remaining_plan_credits_after} س)
-                            </span>
-                          </div>
-                        </div>
-
-                        {/* Courses in this semester */}
-                        <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-3">
-                          {sem.plan_option.courses.map((course: PlannedCourseEntryResponse) => (
-                            <div
-                              key={course.course_code}
-                              className="flex items-center justify-between rounded-2xl border border-[#EDE2C5] bg-[#FFFCF4] p-3 text-xs"
-                            >
-                              <div>
-                                <CourseIdentity courseCode={course.course_code} nameAr={course.course_name_ar} nameEn={course.course_name_en} />
-                                <CourseDifficulty course={adaptive?.courses.find((item) => item.course_code === course.course_code)} />
-                              </div>
-
-                              <div className="text-left font-mono">
-                                <span className="rounded-md bg-[#FFF4C7] px-2 py-0.5 text-[10px] font-bold text-[#805400]">
-                                  {course.credit_hours} س
-                                </span>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-
-                        {sem.newly_satisfied_requirement_group_codes.length > 0 ? (
-                          <div className="flex items-center gap-2 pt-2 text-xs text-emerald-800">
-                            <CheckCircleIcon className="h-4 w-4 shrink-0" />
-                            <span>
-                              يستوفي هذا الفصل مجموعات المتطلبات:{" "}
-                              <strong>{sem.newly_satisfied_requirement_group_codes.join(", ")}</strong>
-                            </span>
-                          </div>
-                        ) : null}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              <AcademicGraphExplanation graph={graph} identities={identities} focusId={`degree-path:${selectedPath.rank}`}
-                loading={graphLoading} error={graphError}
-                onRetry={() => { if (lastGraphRequest.current) void loadGraph(lastGraphRequest.current); }} />
-
-              {/* Disclaimer */}
-              <div className="rounded-2xl border border-[#EDE2C5] bg-[#FFF9E8] p-4 text-xs text-[#726B5E] flex items-center gap-3">
-                <InfoIcon className="h-5 w-5 text-[#A66F00] shrink-0" />
-                <p>
-                  <strong>إخلاء مسؤولية تنظيمي:</strong> مسار الدرجة العلمية هو نموذج محاكاة استرشادي مبني على التسلسل المنطقي لفتح المتطلبات السابقة. قد يتغير ترتيب التسجيل الفعلي تبعاً للمواد المطروحة في الجداول الدراسية لكل فصل.
-                </p>
-              </div>
-            </div>
-          ) : null}
-        </div>
-      ) : (
-        !loading && (
-          <EmptyState
-            title="ابدأ محاكاة مسار التخرج"
-            description="حدد سقف الساعات الفصلي وعدد الفصول المرغوبة واضغط على 'توليد ومحاكاة مسار التخرج' لحساب الخطة حتى التخرج."
-            icon={<DegreePathIcon className="h-7 w-7" />}
-          />
-        )
-      )}
-    </div>
-  );
+  return <div className="space-y-8 degree-page"><div className="page-heading"><span className="eyebrow">خطوة تلو خطوة</span><h1>مسار التخرج</h1></div>
+    <form className="control-rail engraved" onSubmit={handleGeneratePath}>
+      <label>ساعات الفصل <div className="range-value"><strong>{maxCreditsPerSemester}</strong><input aria-label="ساعات الفصل" type="range" min={6} max={21} value={maxCreditsPerSemester} onChange={e=>setMaxCreditsPerSemester(Number(e.target.value))}/></div></label>
+      <label>عدد الفصول<select aria-label="عدد الفصول" value={maxSemestersAhead} onChange={e=>setMaxSemestersAhead(Number(e.target.value))}>{[4,6,8,10].map(n=><option key={n} value={n}>{n} فصول</option>)}</select></label>
+      <label>المسارات<select aria-label="المسارات" value={maxPaths} onChange={e=>setMaxPaths(Number(e.target.value))}>{[1,2,3].map(n=><option key={n} value={n}>{n}</option>)}</select></label>
+      <Button type="submit" disabled={loading}><Compass size={18}/>{loading?'جارٍ الرسم…':'ارسم المسار'}</Button>
+    </form>
+    {errorMessage&&<FriendlyState error onRetry={()=>void handleGeneratePath()}/>}
+    {loading&&<LoadingSkeletonCard className="min-h-80"/>}
+    {!loading&&selectedPath&&result?<><div className="flex items-center justify-between flex-wrap gap-4"><SegmentedControl value={String(selectedPathIndex)} onChange={v=>setSelectedPathIndex(Number(v))} options={result.paths.map((p,i)=>({value:String(i),label:`المسار ${p.rank} · ${p.semester_count} فصول`}))}/><button className="button-secondary" onClick={()=>window.print()}><Printer size={16}/>تصدير PDF</button></div>
+      <div className="journey-kpis"><div className="engraved"><strong>{selectedPath.semester_count}</strong><span>فصول مخططة</span></div><div className="engraved"><strong>{selectedPath.total_planned_credits}</strong><span>ساعات مخططة</span></div><div className="engraved"><strong>{selectedPath.final_remaining_plan_credits}</strong><span>متبقية بعد المسار</span></div><div className="engraved"><Dial value={selectedPath.final_completed_plan_credits} max={selectedPath.final_completed_plan_credits+selectedPath.final_remaining_plan_credits} size={100} label="إنجاز متوقع"/></div></div>
+      <PathMap key={selectedPath.rank} stations={selectedPath.semesters.map(sem=>({id:String(sem.semester_index),title:`الفصل ${sem.semester_index}`,hours:sem.plan_option.total_credit_hours,courses:sem.plan_option.courses.map(c=>({code:c.course_code,name:c.course_name_ar,hours:c.credit_hours}))}))}/>
+      {selectedPath.status!=='COMPLETE'&&<p className="text-xs text-copper">المسار جزئي ضمن المعايير المختارة.</p>}
+      <details className="engraved p-5"><summary>تفاصيل الاختيار</summary><AcademicGraphExplanation graph={graph} focusId={`degree-path:${selectedPath.rank}`} identities={identities} loading={graphLoading} error={graphError} onRetry={()=>{if(lastGraphRequest.current)void loadGraph(lastGraphRequest.current);}}/></details>
+    </>:!loading&&!errorMessage&&<FriendlyState title="ارسم رحلتك"/>}
+    <details className="engraved p-6"><summary className="flex items-center gap-3"><Compass size={18}/><h2 className="text-base">التقدير الزمني والمقارنة</h2></summary>
+      <form className="control-rail mt-6" onChange={()=>{preferencesEdited.current=true;comparisonRequestId.current+=1;setComparisonLoading(false);setComparisonError(false);setCreditComparison(null);}} onSubmit={e=>void handleCreditTimeline(e)}>
+        <label>ساعات الفصل<select aria-label="ساعات التقدير الزمني" value={regularLoad} onChange={e=>setRegularLoad(Number(e.target.value))}>{Array.from(new Set([12,15,18,regularLoad])).map(n=><option key={n} value={n}>{n}</option>)}</select></label>
+        <label>سنة البداية<input aria-label="سنة البداية" type="number" min={2000} max={2200} value={startYear} onChange={e=>setStartYear(Number(e.target.value))}/></label>
+        <label>فصل البداية<select aria-label="فصل البداية" value={startTerm} onChange={e=>setStartTerm(e.target.value as CreditTimelineRequest['start_term'])}><option value="FIRST_SEMESTER">الأول</option><option value="SECOND_SEMESTER">الثاني</option><option value="SUMMER">الصيفي</option></select></label>
+        <label className="flex items-center gap-2"><input type="checkbox" checked={summerEnabled} onChange={e=>setSummerEnabled(e.target.checked)}/>الصيفي</label>
+        {summerEnabled&&<label>ساعات الصيفي<input aria-label="ساعات الصيفي" type="number" min={3} max={9} value={summerLoad} onChange={e=>setSummerLoad(Number(e.target.value))}/></label>}
+        <label>وتيرة التخرج<select value={graduationPace} onChange={e=>setGraduationPace(e.target.value as typeof graduationPace)}><option value="FASTEST">الأسرع</option><option value="BALANCED">المتوازن</option><option value="LOWER_LOAD">الأخف</option></select></label>
+        <Button type="submit" disabled={creditLoading}>{creditLoading?'جارٍ الحساب…':'احسب المدة'}</Button><button className="button-secondary" type="button" disabled={comparisonLoading} onClick={()=>void handleComparison()}>قارن المسارات</button>
+      </form>
+      {(creditLoading||comparisonLoading)&&<LoadingSkeletonCard/>}{(creditError||comparisonError)&&<FriendlyState error/>}
+      {creditTimeline&&<div className="mt-6"><div className="journey-kpis"><div className="engraved"><strong>{creditTimeline.initial_remaining_credits}</strong><span>ساعة متبقية</span></div><div className="engraved"><strong>{creditTimeline.regular_semester_count+creditTimeline.summer_count}</strong><span>فصل متوقع</span></div>{creditTimeline.completion_year&&<div className="engraved"><strong>{creditTimeline.completion_year}</strong><span>{label(creditTimeline.completion_term)}</span></div>}</div><PathMap stations={creditTimeline.terms.map((t,i)=>({id:String(i),title:`${label(t.term)} ${t.academic_year}`,hours:t.planned_credits}))}/></div>}
+      {creditComparison&&<div className="scenario-roads">{creditComparison.scenarios.map(s=><article className="engraved p-5" key={s.scenario_id}><h3>{label(s.mode)}</h3><div className="scenario-line"/><strong className="text-2xl">{s.total_modeled_terms}</strong><span> فصول · {label(s.timeline.completion_term)} {s.timeline.completion_year}</span>{s.preference_match&&<small className="block text-copper">يناسب تفضيلك</small>}</article>)}</div>}
+      <p className="text-xs text-muted mt-4">تقدير تخطيطي، وليس موعد تخرج معتمدًا.</p>
+    </details>
+  </div>;
 }
+

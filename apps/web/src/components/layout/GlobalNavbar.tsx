@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState, useRef, useEffect } from "react";
 import Image from "next/image";
+import { Logo } from "@/components/ui/Logo";
 import { useAuth } from "@/auth/auth-provider";
 import { SignOutButton } from "@/auth/sign-out-button";
 import { AuthenticatedApiClient } from "@/lib/api/authenticated-client";
@@ -92,13 +93,15 @@ export function GlobalNavbar() {
     pathname.startsWith("/student/policies") ||
     pathname.startsWith("/student/decision-history");
 
+  if (isStudentRoute || pathname === '/login') return null;
+  if (!pathname.startsWith('/institutional')) return <header className="public-nav" dir="rtl"><Logo/><nav aria-label="التنقل الرئيسي"><Link href="/#the-path">الرحلة</Link><Link href="/#the-plan">التخطيط</Link><Link href="https://morshidi-university-portal.vercel.app/">الجامعة</Link></nav><Link className="button-secondary" href={auth.isAuthenticated?'/student':'/login'}>{auth.isAuthenticated?'حسابي':'دخول'} <span aria-hidden="true">↖</span></Link></header>;
   return (
-    <header className="sticky top-0 z-50 w-full border-b border-[#EDE2C5] bg-[#FFFCF4]/95 backdrop-blur-md transition-colors">
+    <header className="sticky top-0 z-50 w-full border-b border-[#344739] bg-[#0B1210]/95 backdrop-blur-md transition-colors">
       <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8" dir="rtl">
         {/* Brand */}
         <div className="flex items-center gap-6">
           <Link href="/" className="group flex items-center gap-3">
-            <div className="relative flex h-10 w-10 items-center justify-center overflow-hidden rounded-xl border border-[#EDE2C5] bg-[#FFF4C7] shadow-2xs transition-transform group-hover:scale-105">
+            <div className="relative flex h-10 w-10 items-center justify-center overflow-hidden rounded-xl border border-[#344739] bg-[#15271F] shadow-2xs transition-transform group-hover:scale-105">
               <Image
                 src="/brand/morshidi-guide.png"
                 alt="مرشدي"
@@ -109,10 +112,10 @@ export function GlobalNavbar() {
               />
             </div>
             <div>
-              <span className="block text-lg font-bold tracking-tight text-[#28241C] transition-colors group-hover:text-[#A66F00]">
+              <span className="block text-lg font-bold tracking-tight text-[#F3E9D8] transition-colors group-hover:text-[#D9884A]">
                 مرشدي
               </span>
-              <span className="block text-[10px] font-medium text-[#726B5E]">
+              <span className="block text-[10px] font-medium text-[#AEBCB3]">
                 نظام الذكاء الأكاديمي
               </span>
               {institution && <span className={`block max-w-40 truncate rounded px-1 text-[10px] ${institutionThemeClass(institution.theme_key)}`}>
@@ -129,8 +132,8 @@ export function GlobalNavbar() {
                   href="/"
                   className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors ${
                     pathname === "/"
-                      ? "bg-[#FFF4C7] text-[#805400]"
-                      : "text-[#28241C] hover:bg-[#FFF9E8] hover:text-[#A66F00]"
+                      ? "bg-[#15271F] text-[#E5AC7C]"
+                      : "text-[#F3E9D8] hover:bg-[#0F1A17] hover:text-[#D9884A]"
                   }`}
                 >
                   الرئيسية
@@ -139,8 +142,8 @@ export function GlobalNavbar() {
                   href="/student/progress"
                   className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors ${
                     pathname.startsWith("/student/progress")
-                      ? "bg-[#FFF4C7] text-[#805400]"
-                      : "text-[#28241C] hover:bg-[#FFF9E8] hover:text-[#A66F00]"
+                      ? "bg-[#15271F] text-[#E5AC7C]"
+                      : "text-[#F3E9D8] hover:bg-[#0F1A17] hover:text-[#D9884A]"
                   }`}
                 >
                   خطتي
@@ -149,8 +152,8 @@ export function GlobalNavbar() {
                   href="/student/courses"
                   className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors ${
                     pathname.startsWith("/student/courses")
-                      ? "bg-[#FFF4C7] text-[#805400]"
-                      : "text-[#28241C] hover:bg-[#FFF9E8] hover:text-[#A66F00]"
+                      ? "bg-[#15271F] text-[#E5AC7C]"
+                      : "text-[#F3E9D8] hover:bg-[#0F1A17] hover:text-[#D9884A]"
                   }`}
                 >
                   المواد
@@ -159,8 +162,8 @@ export function GlobalNavbar() {
                   href="/student/planner"
                   className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors ${
                     pathname.startsWith("/student/planner")
-                      ? "bg-[#FFF4C7] text-[#805400]"
-                      : "text-[#28241C] hover:bg-[#FFF9E8] hover:text-[#A66F00]"
+                      ? "bg-[#15271F] text-[#E5AC7C]"
+                      : "text-[#F3E9D8] hover:bg-[#0F1A17] hover:text-[#D9884A]"
                   }`}
                 >
                   خطط لفصلك
@@ -169,11 +172,11 @@ export function GlobalNavbar() {
                   href="/student/advisor"
                   className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors ${
                     pathname.startsWith("/student/advisor")
-                      ? "bg-[#FFF4C7] text-[#805400]"
-                      : "text-[#28241C] hover:bg-[#FFF9E8] hover:text-[#A66F00]"
+                      ? "bg-[#15271F] text-[#E5AC7C]"
+                      : "text-[#F3E9D8] hover:bg-[#0F1A17] hover:text-[#D9884A]"
                   }`}
                 >
-                  <span className="inline-block h-1.5 w-1.5 rounded-full bg-[#E2AD27] animate-pulse" />
+                  <span className="inline-block h-1.5 w-1.5 rounded-full bg-[#D9884A] animate-pulse" />
                   <span>مرشدي AI</span>
                 </Link>
 
@@ -186,88 +189,88 @@ export function GlobalNavbar() {
                     aria-controls="student-more-tools"
                     className={`flex items-center gap-1 rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors ${
                       isMoreActive || moreDropdownOpen
-                        ? "bg-[#FFF4C7] text-[#805400]"
-                        : "text-[#28241C] hover:bg-[#FFF9E8] hover:text-[#A66F00]"
+                        ? "bg-[#15271F] text-[#E5AC7C]"
+                        : "text-[#F3E9D8] hover:bg-[#0F1A17] hover:text-[#D9884A]"
                     }`}
                   >
                     <span>المزيد من الأدوات</span>
                     <ChevronDownIcon
-                      className={`h-3 w-3 text-[#726B5E] transition-transform ${
+                      className={`h-3 w-3 text-[#AEBCB3] transition-transform ${
                         moreDropdownOpen ? "rotate-180" : ""
                       }`}
                     />
                   </button>
 
                   {moreDropdownOpen && (
-                    <div id="student-more-tools" className="absolute right-0 mt-2 w-64 rounded-2xl border border-[#EDE2C5] bg-white p-2 shadow-lg z-50">
-                      <Link href="/student/intelligence" className="flex rounded-xl px-3 py-2 text-xs font-semibold text-[#28241C] hover:bg-[#FFF9E8]">الذكاء الأكاديمي · عرض تجريبي</Link>
-                      <Link href="/student/privacy" className="flex rounded-xl px-3 py-2 text-xs font-semibold text-[#28241C] hover:bg-[#FFF9E8]">الخصوصية والتحكم بالبيانات</Link>
-                      {institutionNavVisible(institution, "plan_transition") && <Link href="/student/plan-transition" className="flex rounded-xl px-3 py-2 text-xs font-semibold text-[#28241C] hover:bg-[#FFF9E8]">مقارنة الخطط · نمذجة غير رسمية</Link>}
-                      <div className="px-3 py-1.5 text-[10px] font-bold text-[#726B5E]">
+                    <div id="student-more-tools" className="absolute right-0 mt-2 w-64 rounded-2xl border border-[#344739] bg-surface p-2 shadow-lg z-50">
+                      <Link href="/student/intelligence" className="flex rounded-xl px-3 py-2 text-xs font-semibold text-[#F3E9D8] hover:bg-[#0F1A17]">الذكاء الأكاديمي · عرض تجريبي</Link>
+                      <Link href="/student/privacy" className="flex rounded-xl px-3 py-2 text-xs font-semibold text-[#F3E9D8] hover:bg-[#0F1A17]">الخصوصية والتحكم بالبيانات</Link>
+                      {institutionNavVisible(institution, "plan_transition") && <Link href="/student/plan-transition" className="flex rounded-xl px-3 py-2 text-xs font-semibold text-[#F3E9D8] hover:bg-[#0F1A17]">مقارنة الخطط · نمذجة غير رسمية</Link>}
+                      <div className="px-3 py-1.5 text-[10px] font-bold text-[#AEBCB3]">
                         الأدوات الأكاديمية الذكية
                       </div>
-                      <Link href="/student/roadmap" className="flex rounded-xl px-3 py-2 text-xs font-semibold text-[#28241C] hover:bg-[#FFF9E8]">الخارطة الأكاديمية</Link>
-                      {institutionNavVisible(institution, "offerings") && <Link href="/student/offerings" className="flex rounded-xl px-3 py-2 text-xs font-semibold text-[#28241C] hover:bg-[#FFF9E8]">العروض والجدول · بيانات تجريبية</Link>}
-                      <Link href="/student/report" className="flex rounded-xl px-3 py-2 text-xs font-semibold text-[#28241C] hover:bg-[#FFF9E8]">التقرير المُنمذج غير الرسمي</Link>
+                      <Link href="/student/roadmap" className="flex rounded-xl px-3 py-2 text-xs font-semibold text-[#F3E9D8] hover:bg-[#0F1A17]">الخارطة الأكاديمية</Link>
+                      {institutionNavVisible(institution, "offerings") && <Link href="/student/offerings" className="flex rounded-xl px-3 py-2 text-xs font-semibold text-[#F3E9D8] hover:bg-[#0F1A17]">العروض والجدول · بيانات تجريبية</Link>}
+                      <Link href="/student/report" className="flex rounded-xl px-3 py-2 text-xs font-semibold text-[#F3E9D8] hover:bg-[#0F1A17]">التقرير المُنمذج غير الرسمي</Link>
                       <Link
                         href="/student/eligibility"
-                        className="flex items-center gap-2.5 rounded-xl px-3 py-2 text-xs font-semibold text-[#28241C] hover:bg-[#FFF9E8] hover:text-[#805400] transition-colors"
+                        className="flex items-center gap-2.5 rounded-xl px-3 py-2 text-xs font-semibold text-[#F3E9D8] hover:bg-[#0F1A17] hover:text-[#E5AC7C] transition-colors"
                       >
-                        <EligibilityIcon className="h-4 w-4 text-[#A66F00]" />
+                        <EligibilityIcon className="h-4 w-4 text-[#D9884A]" />
                         <div>
                           <div>أهلية المواد</div>
-                          <div className="text-[10px] font-normal text-[#726B5E]">فحص المتطلبات المسبقة</div>
+                          <div className="text-[10px] font-normal text-[#AEBCB3]">فحص المتطلبات المسبقة</div>
                         </div>
                       </Link>
                       <Link
                         href="/student/recommendations"
-                        className="flex items-center gap-2.5 rounded-xl px-3 py-2 text-xs font-semibold text-[#28241C] hover:bg-[#FFF9E8] hover:text-[#805400] transition-colors"
+                        className="flex items-center gap-2.5 rounded-xl px-3 py-2 text-xs font-semibold text-[#F3E9D8] hover:bg-[#0F1A17] hover:text-[#E5AC7C] transition-colors"
                       >
-                        <RecommendationsIcon className="h-4 w-4 text-[#A66F00]" />
+                        <RecommendationsIcon className="h-4 w-4 text-[#D9884A]" />
                         <div>
                           <div>التوصيات الذكية</div>
-                          <div className="text-[10px] font-normal text-[#726B5E]">باقة المواد الأكثر تأثيراً</div>
+                          <div className="text-[10px] font-normal text-[#AEBCB3]">باقة المواد الأكثر تأثيراً</div>
                         </div>
                       </Link>
                       <Link
                         href="/student/degree-path"
-                        className="flex items-center gap-2.5 rounded-xl px-3 py-2 text-xs font-semibold text-[#28241C] hover:bg-[#FFF9E8] hover:text-[#805400] transition-colors"
+                        className="flex items-center gap-2.5 rounded-xl px-3 py-2 text-xs font-semibold text-[#F3E9D8] hover:bg-[#0F1A17] hover:text-[#E5AC7C] transition-colors"
                       >
-                        <DegreePathIcon className="h-4 w-4 text-[#A66F00]" />
+                        <DegreePathIcon className="h-4 w-4 text-[#D9884A]" />
                         <div>
                           <div>مسار التخرج</div>
-                          <div className="text-[10px] font-normal text-[#726B5E]">توقع الفصول حتى التخرج</div>
+                          <div className="text-[10px] font-normal text-[#AEBCB3]">توقع الفصول حتى التخرج</div>
                         </div>
                       </Link>
                       <Link
                         href="/student/mock-registration"
-                        className="flex items-center gap-2.5 rounded-xl px-3 py-2 text-xs font-semibold text-[#28241C] hover:bg-[#FFF9E8] hover:text-[#805400] transition-colors"
+                        className="flex items-center gap-2.5 rounded-xl px-3 py-2 text-xs font-semibold text-[#F3E9D8] hover:bg-[#0F1A17] hover:text-[#E5AC7C] transition-colors"
                       >
-                        <MockRegistrationIcon className="h-4 w-4 text-[#A66F00]" />
+                        <MockRegistrationIcon className="h-4 w-4 text-[#D9884A]" />
                         <div>
                           <div>التسجيل التجريبي</div>
-                          <div className="text-[10px] font-normal text-[#726B5E]">محاكاة رغبات غير ملزمة</div>
+                          <div className="text-[10px] font-normal text-[#AEBCB3]">محاكاة رغبات غير ملزمة</div>
                         </div>
                       </Link>
-                      <div className="my-1 border-t border-[#EDE2C5]/60" />
+                      <div className="my-1 border-t border-[#344739]/60" />
                       <Link
                         href="/student/policies"
-                        className="flex items-center gap-2.5 rounded-xl px-3 py-2 text-xs font-semibold text-[#28241C] hover:bg-[#FFF9E8] hover:text-[#805400] transition-colors"
+                        className="flex items-center gap-2.5 rounded-xl px-3 py-2 text-xs font-semibold text-[#F3E9D8] hover:bg-[#0F1A17] hover:text-[#E5AC7C] transition-colors"
                       >
-                        <PoliciesIcon className="h-4 w-4 text-[#A66F00]" />
+                        <PoliciesIcon className="h-4 w-4 text-[#D9884A]" />
                         <div>
                           <div>اللوائح والسياسات</div>
-                          <div className="text-[10px] font-normal text-[#726B5E]">الأنظمة والتعليمات</div>
+                          <div className="text-[10px] font-normal text-[#AEBCB3]">الأنظمة والتعليمات</div>
                         </div>
                       </Link>
                       <Link
                         href="/student/decision-history"
-                        className="flex items-center gap-2.5 rounded-xl px-3 py-2 text-xs font-semibold text-[#28241C] hover:bg-[#FFF9E8] hover:text-[#805400] transition-colors"
+                        className="flex items-center gap-2.5 rounded-xl px-3 py-2 text-xs font-semibold text-[#F3E9D8] hover:bg-[#0F1A17] hover:text-[#E5AC7C] transition-colors"
                       >
-                        <DecisionHistoryIcon className="h-4 w-4 text-[#A66F00]" />
+                        <DecisionHistoryIcon className="h-4 w-4 text-[#D9884A]" />
                         <div>
                           <div>سجل القرارات</div>
-                          <div className="text-[10px] font-normal text-[#726B5E]">سجل التدقيق والتتبع</div>
+                          <div className="text-[10px] font-normal text-[#AEBCB3]">سجل التدقيق والتتبع</div>
                         </div>
                       </Link>
                     </div>
@@ -280,33 +283,33 @@ export function GlobalNavbar() {
                   href="/"
                   className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors ${
                     pathname === "/"
-                      ? "bg-[#FFF4C7] text-[#805400]"
-                      : "text-[#28241C] hover:bg-[#FFF9E8] hover:text-[#A66F00]"
+                      ? "bg-[#15271F] text-[#E5AC7C]"
+                      : "text-[#F3E9D8] hover:bg-[#0F1A17] hover:text-[#D9884A]"
                   }`}
                 >
                   الرئيسية
                 </Link>
                 <Link
                   href="/#how-it-works"
-                  className="rounded-lg px-3 py-1.5 text-xs font-semibold text-[#28241C] hover:bg-[#FFF9E8] hover:text-[#A66F00] transition-colors"
+                  className="rounded-lg px-3 py-1.5 text-xs font-semibold text-[#F3E9D8] hover:bg-[#0F1A17] hover:text-[#D9884A] transition-colors"
                 >
                   كيف يعمل مرشدي
                 </Link>
                 <Link
                   href="/#features"
-                  className="rounded-lg px-3 py-1.5 text-xs font-semibold text-[#28241C] hover:bg-[#FFF9E8] hover:text-[#A66F00] transition-colors"
+                  className="rounded-lg px-3 py-1.5 text-xs font-semibold text-[#F3E9D8] hover:bg-[#0F1A17] hover:text-[#D9884A] transition-colors"
                 >
                   المزايا الأكاديمية
                 </Link>
                 <Link
                   href="/#demo"
-                  className="rounded-lg px-3 py-1.5 text-xs font-semibold text-[#28241C] hover:bg-[#FFF9E8] hover:text-[#A66F00] transition-colors"
+                  className="rounded-lg px-3 py-1.5 text-xs font-semibold text-[#F3E9D8] hover:bg-[#0F1A17] hover:text-[#D9884A] transition-colors"
                 >
                   محاكي الأهلية
                 </Link>
                 <Link
                   href="/#about"
-                  className="rounded-lg px-3 py-1.5 text-xs font-semibold text-[#28241C] hover:bg-[#FFF9E8] hover:text-[#A66F00] transition-colors"
+                  className="rounded-lg px-3 py-1.5 text-xs font-semibold text-[#F3E9D8] hover:bg-[#0F1A17] hover:text-[#D9884A] transition-colors"
                 >
                   عن المنصة
                 </Link>
@@ -322,60 +325,60 @@ export function GlobalNavbar() {
               <button
                 type="button"
                 onClick={() => setAccountDropdownOpen((prev) => !prev)}
-                className="flex items-center gap-2.5 rounded-xl border border-[#EDE2C5] bg-white px-3 py-1.5 text-xs font-semibold text-[#28241C] shadow-2xs hover:bg-[#FFF9E8] transition-colors"
+                className="flex items-center gap-2.5 rounded-xl border border-[#344739] bg-surface px-3 py-1.5 text-xs font-semibold text-[#F3E9D8] shadow-2xs hover:bg-[#0F1A17] transition-colors"
                 aria-expanded={accountDropdownOpen}
                 aria-haspopup="true"
               >
-                <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-[#FFF4C7] text-[#805400]">
+                <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-[#15271F] text-[#E5AC7C]">
                   <ProfileIcon className="h-4 w-4" />
                 </div>
                 <div className="text-right">
-                  <span className="block text-xs font-bold leading-tight text-[#28241C]">حسابي</span>
-                  <span className="block max-w-[120px] truncate text-[10px] text-[#726B5E]" dir="ltr">
+                  <span className="block text-xs font-bold leading-tight text-[#F3E9D8]">حسابي</span>
+                  <span className="block max-w-[120px] truncate text-[10px] text-[#AEBCB3]" dir="ltr">
                     {auth.user?.email ?? "الطالب"}
                   </span>
                 </div>
                 <ChevronDownIcon
-                  className={`h-3 w-3 text-[#726B5E] transition-transform ${
+                  className={`h-3 w-3 text-[#AEBCB3] transition-transform ${
                     accountDropdownOpen ? "rotate-180" : ""
                   }`}
                 />
               </button>
 
               {accountDropdownOpen && (
-                <div className="absolute left-0 mt-2 w-56 rounded-2xl border border-[#EDE2C5] bg-white p-2 shadow-lg z-50">
-                  <div className="border-b border-[#EDE2C5]/60 px-3 py-2 text-right">
-                    <span className="inline-block rounded-full bg-[#FFF4C7] px-2 py-0.5 text-[10px] font-bold text-[#805400]">
+                <div className="absolute left-0 mt-2 w-56 rounded-2xl border border-[#344739] bg-surface p-2 shadow-lg z-50">
+                  <div className="border-b border-[#344739]/60 px-3 py-2 text-right">
+                    <span className="inline-block rounded-full bg-[#15271F] px-2 py-0.5 text-[10px] font-bold text-[#E5AC7C]">
                       طالب مسجل
                     </span>
-                    <p className="mt-1 truncate font-mono text-xs text-[#28241C]" dir="ltr">
+                    <p className="mt-1 truncate font-mono text-xs text-[#F3E9D8]" dir="ltr">
                       {auth.user?.email}
                     </p>
                   </div>
                   <div className="mt-1 space-y-0.5">
                     <Link
                       href="/student"
-                      className="flex items-center gap-2 rounded-xl px-3 py-2 text-xs font-semibold text-[#28241C] hover:bg-[#FFF9E8] hover:text-[#805400] transition-colors"
+                      className="flex items-center gap-2 rounded-xl px-3 py-2 text-xs font-semibold text-[#F3E9D8] hover:bg-[#0F1A17] hover:text-[#E5AC7C] transition-colors"
                     >
-                      <ProfileIcon className="h-4 w-4 text-[#A66F00]" />
+                      <ProfileIcon className="h-4 w-4 text-[#D9884A]" />
                       <span>نظرة عامة على حسابي</span>
                     </Link>
                     <Link
                       href="/student/profile"
-                      className="flex items-center gap-2 rounded-xl px-3 py-2 text-xs font-semibold text-[#28241C] hover:bg-[#FFF9E8] hover:text-[#805400] transition-colors"
+                      className="flex items-center gap-2 rounded-xl px-3 py-2 text-xs font-semibold text-[#F3E9D8] hover:bg-[#0F1A17] hover:text-[#E5AC7C] transition-colors"
                     >
-                      <ProgressIcon className="h-4 w-4 text-[#A66F00]" />
+                      <ProgressIcon className="h-4 w-4 text-[#D9884A]" />
                       <span>الملف الأكاديمي</span>
                     </Link>
                     <Link
                       href="/student/courses"
-                      className="flex items-center gap-2 rounded-xl px-3 py-2 text-xs font-semibold text-[#28241C] hover:bg-[#FFF9E8] hover:text-[#805400] transition-colors"
+                      className="flex items-center gap-2 rounded-xl px-3 py-2 text-xs font-semibold text-[#F3E9D8] hover:bg-[#0F1A17] hover:text-[#E5AC7C] transition-colors"
                     >
-                      <CoursesIcon className="h-4 w-4 text-[#A66F00]" />
+                      <CoursesIcon className="h-4 w-4 text-[#D9884A]" />
                       <span>سجل موادي</span>
                     </Link>
                   </div>
-                  <div className="my-1 border-t border-[#EDE2C5]/60" />
+                  <div className="my-1 border-t border-[#344739]/60" />
                   <div className="px-1 py-0.5">
                     <SignOutButton
                       className="flex w-full items-center justify-center gap-2 rounded-xl border border-red-200 bg-red-50/80 px-3 py-1.5 text-xs font-semibold text-red-800 hover:bg-red-100 transition-colors"
@@ -387,7 +390,7 @@ export function GlobalNavbar() {
           ) : (
             <Link
               href="/login"
-              className="inline-flex min-h-9 items-center justify-center gap-2 rounded-xl bg-[#A66F00] px-4 py-1.5 text-xs font-semibold text-white shadow-xs transition-colors hover:bg-[#805400]"
+              className="inline-flex min-h-9 items-center justify-center gap-2 rounded-xl bg-[#D9884A] px-4 py-1.5 text-xs font-semibold text-white shadow-xs transition-colors hover:bg-[#E5AC7C]"
             >
               <span>دخول الطالب</span>
             </Link>
@@ -397,7 +400,7 @@ export function GlobalNavbar() {
           <button
             type="button"
             onClick={() => setMobileMenuOpen((prev) => !prev)}
-            className="flex h-9 w-9 items-center justify-center rounded-xl border border-[#EDE2C5] bg-white text-[#28241C] hover:bg-[#FFF9E8] md:hidden transition-colors"
+            className="flex h-9 w-9 items-center justify-center rounded-xl border border-[#344739] bg-surface text-[#F3E9D8] hover:bg-[#0F1A17] md:hidden transition-colors"
             aria-label="قائمة التنقل"
             aria-expanded={mobileMenuOpen}
           >
@@ -408,20 +411,20 @@ export function GlobalNavbar() {
 
       {/* Mobile Drawer */}
       {mobileMenuOpen && (
-        <div className="border-t border-[#EDE2C5] bg-[#FFFCF4] px-4 py-4 md:hidden" dir="rtl">
+        <div className="border-t border-[#344739] bg-[#0B1210] px-4 py-4 md:hidden" dir="rtl">
           <nav className="flex flex-col gap-2" aria-label="التنقل في الهاتف">
             {auth.isAuthenticated ? (
               <>
-                <div className="rounded-xl border border-[#EDE2C5] bg-[#FFF9E8] p-3">
-                  <div className="text-[10px] font-bold text-[#726B5E]">مرحباً بك:</div>
-                  <div className="truncate font-mono text-xs font-semibold text-[#28241C]" dir="ltr">
+                <div className="rounded-xl border border-[#344739] bg-[#0F1A17] p-3">
+                  <div className="text-[10px] font-bold text-[#AEBCB3]">مرحباً بك:</div>
+                  <div className="truncate font-mono text-xs font-semibold text-[#F3E9D8]" dir="ltr">
                     {auth.user?.email}
                   </div>
                 </div>
                 <Link
                   href="/"
                   className={`rounded-xl px-3 py-2 text-xs font-semibold ${
-                    pathname === "/" ? "bg-[#FFF4C7] text-[#805400]" : "text-[#28241C] hover:bg-[#FFF9E8]"
+                    pathname === "/" ? "bg-[#15271F] text-[#E5AC7C]" : "text-[#F3E9D8] hover:bg-[#0F1A17]"
                   }`}
                 >
                   الرئيسية
@@ -429,7 +432,7 @@ export function GlobalNavbar() {
                 <Link
                   href="/student"
                   className={`rounded-xl px-3 py-2 text-xs font-semibold ${
-                    pathname === "/student" ? "bg-[#FFF4C7] text-[#805400]" : "text-[#28241C] hover:bg-[#FFF9E8]"
+                    pathname === "/student" ? "bg-[#15271F] text-[#E5AC7C]" : "text-[#F3E9D8] hover:bg-[#0F1A17]"
                   }`}
                 >
                   نظرة عامة على حسابي
@@ -437,19 +440,19 @@ export function GlobalNavbar() {
                 <Link
                   href="/student/progress"
                   className={`rounded-xl px-3 py-2 text-xs font-semibold ${
-                    pathname.startsWith("/student/progress") ? "bg-[#FFF4C7] text-[#805400]" : "text-[#28241C] hover:bg-[#FFF9E8]"
+                    pathname.startsWith("/student/progress") ? "bg-[#15271F] text-[#E5AC7C]" : "text-[#F3E9D8] hover:bg-[#0F1A17]"
                   }`}
                 >
                   خطتي الأكاديمية
                 </Link>
-                <Link href="/student/roadmap" className="rounded-xl px-3 py-2 text-xs font-semibold text-[#28241C] hover:bg-[#FFF9E8]">الخارطة الأكاديمية</Link>
-                {institutionNavVisible(institution, "offerings") && <Link href="/student/offerings" className="rounded-xl px-3 py-2 text-xs font-semibold text-[#28241C] hover:bg-[#FFF9E8]">العروض والجدول · بيانات تجريبية</Link>}
-                <Link href="/student/report" className="rounded-xl px-3 py-2 text-xs font-semibold text-[#28241C] hover:bg-[#FFF9E8]">التقرير غير الرسمي</Link>
-                <Link href="/student/privacy" className="rounded-xl px-3 py-2 text-xs font-semibold text-[#28241C] hover:bg-[#FFF9E8]">الخصوصية والتحكم بالبيانات</Link>
+                <Link href="/student/roadmap" className="rounded-xl px-3 py-2 text-xs font-semibold text-[#F3E9D8] hover:bg-[#0F1A17]">الخارطة الأكاديمية</Link>
+                {institutionNavVisible(institution, "offerings") && <Link href="/student/offerings" className="rounded-xl px-3 py-2 text-xs font-semibold text-[#F3E9D8] hover:bg-[#0F1A17]">العروض والجدول · بيانات تجريبية</Link>}
+                <Link href="/student/report" className="rounded-xl px-3 py-2 text-xs font-semibold text-[#F3E9D8] hover:bg-[#0F1A17]">التقرير غير الرسمي</Link>
+                <Link href="/student/privacy" className="rounded-xl px-3 py-2 text-xs font-semibold text-[#F3E9D8] hover:bg-[#0F1A17]">الخصوصية والتحكم بالبيانات</Link>
                 <Link
                   href="/student/courses"
                   className={`rounded-xl px-3 py-2 text-xs font-semibold ${
-                    pathname.startsWith("/student/courses") ? "bg-[#FFF4C7] text-[#805400]" : "text-[#28241C] hover:bg-[#FFF9E8]"
+                    pathname.startsWith("/student/courses") ? "bg-[#15271F] text-[#E5AC7C]" : "text-[#F3E9D8] hover:bg-[#0F1A17]"
                   }`}
                 >
                   المواد والدرجات
@@ -457,7 +460,7 @@ export function GlobalNavbar() {
                 <Link
                   href="/student/planner"
                   className={`rounded-xl px-3 py-2 text-xs font-semibold ${
-                    pathname.startsWith("/student/planner") ? "bg-[#FFF4C7] text-[#805400]" : "text-[#28241C] hover:bg-[#FFF9E8]"
+                    pathname.startsWith("/student/planner") ? "bg-[#15271F] text-[#E5AC7C]" : "text-[#F3E9D8] hover:bg-[#0F1A17]"
                   }`}
                 >
                   خطط لفصلك
@@ -465,36 +468,36 @@ export function GlobalNavbar() {
                 <Link
                   href="/student/advisor"
                   className={`rounded-xl px-3 py-2 text-xs font-semibold ${
-                    pathname.startsWith("/student/advisor") ? "bg-[#FFF4C7] text-[#805400]" : "text-[#28241C] hover:bg-[#FFF9E8]"
+                    pathname.startsWith("/student/advisor") ? "bg-[#15271F] text-[#E5AC7C]" : "text-[#F3E9D8] hover:bg-[#0F1A17]"
                   }`}
                 >
                   مرشدي AI
                 </Link>
                 <Link
                   href="/student/eligibility"
-                  className="rounded-xl px-3 py-2 text-xs font-semibold text-[#28241C] hover:bg-[#FFF9E8]"
+                  className="rounded-xl px-3 py-2 text-xs font-semibold text-[#F3E9D8] hover:bg-[#0F1A17]"
                 >
                   فحص أهلية مادة
                 </Link>
                 <Link
                   href="/student/recommendations"
-                  className="rounded-xl px-3 py-2 text-xs font-semibold text-[#28241C] hover:bg-[#FFF9E8]"
+                  className="rounded-xl px-3 py-2 text-xs font-semibold text-[#F3E9D8] hover:bg-[#0F1A17]"
                 >
                   التوصيات الذكية
                 </Link>
                 <Link
                   href="/student/degree-path"
-                  className="rounded-xl px-3 py-2 text-xs font-semibold text-[#28241C] hover:bg-[#FFF9E8]"
+                  className="rounded-xl px-3 py-2 text-xs font-semibold text-[#F3E9D8] hover:bg-[#0F1A17]"
                 >
                   مسار التخرج
                 </Link>
                 <Link
                   href="/student/mock-registration"
-                  className="rounded-xl px-3 py-2 text-xs font-semibold text-[#28241C] hover:bg-[#FFF9E8]"
+                  className="rounded-xl px-3 py-2 text-xs font-semibold text-[#F3E9D8] hover:bg-[#0F1A17]"
                 >
                   التسجيل التجريبي
                 </Link>
-                <div className="my-2 border-t border-[#EDE2C5]" />
+                <div className="my-2 border-t border-[#344739]" />
                 <SignOutButton className="button-secondary w-full" />
               </>
             ) : (
@@ -502,36 +505,36 @@ export function GlobalNavbar() {
                 <Link
                   href="/"
                   className={`rounded-xl px-3 py-2 text-xs font-semibold ${
-                    pathname === "/" ? "bg-[#FFF4C7] text-[#805400]" : "text-[#28241C] hover:bg-[#FFF9E8]"
+                    pathname === "/" ? "bg-[#15271F] text-[#E5AC7C]" : "text-[#F3E9D8] hover:bg-[#0F1A17]"
                   }`}
                 >
                   الرئيسية
                 </Link>
                 <Link
                   href="/#how-it-works"
-                  className="rounded-xl px-3 py-2 text-xs font-semibold text-[#28241C] hover:bg-[#FFF9E8]"
+                  className="rounded-xl px-3 py-2 text-xs font-semibold text-[#F3E9D8] hover:bg-[#0F1A17]"
                 >
                   كيف يعمل مرشدي
                 </Link>
                 <Link
                   href="/#features"
-                  className="rounded-xl px-3 py-2 text-xs font-semibold text-[#28241C] hover:bg-[#FFF9E8]"
+                  className="rounded-xl px-3 py-2 text-xs font-semibold text-[#F3E9D8] hover:bg-[#0F1A17]"
                 >
                   المزايا الأكاديمية
                 </Link>
                 <Link
                   href="/#demo"
-                  className="rounded-xl px-3 py-2 text-xs font-semibold text-[#28241C] hover:bg-[#FFF9E8]"
+                  className="rounded-xl px-3 py-2 text-xs font-semibold text-[#F3E9D8] hover:bg-[#0F1A17]"
                 >
                   محاكي الأهلية
                 </Link>
                 <Link
                   href="/#about"
-                  className="rounded-xl px-3 py-2 text-xs font-semibold text-[#28241C] hover:bg-[#FFF9E8]"
+                  className="rounded-xl px-3 py-2 text-xs font-semibold text-[#F3E9D8] hover:bg-[#0F1A17]"
                 >
                   عن المنصة
                 </Link>
-                <div className="my-2 border-t border-[#EDE2C5]" />
+                <div className="my-2 border-t border-[#344739]" />
                 <Link
                   href="/login"
                   className="button-primary w-full text-center"

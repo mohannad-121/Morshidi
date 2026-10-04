@@ -44,9 +44,8 @@ beforeEach(() => {
 describe("student adaptive recommendation presentation", () => {
   it("shows modeled difficulty, score, and weak-evidence disclosure", async () => {
     render(<RecommendationsPage />);
-    expect(await screen.findByText(/الصعوبة العامة/)).toBeTruthy();
-    expect(screen.getByText(/الصعوبة المتوقعة بالنسبة لك/)).toBeTruthy();
-    expect(screen.getByText(/ثقة منخفضة/)).toBeTruthy();
+    expect(await screen.findByRole('img', {name:'صعبة'})).toBeTruthy();
+    expect(screen.getByTitle('تقدير أولي')).toBeTruthy();
     expect(screen.getByText(/Modeled score: 72/)).toBeTruthy();
   });
 
@@ -54,6 +53,6 @@ describe("student adaptive recommendation presentation", () => {
     getAdaptiveCourseIntelligence.mockRejectedValueOnce(new Error("unavailable"));
     render(<RecommendationsPage />);
     expect(await screen.findByText(/the displayed order is generic/)).toBeTruthy();
-    expect(screen.getByText(/تقدير الصعوبة غير متاح حالياً/)).toBeTruthy();
+    expect(screen.queryByRole('img', {name:'صعبة'})).toBeNull();
   });
 });

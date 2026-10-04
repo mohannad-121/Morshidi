@@ -75,7 +75,7 @@ describe("P9 student roadmap", () => {
     expect(await screen.findByRole("heading", { name: "خارطتي الأكاديمية" })).toBeTruthy();
     expect(container.querySelector("section[lang='ar'][dir='rtl']")).not.toBeNull();
     expect(screen.getByRole("button", { name: /مقدمة تجريبية/ })).toBeTruthy();
-    expect(screen.getAllByText(/الصعوبة العامة/).length).toBeGreaterThan(0);
+    expect(screen.getAllByRole('img', {name:'متوسطة'}).length).toBeGreaterThan(0);
     screen.getByRole("button", { name: /دراسة متقدمة/ }).focus();
     await user.keyboard("{Enter}");
     expect(screen.getByRole("heading", { name: /دراسة متقدمة/ })).toBeTruthy();

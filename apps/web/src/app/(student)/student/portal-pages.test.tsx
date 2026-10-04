@@ -629,17 +629,18 @@ describe('Morshidi Student Portal Pages Suite', () => {
     });
     renderWithAuth(<DegreePathPage />);
     const user = userEvent.setup();
-    const regular = await screen.findByLabelText(/Regular credits/);
-    await waitFor(() => expect((screen.getByLabelText(/Include summer/) as HTMLInputElement).checked).toBe(true));
+    await user.click(screen.getByText('التقدير الزمني والمقارنة'));
+    const regular = await screen.findByLabelText('ساعات التقدير الزمني');
+    await waitFor(() => expect((screen.getByRole('checkbox', {name:'الصيفي'}) as HTMLInputElement).checked).toBe(true));
     expect((regular as HTMLSelectElement).value).toBe('15');
-    await user.click(screen.getByRole('button', { name: /قارن: الأسرع/ }));
-    await screen.findByRole('heading', { name: 'المتوازن / Balanced' });
-    expect(screen.getByRole('heading', { name: 'الأسرع / Fastest' })).toBeTruthy();
-    expect(screen.getByRole('heading', { name: 'الحمل الأخف / Lower load' })).toBeTruthy();
-    expect(screen.getAllByText(/MODELED_ACADEMIC_CALENDAR/).length).toBeGreaterThan(0);
-    expect(screen.getByText(/Matches your stated preference/)).toBeTruthy();
+    await user.click(screen.getByRole('button', { name: 'قارن المسارات' }));
+    await screen.findByRole('heading', { name: 'المتوازن' });
+    expect(screen.getByRole('heading', { name: 'الأسرع' })).toBeTruthy();
+    expect(screen.getByRole('heading', { name: 'الأخف' })).toBeTruthy();
+    expect(screen.queryByText(/MODELED_ACADEMIC_CALENDAR/)).toBeNull();
+    expect(screen.getByText('يناسب تفضيلك')).toBeTruthy();
     await user.selectOptions(regular, '18');
-    await user.click(screen.getByRole('button', { name: /قارن: الأسرع/ }));
+    await user.click(screen.getByRole('button', { name: 'قارن المسارات' }));
     await waitFor(() => {
       const requests = fetchSpy.mock.calls.filter(([url]: [RequestInfo | URL]) => String(url).endsWith('/credit-comparison'));
       expect(requests).toHaveLength(2);
@@ -678,15 +679,16 @@ describe('Morshidi Student Portal Pages Suite', () => {
   it('renders DegreePathPage and simulates path until graduation', async () => {
     const user = userEvent.setup();
     renderWithAuth(<DegreePathPage />);
-    expect(screen.getByText('المسار الدراسي حتى التخرج')).toBeDefined();
+    expect(screen.getByRole('heading', {name:'مسار التخرج'})).toBeDefined();
 
-    const simulateBtn = screen.getByRole('button', { name: /توليد ومحاكاة مسار التخرج/ });
+    const simulateBtn = screen.getByRole('button', { name: 'ارسم المسار' });
     await user.click(simulateBtn);
 
     await waitFor(() => {
-      expect(screen.getByText('تخرج كامل')).toBeDefined();
+      expect(screen.getByText('متبقية بعد المسار')).toBeDefined();
     });
-    expect(screen.getByText(/الفصل الدراسي القادم #1/)).toBeDefined();
+    expect(screen.getAllByText('الفصل 1').length).toBeGreaterThan(0);
+    await user.click(screen.getByText('تفاصيل الاختيار'));
     await waitFor(() => expect(screen.getByText('مسار نموذجي #1')).toBeDefined());
   });
 
@@ -702,16 +704,19 @@ describe('Morshidi Student Portal Pages Suite', () => {
   it('renders AdvisorPage with suggested questions and conversational message sending', async () => {
     const user = userEvent.setup();
     renderWithAuth(<AdvisorPage />);
-    expect(screen.getByText('المرشد الأكاديمي الذكي')).toBeDefined();
+    expect(screen.getByRole('heading', {name: 'المحادثة'})).toBeDefined();
 
-    const quickBtn = screen.getByText('هل يمكنني تسجيل مادة الذكاء الاصطناعي؟');
+    const quickBtn = (await screen.findByText('هل يمكنني تسجيل مادة الذكاء الاصطناعي؟')).closest('button')!;
     await waitFor(() => expect((quickBtn as HTMLButtonElement).disabled).toBe(false));
     await user.click(quickBtn);
+    expect((screen.getByRole('textbox', {name: 'الاستفسار الأكاديمي'}) as HTMLTextAreaElement).value).toContain('الذكاء الاصطناعي');
+    await user.click(screen.getByRole('button', {name: 'إرسال'}));
 
     await waitFor(() => {
       expect(screen.getByText(/أنت مؤهل لتسجيل مادة برمجة كينونية/)).toBeDefined();
     });
-    expect(screen.getByText('المصدر: DETERMINISTIC_RULES_ENGINE')).toBeDefined();
+    expect(screen.getByText('قواعد الجامعة')).toBeDefined();
+    expect(screen.queryByText('DETERMINISTIC_RULES_ENGINE')).toBeNull();
   });
 
   it('shows neutral advisor pending copy without claiming a backend stage completed', async () => {
@@ -723,11 +728,13 @@ describe('Morshidi Student Portal Pages Suite', () => {
     renderWithAuth(<AdvisorPage />);
     expect(screen.getByRole('log')).toBeDefined();
     expect(screen.getByRole('textbox', { name: 'الاستفسار الأكاديمي' })).toBeDefined();
+    await screen.findByText('هل يمكنني تسجيل مادة الذكاء الاصطناعي؟');
     const questions = screen.getAllByRole('button');
     const quickQuestion = questions.find((button) => button.textContent?.includes('الذكاء الاصطناعي'))!;
     await waitFor(() => expect((quickQuestion as HTMLButtonElement).disabled).toBe(false));
     await user.click(quickQuestion);
-    expect(screen.getByText('مرشدي يجهّز الرد...')).toBeDefined();
+    await user.click(screen.getByRole('button', {name: 'إرسال'}));
+    expect(screen.getByText('يجهّز مرشدي الرد…')).toBeDefined();
     expect(screen.queryByText(/جاري استشارة المحرك الحتمي/)).toBeNull();
   });
 
@@ -759,9 +766,9 @@ describe('Morshidi Student Portal Pages Suite', () => {
     });
     const user = userEvent.setup();
     const { container } = renderWithAuth(<DegreePathPage />);
-    await user.click(container.querySelectorAll('form button[type="submit"]')[1] as HTMLButtonElement);
+    await user.click(screen.getByRole('button', {name:'ارسم المسار'}));
     await screen.findByRole('alert');
-    expect(screen.getByRole('alert').textContent).toContain('تعذر إنشاء مسار التخرج الآن');
+    expect(screen.getByRole('alert').textContent).toContain('تعذّر التحميل');
     expect(screen.getByRole('alert').textContent).not.toContain('استغرق إنشاء');
     expect(screen.queryByRole('status')).toBeNull();
     expect(requests.filter((request) => request.includes('/degree-paths'))).toEqual([
@@ -773,7 +780,7 @@ describe('Morshidi Student Portal Pages Suite', () => {
     fetchSpy.mockImplementation(async () => new Response('not-json', { status: 200 }));
     const user = userEvent.setup();
     const { container } = renderWithAuth(<DegreePathPage />);
-    await user.click(container.querySelectorAll('form button[type="submit"]')[1] as HTMLButtonElement);
+    await user.click(screen.getByRole('button', {name:'ارسم المسار'}));
     await screen.findByRole('alert');
     expect(screen.queryByRole('status')).toBeNull();
   });
@@ -782,7 +789,7 @@ describe('Morshidi Student Portal Pages Suite', () => {
     fetchSpy.mockImplementation(async () => new Response('{}', { status: 200 }));
     const user = userEvent.setup();
     const { container } = renderWithAuth(<DegreePathPage />);
-    await user.click(container.querySelectorAll('form button[type="submit"]')[1] as HTMLButtonElement);
+    await user.click(screen.getByRole('button', {name:'ارسم المسار'}));
     await screen.findByRole('alert');
     expect(screen.queryByRole('status')).toBeNull();
   });
@@ -796,9 +803,9 @@ describe('Morshidi Student Portal Pages Suite', () => {
     try {
       const user = userEvent.setup();
       const { container } = renderWithAuth(<DegreePathPage />);
-      await user.click(container.querySelectorAll('form button[type="submit"]')[1] as HTMLButtonElement);
+      await user.click(screen.getByRole('button', {name:'ارسم المسار'}));
       await screen.findByRole('alert');
-      expect(screen.getByRole('alert').textContent).toContain('استغرق إنشاء مسار التخرج وقتًا أطول');
+      expect(screen.getByRole('alert').textContent).toContain('تعذّر التحميل');
       expect(screen.queryByRole('status')).toBeNull();
     } finally {
       timeout.mockRestore();

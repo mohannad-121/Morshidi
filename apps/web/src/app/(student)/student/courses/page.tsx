@@ -212,18 +212,18 @@ export default function CoursesPage() {
   return (
     <div className="space-y-8">
       {/* Header */}
-      <div className="flex flex-col gap-4 border-b border-[#EDE2C5] pb-5 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex flex-col gap-4 border-b border-[#344739] pb-5 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <div className="flex items-center gap-2">
-            <span className="rounded-full bg-[#A66F00]/10 px-2.5 py-0.5 text-xs font-bold text-[#A66F00]">
+            <span className="rounded-full bg-[#D9884A]/10 px-2.5 py-0.5 text-xs font-bold text-[#D9884A]">
               سجل المحاولات
             </span>
-            <span className="text-xs text-[#726B5E]">السجل الأكاديمي</span>
+            <span className="text-xs text-[#AEBCB3]">السجل الأكاديمي</span>
           </div>
-          <h1 className="mt-1 text-2xl font-bold tracking-tight text-[#28241C]">
+          <h1 className="mt-1 text-2xl font-bold tracking-tight text-[#F3E9D8]">
             المواد وسجل المحاولات
           </h1>
-          <p className="text-xs text-[#726B5E]">
+          <p className="text-xs text-[#AEBCB3]">
             استعراض وتوثيق كافة المحاولات الدراسية وحساب المتطلبات السابقة للمواد.
           </p>
         </div>
@@ -231,7 +231,7 @@ export default function CoursesPage() {
         <button
           type="button"
           onClick={openAddModal}
-          className="inline-flex items-center justify-center gap-2 rounded-2xl bg-[#E2AD27] px-5 py-2.5 text-xs font-bold text-[#28241C] shadow-xs hover:bg-[#A66F00] hover:text-white transition-all focus:outline-hidden focus:ring-2 focus:ring-[#E2AD27]/50"
+          className="inline-flex items-center justify-center gap-2 rounded-2xl bg-[#D9884A] px-5 py-2.5 text-xs font-bold text-[#F3E9D8] shadow-xs hover:bg-[#D9884A] hover:text-white transition-all focus:outline-hidden focus:ring-2 focus:ring-[#D9884A]/50"
         >
           <PlusIcon className="h-4 w-4" />
           <span>إضافة محاولة دراسية</span>
@@ -292,7 +292,7 @@ export default function CoursesPage() {
 
           {/* Search and Filters */}
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex flex-wrap items-center gap-1 rounded-2xl border border-[#EDE2C5] bg-[#FFF9E8] p-1 text-xs">
+            <div className="flex flex-wrap items-center gap-1 rounded-2xl border border-[#344739] bg-[#0F1A17] p-1 text-xs">
               {[
                 { key: "ALL", label: "كافة المحاولات" },
                 { key: "PASSED", label: "ناجح" },
@@ -306,8 +306,8 @@ export default function CoursesPage() {
                   onClick={() => setSelectedStatusFilter(tab.key)}
                   className={`rounded-xl px-3 py-1.5 font-semibold transition-colors ${
                     selectedStatusFilter === tab.key
-                      ? "bg-white text-[#805400] shadow-xs"
-                      : "text-[#726B5E] hover:text-[#28241C]"
+                      ? "bg-surface text-[#E5AC7C] shadow-xs"
+                      : "text-[#AEBCB3] hover:text-[#F3E9D8]"
                   }`}
                 >
                   {tab.label}
@@ -316,13 +316,13 @@ export default function CoursesPage() {
             </div>
 
             <div className="relative min-w-[240px]">
-              <SearchIcon className="pointer-events-none absolute right-4 top-1/2 h-4 w-4 -translate-y-1/2 text-[#726B5E]" />
+              <SearchIcon className="pointer-events-none absolute right-4 top-1/2 h-4 w-4 -translate-y-1/2 text-[#AEBCB3]" />
               <input
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="بحث برمز المادة أو الفصل..."
-                className="w-full rounded-2xl border border-[#EDE2C5] bg-white py-2 pr-11 pl-4 text-xs text-[#28241C] placeholder-[#726B5E]/60 focus:border-[#E2AD27] focus:outline-hidden focus:ring-2 focus:ring-[#E2AD27]/20"
+                className="w-full rounded-2xl border border-[#344739] bg-surface py-2 pr-11 pl-4 text-xs text-[#F3E9D8] placeholder-[#AEBCB3]/60 focus:border-[#D9884A] focus:outline-hidden focus:ring-2 focus:ring-[#D9884A]/20"
               />
             </div>
           </div>
@@ -336,18 +336,18 @@ export default function CoursesPage() {
                 <button
                   type="button"
                   onClick={openAddModal}
-                  className="rounded-xl bg-[#E2AD27] px-4 py-2 text-xs font-bold text-[#28241C] hover:bg-[#A66F00] hover:text-white transition-colors"
+                  className="rounded-xl bg-[#D9884A] px-4 py-2 text-xs font-bold text-[#F3E9D8] hover:bg-[#D9884A] hover:text-white transition-colors"
                 >
                   إضافة محاولة دراسية
                 </button>
               }
             />
           ) : (
-            <div className="overflow-hidden rounded-3xl border border-[#EDE2C5] bg-white shadow-xs">
+            <div className="overflow-hidden rounded-3xl border border-[#344739] bg-surface shadow-xs">
               <div className="overflow-x-auto">
                 <table className="w-full text-right text-xs">
                   <thead>
-                    <tr className="border-b border-[#EDE2C5] bg-[#FFF9E8]/70 text-[#726B5E]">
+                    <tr className="border-b border-[#344739] bg-[#0F1A17]/70 text-[#AEBCB3]">
                       <th className="px-6 py-4 font-bold">رمز المادة</th>
                       <th className="px-6 py-4 font-bold">الفصل الدراسي</th>
                       <th className="px-6 py-4 font-bold">العلامة</th>
@@ -356,18 +356,18 @@ export default function CoursesPage() {
                       <th className="px-6 py-4 font-bold text-center">الإجراءات</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-[#EDE2C5]/50">
+                  <tbody className="divide-y divide-[#344739]/50">
                     {filteredAttempts.map((attempt) => {
                       const statusDetails = getStatusDetails(attempt.status);
                       return (
                         <tr key={attempt.id} className="hover:bg-[#FFFDF7] transition-colors">
-                          <td className="px-6 py-4 text-[#28241C]">
+                          <td className="px-6 py-4 text-[#F3E9D8]">
                             <CourseIdentity courseCode={attempt.course_code} nameAr={attempt.course_name_ar} nameEn={attempt.course_name_en} />
                           </td>
-                          <td className="px-6 py-4 font-mono text-[#726B5E]" dir="ltr">
+                          <td className="px-6 py-4 font-mono text-[#AEBCB3]" dir="ltr">
                             {attempt.term_label ?? "—"}
                           </td>
-                          <td className="px-6 py-4 font-mono font-bold text-[#28241C]">
+                          <td className="px-6 py-4 font-mono font-bold text-[#F3E9D8]">
                             {attempt.raw_grade_text ?? "—"}
                           </td>
                           <td className="px-6 py-4">
@@ -375,8 +375,8 @@ export default function CoursesPage() {
                               {statusDetails.label}
                             </Badge>
                           </td>
-                          <td className="px-6 py-4 text-[#726B5E]">
-                            <span className="rounded-md bg-[#FFF9E8] px-2 py-0.5 text-[10px] border border-[#EDE2C5]">
+                          <td className="px-6 py-4 text-[#AEBCB3]">
+                            <span className="rounded-md bg-[#0F1A17] px-2 py-0.5 text-[10px] border border-[#344739]">
                               {getSourceLabel(attempt.record_source)}
                             </span>
                           </td>
@@ -385,7 +385,7 @@ export default function CoursesPage() {
                               <button
                                 type="button"
                                 onClick={() => openEditModal(attempt)}
-                                className="rounded-lg p-1.5 text-[#726B5E] hover:bg-[#FFF4C7] hover:text-[#805400] transition-colors"
+                                className="rounded-lg p-1.5 text-[#AEBCB3] hover:bg-[#15271F] hover:text-[#E5AC7C] transition-colors"
                                 title="تعديل المحاولة"
                               >
                                 <EditIcon className="h-4 w-4" />
@@ -415,13 +415,13 @@ export default function CoursesPage() {
       {/* Add Modal */}
       {isAddModalOpen ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-xs">
-          <div className="w-full max-w-md rounded-3xl border border-[#EDE2C5] bg-white p-7 shadow-xl">
-            <div className="flex items-center justify-between border-b border-[#EDE2C5] pb-4">
-              <h2 className="text-base font-bold text-[#28241C]">إضافة محاولة دراسية جديدة</h2>
+          <div className="w-full max-w-md rounded-3xl border border-[#344739] bg-surface p-7 shadow-xl">
+            <div className="flex items-center justify-between border-b border-[#344739] pb-4">
+              <h2 className="text-base font-bold text-[#F3E9D8]">إضافة محاولة دراسية جديدة</h2>
               <button
                 type="button"
                 onClick={() => setIsAddModalOpen(false)}
-                className="rounded-lg p-1 text-[#726B5E] hover:bg-[#FFF9E8]"
+                className="rounded-lg p-1 text-[#AEBCB3] hover:bg-[#0F1A17]"
               >
                 <CloseIcon className="h-5 w-5" />
               </button>
@@ -435,7 +435,7 @@ export default function CoursesPage() {
 
             <form onSubmit={handleCreateAttempt} className="mt-4 space-y-4 text-xs">
               <div>
-                <label className="block font-bold text-[#28241C] mb-1">
+                <label className="block font-bold text-[#F3E9D8] mb-1">
                   رمز المادة (Course Code) *
                 </label>
                 <input
@@ -445,7 +445,7 @@ export default function CoursesPage() {
                   value={formCourseCode}
                   list="attempt-course-identities"
                   onChange={(e) => setFormCourseCode(e.target.value.toUpperCase())}
-                  className="w-full rounded-xl border border-[#EDE2C5] bg-white p-2.5 font-mono uppercase text-[#28241C] focus:border-[#E2AD27] focus:outline-hidden"
+                  className="w-full rounded-xl border border-[#344739] bg-surface p-2.5 font-mono uppercase text-[#F3E9D8] focus:border-[#D9884A] focus:outline-hidden"
                   dir="ltr"
                 />
                 <CourseOptions id="attempt-course-identities" identities={identities} />
@@ -453,7 +453,7 @@ export default function CoursesPage() {
               </div>
 
               <div>
-                <label className="block font-bold text-[#28241C] mb-1">
+                <label className="block font-bold text-[#F3E9D8] mb-1">
                   الفصل الدراسي (Term Label)
                 </label>
                 <input
@@ -461,19 +461,19 @@ export default function CoursesPage() {
                   placeholder="مثال: 2024-1 أو 2023-2"
                   value={formTermLabel}
                   onChange={(e) => setFormTermLabel(e.target.value)}
-                  className="w-full rounded-xl border border-[#EDE2C5] bg-white p-2.5 font-mono text-[#28241C] focus:border-[#E2AD27] focus:outline-hidden"
+                  className="w-full rounded-xl border border-[#344739] bg-surface p-2.5 font-mono text-[#F3E9D8] focus:border-[#D9884A] focus:outline-hidden"
                   dir="ltr"
                 />
               </div>
 
               <div>
-                <label className="block font-bold text-[#28241C] mb-1">
+                <label className="block font-bold text-[#F3E9D8] mb-1">
                   الحالة الأكاديمية *
                 </label>
                 <select
                   value={formStatus}
                   onChange={(e) => setFormStatus(e.target.value as AttemptOutcome)}
-                  className="w-full rounded-xl border border-[#EDE2C5] bg-white p-2.5 text-[#28241C] focus:border-[#E2AD27] focus:outline-hidden"
+                  className="w-full rounded-xl border border-[#344739] bg-surface p-2.5 text-[#F3E9D8] focus:border-[#D9884A] focus:outline-hidden"
                 >
                   <option value="PASSED">ناجح / مستوفى (PASSED)</option>
                   <option value="IN_PROGRESS">قيد الدراسة (IN_PROGRESS)</option>
@@ -483,7 +483,7 @@ export default function CoursesPage() {
               </div>
 
               <div>
-                <label className="block font-bold text-[#28241C] mb-1">
+                <label className="block font-bold text-[#F3E9D8] mb-1">
                   العلامة المسجلة (اختياري)
                 </label>
                 <input
@@ -491,18 +491,18 @@ export default function CoursesPage() {
                   placeholder="مثال: A أو 85 أو Pass"
                   value={formGrade}
                   onChange={(e) => setFormGrade(e.target.value)}
-                  className="w-full rounded-xl border border-[#EDE2C5] bg-white p-2.5 font-mono text-[#28241C] focus:border-[#E2AD27] focus:outline-hidden"
+                  className="w-full rounded-xl border border-[#344739] bg-surface p-2.5 font-mono text-[#F3E9D8] focus:border-[#D9884A] focus:outline-hidden"
                 />
               </div>
 
               <div>
-                <label className="block font-bold text-[#28241C] mb-1">
+                <label className="block font-bold text-[#F3E9D8] mb-1">
                   مصدر القيد
                 </label>
                 <select
                   value={formSource}
                   onChange={(e) => setFormSource(e.target.value as RecordSource)}
-                  className="w-full rounded-xl border border-[#EDE2C5] bg-white p-2.5 text-[#28241C] focus:border-[#E2AD27] focus:outline-hidden"
+                  className="w-full rounded-xl border border-[#344739] bg-surface p-2.5 text-[#F3E9D8] focus:border-[#D9884A] focus:outline-hidden"
                 >
                   <option value="manual_entry">إدخال يدوي للطالب</option>
                   <option value="transcript_import">استيراد كشف علامات</option>
@@ -510,18 +510,18 @@ export default function CoursesPage() {
                 </select>
               </div>
 
-              <div className="flex justify-end gap-2 pt-4 border-t border-[#EDE2C5]">
+              <div className="flex justify-end gap-2 pt-4 border-t border-[#344739]">
                 <button
                   type="button"
                   onClick={() => setIsAddModalOpen(false)}
-                  className="rounded-xl border border-[#EDE2C5] px-4 py-2 font-bold text-[#726B5E] hover:bg-[#FFF9E8]"
+                  className="rounded-xl border border-[#344739] px-4 py-2 font-bold text-[#AEBCB3] hover:bg-[#0F1A17]"
                 >
                   إلغاء
                 </button>
                 <button
                   type="submit"
                   disabled={actionLoading}
-                  className="rounded-xl bg-[#E2AD27] px-5 py-2 font-bold text-[#28241C] hover:bg-[#A66F00] hover:text-white transition-all disabled:opacity-50"
+                  className="rounded-xl bg-[#D9884A] px-5 py-2 font-bold text-[#F3E9D8] hover:bg-[#D9884A] hover:text-white transition-all disabled:opacity-50"
                 >
                   {actionLoading ? "جاري الحفظ..." : "حفظ المحاولة"}
                 </button>
@@ -534,18 +534,18 @@ export default function CoursesPage() {
       {/* Edit Modal */}
       {editingAttempt ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-xs">
-          <div className="w-full max-w-md rounded-3xl border border-[#EDE2C5] bg-white p-7 shadow-xl">
-            <div className="flex items-center justify-between border-b border-[#EDE2C5] pb-4">
+          <div className="w-full max-w-md rounded-3xl border border-[#344739] bg-surface p-7 shadow-xl">
+            <div className="flex items-center justify-between border-b border-[#344739] pb-4">
               <div>
-                <h2 className="text-base font-bold text-[#28241C]">تعديل المحاولة الدراسية</h2>
-                <p className="font-mono text-xs text-[#A66F00] font-bold" dir="ltr">
+                <h2 className="text-base font-bold text-[#F3E9D8]">تعديل المحاولة الدراسية</h2>
+                <p className="font-mono text-xs text-[#D9884A] font-bold" dir="ltr">
                   <CourseIdentity courseCode={editingAttempt.course_code} nameAr={editingAttempt.course_name_ar} nameEn={editingAttempt.course_name_en} /> {editingAttempt.term_label ? `(${editingAttempt.term_label})` : ""}
                 </p>
               </div>
               <button
                 type="button"
                 onClick={() => setEditingAttempt(null)}
-                className="rounded-lg p-1 text-[#726B5E] hover:bg-[#FFF9E8]"
+                className="rounded-lg p-1 text-[#AEBCB3] hover:bg-[#0F1A17]"
               >
                 <CloseIcon className="h-5 w-5" />
               </button>
@@ -559,26 +559,26 @@ export default function CoursesPage() {
 
             <form onSubmit={handleUpdateAttempt} className="mt-4 space-y-4 text-xs">
               <div>
-                <label className="block font-bold text-[#28241C] mb-1">
+                <label className="block font-bold text-[#F3E9D8] mb-1">
                   الفصل الدراسي (Term Label)
                 </label>
                 <input
                   type="text"
                   value={formTermLabel}
                   onChange={(e) => setFormTermLabel(e.target.value)}
-                  className="w-full rounded-xl border border-[#EDE2C5] bg-white p-2.5 font-mono text-[#28241C] focus:border-[#E2AD27] focus:outline-hidden"
+                  className="w-full rounded-xl border border-[#344739] bg-surface p-2.5 font-mono text-[#F3E9D8] focus:border-[#D9884A] focus:outline-hidden"
                   dir="ltr"
                 />
               </div>
 
               <div>
-                <label className="block font-bold text-[#28241C] mb-1">
+                <label className="block font-bold text-[#F3E9D8] mb-1">
                   الحالة الأكاديمية *
                 </label>
                 <select
                   value={formStatus}
                   onChange={(e) => setFormStatus(e.target.value as AttemptOutcome)}
-                  className="w-full rounded-xl border border-[#EDE2C5] bg-white p-2.5 text-[#28241C] focus:border-[#E2AD27] focus:outline-hidden"
+                  className="w-full rounded-xl border border-[#344739] bg-surface p-2.5 text-[#F3E9D8] focus:border-[#D9884A] focus:outline-hidden"
                 >
                   <option value="PASSED">ناجح / مستوفى (PASSED)</option>
                   <option value="IN_PROGRESS">قيد الدراسة (IN_PROGRESS)</option>
@@ -588,7 +588,7 @@ export default function CoursesPage() {
               </div>
 
               <div>
-                <label className="block font-bold text-[#28241C] mb-1">
+                <label className="block font-bold text-[#F3E9D8] mb-1">
                   العلامة المسجلة
                 </label>
                 <input
@@ -596,22 +596,22 @@ export default function CoursesPage() {
                   placeholder="مثال: A أو 85 أو Pass"
                   value={formGrade}
                   onChange={(e) => setFormGrade(e.target.value)}
-                  className="w-full rounded-xl border border-[#EDE2C5] bg-white p-2.5 font-mono text-[#28241C] focus:border-[#E2AD27] focus:outline-hidden"
+                  className="w-full rounded-xl border border-[#344739] bg-surface p-2.5 font-mono text-[#F3E9D8] focus:border-[#D9884A] focus:outline-hidden"
                 />
               </div>
 
-              <div className="flex justify-end gap-2 pt-4 border-t border-[#EDE2C5]">
+              <div className="flex justify-end gap-2 pt-4 border-t border-[#344739]">
                 <button
                   type="button"
                   onClick={() => setEditingAttempt(null)}
-                  className="rounded-xl border border-[#EDE2C5] px-4 py-2 font-bold text-[#726B5E] hover:bg-[#FFF9E8]"
+                  className="rounded-xl border border-[#344739] px-4 py-2 font-bold text-[#AEBCB3] hover:bg-[#0F1A17]"
                 >
                   إلغاء
                 </button>
                 <button
                   type="submit"
                   disabled={actionLoading}
-                  className="rounded-xl bg-[#E2AD27] px-5 py-2 font-bold text-[#28241C] hover:bg-[#A66F00] hover:text-white transition-all disabled:opacity-50"
+                  className="rounded-xl bg-[#D9884A] px-5 py-2 font-bold text-[#F3E9D8] hover:bg-[#D9884A] hover:text-white transition-all disabled:opacity-50"
                 >
                   {actionLoading ? "جاري الحفظ..." : "تحديث المحاولة"}
                 </button>

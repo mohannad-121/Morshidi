@@ -26,6 +26,8 @@ htmlcov/
 .env
 .env.*
 !.env.example
+.secrets/
+.vercel/
 
 # Node / Next.js
 node_modules/
