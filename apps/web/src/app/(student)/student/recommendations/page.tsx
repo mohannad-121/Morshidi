@@ -112,18 +112,18 @@ export default function RecommendationsPage() {
   return (
     <div className="space-y-8">
       {/* Header */}
-      <div className="flex flex-col gap-2 border-b border-[#EDE2C5] pb-5 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex flex-col gap-2 border-b border-[#344739] pb-5 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <div className="flex items-center gap-2">
-            <span className="rounded-full bg-[#A66F00]/10 px-2.5 py-0.5 text-xs font-bold text-[#A66F00]">
+            <span className="rounded-full bg-[#D9884A]/10 px-2.5 py-0.5 text-xs font-bold text-[#D9884A]">
               التوجيه الأكاديمي الحتمي
             </span>
-            <span className="text-xs text-[#726B5E]">ترتيب خوارزمي معتمد</span>
+            <span className="text-xs text-[#AEBCB3]">ترتيب خوارزمي معتمد</span>
           </div>
-          <h1 className="mt-1 text-2xl font-bold tracking-tight text-[#28241C]">
+          <h1 className="mt-1 text-2xl font-bold tracking-tight text-[#F3E9D8]">
             التوصيات الأكاديمية الذكية
           </h1>
-          <p className="text-xs text-[#726B5E]">
+          <p className="text-xs text-[#AEBCB3]">
             ترتيب منهجي للمواد الموصى بتسجيلها وفق الأثر الأكاديمي، فتح المتطلبات اللاحقة، واستيفاء المجموعات.
           </p>
         </div>
@@ -161,10 +161,10 @@ export default function RecommendationsPage() {
       {/* Content */}
       {!loading && !error && data ? (
         <div className="space-y-8">
-          {adaptive ? <section className="rounded-2xl border border-[#EDE2C5] bg-[#FFF9E8] p-4" aria-label="ملخص وضعك الأكاديمي">
+          {adaptive ? <section className="rounded-2xl border border-[#344739] bg-[#0F1A17] p-4" aria-label="ملخص وضعك الأكاديمي">
             <h2 className="font-bold">وضعك الأكاديمي · Your academic situation</h2>
             <p className="mt-1 text-sm">المعدل المُبلّغ / Reported GPA: {adaptive.profile.cumulative_gpa ?? "غير متاح"} / {adaptive.profile.gpa_scale ?? "—"} · الساعات المجتازة / Earned credits: {adaptive.profile.earned_completed_credits} · المواد المكتملة / Completed courses: {adaptive.profile.completed_courses.length}</p>
-            <p className="mt-1 text-xs text-[#726B5E]">ترتيب نمذجي مبني على الأهلية الحتمية والأدلة المتاحة؛ ليس قرار تسجيل رسمي. Modeled ranking, not registration approval. Grade-based personalization requires verified grades and an approved scale.</p>
+            <p className="mt-1 text-xs text-[#AEBCB3]">ترتيب نمذجي مبني على الأهلية الحتمية والأدلة المتاحة؛ ليس قرار تسجيل رسمي. Modeled ranking, not registration approval. Grade-based personalization requires verified grades and an approved scale.</p>
           </section> : <p role="status" className="rounded-xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900">تعذر تحميل التقدير الشخصي حالياً؛ الترتيب المعروض عام وليس توصية مخصصة. Personalized estimates are unavailable; the displayed order is generic.</p>}
           {/* Summary Stat Cards */}
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
@@ -195,11 +195,11 @@ export default function RecommendationsPage() {
           </div>
 
           {/* Methodology Banner */}
-          <div className="rounded-3xl border border-[#EDE2C5] bg-[#FFF9E8] p-5 text-xs text-[#726B5E]">
+          <div className="rounded-3xl border border-[#344739] bg-[#0F1A17] p-5 text-xs text-[#AEBCB3]">
             <div className="flex items-start gap-3">
-              <SparklesIcon className="h-5 w-5 text-[#A66F00] shrink-0 mt-0.5" />
+              <SparklesIcon className="h-5 w-5 text-[#D9884A] shrink-0 mt-0.5" />
               <div className="space-y-1">
-                <h3 className="font-bold text-[#28241C]">منهجية الترتيب الأكاديمي الحتمي</h3>
+                <h3 className="font-bold text-[#F3E9D8]">منهجية الترتيب الأكاديمي الحتمي</h3>
                 <p className="leading-relaxed">
                   {data.methodology_note ||
                     "يتم ترتيب المواد بناءً على معايير صارمة: أولوية متطلبات التخصص الإجبارية، الأثر في فتح مواد لاحقة، والمساهمة في تقليص الساعات المتبقية للمجموعة."}
@@ -209,8 +209,8 @@ export default function RecommendationsPage() {
           </div>
 
           {/* Filter Tabs */}
-          <div className="flex flex-wrap items-center gap-2 border-b border-[#EDE2C5] pb-4">
-            <span className="text-xs font-bold text-[#726B5E]">تصفية التوصيات:</span>
+          <div className="flex flex-wrap items-center gap-2 border-b border-[#344739] pb-4">
+            <span className="text-xs font-bold text-[#AEBCB3]">تصفية التوصيات:</span>
             {[
               { key: "ALL", label: `كافة المواد (${stats.total})` },
               { key: "UNLOCKS", label: `تفتح مواداً لاحقة (${stats.unlocks})` },
@@ -222,8 +222,8 @@ export default function RecommendationsPage() {
                 onClick={() => setFilterType(tab.key as typeof filterType)}
                 className={`rounded-xl px-3.5 py-1.5 text-xs font-bold transition-colors ${
                   filterType === tab.key
-                    ? "bg-[#E2AD27] text-[#28241C] shadow-xs"
-                    : "bg-white text-[#726B5E] border border-[#EDE2C5] hover:bg-[#FFF9E8]"
+                    ? "bg-[#D9884A] text-[#F3E9D8] shadow-xs"
+                    : "bg-surface text-[#AEBCB3] border border-[#344739] hover:bg-[#0F1A17]"
                 }`}
               >
                 {tab.label}
@@ -242,19 +242,19 @@ export default function RecommendationsPage() {
               {filteredRecommendations.map((rec: RecommendationCandidateResponse) => (
                 <div
                   key={rec.course_code}
-                  className="rounded-3xl border border-[#EDE2C5] bg-white p-6 shadow-xs transition-all hover:border-[#E2AD27]/70"
+                  className="rounded-3xl border border-[#344739] bg-surface p-6 shadow-xs transition-all hover:border-[#D9884A]/70"
                 >
                   <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                     <div className="flex items-start gap-4">
                       {/* Rank Badge */}
-                      <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[#FFF4C7] font-mono text-base font-extrabold text-[#A66F00] border border-[#EDE2C5]">
+                      <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[#15271F] font-mono text-base font-extrabold text-[#D9884A] border border-[#344739]">
                         #{recommendationByCode.get(rec.course_code)?.rank ?? rec.rank}
                       </div>
 
                       <div className="space-y-1.5">
                         <div className="flex flex-wrap items-center gap-2">
                           <CourseIdentity courseCode={rec.course_code} nameAr={rec.course_name_ar} nameEn={rec.course_name_en} />
-                          <span className="rounded-md bg-[#FFF9E8] px-2 py-0.5 text-[10px] font-mono font-bold text-[#A66F00] border border-[#EDE2C5]" dir="ltr">
+                          <span className="rounded-md bg-[#0F1A17] px-2 py-0.5 text-[10px] font-mono font-bold text-[#D9884A] border border-[#344739]" dir="ltr">
                             {rec.credit_hours} ساعات
                           </span>
                         </div>
@@ -265,7 +265,7 @@ export default function RecommendationsPage() {
                         </div>
 
                         <div className="flex flex-wrap items-center gap-2 pt-1">
-                          <span className="rounded-md bg-[#FFFCF4] px-2 py-0.5 text-xs text-[#726B5E] border border-[#EDE2C5]">
+                          <span className="rounded-md bg-[#0B1210] px-2 py-0.5 text-xs text-[#AEBCB3] border border-[#344739]">
                             المجموعة: <strong className="font-mono" dir="ltr">{rec.requirement_group_code}</strong> (
                             {rec.requirement_type === "MANDATORY" ? "إجباري" : "اختياري"})
                           </span>
@@ -290,7 +290,7 @@ export default function RecommendationsPage() {
                     <div className="flex items-center gap-3">
                       <Link
                         href={`/student/eligibility`}
-                        className="inline-flex items-center gap-1.5 rounded-xl border border-[#EDE2C5] bg-[#FFF9E8] px-3.5 py-2 text-xs font-bold text-[#805400] hover:bg-[#FFF4C7] hover:border-[#E2AD27] transition-all"
+                        className="inline-flex items-center gap-1.5 rounded-xl border border-[#344739] bg-[#0F1A17] px-3.5 py-2 text-xs font-bold text-[#E5AC7C] hover:bg-[#15271F] hover:border-[#D9884A] transition-all"
                       >
                         <EligibilityIcon className="h-4 w-4" />
                         <span>فحص الأهلية</span>
@@ -299,26 +299,26 @@ export default function RecommendationsPage() {
                   </div>
 
                   {/* Unlocked Courses / Impact Grid */}
-                  <div className="mt-5 rounded-2xl bg-[#FFFCF4] p-4 border border-[#EDE2C5]/70 text-xs">
+                  <div className="mt-5 rounded-2xl bg-[#0B1210] p-4 border border-[#344739]/70 text-xs">
                     <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                       <div>
-                        <span className="text-[#726B5E]">المساهمة في رصيد الخطة: </span>
-                        <strong className="font-mono text-[#28241C]">
+                        <span className="text-[#AEBCB3]">المساهمة في رصيد الخطة: </span>
+                        <strong className="font-mono text-[#F3E9D8]">
                           {rec.effective_credit_contribution} ساعة
                         </strong>
-                        <span className="text-[11px] text-[#726B5E] mr-1">
+                        <span className="text-[11px] text-[#AEBCB3] mr-1">
                           (المتبقي للمجموعة: من {rec.group_remaining_credits_before} إلى {rec.group_remaining_credits_after} س)
                         </span>
                       </div>
 
                       {rec.newly_eligible_course_codes.length > 0 ? (
                         <div className="flex items-center gap-2">
-                          <span className="text-[#726B5E] shrink-0">المواد التي ستفتح بعدها:</span>
+                          <span className="text-[#AEBCB3] shrink-0">المواد التي ستفتح بعدها:</span>
                           <div className="flex flex-wrap gap-1">
                             {rec.newly_eligible_course_codes.map((c) => (
                               <span
                                 key={c}
-                                className="rounded-md bg-white px-2 py-0.5 font-mono text-[11px] font-bold text-[#A66F00] border border-[#EDE2C5]"
+                                className="rounded-md bg-surface px-2 py-0.5 font-mono text-[11px] font-bold text-[#D9884A] border border-[#344739]"
                                 dir="ltr"
                               >
                                 <CourseIdentity courseCode={c} identities={identities} compact />
@@ -327,7 +327,7 @@ export default function RecommendationsPage() {
                           </div>
                         </div>
                       ) : (
-                        <div className="text-[#726B5E]">
+                        <div className="text-[#AEBCB3]">
                           لا تفتح متطلبات لاحقة مباشرة
                         </div>
                       )}
@@ -335,7 +335,7 @@ export default function RecommendationsPage() {
                   </div>
                   <button type="button" onClick={() => setExpandedCourse(expandedCourse === rec.course_code ? null : rec.course_code)}
                     aria-expanded={expandedCourse === rec.course_code}
-                    className="mt-4 rounded-xl border border-[#EDE2C5] px-3 py-2 text-xs font-bold">
+                    className="mt-4 rounded-xl border border-[#344739] px-3 py-2 text-xs font-bold">
                     لماذا هذه النتيجة؟
                   </button>
                   {expandedCourse === rec.course_code ? <div className="mt-3">
@@ -349,10 +349,10 @@ export default function RecommendationsPage() {
 
           {/* Review-Required Courses */}
           {data.review_required_courses.length > 0 ? (
-            <div className="rounded-3xl border border-amber-300 bg-white p-6 shadow-xs space-y-4">
+            <div className="rounded-3xl border border-amber-300 bg-surface p-6 shadow-xs space-y-4">
               <div className="flex items-center gap-2">
                 <AlertTriangleIcon className="h-5 w-5 text-amber-700" />
-                <h3 className="text-sm font-bold text-[#28241C]">
+                <h3 className="text-sm font-bold text-[#F3E9D8]">
                   مواد تتطلب مراجعة وتنسيق مع المرشد الأكاديمي ({data.review_required_courses.length})
                 </h3>
               </div>
@@ -380,9 +380,9 @@ export default function RecommendationsPage() {
           ) : null}
 
           {/* Limitations and Governance */}
-          <div className="rounded-2xl border border-[#EDE2C5] bg-[#FFF9E8] p-4 text-xs text-[#726B5E] space-y-2">
-            <div className="flex items-center gap-2 font-bold text-[#28241C]">
-              <InfoIcon className="h-4 w-4 text-[#A66F00]" />
+          <div className="rounded-2xl border border-[#344739] bg-[#0F1A17] p-4 text-xs text-[#AEBCB3] space-y-2">
+            <div className="flex items-center gap-2 font-bold text-[#F3E9D8]">
+              <InfoIcon className="h-4 w-4 text-[#D9884A]" />
               <span>محددات خوارزمية التوصية والمسؤولية الأكاديمية:</span>
             </div>
             <ul className="list-disc list-inside space-y-1 pr-2 text-[11px]">

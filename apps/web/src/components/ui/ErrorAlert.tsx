@@ -57,7 +57,7 @@ export function ErrorAlert({
         <button
           type="button"
           onClick={onRetry}
-          className="inline-flex min-h-10 items-center justify-center gap-1.5 self-start rounded-xl border border-red-300 bg-white px-4 py-2 text-xs font-semibold text-red-800 shadow-xs transition-colors hover:bg-red-50 sm:self-center"
+          className="inline-flex min-h-10 items-center justify-center gap-1.5 self-start rounded-xl border border-red-300 bg-surface px-4 py-2 text-xs font-semibold text-red-800 shadow-xs transition-colors hover:bg-red-50 sm:self-center"
         >
           <RefreshIcon className="h-3.5 w-3.5" />
           <span>إعادة المحاولة</span>

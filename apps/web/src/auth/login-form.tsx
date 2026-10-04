@@ -37,25 +37,29 @@ export function LoginForm() {
     }
 
     setIsSubmitting(true);
-    const result = await auth.signIn(email.trim(), password);
-    setIsSubmitting(false);
-
-    if (!result.ok) {
-      setError("تعذّر تسجيل الدخول. تأكد من البريد الإلكتروني وكلمة المرور.");
-      return;
+    try {
+      const result = await auth.signIn(email.trim(), password);
+      if (!result.ok) {
+        setError("تعذّر تسجيل الدخول. تأكد من البريد الإلكتروني وكلمة المرور.");
+        return;
+      }
+      router.replace(destination);
+      router.refresh();
+    } catch {
+      setError("تعذّر تسجيل الدخول. تحقق من الاتصال وحاول مجددًا.");
+    } finally {
+      setIsSubmitting(false);
     }
-    router.replace(destination);
-    router.refresh();
   }
 
   return (
-    <form className="mt-8 space-y-5" onSubmit={handleSubmit} aria-busy={isSubmitting}>
+    <form method="post" className="mt-8 space-y-5" onSubmit={handleSubmit} aria-busy={isSubmitting}>
       <div>
-        <label className="mb-2 block text-xs font-bold text-[#28241C]" htmlFor="email">
+        <label className="mb-2 block text-xs font-bold text-[#F3E9D8]" htmlFor="email">
           البريد الإلكتروني
         </label>
         <input
-          className="min-h-12 w-full rounded-xl border border-[#EDE2C5] bg-white px-4 text-left font-mono text-sm text-[#28241C] placeholder:text-[#726B5E]/50 focus:border-[#A66F00] focus:ring-1 focus:ring-[#A66F00] disabled:opacity-60"
+          className="min-h-12 w-full rounded-xl border border-[#344739] bg-surface px-4 text-left font-mono text-sm text-[#F3E9D8] placeholder:text-[#AEBCB3]/50 focus:border-[#D9884A] focus:ring-1 focus:ring-[#D9884A] disabled:opacity-60"
           dir="ltr"
           id="email"
           name="email"
@@ -63,33 +67,33 @@ export function LoginForm() {
           autoComplete="email"
           placeholder="student@example.com"
           required
-          disabled={isSubmitting}
+          disabled={isSubmitting || auth.isLoading}
           value={email}
           onChange={(event) => setEmail(event.target.value)}
         />
       </div>
 
       <div>
-        <label className="mb-2 block text-xs font-bold text-[#28241C]" htmlFor="password">
+        <label className="mb-2 block text-xs font-bold text-[#F3E9D8]" htmlFor="password">
           كلمة المرور
         </label>
         <div className="relative">
           <input
-            className="min-h-12 w-full rounded-xl border border-[#EDE2C5] bg-white px-4 pl-12 text-left font-mono text-sm text-[#28241C] placeholder:text-[#726B5E]/50 focus:border-[#A66F00] focus:ring-1 focus:ring-[#A66F00] disabled:opacity-60"
+            className="min-h-12 w-full rounded-xl border border-[#344739] bg-surface px-4 pl-12 text-left font-mono text-sm text-[#F3E9D8] placeholder:text-[#AEBCB3]/50 focus:border-[#D9884A] focus:ring-1 focus:ring-[#D9884A] disabled:opacity-60"
             dir="ltr"
             id="password"
             name="password"
             type={showPassword ? "text" : "password"}
             autoComplete="current-password"
             required
-            disabled={isSubmitting}
+            disabled={isSubmitting || auth.isLoading}
             value={password}
             onChange={(event) => setPassword(event.target.value)}
           />
           <button
             type="button"
             onClick={() => setShowPassword((prev) => !prev)}
-            className="absolute left-3 top-1/2 -translate-y-1/2 text-[#726B5E] hover:text-[#28241C] transition-colors p-1"
+            className="absolute left-3 top-1/2 -translate-y-1/2 text-[#AEBCB3] hover:text-[#F3E9D8] transition-colors p-1"
             aria-label={showPassword ? "إخفاء كلمة المرور" : "إظهار كلمة المرور"}
             tabIndex={0}
           >
@@ -108,8 +112,8 @@ export function LoginForm() {
       ) : null}
 
       <button
-        className="inline-flex min-h-12 w-full items-center justify-center rounded-xl bg-[#A66F00] px-5 py-3 text-sm font-bold text-white shadow-xs transition-all hover:bg-[#805400] active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-60"
-        disabled={isSubmitting}
+        className="inline-flex min-h-12 w-full items-center justify-center rounded-xl bg-[#D9884A] px-5 py-3 text-sm font-bold text-white shadow-xs transition-all hover:bg-[#E5AC7C] active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-60"
+        disabled={isSubmitting || auth.isLoading || auth.status === 'configuration_error'}
         type="submit"
       >
         {isSubmitting ? "جاري تسجيل الدخول…" : "تسجيل الدخول"}

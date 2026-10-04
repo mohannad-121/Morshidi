@@ -79,7 +79,7 @@ function Field({ id, label, value, onChange, type = "text", min, max, hint }: {
     <input id={id} name={id} type={type} min={min} max={max} step={type === "number" ? "any" : undefined}
       required value={value} onChange={(event) => onChange(event.target.value)}
       aria-describedby={hint ? `${id}-hint` : undefined}
-      className="min-h-11 w-full rounded-xl border border-amber-300 bg-white px-3 text-sm text-stone-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-700" />
+      className="min-h-11 w-full rounded-xl border border-amber-300 bg-surface px-3 text-sm text-stone-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-700" />
     {hint && <p id={`${id}-hint`} className="text-xs text-stone-600">{hint}</p>}
   </div>;
 }
@@ -156,13 +156,13 @@ export default function InstitutionalChangeImpactPage() {
     {accessError && <p role="alert" className="rounded-xl border border-red-300 bg-red-50 p-4 text-sm">{accessError}</p>}
     {!universities && !accessError && <p role="status">جارٍ التحقق من صلاحية المحلل…</p>}
     {universities && <form onSubmit={submit} aria-busy={submitting}
-      className="space-y-5 rounded-2xl border border-amber-200 bg-white p-4 shadow-sm sm:p-6">
+      className="space-y-5 rounded-2xl border border-amber-200 bg-surface p-4 shadow-sm sm:p-6">
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="space-y-1.5">
           <label htmlFor="university" className="block text-sm font-semibold">الجامعة المصرّح بها</label>
           <select id="university" required value={universityId}
             onChange={(event) => setUniversityId(event.target.value)}
-            className="min-h-11 w-full rounded-xl border border-amber-300 bg-white px-3 focus-visible:outline-2 focus-visible:outline-amber-700">
+            className="min-h-11 w-full rounded-xl border border-amber-300 bg-surface px-3 focus-visible:outline-2 focus-visible:outline-amber-700">
             {universities.map((id) => <option key={id} value={id}>{id}</option>)}
           </select>
         </div>
@@ -170,7 +170,7 @@ export default function InstitutionalChangeImpactPage() {
           <label htmlFor="change-type" className="block text-sm font-semibold">نوع التغيير المقترح</label>
           <select id="change-type" value={form.change_type}
             onChange={(event) => set("change_type")(event.target.value)}
-            className="min-h-11 w-full rounded-xl border border-amber-300 bg-white px-3 focus-visible:outline-2 focus-visible:outline-amber-700">
+            className="min-h-11 w-full rounded-xl border border-amber-300 bg-surface px-3 focus-visible:outline-2 focus-visible:outline-amber-700">
             {Object.entries(changeLabels).map(([code, label]) =>
               <option key={code} value={code}>{label}</option>)}
           </select>
@@ -187,7 +187,7 @@ export default function InstitutionalChangeImpactPage() {
           <div className="space-y-1.5"><label htmlFor="dependency-type" className="block text-sm font-semibold">النوع</label>
             <select id="dependency-type" value={form.dependency_type}
               onChange={(event) => set("dependency_type")(event.target.value)}
-              className="min-h-11 w-full rounded-xl border border-amber-300 bg-white px-3">
+              className="min-h-11 w-full rounded-xl border border-amber-300 bg-surface px-3">
               <option value="prerequisite">متطلب سابق</option><option value="corequisite">متطلب متزامن</option>
             </select></div>
           <Field id="old-options" label="المتطلبات الحالية" value={form.old_option_course_codes}
@@ -229,7 +229,7 @@ export default function InstitutionalChangeImpactPage() {
       </button>
     </form>}
     {error && <p role="alert" className="rounded-xl border border-red-300 bg-red-50 p-4 text-sm">{error}</p>}
-    {result && <section aria-live="polite" className="space-y-4 rounded-2xl border border-amber-200 bg-white p-4 sm:p-6">
+    {result && <section aria-live="polite" className="space-y-4 rounded-2xl border border-amber-200 bg-surface p-4 sm:p-6">
       <h2 className="text-xl font-bold">ملخص الأثر</h2>
       <p className="font-semibold">{statusLabels[result.impact_status]}</p>
       <dl className="grid gap-3 text-sm sm:grid-cols-2">

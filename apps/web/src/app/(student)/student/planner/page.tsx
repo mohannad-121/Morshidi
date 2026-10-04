@@ -108,28 +108,28 @@ export default function PlannerPage() {
   return (
     <div className="space-y-8">
       {/* Header */}
-      <div className="border-b border-[#EDE2C5] pb-5">
+      <div className="border-b border-[#344739] pb-5">
         <div className="flex items-center gap-2">
-          <span className="rounded-full bg-[#A66F00]/10 px-2.5 py-0.5 text-xs font-bold text-[#A66F00]">
+          <span className="rounded-full bg-[#D9884A]/10 px-2.5 py-0.5 text-xs font-bold text-[#D9884A]">
             المخطط الفصلي الرياضي
           </span>
-          <span className="text-xs text-[#726B5E]">توليد خيارات مثلى</span>
+          <span className="text-xs text-[#AEBCB3]">توليد خيارات مثلى</span>
         </div>
-        <h1 className="mt-1 text-2xl font-bold tracking-tight text-[#28241C]">
+        <h1 className="mt-1 text-2xl font-bold tracking-tight text-[#F3E9D8]">
           مخطط الفصل الدراسي
         </h1>
-        <p className="text-xs text-[#726B5E]">
+        <p className="text-xs text-[#AEBCB3]">
           توليد باقات تسجيل فصلي متوازنة ومثلى، تراعي حدود الساعات، الأثر الأكاديمي، والمتطلبات السابقة.
         </p>
       </div>
 
       {/* Constraints Config Card */}
-      <div className="rounded-3xl border border-[#EDE2C5] bg-white p-7 shadow-xs">
+      <div className="rounded-3xl border border-[#344739] bg-surface p-7 shadow-xs">
         <form onSubmit={handleGeneratePlans} className="space-y-6">
           <div className="grid grid-cols-1 gap-6 sm:grid-cols-3">
             {/* Max Credits */}
             <div>
-              <label className="block text-xs font-bold text-[#28241C] mb-2">
+              <label className="block text-xs font-bold text-[#F3E9D8] mb-2">
                 الحد الأقصى للساعات المعتمدة *
               </label>
               <div className="flex items-center gap-2">
@@ -140,8 +140,8 @@ export default function PlannerPage() {
                     onClick={() => setMaxCreditHours(preset)}
                     className={`rounded-xl px-3 py-1.5 font-mono text-xs font-bold transition-colors ${
                       maxCreditHours === preset
-                        ? "bg-[#E2AD27] text-[#28241C] shadow-xs"
-                        : "bg-[#FFF9E8] text-[#726B5E] border border-[#EDE2C5] hover:bg-[#FFF4C7]"
+                        ? "bg-[#D9884A] text-[#F3E9D8] shadow-xs"
+                        : "bg-[#0F1A17] text-[#AEBCB3] border border-[#344739] hover:bg-[#15271F]"
                     }`}
                   >
                     {preset} س
@@ -153,14 +153,14 @@ export default function PlannerPage() {
                   max={24}
                   value={maxCreditHours}
                   onChange={(e) => setMaxCreditHours(Number(e.target.value))}
-                  className="w-20 rounded-xl border border-[#EDE2C5] bg-white p-2 font-mono text-xs font-bold text-center text-[#28241C] focus:border-[#E2AD27] focus:outline-hidden"
+                  className="w-20 rounded-xl border border-[#344739] bg-surface p-2 font-mono text-xs font-bold text-center text-[#F3E9D8] focus:border-[#D9884A] focus:outline-hidden"
                 />
               </div>
             </div>
 
             {/* Max Courses */}
             <div>
-              <label className="block text-xs font-bold text-[#28241C] mb-2">
+              <label className="block text-xs font-bold text-[#F3E9D8] mb-2">
                 الحد الأقصى لعدد المواد (اختياري)
               </label>
               <input
@@ -172,19 +172,19 @@ export default function PlannerPage() {
                 onChange={(e) =>
                   setMaxCourses(e.target.value ? Number(e.target.value) : undefined)
                 }
-                className="w-full rounded-xl border border-[#EDE2C5] bg-white p-2.5 font-mono text-xs text-[#28241C] focus:border-[#E2AD27] focus:outline-hidden"
+                className="w-full rounded-xl border border-[#344739] bg-surface p-2.5 font-mono text-xs text-[#F3E9D8] focus:border-[#D9884A] focus:outline-hidden"
               />
             </div>
 
             {/* Max Options */}
             <div>
-              <label className="block text-xs font-bold text-[#28241C] mb-2">
+              <label className="block text-xs font-bold text-[#F3E9D8] mb-2">
                 عدد الخيارات البديلة المطلوبة
               </label>
               <select
                 value={maxOptions}
                 onChange={(e) => setMaxOptions(Number(e.target.value))}
-                className="w-full rounded-xl border border-[#EDE2C5] bg-white p-2.5 text-xs text-[#28241C] focus:border-[#E2AD27] focus:outline-hidden"
+                className="w-full rounded-xl border border-[#344739] bg-surface p-2.5 text-xs text-[#F3E9D8] focus:border-[#D9884A] focus:outline-hidden"
               >
                 <option value={1}>خيار واحد فقط</option>
                 <option value={2}>خياران (أساسي وبديل)</option>
@@ -195,11 +195,11 @@ export default function PlannerPage() {
           </div>
 
           <label className="flex items-center gap-2 text-xs"><input type="checkbox" checked={acceptHeavyBalance} onChange={(e) => setAcceptHeavyBalance(e.target.checked)} /> أوافق على عرض خيارات قد تتجاوز مادتين ثقيلتين حفظياً عندما يلزم ذلك / Allow heavy-balance relaxation</label>
-          <div className="flex justify-end pt-2 border-t border-[#EDE2C5]/60">
+          <div className="flex justify-end pt-2 border-t border-[#344739]/60">
             <button
               type="submit"
               disabled={loading}
-              className="inline-flex items-center justify-center gap-2 rounded-2xl bg-[#E2AD27] px-7 py-3 text-xs font-bold text-[#28241C] shadow-xs hover:bg-[#A66F00] hover:text-white transition-all disabled:opacity-50"
+              className="inline-flex items-center justify-center gap-2 rounded-2xl bg-[#D9884A] px-7 py-3 text-xs font-bold text-[#F3E9D8] shadow-xs hover:bg-[#D9884A] hover:text-white transition-all disabled:opacity-50"
             >
               <SparklesIcon className="h-4 w-4" />
               <span>{loading ? "جاري احتساب الخيارات الفصلية..." : "توليد خيارات الفصل الدراسي"}</span>
@@ -235,7 +235,7 @@ export default function PlannerPage() {
           {/* Options Selection Header */}
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex flex-wrap items-center gap-2">
-              <span className="text-xs font-bold text-[#726B5E]">خيارات الباقات المولدة:</span>
+              <span className="text-xs font-bold text-[#AEBCB3]">خيارات الباقات المولدة:</span>
               {result.plan_options.map((option, idx) => (
                 <button
                   key={option.rank}
@@ -243,8 +243,8 @@ export default function PlannerPage() {
                   onClick={() => setSelectedOptionIndex(idx)}
                   className={`rounded-2xl px-4 py-2 text-xs font-bold transition-all ${
                     selectedOptionIndex === idx
-                      ? "bg-[#E2AD27] text-[#28241C] shadow-xs font-extrabold"
-                      : "bg-white text-[#726B5E] border border-[#EDE2C5] hover:bg-[#FFF9E8]"
+                      ? "bg-[#D9884A] text-[#F3E9D8] shadow-xs font-extrabold"
+                      : "bg-surface text-[#AEBCB3] border border-[#344739] hover:bg-[#0F1A17]"
                   }`}
                 >
                   الخيار #{option.rank} {idx === 0 ? "(الأفضل تقييماً)" : ""}
@@ -252,7 +252,7 @@ export default function PlannerPage() {
               ))}
             </div>
 
-            <span className="text-xs font-mono text-[#726B5E]">
+            <span className="text-xs font-mono text-[#AEBCB3]">
               تم فحص {result.evaluated_candidate_count} مادة محتملة
             </span>
           </div>
@@ -288,7 +288,7 @@ export default function PlannerPage() {
                 />
               </div>
 
-              <section className="rounded-xl border border-[#EDE2C5] bg-white p-4 text-xs" aria-label="توازن الفصل">
+              <section className="rounded-xl border border-[#344739] bg-surface p-4 text-xs" aria-label="توازن الفصل">
                 <h3 className="font-bold">توازن الفصل / Semester balance</h3>
                 <p>المواد المعتمدة على الحفظ / Memorization-heavy: {selectedOption.memorization_heavy_count ?? 0} / 2 · العبء المتوقع / Estimated workload: {selectedOption.estimated_workload ?? "UNKNOWN"}</p>
                 <p>التوازن بين المواد العملية والنظرية / Course-type balance: {selectedOption.learning_type_counts?.map(([kind, count]) => `${kind} ${count}`).join(" · ") ?? "Unknown"}</p>
@@ -296,9 +296,9 @@ export default function PlannerPage() {
               </section>
 
               {/* Course List in Selected Option */}
-              <div className="overflow-hidden rounded-3xl border border-[#EDE2C5] bg-white shadow-xs">
-                <div className="border-b border-[#EDE2C5] bg-[#FFF9E8]/80 px-6 py-4 flex items-center justify-between">
-                  <h3 className="font-bold text-[#28241C] text-sm">
+              <div className="overflow-hidden rounded-3xl border border-[#344739] bg-surface shadow-xs">
+                <div className="border-b border-[#344739] bg-[#0F1A17]/80 px-6 py-4 flex items-center justify-between">
+                  <h3 className="font-bold text-[#F3E9D8] text-sm">
                     مواد الباقة المقترحة للخيار #{selectedOption.rank}
                   </h3>
                   <Badge variant="gold">
@@ -309,7 +309,7 @@ export default function PlannerPage() {
                 <div className="overflow-x-auto">
                   <table className="w-full text-right text-xs">
                     <thead>
-                      <tr className="border-b border-[#EDE2C5] bg-[#FFFDF7] text-[#726B5E]">
+                      <tr className="border-b border-[#344739] bg-[#FFFDF7] text-[#AEBCB3]">
                         <th className="px-6 py-3.5 font-bold">المادة</th>
                         <th className="px-6 py-3.5 font-bold">الصعوبة المتوقعة</th>
                         <th className="px-6 py-3.5 font-bold">الساعات</th>
@@ -318,27 +318,27 @@ export default function PlannerPage() {
                         <th className="px-6 py-3.5 font-bold">رتبة التوصية</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-[#EDE2C5]/50">
+                    <tbody className="divide-y divide-[#344739]/50">
                       {selectedOption.courses.map((course: PlannedCourseEntryResponse) => (
                         <tr key={course.course_code} className="hover:bg-[#FFFDF7] transition-colors">
-                          <td className="px-6 py-4 text-[#28241C]">
+                          <td className="px-6 py-4 text-[#F3E9D8]">
                             <CourseIdentity courseCode={course.course_code} nameAr={course.course_name_ar} nameEn={course.course_name_en} />
                           </td>
-                          <td className="px-6 py-4 font-bold text-[#28241C]">
+                          <td className="px-6 py-4 font-bold text-[#F3E9D8]">
                             <CourseDifficulty course={adaptive?.courses.find((item) => item.course_code === course.course_code)} />
                           </td>
-                          <td className="px-6 py-4 font-mono text-[#28241C]">
+                          <td className="px-6 py-4 font-mono text-[#F3E9D8]">
                             {course.credit_hours} ساعات
                           </td>
-                          <td className="px-6 py-4 font-mono text-[#726B5E]" dir="ltr">
+                          <td className="px-6 py-4 font-mono text-[#AEBCB3]" dir="ltr">
                             {course.requirement_group_code}
                           </td>
                           <td className="px-6 py-4">
-                            <span className="rounded-md bg-[#FFF9E8] px-2 py-0.5 text-[10px] font-semibold text-[#805400] border border-[#EDE2C5]">
+                            <span className="rounded-md bg-[#0F1A17] px-2 py-0.5 text-[10px] font-semibold text-[#E5AC7C] border border-[#344739]">
                               {course.requirement_type === "MANDATORY" ? "إجباري" : "اختياري"}
                             </span>
                           </td>
-                          <td className="px-6 py-4 font-mono font-bold text-[#A66F00]">
+                          <td className="px-6 py-4 font-mono font-bold text-[#D9884A]">
                             #{course.phase7_rank}
                           </td>
                         </tr>
@@ -350,16 +350,16 @@ export default function PlannerPage() {
 
               {/* Newly Eligible Courses */}
               {selectedOption.newly_eligible_course_codes.length > 0 ? (
-                <div className="rounded-3xl border border-[#EDE2C5] bg-[#FFFCF4] p-5 text-xs">
-                  <div className="flex items-center gap-2 mb-2 font-bold text-[#28241C]">
-                    <SparklesIcon className="h-4 w-4 text-[#A66F00]" />
+                <div className="rounded-3xl border border-[#344739] bg-[#0B1210] p-5 text-xs">
+                  <div className="flex items-center gap-2 mb-2 font-bold text-[#F3E9D8]">
+                    <SparklesIcon className="h-4 w-4 text-[#D9884A]" />
                     <span>المواد التي ستفتح للتسجيل عند اجتياز هذه الباقة:</span>
                   </div>
                   <div className="flex flex-wrap gap-2 pt-1">
                     {selectedOption.newly_eligible_course_codes.map((code) => (
                       <span
                         key={code}
-                        className="rounded-xl bg-white px-3 py-1 font-mono text-xs font-bold text-[#A66F00] border border-[#EDE2C5] shadow-xs"
+                        className="rounded-xl bg-surface px-3 py-1 font-mono text-xs font-bold text-[#D9884A] border border-[#344739] shadow-xs"
                         dir="ltr"
                       >
                         <CourseIdentity courseCode={code} identities={identities} compact />
@@ -374,8 +374,8 @@ export default function PlannerPage() {
                 onRetry={() => { if (lastGraphRequest.current) void loadGraph(lastGraphRequest.current); }} />
 
               {/* Non-Binding Notice */}
-              <div className="rounded-2xl border border-[#EDE2C5] bg-[#FFF9E8] p-4 text-xs text-[#726B5E] flex items-center gap-3">
-                <InfoIcon className="h-5 w-5 text-[#A66F00] shrink-0" />
+              <div className="rounded-2xl border border-[#344739] bg-[#0F1A17] p-4 text-xs text-[#AEBCB3] flex items-center gap-3">
+                <InfoIcon className="h-5 w-5 text-[#D9884A] shrink-0" />
                 <p>
                   <strong>إخلاء مسؤولية تنظيمي:</strong> هذه الباقة مقترحة لأغراض التخطيط الاسترشادي والمحاكاة وليست تسجيلاً رسمياً. التسجيل النهائي يتم عبر بوابة التسجيل الجامعية الرسمية بناءً على الشعب المطروحة.
                 </p>

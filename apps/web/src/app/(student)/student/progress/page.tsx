@@ -104,18 +104,18 @@ export default function ProgressPage() {
   return (
     <div className="space-y-8">
       {/* Page Header */}
-      <div className="flex flex-col gap-2 border-b border-[#EDE2C5] pb-5 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex flex-col gap-2 border-b border-[#344739] pb-5 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <div className="flex items-center gap-2">
-            <span className="rounded-full bg-[#A66F00]/10 px-2.5 py-0.5 text-xs font-bold text-[#A66F00]">
+            <span className="rounded-full bg-[#D9884A]/10 px-2.5 py-0.5 text-xs font-bold text-[#D9884A]">
               الخطة والتقدم
             </span>
-            <span className="text-xs text-[#726B5E]">حساب معياري دقيق</span>
+            <span className="text-xs text-[#AEBCB3]">حساب معياري دقيق</span>
           </div>
-          <h1 className="mt-1 text-2xl font-bold tracking-tight text-[#28241C]">
+          <h1 className="mt-1 text-2xl font-bold tracking-tight text-[#F3E9D8]">
             التقدم الأكاديمي
           </h1>
-          <p className="text-xs text-[#726B5E]">
+          <p className="text-xs text-[#AEBCB3]">
             متابعة دقيقة لاستيفاء متطلبات الخطة الدراسية، الساعات المعتمدة، وحالة كل مادة.
           </p>
         </div>
@@ -156,9 +156,9 @@ export default function ProgressPage() {
       {!loading && !error && progress ? (
         <div className="space-y-8">
           {/* Top Progress Overview Card */}
-          <div className="rounded-3xl border border-[#EDE2C5] bg-white p-7 shadow-xs">
+          <div className="rounded-3xl border border-[#344739] bg-surface p-7 shadow-xs">
             <div className="grid grid-cols-1 items-center gap-8 md:grid-cols-12">
-              <div className="flex flex-col items-center justify-center text-center md:col-span-4 md:border-l md:border-[#EDE2C5]/60 md:pl-8">
+              <div className="flex flex-col items-center justify-center text-center md:col-span-4 md:border-l md:border-[#344739]/60 md:pl-8">
                 <CircularProgress
                   value={progress.completed_plan_credits}
                   max={progress.plan_total_required_credits}
@@ -166,7 +166,7 @@ export default function ProgressPage() {
                   strokeWidth={12}
                   label="نسبة الإنجاز"
                 />
-                <p className="mt-4 text-xs font-semibold text-[#726B5E]">
+                <p className="mt-4 text-xs font-semibold text-[#AEBCB3]">
                   تم إنجاز {progress.completed_plan_credits} من أصل {progress.plan_total_required_credits} ساعة
                 </p>
               </div>
@@ -174,8 +174,8 @@ export default function ProgressPage() {
               <div className="space-y-5 md:col-span-8">
                 <div>
                   <div className="flex items-center justify-between text-xs">
-                    <span className="font-bold text-[#28241C]">مستوى التقدم التراكمي الإجمالي</span>
-                    <span className="font-mono font-bold text-[#A66F00]">{completionPercentage}%</span>
+                    <span className="font-bold text-[#F3E9D8]">مستوى التقدم التراكمي الإجمالي</span>
+                    <span className="font-mono font-bold text-[#D9884A]">{completionPercentage}%</span>
                   </div>
                   <div className="mt-2">
                     <ProgressBar
@@ -187,36 +187,36 @@ export default function ProgressPage() {
                 </div>
 
                 <div className="grid grid-cols-2 gap-4 sm:grid-cols-4 pt-2">
-                  <div className="rounded-2xl border border-[#EDE2C5] bg-[#FFF9E8] p-4 text-center">
-                    <span className="block text-[11px] font-semibold text-[#726B5E]">إجمالي الخطة</span>
-                    <span className="mt-1 block font-mono text-xl font-bold text-[#28241C]">
+                  <div className="rounded-2xl border border-[#344739] bg-[#0F1A17] p-4 text-center">
+                    <span className="block text-[11px] font-semibold text-[#AEBCB3]">إجمالي الخطة</span>
+                    <span className="mt-1 block font-mono text-xl font-bold text-[#F3E9D8]">
                       {progress.plan_total_required_credits}
                     </span>
-                    <span className="text-[10px] text-[#726B5E]">ساعة مطلوبة</span>
+                    <span className="text-[10px] text-[#AEBCB3]">ساعة مطلوبة</span>
                   </div>
 
-                  <div className="rounded-2xl border border-[#EDE2C5] bg-[#FFF9E8] p-4 text-center">
-                    <span className="block text-[11px] font-semibold text-[#726B5E]">ساعات منجزة</span>
+                  <div className="rounded-2xl border border-[#344739] bg-[#0F1A17] p-4 text-center">
+                    <span className="block text-[11px] font-semibold text-[#AEBCB3]">ساعات منجزة</span>
                     <span className="mt-1 block font-mono text-xl font-bold text-emerald-800">
                       {progress.completed_plan_credits}
                     </span>
-                    <span className="text-[10px] text-[#726B5E]">ساعة محتسبة</span>
+                    <span className="text-[10px] text-[#AEBCB3]">ساعة محتسبة</span>
                   </div>
 
-                  <div className="rounded-2xl border border-[#EDE2C5] bg-[#FFF9E8] p-4 text-center">
-                    <span className="block text-[11px] font-semibold text-[#726B5E]">قيد الدراسة</span>
-                    <span className="mt-1 block font-mono text-xl font-bold text-[#805400]">
+                  <div className="rounded-2xl border border-[#344739] bg-[#0F1A17] p-4 text-center">
+                    <span className="block text-[11px] font-semibold text-[#AEBCB3]">قيد الدراسة</span>
+                    <span className="mt-1 block font-mono text-xl font-bold text-[#E5AC7C]">
                       {progress.in_progress_plan_credits}
                     </span>
-                    <span className="text-[10px] text-[#726B5E]">ساعة حالية</span>
+                    <span className="text-[10px] text-[#AEBCB3]">ساعة حالية</span>
                   </div>
 
-                  <div className="rounded-2xl border border-[#EDE2C5] bg-[#FFF9E8] p-4 text-center">
-                    <span className="block text-[11px] font-semibold text-[#726B5E]">ساعات متبقية</span>
-                    <span className="mt-1 block font-mono text-xl font-bold text-[#A66F00]">
+                  <div className="rounded-2xl border border-[#344739] bg-[#0F1A17] p-4 text-center">
+                    <span className="block text-[11px] font-semibold text-[#AEBCB3]">ساعات متبقية</span>
+                    <span className="mt-1 block font-mono text-xl font-bold text-[#D9884A]">
                       {progress.remaining_plan_credits}
                     </span>
-                    <span className="text-[10px] text-[#726B5E]">ساعة مطلوبة للتخرج</span>
+                    <span className="text-[10px] text-[#AEBCB3]">ساعة مطلوبة للتخرج</span>
                   </div>
                 </div>
               </div>
@@ -227,18 +227,18 @@ export default function ProgressPage() {
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <div>
-                <h2 className="text-lg font-bold text-[#28241C]">مجموعات متطلبات الخطة الدراسية</h2>
-                <p className="text-xs text-[#726B5E]">
+                <h2 className="text-lg font-bold text-[#F3E9D8]">مجموعات متطلبات الخطة الدراسية</h2>
+                <p className="text-xs text-[#AEBCB3]">
                   استيفاء متطلبات التخرج يقتضي إنجاز الساعات المحددة لكل مجموعة بصورة كاملة.
                 </p>
               </div>
-              <div className="text-xs font-semibold text-[#726B5E]">
+              <div className="text-xs font-semibold text-[#AEBCB3]">
                 المستوفاة:{" "}
-                <span className="font-mono font-bold text-[#28241C]">
+                <span className="font-mono font-bold text-[#F3E9D8]">
                   {progress.satisfied_requirement_group_count}
                 </span>{" "}
                 /{" "}
-                <span className="font-mono text-[#726B5E]">
+                <span className="font-mono text-[#AEBCB3]">
                   {progress.total_requirement_group_count}
                 </span>
               </div>
@@ -259,22 +259,22 @@ export default function ProgressPage() {
                 return (
                   <div
                     key={group.group_id}
-                    className="flex flex-col justify-between rounded-3xl border border-[#EDE2C5] bg-white p-6 shadow-xs"
+                    className="flex flex-col justify-between rounded-3xl border border-[#344739] bg-surface p-6 shadow-xs"
                   >
                     <div>
                       <div className="flex items-start justify-between gap-3">
                         <div className="min-w-0">
                           <div className="flex items-center gap-2">
-                            <span className="font-mono text-xs font-bold text-[#A66F00]" dir="ltr">
+                            <span className="font-mono text-xs font-bold text-[#D9884A]" dir="ltr">
                               {group.group_code}
                             </span>
-                            <span className="rounded-md bg-[#FFF4C7] px-2 py-0.5 text-[10px] font-semibold text-[#805400]">
+                            <span className="rounded-md bg-[#15271F] px-2 py-0.5 text-[10px] font-semibold text-[#E5AC7C]">
                               {group.requirement_type === "MANDATORY" || group.requirement_type === "required"
                                 ? "إجباري"
                                 : "اختياري"}
                             </span>
                           </div>
-                          <h3 className="mt-1 truncate text-base font-bold text-[#28241C]">
+                          <h3 className="mt-1 truncate text-base font-bold text-[#F3E9D8]">
                             {group.name_ar}
                           </h3>
                         </div>
@@ -288,18 +288,18 @@ export default function ProgressPage() {
 
                       <div className="mt-5 space-y-2">
                         <div className="flex items-center justify-between text-xs">
-                          <span className="text-[#726B5E]">
+                          <span className="text-[#AEBCB3]">
                             المحتسب:{" "}
-                            <span className="font-mono font-bold text-[#28241C]">
+                            <span className="font-mono font-bold text-[#F3E9D8]">
                               {group.credited_toward_requirement}
                             </span>{" "}
                             من أصل{" "}
-                            <span className="font-mono font-bold text-[#28241C]">
+                            <span className="font-mono font-bold text-[#F3E9D8]">
                               {group.required_credits}
                             </span>{" "}
                             ساعة
                           </span>
-                          <span className="font-mono font-bold text-[#A66F00]">
+                          <span className="font-mono font-bold text-[#D9884A]">
                             {groupPercentage}%
                           </span>
                         </div>
@@ -311,18 +311,18 @@ export default function ProgressPage() {
                       </div>
                     </div>
 
-                    <div className="mt-6 flex flex-wrap items-center gap-3 border-t border-[#EDE2C5]/60 pt-4 text-xs text-[#726B5E]">
+                    <div className="mt-6 flex flex-wrap items-center gap-3 border-t border-[#344739]/60 pt-4 text-xs text-[#AEBCB3]">
                       <span className="inline-flex items-center gap-1">
                         <span className="h-2 w-2 rounded-full bg-emerald-500" />
-                        منجزة: <strong className="font-mono text-[#28241C]">{group.completed_course_count}</strong>
+                        منجزة: <strong className="font-mono text-[#F3E9D8]">{group.completed_course_count}</strong>
                       </span>
                       <span className="inline-flex items-center gap-1">
                         <span className="h-2 w-2 rounded-full bg-amber-500" />
-                        قيد الدراسة: <strong className="font-mono text-[#28241C]">{group.in_progress_course_count}</strong>
+                        قيد الدراسة: <strong className="font-mono text-[#F3E9D8]">{group.in_progress_course_count}</strong>
                       </span>
                       <span className="inline-flex items-center gap-1">
                         <span className="h-2 w-2 rounded-full bg-stone-300" />
-                        لم تسجل: <strong className="font-mono text-[#28241C]">{group.not_attempted_count}</strong>
+                        لم تسجل: <strong className="font-mono text-[#F3E9D8]">{group.not_attempted_count}</strong>
                       </span>
                     </div>
                   </div>
@@ -335,14 +335,14 @@ export default function ProgressPage() {
           <div className="space-y-4">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div>
-                <h2 className="text-lg font-bold text-[#28241C]">تفاصيل مواد الخطة الدراسية</h2>
-                <p className="text-xs text-[#726B5E]">
+                <h2 className="text-lg font-bold text-[#F3E9D8]">تفاصيل مواد الخطة الدراسية</h2>
+                <p className="text-xs text-[#AEBCB3]">
                   قائمة كاملة بمواد الخطة وحالة إنجازها الموثقة في السجل.
                 </p>
               </div>
 
               {/* State Filter Tabs */}
-              <div className="flex flex-wrap items-center gap-1 rounded-2xl border border-[#EDE2C5] bg-[#FFF9E8] p-1 text-xs">
+              <div className="flex flex-wrap items-center gap-1 rounded-2xl border border-[#344739] bg-[#0F1A17] p-1 text-xs">
                 {[
                   { key: "ALL", label: "الكل" },
                   { key: "COMPLETED", label: "المنجزة" },
@@ -355,8 +355,8 @@ export default function ProgressPage() {
                     onClick={() => setSelectedStateFilter(tab.key)}
                     className={`rounded-xl px-3 py-1.5 font-semibold transition-colors ${
                       selectedStateFilter === tab.key
-                        ? "bg-white text-[#805400] shadow-xs"
-                        : "text-[#726B5E] hover:text-[#28241C]"
+                        ? "bg-surface text-[#E5AC7C] shadow-xs"
+                        : "text-[#AEBCB3] hover:text-[#F3E9D8]"
                     }`}
                   >
                     {tab.label}
@@ -367,13 +367,13 @@ export default function ProgressPage() {
 
             {/* Search Input */}
             <div className="relative">
-              <SearchIcon className="pointer-events-none absolute right-4 top-1/2 h-4 w-4 -translate-y-1/2 text-[#726B5E]" />
+              <SearchIcon className="pointer-events-none absolute right-4 top-1/2 h-4 w-4 -translate-y-1/2 text-[#AEBCB3]" />
               <input
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="ابحث برمز المادة أو رمز المجموعة..."
-                className="w-full rounded-2xl border border-[#EDE2C5] bg-white py-2.5 pr-11 pl-4 text-xs text-[#28241C] placeholder-[#726B5E]/60 focus:border-[#E2AD27] focus:outline-hidden focus:ring-2 focus:ring-[#E2AD27]/20"
+                className="w-full rounded-2xl border border-[#344739] bg-surface py-2.5 pr-11 pl-4 text-xs text-[#F3E9D8] placeholder-[#AEBCB3]/60 focus:border-[#D9884A] focus:outline-hidden focus:ring-2 focus:ring-[#D9884A]/20"
               />
             </div>
 
@@ -384,30 +384,30 @@ export default function ProgressPage() {
                 description="لم يتم العثور على أي مادة تطابق معايير التصفية والبحث الحالية."
               />
             ) : (
-              <div className="overflow-hidden rounded-3xl border border-[#EDE2C5] bg-white shadow-xs">
+              <div className="overflow-hidden rounded-3xl border border-[#344739] bg-surface shadow-xs">
                 <div className="overflow-x-auto">
                   <table className="w-full text-right text-xs">
                     <thead>
-                      <tr className="border-b border-[#EDE2C5] bg-[#FFF9E8]/70 text-[#726B5E]">
+                      <tr className="border-b border-[#344739] bg-[#0F1A17]/70 text-[#AEBCB3]">
                         <th className="px-6 py-4 font-bold">رمز المادة</th>
                         <th className="px-6 py-4 font-bold">الساعات المعتمدة</th>
                         <th className="px-6 py-4 font-bold">المجموعة التابعة</th>
                         <th className="px-6 py-4 font-bold">الحالة الأكاديمية</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-[#EDE2C5]/50">
+                    <tbody className="divide-y divide-[#344739]/50">
                       {filteredCourses.map((c: CourseProgressResponse) => {
                         const status = getCourseStateLabel(c.state);
                         return (
                           <tr key={c.course_code} className="hover:bg-[#FFFDF7] transition-colors">
-                            <td className="px-6 py-4 text-[#28241C]">
+                            <td className="px-6 py-4 text-[#F3E9D8]">
                               <CourseIdentity courseCode={c.course_code} nameAr={c.course_name_ar} nameEn={c.course_name_en} />
                             </td>
-                            <td className="px-6 py-4 font-mono text-[#28241C]">
+                            <td className="px-6 py-4 font-mono text-[#F3E9D8]">
                               {c.credit_hours} ساعة
                             </td>
                             <td className="px-6 py-4">
-                              <span className="font-mono text-xs font-semibold text-[#726B5E]" dir="ltr">
+                              <span className="font-mono text-xs font-semibold text-[#AEBCB3]" dir="ltr">
                                 {c.requirement_group_code ?? "—"}
                               </span>
                             </td>

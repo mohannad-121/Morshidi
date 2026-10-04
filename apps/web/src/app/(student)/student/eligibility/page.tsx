@@ -142,23 +142,23 @@ export default function EligibilityPage() {
   return (
     <div className="space-y-8">
       {/* Header */}
-      <div className="border-b border-[#EDE2C5] pb-5">
+      <div className="border-b border-[#344739] pb-5">
         <div className="flex items-center gap-2">
-          <span className="rounded-full bg-[#A66F00]/10 px-2.5 py-0.5 text-xs font-bold text-[#A66F00]">
+          <span className="rounded-full bg-[#D9884A]/10 px-2.5 py-0.5 text-xs font-bold text-[#D9884A]">
             المحرك الحتمي للأهلية
           </span>
-          <span className="text-xs text-[#726B5E]">قواعد أكاديمية قطعية</span>
+          <span className="text-xs text-[#AEBCB3]">قواعد أكاديمية قطعية</span>
         </div>
-        <h1 className="mt-1 text-2xl font-bold tracking-tight text-[#28241C]">
+        <h1 className="mt-1 text-2xl font-bold tracking-tight text-[#F3E9D8]">
           فحص أهلية تسجيل مادة
         </h1>
-        <p className="text-xs text-[#726B5E]">
+        <p className="text-xs text-[#AEBCB3]">
           فحص استيفاء المتطلبات السابقة والشروط النظامية لتسجيل أي مادة دراسية وفق قواعد جامعتك.
         </p>
       </div>
 
       {/* Search / Check Box */}
-      <div className="rounded-3xl border border-[#EDE2C5] bg-white p-7 shadow-xs">
+      <div className="rounded-3xl border border-[#344739] bg-surface p-7 shadow-xs">
         <form
           onSubmit={(e) => {
             e.preventDefault();
@@ -167,19 +167,19 @@ export default function EligibilityPage() {
           className="space-y-4"
         >
           <div>
-            <label className="block text-xs font-bold text-[#28241C] mb-2">
+            <label className="block text-xs font-bold text-[#F3E9D8] mb-2">
               رمز المادة الأكاديمية (Course Code)
             </label>
             <div className="flex flex-col gap-3 sm:flex-row">
               <div className="relative flex-1">
-                <SearchIcon className="pointer-events-none absolute right-4 top-1/2 h-5 w-5 -translate-y-1/2 text-[#726B5E]" />
+                <SearchIcon className="pointer-events-none absolute right-4 top-1/2 h-5 w-5 -translate-y-1/2 text-[#AEBCB3]" />
                 <input
                   type="text"
                   value={courseCodeInput}
                   list="eligibility-course-identities"
                   onChange={(e) => setCourseCodeInput(e.target.value.toUpperCase())}
                   placeholder="أدخل رمز المادة هنا..."
-                  className="w-full rounded-2xl border border-[#EDE2C5] bg-[#FFFDF7] py-3 pr-12 pl-4 font-mono text-sm font-bold uppercase text-[#28241C] placeholder-[#726B5E]/50 focus:border-[#E2AD27] focus:bg-white focus:outline-hidden focus:ring-2 focus:ring-[#E2AD27]/20"
+                  className="w-full rounded-2xl border border-[#344739] bg-[#FFFDF7] py-3 pr-12 pl-4 font-mono text-sm font-bold uppercase text-[#F3E9D8] placeholder-[#AEBCB3]/50 focus:border-[#D9884A] focus:bg-surface focus:outline-hidden focus:ring-2 focus:ring-[#D9884A]/20"
                   dir="ltr"
                 />
                 <CourseOptions id="eligibility-course-identities" identities={identities} />
@@ -188,7 +188,7 @@ export default function EligibilityPage() {
               <button
                 type="submit"
                 disabled={loading || !courseCodeInput.trim()}
-                className="inline-flex items-center justify-center gap-2 rounded-2xl bg-[#E2AD27] px-7 py-3 text-xs font-bold text-[#28241C] shadow-xs hover:bg-[#A66F00] hover:text-white transition-all disabled:opacity-50"
+                className="inline-flex items-center justify-center gap-2 rounded-2xl bg-[#D9884A] px-7 py-3 text-xs font-bold text-[#F3E9D8] shadow-xs hover:bg-[#D9884A] hover:text-white transition-all disabled:opacity-50"
               >
                 <EligibilityIcon className="h-4 w-4" />
                 <span>{loading ? "جاري الفحص..." : "فحص الأهلية"}</span>
@@ -251,14 +251,14 @@ export default function EligibilityPage() {
                   <div className="flex items-center gap-2">
                     <CourseIdentity courseCode={result.target_course_code} nameAr={result.target_name_ar} nameEn={result.target_name_en} />
                   </div>
-                  <h2 className="text-xl font-bold tracking-tight text-[#28241C] mt-0.5">
+                  <h2 className="text-xl font-bold tracking-tight text-[#F3E9D8] mt-0.5">
                     {result.decision === "ELIGIBLE"
                       ? "مؤهل لتسجيل المادة (ELIGIBLE)"
                       : result.decision === "NOT_ELIGIBLE"
                       ? "غير مؤهل لتسجيل المادة (NOT_ELIGIBLE)"
                       : "تتطلب مراجعة المرشد (REVIEW_REQUIRED)"}
                   </h2>
-                  <p className="text-xs text-[#726B5E] mt-1">
+                  <p className="text-xs text-[#AEBCB3] mt-1">
                     {result.decision === "ELIGIBLE"
                       ? "مستوفٍ لكافة المتطلبات السابقة والشروط الأكاديمية المقررة في الخطة."
                       : result.decision === "NOT_ELIGIBLE"
@@ -296,7 +296,7 @@ export default function EligibilityPage() {
             onRetry={() => { void loadGraph(result.target_course_code, graphMode); }}
           />
 
-          <section className="rounded-xl border border-[#EDE2C5] bg-white p-4" aria-label="تقدير صعوبة المادة وقاعدة الساعات">
+          <section className="rounded-xl border border-[#344739] bg-surface p-4" aria-label="تقدير صعوبة المادة وقاعدة الساعات">
             <CourseDifficulty course={adaptive?.courses.find((item) => item.course_code === result.target_course_code)} />
             {result.academic_rule_traces?.map((trace) => <p key={trace.rule_id} className="mt-2 text-sm" role="status">
               {trace.reason_ar} / {trace.reason_en} · {trace.earned_completed_credits ?? "غير معروف"}/{trace.required_credits} · {trace.result}
@@ -306,46 +306,46 @@ export default function EligibilityPage() {
           {/* Details Grid */}
           <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
             {/* Target & Attempt Details */}
-            <div className="rounded-3xl border border-[#EDE2C5] bg-white p-6 shadow-xs space-y-4">
-              <h3 className="text-sm font-bold text-[#28241C] border-b border-[#EDE2C5] pb-3">
+            <div className="rounded-3xl border border-[#344739] bg-surface p-6 shadow-xs space-y-4">
+              <h3 className="text-sm font-bold text-[#F3E9D8] border-b border-[#344739] pb-3">
                 بيانات المادة وحالة المحاولة
               </h3>
 
               <div className="space-y-3 text-xs">
                 <div className="flex items-center justify-between">
-                  <span className="text-[#726B5E]">رمز المادة:</span>
-                  <span className="font-mono font-bold text-[#28241C]" dir="ltr">
+                  <span className="text-[#AEBCB3]">رمز المادة:</span>
+                  <span className="font-mono font-bold text-[#F3E9D8]" dir="ltr">
                     <CourseIdentity courseCode={result.target_course_code} nameAr={result.target_name_ar} nameEn={result.target_name_en} identities={identities} />
                   </span>
                 </div>
 
                 <div className="flex items-center justify-between">
-                  <span className="text-[#726B5E]">حالة توثيق المتطلبات:</span>
+                  <span className="text-[#AEBCB3]">حالة توثيق المتطلبات:</span>
                   <Badge variant={translateLogicStatus(result.prerequisite_logic_status).variant}>
                     {translateLogicStatus(result.prerequisite_logic_status).label}
                   </Badge>
                 </div>
 
                 <div className="flex items-center justify-between">
-                  <span className="text-[#726B5E]">مجتازة مسبقاً:</span>
-                  <span className="font-bold text-[#28241C]">
+                  <span className="text-[#AEBCB3]">مجتازة مسبقاً:</span>
+                  <span className="font-bold text-[#F3E9D8]">
                     {result.target_attempt_state.has_passed_target ? "نعم (مجتازة)" : "لا"}
                   </span>
                 </div>
 
                 <div className="flex items-center justify-between">
-                  <span className="text-[#726B5E]">قيد الدراسة حالياً:</span>
-                  <span className="font-bold text-[#28241C]">
+                  <span className="text-[#AEBCB3]">قيد الدراسة حالياً:</span>
+                  <span className="font-bold text-[#F3E9D8]">
                     {result.target_attempt_state.has_in_progress_target ? "نعم (قيد الدراسة)" : "لا"}
                   </span>
                 </div>
 
                 {result.raw_prerequisite_text ? (
-                  <div className="pt-2 border-t border-[#EDE2C5]/60">
-                    <span className="block text-[11px] font-bold text-[#726B5E] mb-1">
+                  <div className="pt-2 border-t border-[#344739]/60">
+                    <span className="block text-[11px] font-bold text-[#AEBCB3] mb-1">
                       النص الأصلي لشرط المتطلب في الخطة:
                     </span>
-                    <span className="block rounded-xl bg-[#FFF9E8] p-2.5 font-mono text-[11px] text-[#805400] border border-[#EDE2C5]" dir="ltr">
+                    <span className="block rounded-xl bg-[#0F1A17] p-2.5 font-mono text-[11px] text-[#E5AC7C] border border-[#344739]" dir="ltr">
                       {result.raw_prerequisite_text}
                     </span>
                   </div>
@@ -354,24 +354,24 @@ export default function EligibilityPage() {
             </div>
 
             {/* Reasons List */}
-            <div className="rounded-3xl border border-[#EDE2C5] bg-white p-6 shadow-xs space-y-4">
-              <h3 className="text-sm font-bold text-[#28241C] border-b border-[#EDE2C5] pb-3">
+            <div className="rounded-3xl border border-[#344739] bg-surface p-6 shadow-xs space-y-4">
+              <h3 className="text-sm font-bold text-[#F3E9D8] border-b border-[#344739] pb-3">
                 أسباب القرار الأكاديمي الحتمي
               </h3>
 
               {result.reasons.length === 0 ? (
-                <p className="text-xs text-[#726B5E]">لا توجد أسباب مسجلة.</p>
+                <p className="text-xs text-[#AEBCB3]">لا توجد أسباب مسجلة.</p>
               ) : (
                 <ul className="space-y-2.5 text-xs">
                   {result.reasons.map((reason, idx) => (
                     <li
                       key={idx}
-                      className="flex items-start gap-2.5 rounded-2xl bg-[#FFFCF4] p-3 border border-[#EDE2C5]/60"
+                      className="flex items-start gap-2.5 rounded-2xl bg-[#0B1210] p-3 border border-[#344739]/60"
                     >
-                      <SparklesIcon className="h-4 w-4 shrink-0 text-[#A66F00] mt-0.5" />
+                      <SparklesIcon className="h-4 w-4 shrink-0 text-[#D9884A] mt-0.5" />
                       <div>
-                        <p className="font-bold text-[#28241C]">{translateReason(reason)}</p>
-                        <p className="font-mono text-[10px] text-[#726B5E]" dir="ltr">
+                        <p className="font-bold text-[#F3E9D8]">{translateReason(reason)}</p>
+                        <p className="font-mono text-[10px] text-[#AEBCB3]" dir="ltr">
                           Code: {reason}
                         </p>
                       </div>
@@ -384,10 +384,10 @@ export default function EligibilityPage() {
 
           {/* Satisfied Dependency Groups */}
           {result.satisfied_dependency_groups.length > 0 ? (
-            <div className="rounded-3xl border border-emerald-200 bg-white p-6 shadow-xs space-y-4">
+            <div className="rounded-3xl border border-emerald-200 bg-surface p-6 shadow-xs space-y-4">
               <div className="flex items-center gap-2">
                 <CheckCircleIcon className="h-5 w-5 text-emerald-600" />
-                <h3 className="text-sm font-bold text-[#28241C]">
+                <h3 className="text-sm font-bold text-[#F3E9D8]">
                   مجموعات المتطلبات المستوفاة بنجاح ({result.satisfied_dependency_groups.length})
                 </h3>
               </div>
@@ -405,12 +405,12 @@ export default function EligibilityPage() {
                       <Badge variant="success" size="sm">مستوفاة</Badge>
                     </div>
                     <div className="space-y-1">
-                      <span className="text-[11px] text-[#726B5E]">المواد المجتازة:</span>
+                      <span className="text-[11px] text-[#AEBCB3]">المواد المجتازة:</span>
                       <div className="flex flex-wrap gap-1.5 pt-1">
                         {group.passed_option_course_codes.map((code) => (
                           <span
                             key={code}
-                            className="rounded-lg bg-white px-2 py-0.5 font-mono text-xs font-bold text-emerald-800 border border-emerald-200"
+                            className="rounded-lg bg-surface px-2 py-0.5 font-mono text-xs font-bold text-emerald-800 border border-emerald-200"
                             dir="ltr"
                           >
                             <CourseIdentity courseCode={code} identities={identities} compact />
@@ -426,10 +426,10 @@ export default function EligibilityPage() {
 
           {/* Missing Dependency Groups */}
           {result.missing_dependency_groups.length > 0 ? (
-            <div className="rounded-3xl border border-red-200 bg-white p-6 shadow-xs space-y-4">
+            <div className="rounded-3xl border border-red-200 bg-surface p-6 shadow-xs space-y-4">
               <div className="flex items-center gap-2">
                 <AlertTriangleIcon className="h-5 w-5 text-red-600" />
-                <h3 className="text-sm font-bold text-[#28241C]">
+                <h3 className="text-sm font-bold text-[#F3E9D8]">
                   المتطلبات السابقة غير المستوفاة ({result.missing_dependency_groups.length})
                 </h3>
               </div>
@@ -447,12 +447,12 @@ export default function EligibilityPage() {
                       <Badge variant="error" size="sm">مطلوب اجتيازها</Badge>
                     </div>
                     <div className="space-y-1">
-                      <span className="text-[11px] text-[#726B5E]">المواد المطلوبة في هذه المجموعة:</span>
+                      <span className="text-[11px] text-[#AEBCB3]">المواد المطلوبة في هذه المجموعة:</span>
                       <div className="flex flex-wrap gap-1.5 pt-1">
                         {group.option_course_codes.map((code) => (
                           <span
                             key={code}
-                            className="rounded-lg bg-white px-2 py-0.5 font-mono text-xs font-bold text-red-800 border border-red-200"
+                            className="rounded-lg bg-surface px-2 py-0.5 font-mono text-xs font-bold text-red-800 border border-red-200"
                             dir="ltr"
                           >
                             <CourseIdentity courseCode={code} identities={identities} compact />
@@ -467,8 +467,8 @@ export default function EligibilityPage() {
           ) : null}
 
           {/* Governance Notice */}
-          <div className="rounded-2xl border border-[#EDE2C5] bg-[#FFF9E8] p-4 text-xs text-[#726B5E] flex items-center gap-3">
-            <InfoIcon className="h-5 w-5 text-[#A66F00] shrink-0" />
+          <div className="rounded-2xl border border-[#344739] bg-[#0F1A17] p-4 text-xs text-[#AEBCB3] flex items-center gap-3">
+            <InfoIcon className="h-5 w-5 text-[#D9884A] shrink-0" />
             <p>
               <strong>مبدأ الحوكمة الأكاديمية:</strong> الذكاء الاصطناعي يشرح والقواعد الحتمية تقرر. تم إصدار نتيجة الأهلية أعلاه مباشرة من محرك القواعد الأكاديمية المعتمد.
             </p>

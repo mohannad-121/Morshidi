@@ -185,8 +185,8 @@ export default function StudentPage({ client: injectedClient }: StudentPageProps
 
   if (auth.isLoading) {
     return (
-      <main className="flex min-h-screen items-center justify-center bg-[#FFFCF4] p-6" dir="rtl">
-        <p role="status" className="text-sm font-semibold text-[#A66F00] animate-pulse">
+      <main className="flex min-h-screen items-center justify-center bg-[#0B1210] p-6" dir="rtl">
+        <p role="status" className="text-sm font-semibold text-[#D9884A] animate-pulse">
           جاري التحقق من جلسة الدخول…
         </p>
       </main>
@@ -195,9 +195,9 @@ export default function StudentPage({ client: injectedClient }: StudentPageProps
 
   if (!auth.isAuthenticated) {
     return (
-      <main className="flex min-h-screen items-center justify-center bg-[#FFFCF4] p-6" dir="rtl">
-        <section className="w-full max-w-2xl rounded-3xl border border-[#EDE2C5] bg-[#FFFFFF] p-8 shadow-sm">
-          <p className="text-[#28241C] font-semibold">يجب تسجيل الدخول للوصول إلى لوحة الطالب.</p>
+      <main className="flex min-h-screen items-center justify-center bg-[#0B1210] p-6" dir="rtl">
+        <section className="w-full max-w-2xl rounded-3xl border border-[#344739] bg-[#0F1A17] p-8 shadow-sm">
+          <p className="text-[#F3E9D8] font-semibold">يجب تسجيل الدخول للوصول إلى لوحة الطالب.</p>
         </section>
       </main>
     );
@@ -206,10 +206,10 @@ export default function StudentPage({ client: injectedClient }: StudentPageProps
   return (
     <div className="space-y-8" dir="rtl">
       {/* Header & Welcome banner */}
-      <div className="relative overflow-hidden rounded-3xl border border-[#EDE2C5] bg-gradient-to-l from-[#FFF4C7]/80 via-[#FFF9E8] to-[#FFFFFF] p-6 shadow-xs sm:p-8">
+      <div className="relative overflow-hidden rounded-3xl border border-[#344739] bg-gradient-to-l from-[#15271F]/80 via-[#0F1A17] to-[#0F1A17] p-6 shadow-xs sm:p-8">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-4">
-            <div className="relative hidden sm:flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-[#EDE2C5] bg-[#FFF4C7] shadow-2xs">
+            <div className="relative hidden sm:flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-[#344739] bg-[#15271F] shadow-2xs">
               <Image
                 src="/brand/morshidi-guide.png"
                 alt="مرشدي"
@@ -221,17 +221,17 @@ export default function StudentPage({ client: injectedClient }: StudentPageProps
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <span className="rounded-full bg-[#A66F00]/10 px-2.5 py-0.5 text-xs font-bold text-[#A66F00]">
+                <span className="rounded-full bg-[#D9884A]/10 px-2.5 py-0.5 text-xs font-bold text-[#D9884A]">
                   حسابي الأكاديمي
                 </span>
-                <span className="text-xs text-[#726B5E]">لوحة المتابعة الشخصية</span>
+                <span className="text-xs text-[#AEBCB3]">لوحة المتابعة الشخصية</span>
               </div>
-              <h1 className="mt-1 text-2xl font-bold tracking-tight text-[#28241C] sm:text-3xl">
+              <h1 className="mt-1 text-2xl font-bold tracking-tight text-[#F3E9D8] sm:text-3xl">
                 لوحة الطالب
               </h1>
-              <p className="mt-1 text-sm text-[#726B5E]">
+              <p className="mt-1 text-sm text-[#AEBCB3]">
                 مرحباً،{" "}
-                <span className="font-semibold text-[#28241C]" dir="ltr">
+                <span className="font-semibold text-[#F3E9D8]" dir="ltr">
                   {auth.user?.email ?? "غير متوفر"}
                 </span>
               </p>
@@ -243,10 +243,10 @@ export default function StudentPage({ client: injectedClient }: StudentPageProps
               type="button"
               onClick={handleRefresh}
               disabled={loading || !client}
-              className="inline-flex min-h-10 items-center justify-center gap-2 rounded-xl border border-[#EDE2C5] bg-white px-4 py-2 text-xs font-semibold text-[#28241C] shadow-xs transition-colors hover:bg-[#FFF9E8] disabled:opacity-60"
+              className="inline-flex min-h-10 items-center justify-center gap-2 rounded-xl border border-[#344739] bg-surface px-4 py-2 text-xs font-semibold text-[#F3E9D8] shadow-xs transition-colors hover:bg-[#0F1A17] disabled:opacity-60"
               aria-label="تحديث البيانات"
             >
-              <RefreshIcon className={`h-3.5 w-3.5 text-[#A66F00] ${loading ? "animate-spin" : ""}`} />
+              <RefreshIcon className={`h-3.5 w-3.5 text-[#D9884A] ${loading ? "animate-spin" : ""}`} />
               <span>تحديث البيانات</span>
             </button>
             <SignOutButton />
@@ -254,42 +254,42 @@ export default function StudentPage({ client: injectedClient }: StudentPageProps
         </div>
 
         {/* Account Sub-navigation Tabs */}
-        <div className="mt-5 flex flex-wrap items-center gap-2 border-t border-[#EDE2C5]/60 pt-4">
+        <div className="mt-5 flex flex-wrap items-center gap-2 border-t border-[#344739]/60 pt-4">
           <Link
             href="/student"
-            className="rounded-xl bg-[#A66F00] px-3.5 py-1.5 text-xs font-semibold text-white shadow-2xs"
+            className="rounded-xl bg-[#D9884A] px-3.5 py-1.5 text-xs font-semibold text-white shadow-2xs"
           >
             نظرة عامة
           </Link>
           <Link
             href="/student/profile"
-            className="rounded-xl border border-[#EDE2C5] bg-white px-3.5 py-1.5 text-xs font-semibold text-[#28241C] hover:bg-[#FFF9E8] transition-colors"
+            className="rounded-xl border border-[#344739] bg-surface px-3.5 py-1.5 text-xs font-semibold text-[#F3E9D8] hover:bg-[#0F1A17] transition-colors"
           >
             الملف الأكاديمي
           </Link>
           <Link
             href="/student/progress"
-            className="rounded-xl border border-[#EDE2C5] bg-white px-3.5 py-1.5 text-xs font-semibold text-[#28241C] hover:bg-[#FFF9E8] transition-colors"
+            className="rounded-xl border border-[#344739] bg-surface px-3.5 py-1.5 text-xs font-semibold text-[#F3E9D8] hover:bg-[#0F1A17] transition-colors"
           >
             التقدم الأكاديمي
           </Link>
           <Link
             href="/student/courses"
-            className="rounded-xl border border-[#EDE2C5] bg-white px-3.5 py-1.5 text-xs font-semibold text-[#28241C] hover:bg-[#FFF9E8] transition-colors"
+            className="rounded-xl border border-[#344739] bg-surface px-3.5 py-1.5 text-xs font-semibold text-[#F3E9D8] hover:bg-[#0F1A17] transition-colors"
           >
             سجل موادي
           </Link>
           <Link
             href="/student/planner"
-            className="rounded-xl border border-[#EDE2C5] bg-white px-3.5 py-1.5 text-xs font-semibold text-[#28241C] hover:bg-[#FFF9E8] transition-colors"
+            className="rounded-xl border border-[#344739] bg-surface px-3.5 py-1.5 text-xs font-semibold text-[#F3E9D8] hover:bg-[#0F1A17] transition-colors"
           >
             مخطط الفصل
           </Link>
         </div>
 
         {/* Governance banner */}
-        <div className="mt-4 flex items-center gap-2 border-t border-[#EDE2C5]/60 pt-3 text-[11px] text-[#726B5E]">
-          <SparklesIcon className="h-3.5 w-3.5 text-[#A66F00]" />
+        <div className="mt-4 flex items-center gap-2 border-t border-[#344739]/60 pt-3 text-[11px] text-[#AEBCB3]">
+          <SparklesIcon className="h-3.5 w-3.5 text-[#D9884A]" />
           <span>
             الذكاء الاصطناعي يشرح — القواعد الأكاديمية واللوائح المعتمدة تقرر.
           </span>
@@ -298,8 +298,8 @@ export default function StudentPage({ client: injectedClient }: StudentPageProps
 
       {/* Loading state */}
       {loading ? (
-        <section className="rounded-3xl border border-[#EDE2C5] bg-white p-8 shadow-xs" role="status">
-          <p className="text-sm font-semibold text-[#A66F00] animate-pulse">
+        <section className="rounded-3xl border border-[#344739] bg-surface p-8 shadow-xs" role="status">
+          <p className="text-sm font-semibold text-[#D9884A] animate-pulse">
             جاري تحميل البيانات الأكاديمية…
           </p>
         </section>
@@ -363,33 +363,33 @@ export default function StudentPage({ client: injectedClient }: StudentPageProps
           {/* Profile & Progress Section */}
           <section className="grid gap-6 lg:grid-cols-2">
             {/* Academic Profile Card */}
-            <article className="rounded-3xl border border-[#EDE2C5] bg-white p-6 shadow-xs">
-              <div className="flex items-center justify-between border-b border-[#EDE2C5]/60 pb-4">
-                <h2 className="text-xl font-bold text-[#28241C]">الملف الأكاديمي</h2>
+            <article className="rounded-3xl border border-[#344739] bg-surface p-6 shadow-xs">
+              <div className="flex items-center justify-between border-b border-[#344739]/60 pb-4">
+                <h2 className="text-xl font-bold text-[#F3E9D8]">الملف الأكاديمي</h2>
                 <Badge variant="gold" size="sm">معتمد</Badge>
               </div>
               <dl className="mt-5 grid gap-4 sm:grid-cols-2">
                 <div>
-                  <dt className="text-xs font-semibold text-[#726B5E]">معرّف الخطة الدراسية</dt>
-                  <dd className="mt-1 font-mono text-xs break-all text-[#28241C]" dir="ltr">
+                  <dt className="text-xs font-semibold text-[#AEBCB3]">معرّف الخطة الدراسية</dt>
+                  <dd className="mt-1 font-mono text-xs break-all text-[#F3E9D8]" dir="ltr">
                     {displayValue(profile.study_plan_id)}
                   </dd>
                 </div>
                 <div>
-                  <dt className="text-xs font-semibold text-[#726B5E]">المعدل التراكمي المسجل</dt>
-                  <dd className="mt-1 font-mono text-lg font-bold text-[#28241C]">
+                  <dt className="text-xs font-semibold text-[#AEBCB3]">المعدل التراكمي المسجل</dt>
+                  <dd className="mt-1 font-mono text-lg font-bold text-[#F3E9D8]">
                     {displayValue(profile.reported_cumulative_gpa)}
                   </dd>
                 </div>
                 <div>
-                  <dt className="text-xs font-semibold text-[#726B5E]">مقياس المعدل</dt>
-                  <dd className="mt-1 font-mono text-sm font-semibold text-[#28241C]">
+                  <dt className="text-xs font-semibold text-[#AEBCB3]">مقياس المعدل</dt>
+                  <dd className="mt-1 font-mono text-sm font-semibold text-[#F3E9D8]">
                     {displayValue(profile.reported_gpa_scale)}
                   </dd>
                 </div>
                 <div>
-                  <dt className="text-xs font-semibold text-[#726B5E]">الساعات المكتسبة المسجلة</dt>
-                  <dd className="mt-1 font-mono text-sm font-semibold text-[#28241C]">
+                  <dt className="text-xs font-semibold text-[#AEBCB3]">الساعات المكتسبة المسجلة</dt>
+                  <dd className="mt-1 font-mono text-sm font-semibold text-[#F3E9D8]">
                     {displayValue(profile.reported_earned_credit_hours)}
                   </dd>
                 </div>
@@ -397,9 +397,9 @@ export default function StudentPage({ client: injectedClient }: StudentPageProps
             </article>
 
             {/* Academic Progress Card */}
-            <article className="rounded-3xl border border-[#EDE2C5] bg-white p-6 shadow-xs">
-              <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#EDE2C5]/60 pb-4">
-                <h2 className="text-xl font-bold text-[#28241C]">التقدم الأكاديمي</h2>
+            <article className="rounded-3xl border border-[#344739] bg-surface p-6 shadow-xs">
+              <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#344739]/60 pb-4">
+                <h2 className="text-xl font-bold text-[#F3E9D8]">التقدم الأكاديمي</h2>
                 {progress.all_modeled_plan_requirements_satisfied ? (
                   <span className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-bold text-emerald-800">
                     مستوفاة بالكامل
@@ -410,32 +410,32 @@ export default function StudentPage({ client: injectedClient }: StudentPageProps
               </div>
               <dl className="mt-5 grid gap-4 sm:grid-cols-2">
                 <div>
-                  <dt className="text-xs font-semibold text-[#726B5E]">إجمالي ساعات الخطة</dt>
-                  <dd className="mt-1 font-mono text-base font-bold text-[#28241C]">
+                  <dt className="text-xs font-semibold text-[#AEBCB3]">إجمالي ساعات الخطة</dt>
+                  <dd className="mt-1 font-mono text-base font-bold text-[#F3E9D8]">
                     {displayValue(progress.plan_total_required_credits)}
                   </dd>
                 </div>
                 <div>
-                  <dt className="text-xs font-semibold text-[#726B5E]">الساعات المنجزة</dt>
-                  <dd className="mt-1 font-mono text-base font-bold text-[#28241C]">
+                  <dt className="text-xs font-semibold text-[#AEBCB3]">الساعات المنجزة</dt>
+                  <dd className="mt-1 font-mono text-base font-bold text-[#F3E9D8]">
                     {displayValue(progress.completed_plan_credits)}
                   </dd>
                 </div>
                 <div>
-                  <dt className="text-xs font-semibold text-[#726B5E]">الساعات قيد التسجيل</dt>
-                  <dd className="mt-1 font-mono text-base font-bold text-[#28241C]">
+                  <dt className="text-xs font-semibold text-[#AEBCB3]">الساعات قيد التسجيل</dt>
+                  <dd className="mt-1 font-mono text-base font-bold text-[#F3E9D8]">
                     {displayValue(progress.in_progress_plan_credits)}
                   </dd>
                 </div>
                 <div>
-                  <dt className="text-xs font-semibold text-[#726B5E]">الساعات المتبقية</dt>
-                  <dd className="mt-1 font-mono text-base font-bold text-[#28241C]">
+                  <dt className="text-xs font-semibold text-[#AEBCB3]">الساعات المتبقية</dt>
+                  <dd className="mt-1 font-mono text-base font-bold text-[#F3E9D8]">
                     {displayValue(progress.remaining_plan_credits)}
                   </dd>
                 </div>
-                <div className="sm:col-span-2 rounded-xl bg-[#FFF9E8] p-3 border border-[#EDE2C5]">
-                  <dt className="text-xs font-semibold text-[#726B5E]">المجموعات المستوفاة</dt>
-                  <dd className="mt-1 font-mono text-sm font-bold text-[#28241C]">
+                <div className="sm:col-span-2 rounded-xl bg-[#0F1A17] p-3 border border-[#344739]">
+                  <dt className="text-xs font-semibold text-[#AEBCB3]">المجموعات المستوفاة</dt>
+                  <dd className="mt-1 font-mono text-sm font-bold text-[#F3E9D8]">
                     {progress.satisfied_requirement_group_count} من {progress.total_requirement_group_count}
                   </dd>
                   <div className="mt-2">
@@ -451,18 +451,18 @@ export default function StudentPage({ client: injectedClient }: StudentPageProps
           </section>
 
           {/* Quick Actions Panel */}
-          <div className="rounded-2xl border border-[#EDE2C5] bg-[#FFF9E8]/80 p-6">
-            <h3 className="text-sm font-bold text-[#28241C]">إجراءات سريعة</h3>
-            <p className="mt-1 text-xs text-[#726B5E]">
+          <div className="rounded-2xl border border-[#344739] bg-[#0F1A17]/80 p-6">
+            <h3 className="text-sm font-bold text-[#F3E9D8]">إجراءات سريعة</h3>
+            <p className="mt-1 text-xs text-[#AEBCB3]">
               انتقل مباشرة إلى الأدوات الأكاديمية الذكية لاتخاذ قرارات مدروسة:
             </p>
 
             <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
               <Link
                 href="/student/eligibility"
-                className="flex items-center gap-3 rounded-xl border border-[#EDE2C5] bg-white p-3.5 text-xs font-semibold text-[#28241C] shadow-2xs transition-all hover:bg-[#FFF4C7] hover:border-[#E2AD27]"
+                className="flex items-center gap-3 rounded-xl border border-[#344739] bg-surface p-3.5 text-xs font-semibold text-[#F3E9D8] shadow-2xs transition-all hover:bg-[#15271F] hover:border-[#D9884A]"
               >
-                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#FFF4C7] text-[#A66F00]">
+                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#15271F] text-[#D9884A]">
                   <EligibilityIcon className="h-4 w-4" />
                 </div>
                 <span>تحقق من أهلية مادة</span>
@@ -470,9 +470,9 @@ export default function StudentPage({ client: injectedClient }: StudentPageProps
 
               <Link
                 href="/student/planner"
-                className="flex items-center gap-3 rounded-xl border border-[#EDE2C5] bg-white p-3.5 text-xs font-semibold text-[#28241C] shadow-2xs transition-all hover:bg-[#FFF4C7] hover:border-[#E2AD27]"
+                className="flex items-center gap-3 rounded-xl border border-[#344739] bg-surface p-3.5 text-xs font-semibold text-[#F3E9D8] shadow-2xs transition-all hover:bg-[#15271F] hover:border-[#D9884A]"
               >
-                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#FFF4C7] text-[#A66F00]">
+                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#15271F] text-[#D9884A]">
                   <PlannerIcon className="h-4 w-4" />
                 </div>
                 <span>خطط لفصلك</span>
@@ -480,9 +480,9 @@ export default function StudentPage({ client: injectedClient }: StudentPageProps
 
               <Link
                 href="/student/recommendations"
-                className="flex items-center gap-3 rounded-xl border border-[#EDE2C5] bg-white p-3.5 text-xs font-semibold text-[#28241C] shadow-2xs transition-all hover:bg-[#FFF4C7] hover:border-[#E2AD27]"
+                className="flex items-center gap-3 rounded-xl border border-[#344739] bg-surface p-3.5 text-xs font-semibold text-[#F3E9D8] shadow-2xs transition-all hover:bg-[#15271F] hover:border-[#D9884A]"
               >
-                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#FFF4C7] text-[#A66F00]">
+                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#15271F] text-[#D9884A]">
                   <RecommendationsIcon className="h-4 w-4" />
                 </div>
                 <span>شاهد توصياتك</span>
@@ -490,9 +490,9 @@ export default function StudentPage({ client: injectedClient }: StudentPageProps
 
               <Link
                 href="/student/degree-path"
-                className="flex items-center gap-3 rounded-xl border border-[#EDE2C5] bg-white p-3.5 text-xs font-semibold text-[#28241C] shadow-2xs transition-all hover:bg-[#FFF4C7] hover:border-[#E2AD27]"
+                className="flex items-center gap-3 rounded-xl border border-[#344739] bg-surface p-3.5 text-xs font-semibold text-[#F3E9D8] shadow-2xs transition-all hover:bg-[#15271F] hover:border-[#D9884A]"
               >
-                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#FFF4C7] text-[#A66F00]">
+                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#15271F] text-[#D9884A]">
                   <DegreePathIcon className="h-4 w-4" />
                 </div>
                 <span>افتح المسار الدراسي</span>
@@ -501,18 +501,18 @@ export default function StudentPage({ client: injectedClient }: StudentPageProps
           </div>
 
           {/* Requirement Groups Breakdown */}
-          <section className="rounded-3xl border border-[#EDE2C5] bg-white p-6 shadow-xs">
-            <h2 className="text-xl font-bold text-[#28241C]">تفاصيل متطلبات الخطة</h2>
+          <section className="rounded-3xl border border-[#344739] bg-surface p-6 shadow-xs">
+            <h2 className="text-xl font-bold text-[#F3E9D8]">تفاصيل متطلبات الخطة</h2>
             <div className="mt-5 grid gap-4">
               {progress.requirement_groups.map((group) => (
                 <article
                   key={group.group_id}
-                  className="rounded-2xl border border-[#EDE2C5] bg-[#FFFCF4] p-5"
+                  className="rounded-2xl border border-[#344739] bg-[#0B1210] p-5"
                 >
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div>
-                      <h3 className="font-bold text-[#28241C]">{group.name_ar}</h3>
-                      <p className="mt-1 text-xs text-[#726B5E]" dir="ltr">
+                      <h3 className="font-bold text-[#F3E9D8]">{group.name_ar}</h3>
+                      <p className="mt-1 text-xs text-[#AEBCB3]" dir="ltr">
                         ({group.group_code})
                       </p>
                     </div>
@@ -535,22 +535,22 @@ export default function StudentPage({ client: injectedClient }: StudentPageProps
                     />
                   </div>
 
-                  <dl className="mt-4 grid grid-cols-3 gap-3 text-xs border-t border-[#EDE2C5]/60 pt-3">
+                  <dl className="mt-4 grid grid-cols-3 gap-3 text-xs border-t border-[#344739]/60 pt-3">
                     <div>
-                      <dt className="text-[#726B5E] text-[10px]">المطلوبة</dt>
-                      <dd className="mt-1 font-semibold text-[#28241C]">
+                      <dt className="text-[#AEBCB3] text-[10px]">المطلوبة</dt>
+                      <dd className="mt-1 font-semibold text-[#F3E9D8]">
                         {displayValue(group.required_credits)}
                       </dd>
                     </div>
                     <div>
-                      <dt className="text-[#726B5E] text-[10px]">المحتسبة</dt>
-                      <dd className="mt-1 font-semibold text-[#28241C]">
+                      <dt className="text-[#AEBCB3] text-[10px]">المحتسبة</dt>
+                      <dd className="mt-1 font-semibold text-[#F3E9D8]">
                         {displayValue(group.credited_toward_requirement)}
                       </dd>
                     </div>
                     <div>
-                      <dt className="text-[#726B5E] text-[10px]">المتبقية</dt>
-                      <dd className="mt-1 font-semibold text-[#28241C]">
+                      <dt className="text-[#AEBCB3] text-[10px]">المتبقية</dt>
+                      <dd className="mt-1 font-semibold text-[#F3E9D8]">
                         {displayValue(group.remaining_required_credits)}
                       </dd>
                     </div>

@@ -10,18 +10,20 @@ const modeled = {
 };
 
 describe("modeled course difficulty", () => {
-  it("shows general, personal, and low-confidence labels in Arabic", () => {
-    render(<CourseDifficulty course={modeled} />);
-    expect(screen.getByText(/الصعوبة العامة/)).toBeTruthy();
-    expect(screen.getByText(/الصعوبة المتوقعة بالنسبة لك/)).toBeTruthy();
-    expect(screen.getByText(/ثقة منخفضة/)).toBeTruthy();
+  it("shows five accessible difficulty dots and a subtle confidence hint", () => {
+    const {container} = render(<CourseDifficulty course={modeled} />);
+    expect(screen.getByRole('img', {name:'متوسطة'})).toBeTruthy();
+    expect(container.querySelectorAll('.difficulty i')).toHaveLength(5);
+    expect(container.querySelectorAll('.difficulty i.filled')).toHaveLength(3);
+    expect(screen.getByTitle('تقدير أولي')).toBeTruthy();
+    expect(container.textContent).not.toContain('MODEL');
   });
 
   it("shows English labels and an honest unavailable state", () => {
-    const { rerender } = render(<CourseDifficulty course={modeled} locale="en" />);
-    expect(screen.getByText(/General difficulty/)).toBeTruthy();
-    expect(screen.getByText(/Estimated difficulty for you/)).toBeTruthy();
+    const { rerender, container } = render(<CourseDifficulty course={modeled} locale="en" />);
+    expect(screen.getByRole('img', {name:'Moderate'})).toBeTruthy();
+    expect(screen.getByTitle('Initial estimate')).toBeTruthy();
     rerender(<CourseDifficulty course={undefined} locale="en" />);
-    expect(screen.getByText("Difficulty estimate unavailable")).toBeTruthy();
+    expect(container.childElementCount).toBe(0);
   });
 });

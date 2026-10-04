@@ -55,29 +55,29 @@ export function EligibilityExplanationGraphPanel({
 
   return (
     <section aria-labelledby="eligibility-explanation-heading" dir="rtl"
-      className="rounded-3xl border border-[#EDE2C5] bg-white p-5 shadow-xs sm:p-7">
-      <div className="flex flex-col gap-3 border-b border-[#EDE2C5] pb-4 sm:flex-row sm:items-center sm:justify-between">
+      className="rounded-3xl border border-[#344739] bg-surface p-5 shadow-xs sm:p-7">
+      <div className="flex flex-col gap-3 border-b border-[#344739] pb-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h2 id="eligibility-explanation-heading" className="text-lg font-bold text-[#28241C]">
+          <h2 id="eligibility-explanation-heading" className="text-lg font-bold text-[#F3E9D8]">
             لماذا هذا القرار؟
           </h2>
-          <p className="mt-1 text-xs text-[#726B5E]">رسم تفسيري من أسباب وحقائق المحرك الحتمي، وليس تفكيراً خفياً أو قراراً جديداً.</p>
+          <p className="mt-1 text-xs text-[#AEBCB3]">رسم تفسيري من أسباب وحقائق المحرك الحتمي، وليس تفكيراً خفياً أو قراراً جديداً.</p>
         </div>
         <div role="group" aria-label="طريقة عرض التفسير" className="flex gap-2">
           <button type="button" onClick={() => onModeChange("why")}
             aria-pressed={mode === "why"}
-            className={`rounded-xl border px-3 py-2 text-xs font-bold ${mode === "why" ? "border-[#E2AD27] bg-[#FFF9E8]" : "border-[#EDE2C5]"}`}>
+            className={`rounded-xl border px-3 py-2 text-xs font-bold ${mode === "why" ? "border-[#D9884A] bg-[#0F1A17]" : "border-[#344739]"}`}>
             لماذا؟
           </button>
           <button type="button" onClick={() => onModeChange("why_not")}
             disabled={!canAskWhyNot} aria-pressed={mode === "why_not"}
-            className={`rounded-xl border px-3 py-2 text-xs font-bold disabled:opacity-50 ${mode === "why_not" ? "border-[#E2AD27] bg-[#FFF9E8]" : "border-[#EDE2C5]"}`}>
+            className={`rounded-xl border px-3 py-2 text-xs font-bold disabled:opacity-50 ${mode === "why_not" ? "border-[#D9884A] bg-[#0F1A17]" : "border-[#344739]"}`}>
             لماذا ليس مؤهلاً؟
           </button>
         </div>
       </div>
 
-      {loading ? <p role="status" className="py-5 text-sm text-[#726B5E]">جارٍ تحميل التفسير...</p> : null}
+      {loading ? <p role="status" className="py-5 text-sm text-[#AEBCB3]">جارٍ تحميل التفسير...</p> : null}
       {!loading && error ? (
         <div role="alert" className="space-y-3 py-5 text-sm text-red-800">
           <p>تعذر تحميل التفسير. تبقى نتيجة الأهلية أعلاه هي النتيجة المعتمدة.</p>
@@ -85,33 +85,33 @@ export function EligibilityExplanationGraphPanel({
         </div>
       ) : null}
       {!loading && !error && (!valid || !decision) ? (
-        <p className="py-5 text-sm text-[#726B5E]">لا يتوفر رسم تفسيري لهذا الفحص.</p>
+        <p className="py-5 text-sm text-[#AEBCB3]">لا يتوفر رسم تفسيري لهذا الفحص.</p>
       ) : null}
       {!loading && !error && valid && decision ? (
         <div className="space-y-5 pt-5">
-          <div className="rounded-2xl border border-[#EDE2C5] bg-[#FFF9E8] p-4">
-            <p className="text-xs font-bold text-[#726B5E]">القرار الحتمي للمادة <bdi dir="ltr">{graph.subject_reference}</bdi></p>
-            <p className="mt-1 text-base font-bold text-[#28241C]">{decisionLabels[decision]}</p>
+          <div className="rounded-2xl border border-[#344739] bg-[#0F1A17] p-4">
+            <p className="text-xs font-bold text-[#AEBCB3]">القرار الحتمي للمادة <bdi dir="ltr">{graph.subject_reference}</bdi></p>
+            <p className="mt-1 text-base font-bold text-[#F3E9D8]">{decisionLabels[decision]}</p>
           </div>
           <div>
-            <h3 className="text-sm font-bold text-[#28241C]">سبب القرار</h3>
+            <h3 className="text-sm font-bold text-[#F3E9D8]">سبب القرار</h3>
             {reasons.length ? (
               <ul className="mt-2 space-y-2">
-                {reasons.map((node) => <li key={node.id} className="rounded-xl border border-[#EDE2C5] p-3 text-sm">
+                {reasons.map((node) => <li key={node.id} className="rounded-xl border border-[#344739] p-3 text-sm">
                   {node.reason ? knownReasons[node.reason] ?? "سبب غير متاح للعرض" : "سبب غير متاح للعرض"}
                 </li>)}
               </ul>
-            ) : <p className="mt-2 text-sm text-[#726B5E]">لا توجد أسباب مفصلة متاحة.</p>}
+            ) : <p className="mt-2 text-sm text-[#AEBCB3]">لا توجد أسباب مفصلة متاحة.</p>}
           </div>
           {groups.length ? <div>
-            <h3 className="text-sm font-bold text-[#28241C]">مجموعات المتطلبات السابقة</h3>
-            <p className="mt-1 text-xs text-[#726B5E]">يلزم استيفاء كل مجموعة؛ داخل المجموعة يكفي اجتياز أحد الخيارات.</p>
+            <h3 className="text-sm font-bold text-[#F3E9D8]">مجموعات المتطلبات السابقة</h3>
+            <p className="mt-1 text-xs text-[#AEBCB3]">يلزم استيفاء كل مجموعة؛ داخل المجموعة يكفي اجتياز أحد الخيارات.</p>
             <ol className="mt-3 grid grid-cols-1 gap-3 md:grid-cols-2">
               {groups.map((group) => {
                 const blocked = graph.edges.some((edge) => edge.to_node_id === group.id && edge.relation === "BLOCKED_BY");
                 return <li key={group.id} className={`rounded-2xl border p-4 ${blocked ? "border-red-200 bg-red-50/40" : "border-emerald-200 bg-emerald-50/40"}`}>
-                  <h4 className="font-bold text-[#28241C]">مجموعة {group.group_number}: {blocked ? "غير مستوفاة" : "مستوفاة"}</h4>
-                  <p className="mt-1 text-xs text-[#726B5E]">{group.option_course_codes.length > 1 ? "خيارات بديلة (أو)" : "متطلب واحد"}</p>
+                  <h4 className="font-bold text-[#F3E9D8]">مجموعة {group.group_number}: {blocked ? "غير مستوفاة" : "مستوفاة"}</h4>
+                  <p className="mt-1 text-xs text-[#AEBCB3]">{group.option_course_codes.length > 1 ? "خيارات بديلة (أو)" : "متطلب واحد"}</p>
                   <ul className="mt-2 space-y-1 text-sm">
                     {group.option_course_codes.map((code) => <li key={code} className="flex flex-wrap items-center gap-2">
                       <CourseIdentity courseCode={code} identities={identities} compact />
@@ -123,14 +123,14 @@ export function EligibilityExplanationGraphPanel({
             </ol>
           </div> : null}
           {states.some((node) => node.academic_state === "TARGET_COMPLETED" || node.academic_state === "TARGET_IN_PROGRESS") ? (
-            <p className="rounded-xl border border-[#EDE2C5] p-3 text-sm">
+            <p className="rounded-xl border border-[#344739] p-3 text-sm">
               حالة المادة المستهدفة: {states.some((node) => node.academic_state === "TARGET_COMPLETED") ? "مجتازة سابقاً" : ""}
               {states.some((node) => node.academic_state === "TARGET_IN_PROGRESS") ? " قيد الدراسة حالياً" : ""}
             </p>
           ) : null}
           {limits.length ? <div>
-            <h3 className="text-sm font-bold text-[#28241C]">حدود التفسير والمصدر</h3>
-            <ul className="mt-2 list-inside list-disc space-y-1 text-xs text-[#726B5E]">
+            <h3 className="text-sm font-bold text-[#F3E9D8]">حدود التفسير والمصدر</h3>
+            <ul className="mt-2 list-inside list-disc space-y-1 text-xs text-[#AEBCB3]">
               {limits.map((item) => <li key={item}>{limitationLabels[item] ?? "يوجد حد غير متاح للعرض."}</li>)}
             </ul>
           </div> : null}

@@ -10,27 +10,27 @@ export function MorshidiLogo({ className = "w-8 h-8", ...props }: SVGProps<SVGSV
       aria-hidden="true"
       {...props}
     >
-      <rect width="36" height="36" rx="10" fill="#FFF4C7" />
+      <rect width="36" height="36" rx="10" fill="#15271F" />
       <path
         d="M18 7L28 13L18 19L8 13L18 7Z"
-        stroke="#A66F00"
+        stroke="#D9884A"
         strokeWidth="2"
         strokeLinecap="round"
         strokeLinejoin="round"
       />
       <path
         d="M12 15.5V23C12 25.5 14.5 28 18 28C21.5 28 24 25.5 24 23V15.5"
-        stroke="#A66F00"
+        stroke="#D9884A"
         strokeWidth="2"
         strokeLinecap="round"
       />
       <path
         d="M28 13V21"
-        stroke="#E2AD27"
+        stroke="#D9884A"
         strokeWidth="2"
         strokeLinecap="round"
       />
-      <circle cx="28" cy="22" r="1.5" fill="#E2AD27" />
+      <circle cx="28" cy="22" r="1.5" fill="#D9884A" />
     </svg>
   );
 }
