@@ -96,3 +96,77 @@ test("protected content never renders while loading or unauthenticated", async (
   expect(screen.getByRole("status")).toBeTruthy();
   await waitFor(() => expect(screen.queryByText("خاص")).toBeNull());
 });
+
+test("mapUniversityLoginError returns expected Arabic translations for standard error codes", async () => {
+  const { mapUniversityLoginError } = await import("@/auth/auth-provider");
+  expect(mapUniversityLoginError("INVALID_CREDENTIALS")).toBe("تأكد من الرقم الجامعي وكلمة المرور.");
+  expect(mapUniversityLoginError("RATE_LIMITED")).toBe("تمت محاولات تسجيل دخول كثيرة. حاول مرة أخرى بعد قليل.");
+  expect(mapUniversityLoginError("UNIVERSITY_UNAVAILABLE")).toBe("خدمة الجامعة غير متاحة مؤقتًا. حاول مرة أخرى لاحقًا.");
+  expect(mapUniversityLoginError("ACADEMIC_SYNC_UNAVAILABLE")).toBe("تعذر مزامنة بياناتك الأكاديمية حاليًا. حاول مرة أخرى لاحقًا.");
+  expect(mapUniversityLoginError("IDENTITY_CONFLICT")).toBe("تعذر ربط حسابك الجامعي بحساب مرشدي. يرجى التواصل مع الدعم.");
+  expect(mapUniversityLoginError("SESSION_ISSUANCE_FAILED")).toBe("تم التحقق من الحساب، لكن تعذر بدء جلسة مرشدي. حاول مرة أخرى.");
+  expect(mapUniversityLoginError("UNKNOWN_CODE")).toBe("تعذر تسجيل الدخول. حاول مرة أخرى.");
+  expect(mapUniversityLoginError()).toBe("تعذر تسجيل الدخول. حاول مرة أخرى.");
+});
+
+test("signInWithUniversity sends post to university-login and calls setSession", async () => {
+  const client = new FakeAuthClient();
+  const fetchMock = vi.fn().mockResolvedValue({
+    ok: true,
+    json: async () => ({
+      session: {
+        access_token: "backend-issued-access-token",
+        refresh_token: "backend-issued-refresh-token",
+        token_type: "bearer",
+        expires_in: 3600,
+      },
+      user: {
+        id: "internal-shadow-user-uuid",
+        email: "202310001@std.morshidi.edu.jo",
+      },
+    }),
+  });
+  global.fetch = fetchMock;
+
+  function UniHarness() {
+    const auth = useAuth();
+    return (
+      <div>
+        <span data-testid="status">{auth.status}</span>
+        <button
+          onClick={async () => {
+            await auth.signInWithUniversity("202310001", "student-secret-pass");
+          }}
+        >
+          دخول جامعي
+        </button>
+      </div>
+    );
+  }
+
+  render(
+    <AuthProvider client={client}>
+      <UniHarness />
+    </AuthProvider>,
+  );
+
+  await waitFor(() => expect(screen.getByTestId("status").textContent).toBe("unauthenticated"));
+  await userEvent.click(screen.getByRole("button", { name: "دخول جامعي" }));
+
+  await waitFor(() => expect(client.setSessionCalls).toBe(1));
+  expect(client.lastSetSession).toEqual({
+    access_token: "backend-issued-access-token",
+    refresh_token: "backend-issued-refresh-token",
+  });
+  expect(fetchMock).toHaveBeenCalledWith(
+    expect.stringContaining("/api/v1/auth/university-login"),
+    expect.objectContaining({
+      method: "POST",
+      body: JSON.stringify({
+        student_id: "202310001",
+        password: "student-secret-pass",
+      }),
+    }),
+  );
+  await waitFor(() => expect(screen.getByTestId("status").textContent).toBe("authenticated"));
+});

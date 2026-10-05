@@ -3,9 +3,11 @@ from contextlib import asynccontextmanager
 import httpx
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import JSONResponse
+from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.routes.eligibility import router as eligibility_router
 from app.api.routes.health import router as health_router
+from app.api.routes.auth import router as auth_router
 from app.api.routes.student import router as student_router
 from app.api.routes.advisor import router as advisor_router
 from app.api.routes.student_conversations import router as student_conversations_router
@@ -73,7 +75,6 @@ from app.catalog.errors import (
 )
 from app.catalog.supabase_repository import SupabaseAcademicCatalogRepository
 from app.core.config import settings
-from app.core.cors import add_cors_middleware
 from app.core.academic_compute import AcademicComputeLimiter
 from app.core.request_timing import RequestTimingMiddleware
 from app.services.eligibility import EligibilityConfigurationError, EligibilityService
@@ -110,6 +111,11 @@ from app.offerings.provider import UnavailableOfferingProvider
 from app.p11_intelligence.fake_provider import FakeP11Provider
 from app.p11_intelligence.providers import UnavailableP11Provider
 from app.p16_sandbox import SandboxOfferingProvider, SandboxSISAdapter
+from app.core.rate_limiter import InMemoryLoginRateLimiter
+from app.university_sync.admin_auth import SupabaseAdminAuthClient
+from app.university_sync.client import UniversityContractClient
+from app.university_sync.identity_repository import SupabaseUniversityIdentityRepository
+from app.university_sync.service import UniversitySyncService
 
 
 def build_advisor_providers(client: httpx.AsyncClient):
@@ -203,6 +209,9 @@ async def lifespan(application: FastAPI):
     application.state.p12_modeling_provider = None
     application.state.sandbox_sis_adapter = SandboxSISAdapter()
     application.state.sandbox_offering_provider = SandboxOfferingProvider()
+    application.state.login_rate_limiter = InMemoryLoginRateLimiter(max_attempts=10, window_seconds=60)
+    application.state.university_sync_service = None
+    application.state.admin_auth_client = None
     if settings.supabase_url and settings.supabase_secret_key:
         repository = SupabaseAcademicCatalogRepository(
             settings.supabase_url,
@@ -297,6 +306,33 @@ async def lifespan(application: FastAPI):
         application.state.policy_answer_service = PolicyAnswerService(
             application.state.policy_service, build_policy_answer_provider(client)
         )
+        uni_contract_client = UniversityContractClient(
+            client=client,
+            base_url=settings.uni_base_url,
+            client_id=settings.uni_client_id,
+            client_secret=settings.uni_client_secret.get_secret_value() if settings.uni_client_secret else None,
+        )
+        uni_identity_repo = SupabaseUniversityIdentityRepository(
+            settings.supabase_url,
+            settings.supabase_secret_key.get_secret_value(),
+            client=client,
+        )
+        uni_admin_auth = SupabaseAdminAuthClient(
+            settings.supabase_url,
+            settings.supabase_secret_key.get_secret_value(),
+            client=client,
+        )
+        application.state.admin_auth_client = uni_admin_auth
+        application.state.university_sync_service = UniversitySyncService(
+            contract_client=uni_contract_client,
+            supabase_url=settings.supabase_url,
+            service_key=settings.supabase_secret_key.get_secret_value(),
+            internal_auth_secret=settings.uni_internal_auth_secret.get_secret_value() if settings.uni_internal_auth_secret else None,
+            university_id=settings.uni_university_id,
+            client=client,
+            identity_repo=uni_identity_repo,
+            admin_auth=uni_admin_auth,
+        )
     try:
         yield
     finally:
@@ -310,10 +346,17 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-add_cors_middleware(app)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[settings.frontend_url, "http://127.0.0.1:3000"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 app.add_middleware(RequestTimingMiddleware)
 
 app.include_router(health_router)
+app.include_router(auth_router)
 app.include_router(eligibility_router)
 app.include_router(student_router)
 app.include_router(advisor_router)
