@@ -484,6 +484,7 @@ class StructuredAdvisorResult:
     clarification: ClarificationRequest | None = None
     out_of_scope_reason: OutOfScopeReason | None = None
     authoritative_payload: AdvisorPayload | None = None
+    presentation_course_catalog: tuple[ResolvedCourseReference, ...] = ()
 
     def __post_init__(self) -> None:
         if self.trace.advisor_intent is not self.intent:

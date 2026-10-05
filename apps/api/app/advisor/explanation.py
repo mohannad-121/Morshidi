@@ -279,6 +279,45 @@ def deterministic_explanation(
 
     language = select_explanation_language(message)
     arabic = language is ExplanationLanguage.ARABIC
+    payload = result.authoritative_payload
+    if isinstance(payload, CanTakeDecision):
+        target = payload.target_name_ar or payload.target_name_en or payload.target_course_code
+        if payload.decision is Decision.REVIEW_REQUIRED:
+            text = (
+                "المتطلبات السابقة لهذه المادة مسجلة، لكن طريقة تطبيقها غير مؤكدة "
+                "في المصدر الأكاديمي المتاح، لذلك لا أستطيع إصدار قرار تسجيل نهائي."
+                if arabic
+                else "The prerequisites are recorded, but their application is not confirmed "
+                "by the available academic source, so I cannot issue a final registration decision."
+            )
+            return AdvisorExplanationOutput(text, language)
+        if payload.decision is Decision.ELIGIBLE:
+            text = (
+                f"أنت مستوفٍ للمتطلبات السابقة لمادة {target}."
+                if arabic
+                else f"You satisfy the prerequisites for {target}."
+            )
+            return AdvisorExplanationOutput(text, language)
+        names = {
+            course.course_code: course.canonical_arabic_name
+            for course in result.presentation_course_catalog
+        }
+        missing_codes = tuple(dict.fromkeys(
+            code
+            for group in payload.missing_dependency_groups
+            for code in group.non_passed_option_course_codes
+        ))
+        labels = [
+            f"{names[code]} ({code})" if code in names else code
+            for code in missing_codes
+        ]
+        if arabic:
+            missing = "، ".join(labels)
+            text = f"لا يمكنك تسجيل {target} حاليًا لأنك لم تُكمل: {missing}."
+        else:
+            missing = ", ".join(labels)
+            text = f"You cannot register for {target} yet because you have not completed: {missing}."
+        return AdvisorExplanationOutput(text, language)
     if result.intent is AdvisorIntent.CLARIFICATION_REQUIRED and result.clarification:
         candidates = result.clarification.candidate_course_codes
         if candidates:

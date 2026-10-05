@@ -9,6 +9,13 @@
   "total_plan_credits": 132,
   "synthetic": true,
   "source": "MORSHIDI_SANDBOX_UNIVERSITY",
+  "academic_policy": {
+    "authority": "SYNTHETIC_SANDBOX_ACADEMIC_POLICY",
+    "rule_version": "2026.10.05.v1",
+    "prerequisite_list_semantics": "ALL_OF",
+    "minimum_grade_condition": null,
+    "review_required_semantics": "NON_EXECUTABLE"
+  },
   "student_count": 5,
   "course_count": 68,
   "offering_count": 204,

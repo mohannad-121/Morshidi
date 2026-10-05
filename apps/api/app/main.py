@@ -110,6 +110,8 @@ from app.offerings.provider import UnavailableOfferingProvider
 from app.p11_intelligence.fake_provider import FakeP11Provider
 from app.p11_intelligence.providers import UnavailableP11Provider
 from app.p16_sandbox import SandboxOfferingProvider, SandboxSISAdapter
+from app.p16_sandbox.academic_catalog import SandboxAcademicCatalogRepository
+from app.p16_sandbox.advisor_source import SandboxAdvisorStudentSource
 
 
 def build_advisor_providers(client: httpx.AsyncClient):
@@ -227,7 +229,11 @@ async def lifespan(application: FastAPI):
             repository,
             advisor_provider,
             explanation_provider,
-            academic_compute_limiter,
+            academic_compute_limiter=academic_compute_limiter,
+            sandbox_student_source=SandboxAdvisorStudentSource(
+                application.state.sandbox_sis_adapter
+            ),
+            sandbox_catalog_repository=SandboxAcademicCatalogRepository(),
         )
         persistence = SupabaseMockRegistrationRepository(
             settings.supabase_url, settings.supabase_secret_key.get_secret_value(), client)

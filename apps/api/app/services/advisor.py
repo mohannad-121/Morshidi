@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 import logging
 import asyncio
 import re
@@ -37,6 +37,8 @@ from app.services.student import DEGREE_PATH_BUDGET_SECONDS
 from app.catalog.repository import AcademicCatalogRepository
 from app.student.models import StudentAcademicState
 from app.student.repository import StudentAcademicRepository
+from app.p16_sandbox.advisor_source import SandboxAdvisorStudentSource
+from app.p16_sandbox.tenant import SANDBOX_INSTITUTION_ID
 
 
 class AdvisorConfigurationError(RuntimeError):
@@ -109,12 +111,16 @@ class AdvisorService:
         provider: AdvisorLLMProvider,
         explanation_provider: AdvisorExplanationProvider | None = None,
         academic_compute_limiter: AcademicComputeLimiter | None = None,
+        sandbox_student_source: SandboxAdvisorStudentSource | None = None,
+        sandbox_catalog_repository: AcademicCatalogRepository | None = None,
     ) -> None:
         self._student_repository = student_repository
         self._catalog_repository = catalog_repository
         self._provider = provider
         self._explanation_provider = explanation_provider
         self._academic_compute_limiter = academic_compute_limiter or AcademicComputeLimiter()
+        self._sandbox_student_source = sandbox_student_source
+        self._sandbox_catalog_repository = sandbox_catalog_repository
 
     async def advise(self, owner_user_id: str, message: str) -> StructuredAdvisorResult:
         """Interpret once, load server-owned context in batches, and orchestrate."""
@@ -124,8 +130,29 @@ class AdvisorService:
 
     async def _advise_interpreted(
         self, owner_user_id: str, message: str, conversation_context: str = "",
+        *, institution_id: str | None = None, sandbox_persona_id: str | None = None,
     ) -> tuple[StructuredAdvisorResult, str | None]:
         started = perf_counter()
+        student_repository = self._student_repository
+        catalog_repository = self._catalog_repository
+        sandbox_mode = institution_id == SANDBOX_INSTITUTION_ID
+        if sandbox_mode:
+            if (
+                not sandbox_persona_id
+                or self._sandbox_student_source is None
+                or self._sandbox_catalog_repository is None
+            ):
+                raise AdvisorConfigurationError("Sandbox advisor context is not configured")
+            catalog_repository = self._sandbox_catalog_repository
+
+        async def load_state() -> StudentAcademicState:
+            if sandbox_mode:
+                assert self._sandbox_student_source is not None
+                assert sandbox_persona_id is not None
+                return await self._sandbox_student_source.load_student_academic_state(
+                    owner_user_id, sandbox_persona_id,
+                )
+            return await student_repository.load_student_academic_state(owner_user_id)
 
         provider_output = await invoke_advisor_provider_async(
             self._provider, message, conversation_context)
@@ -153,10 +180,10 @@ class AdvisorService:
         resolution_catalog = ()
         if _needs_course_catalog(provider_output):
             phase_started = perf_counter()
-            state = await self._student_repository.load_student_academic_state(owner_user_id)
+            state = await load_state()
             student_context_ms += (perf_counter() - phase_started) * 1000
             phase_started = perf_counter()
-            resolution_catalog = await self._catalog_repository.load_advisor_course_catalog(
+            resolution_catalog = await catalog_repository.load_advisor_course_catalog(
                 state.study_plan_id
             )
             catalog_ms += (perf_counter() - phase_started) * 1000
@@ -193,7 +220,7 @@ class AdvisorService:
 
         if state is None:
             phase_started = perf_counter()
-            state = await self._student_repository.load_student_academic_state(owner_user_id)
+            state = await load_state()
             student_context_ms += (perf_counter() - phase_started) * 1000
 
         progress_catalog = None
@@ -207,7 +234,7 @@ class AdvisorService:
             AdvisorIntent.COURSE_INFORMATION,
         ):
             phase_started = perf_counter()
-            progress_catalog = await self._catalog_repository.load_progress_catalog(
+            progress_catalog = await catalog_repository.load_progress_catalog(
                 state.study_plan_id
             )
             catalog_ms += (perf_counter() - phase_started) * 1000
@@ -219,7 +246,7 @@ class AdvisorService:
             AdvisorIntent.COURSE_INFORMATION,
         ):
             phase_started = perf_counter()
-            eligibility_catalog = await self._catalog_repository.load_plan_eligibility_catalog(
+            eligibility_catalog = await catalog_repository.load_plan_eligibility_catalog(
                 state.study_plan_id
             )
             catalog_ms += (perf_counter() - phase_started) * 1000
@@ -249,6 +276,11 @@ class AdvisorService:
             result = await self._academic_compute_limiter.run(calculate)
         else:
             result = orchestrate_advisor_request(request, context)
+        if resolution_catalog:
+            result = replace(
+                result,
+                presentation_course_catalog=tuple(resolution_catalog),
+            )
         deterministic_ms = (perf_counter() - phase_started) * 1000
         logger.info("advisor_timing route=%s routing_ms=%s student_context_ms=%.1f catalog_ms=%.1f deterministic_ms=%.1f total_structured_ms=%.1f", "ACADEMIC_DEEP" if request.intent in (AdvisorIntent.COURSE_RECOMMENDATIONS, AdvisorIntent.SEMESTER_PLANNING, AdvisorIntent.DEGREE_PATH_MODELING) else "ACADEMIC_DIRECT", routing_ms, student_context_ms, catalog_ms, deterministic_ms, (perf_counter() - started) * 1000)
         return result, None
@@ -258,11 +290,17 @@ class AdvisorService:
         owner_user_id: str,
         message: str,
         conversation_context: str = "",
+        *,
+        institution_id: str | None = None,
+        sandbox_persona_id: str | None = None,
     ) -> AdvisorServiceResult:
         """Add presentational prose after orchestration without changing its result."""
 
         structured, general_response = await self._advise_interpreted(
-            owner_user_id, message, conversation_context)
+            owner_user_id, message, conversation_context,
+            institution_id=institution_id,
+            sandbox_persona_id=sandbox_persona_id,
+        )
         if general_response is not None:
             return AdvisorServiceResult(
                 structured, general_response, ExplanationStatus.GENERATED,

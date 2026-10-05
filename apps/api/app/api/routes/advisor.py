@@ -38,7 +38,12 @@ async def advise(
     request: Request,
 ) -> AdvisorResponse:
     started = perf_counter()
-    result = await service.advise_with_explanation(user.user_id, body.message)
+    result = await service.advise_with_explanation(
+        user.user_id,
+        body.message,
+        institution_id=user.institution_id,
+        sandbox_persona_id=user.sandbox_persona_id,
+    )
     response = AdvisorResponse.from_domain(
         result.structured_result,
         explanation=result.explanation,

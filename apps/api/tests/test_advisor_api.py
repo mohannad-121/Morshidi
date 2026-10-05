@@ -41,10 +41,12 @@ ENDPOINT = "/api/v1/me/advisor"
 class FakeAdvisorService:
     def __init__(self, result: object) -> None:
         self.result = result
-        self.calls: list[tuple[str, str]] = []
+        self.calls: list[tuple[str, str, str | None, str | None]] = []
 
-    async def advise_with_explanation(self, owner: str, message: str):  # type: ignore[no-untyped-def]
-        self.calls.append((owner, message))
+    async def advise_with_explanation(
+        self, owner: str, message: str, *, institution_id=None, sandbox_persona_id=None,
+    ):  # type: ignore[no-untyped-def]
+        self.calls.append((owner, message, institution_id, sandbox_persona_id))
         if isinstance(self.result, Exception):
             raise self.result
         if isinstance(self.result, AdvisorServiceResult):
@@ -123,7 +125,18 @@ def test_03_authentication_is_required() -> None:
 def test_04_valid_message_is_trimmed_and_owner_comes_from_auth(api) -> None:
     response = api[0].post(ENDPOINT, json={"message": "  وضعي الأكاديمي  "})
     assert response.status_code == 200
-    assert api[1].calls == [(OWNER, "وضعي الأكاديمي")]
+    assert api[1].calls == [(OWNER, "وضعي الأكاديمي", None, None)]
+
+
+def test_sandbox_scope_is_forwarded_only_from_verified_auth_context(api) -> None:
+    app.dependency_overrides[get_current_user] = lambda: CurrentUser(
+        OWNER, "morshidi-sandbox", "202610005"
+    )
+    response = api[0].post(ENDPOINT, json={"message": "هل بقدر انزل 1505311؟"})
+    assert response.status_code == 200
+    assert api[1].calls == [
+        (OWNER, "هل بقدر انزل 1505311؟", "morshidi-sandbox", "202610005")
+    ]
 
 
 @pytest.mark.parametrize("message", ("", " ", "\n\t"))

@@ -12,11 +12,19 @@ from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 from app.core.config import settings
+from app.p16_sandbox.persona import (
+    SandboxPersonaNotFoundError,
+    SandboxPersonaSecurityError,
+    resolve_sandbox_persona,
+)
+from app.p16_sandbox.tenant import SANDBOX_INSTITUTION_ID
 
 
 @dataclass(frozen=True)
 class CurrentUser:
     user_id: str
+    institution_id: str | None = None
+    sandbox_persona_id: str | None = None
 
 
 _bearer = HTTPBearer(auto_error=False)
@@ -51,5 +59,20 @@ async def get_current_user(
         normalized_user_id = str(UUID(user_id))
     except ValueError:
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Invalid authentication") from None
+    app_metadata = body.get("app_metadata") if isinstance(body, dict) else None
+    if app_metadata is not None and not isinstance(app_metadata, dict):
+        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Invalid authentication")
+    app_metadata = app_metadata or {}
+    institution_id = app_metadata.get("institution_id")
+    persona_id = app_metadata.get("sandbox_persona_id")
+    if institution_id is not None and not isinstance(institution_id, str):
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "Invalid academic scope")
+    if persona_id is not None and not isinstance(persona_id, str):
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "Invalid academic scope")
+    if institution_id == SANDBOX_INSTITUTION_ID or persona_id is not None:
+        try:
+            persona_id = resolve_sandbox_persona(persona_id, institution_id)
+        except (ValueError, SandboxPersonaNotFoundError, SandboxPersonaSecurityError):
+            raise HTTPException(status.HTTP_403_FORBIDDEN, "Invalid academic scope") from None
     request.state.auth_ms = round((perf_counter() - auth_started) * 1000, 1)
-    return CurrentUser(normalized_user_id)
+    return CurrentUser(normalized_user_id, institution_id, persona_id)

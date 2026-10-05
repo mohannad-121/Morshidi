@@ -16,7 +16,11 @@ def auth_app(handler) -> FastAPI:
 
     @application.get("/protected")
     async def protected(user: CurrentUser = Depends(get_current_user)):
-        return {"user_id": user.user_id}
+        return {
+            "user_id": user.user_id,
+            "institution_id": user.institution_id,
+            "sandbox_persona_id": user.sandbox_persona_id,
+        }
 
     return application
 
@@ -37,6 +41,39 @@ def test_valid_token_is_verified_by_auth_server() -> None:
         response = client.get("/protected", headers={"Authorization": "Bearer valid-token"})
     assert response.status_code == 200
     assert response.json()["user_id"] == "11111111-1111-1111-1111-111111111111"
+
+
+def test_sandbox_scope_comes_only_from_verified_app_metadata() -> None:
+    def handler(request: httpx.Request):
+        return httpx.Response(200, json={
+            "id": "11111111-1111-1111-1111-111111111111",
+            "app_metadata": {
+                "institution_id": "morshidi-sandbox",
+                "sandbox_persona_id": "202610005",
+            },
+            "user_metadata": {"sandbox_persona_id": "202310001"},
+        })
+    with TestClient(auth_app(handler)) as client:
+        response = client.get("/protected", headers={"Authorization": "Bearer valid-token"})
+    assert response.status_code == 200
+    assert response.json()["institution_id"] == "morshidi-sandbox"
+    assert response.json()["sandbox_persona_id"] == "202610005"
+
+
+@pytest.mark.parametrize("app_metadata", (
+    {"institution_id": "morshidi-sandbox"},
+    {"institution_id": "morshidi-sandbox", "sandbox_persona_id": "unknown"},
+    {"institution_id": "real-tenant", "sandbox_persona_id": "202610005"},
+))
+def test_invalid_sandbox_app_metadata_fails_closed(app_metadata) -> None:
+    def handler(request: httpx.Request):
+        return httpx.Response(200, json={
+            "id": "11111111-1111-1111-1111-111111111111",
+            "app_metadata": app_metadata,
+        })
+    with TestClient(auth_app(handler)) as client:
+        response = client.get("/protected", headers={"Authorization": "Bearer valid-token"})
+    assert response.status_code == 403
 
 
 @pytest.mark.parametrize("authorization", [None, "Basic abc", "Bearer "])
