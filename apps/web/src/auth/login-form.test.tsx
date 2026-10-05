@@ -3,7 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, test, vi } from "vitest";
 
 import { AuthProvider, useAuth } from "@/auth/auth-provider";
-import { LoginForm } from "@/auth/login-form";
+import { LoginForm, normalizeStudentId } from "@/auth/login-form";
 import { ProtectedBoundary } from "@/auth/protected-boundary";
 import { FakeAuthClient } from "@/test/fake-auth-client";
 
@@ -19,24 +19,36 @@ describe("LoginForm Component & University Integration (Step 5)", () => {
     vi.clearAllMocks();
   });
 
-  test("1, 2, 3: student login mode is the default, rendering student ID and university password inputs", async () => {
+  test("1, 2, 3: student-only login renders university credentials and no staff UI", async () => {
     const client = new FakeAuthClient();
+
     render(
       <AuthProvider client={client}>
         <LoginForm />
       </AuthProvider>,
     );
 
-    const studentTab = screen.getByRole("tab", { name: "تسجيل دخول الطالب" });
-    expect(studentTab.getAttribute("aria-selected")).toBe("true");
+    const studentIdInput = screen.getByLabelText(
+      "\u0627\u0644\u0631\u0642\u0645 \u0627\u0644\u062c\u0627\u0645\u0639\u064a",
+    ) as HTMLInputElement;
 
-    const studentIdInput = screen.getByLabelText("الرقم الجامعي");
-    expect(studentIdInput).toBeTruthy();
-    expect(studentIdInput.getAttribute("type")).toBe("text"); // Requirement 4: text input, NOT numeric
+    await waitFor(() => expect(studentIdInput.disabled).toBe(false));
 
-    const passwordInput = screen.getByLabelText("كلمة مرور الجامعة");
-    expect(passwordInput).toBeTruthy();
-    expect(passwordInput.getAttribute("type")).toBe("password");
+    expect(studentIdInput.getAttribute("type")).toBe("text");
+    expect(studentIdInput.getAttribute("inputmode")).toBe("numeric");
+
+    expect(
+      screen.getByLabelText(
+        "\u0643\u0644\u0645\u0629 \u0645\u0631\u0648\u0631 \u0627\u0644\u062c\u0627\u0645\u0639\u0629",
+      ),
+    ).toBeTruthy();
+
+    expect(screen.queryByRole("tab")).toBeNull();
+    expect(
+      screen.queryByLabelText(
+        "\u0627\u0644\u0628\u0631\u064a\u062f \u0627\u0644\u0625\u0644\u0643\u062a\u0631\u0648\u0646\u064a",
+      ),
+    ).toBeNull();
   });
 
   test("4, 5, 6, 7, 8, 9, 10, 11, 12: student login preserves leading zeros, calls backend POST /api/v1/auth/university-login, never calls Fake Uni directly, and calls setSession", async () => {
@@ -55,7 +67,7 @@ describe("LoginForm Component & University Integration (Step 5)", () => {
             token_type: "bearer",
             expires_in: 3600,
           },
-          user: { id: "u-123", email: "0200104@std.morshidi.edu.jo" },
+          user: { id: "u-123", email: "202310001@std.morshidi.edu.jo" },
           sync: { attempts_synced: 5, enrollments_synced: 2 },
         }),
         { status: 200, headers: { "Content-Type": "application/json" } },
@@ -74,7 +86,7 @@ describe("LoginForm Component & University Integration (Step 5)", () => {
     await waitFor(() => expect(studentIdInput.disabled).toBe(false));
 
     // Leading zero student ID
-    await userEvent.type(studentIdInput, " 0200104 ");
+    await userEvent.type(studentIdInput, " 202310001 ");
     await userEvent.type(passwordInput, "UnivPass123");
 
     const submitBtn = screen.getByRole("button", { name: "تسجيل الدخول" });
@@ -86,7 +98,7 @@ describe("LoginForm Component & University Integration (Step 5)", () => {
     expect(capturedUrl).not.toContain("fake-university-aqdn.onrender.com");
     // 4 & 5 & 7. Uses student_id and password, preserves leading zeros, trims whitespace
     expect(capturedBody).toEqual({
-      student_id: "0200104",
+      student_id: "202310001",
       password: "UnivPass123",
     });
 
@@ -323,35 +335,15 @@ describe("LoginForm Component & University Integration (Step 5)", () => {
     );
   });
 
-  test("21, 22, 23: existing staff login mode remains accessible and uses signIn(email, password)", async () => {
-    const client = new FakeAuthClient();
-    render(
-      <AuthProvider client={client}>
-        <LoginForm />
-      </AuthProvider>,
-    );
+  test("21, 22, 23: student ID normalization accepts university ID and canonical email only", () => {
+    expect(normalizeStudentId("202310001")).toBe("202310001");
+    expect(normalizeStudentId("202410002")).toBe("202410002");
+    expect(
+      normalizeStudentId(" 202410002@STD.MORSHIDI.EDU.JO "),
+    ).toBe("202410002");
 
-    // Switch to staff mode via tab
-    const staffTab = screen.getByRole("tab", { name: "تسجيل دخول المرشد أو الموظف" });
-    await userEvent.click(staffTab);
-
-    expect(staffTab.getAttribute("aria-selected")).toBe("true");
-
-    const emailInput = screen.getByLabelText("البريد الإلكتروني") as HTMLInputElement;
-    const passwordInput = screen.getByLabelText("كلمة المرور") as HTMLInputElement;
-    expect(emailInput).toBeTruthy();
-    expect(passwordInput).toBeTruthy();
-
-    await waitFor(() => expect(emailInput.disabled).toBe(false));
-
-    await userEvent.type(emailInput, "advisor@morshidi.edu.jo");
-    await userEvent.type(passwordInput, "advisorSecret123");
-
-    const submitBtn = screen.getByRole("button", { name: "تسجيل الدخول" });
-    await userEvent.click(submitBtn);
-
-    await waitFor(() => expect(replace).toHaveBeenCalledWith("/student"));
-    expect(client.lastSetSession).toBeNull(); // Did not use university setSession
+    expect(normalizeStudentId("12345")).toBeNull();
+    expect(normalizeStudentId("202410002@gmail.com")).toBeNull();
   });
 
   test("24. Logout behavior remains unchanged", async () => {
@@ -387,7 +379,7 @@ describe("LoginForm Component & University Integration (Step 5)", () => {
             token_type: "bearer",
             expires_in: 3600,
           },
-          user: { id: "u-123", email: "0200104@std.morshidi.edu.jo" },
+          user: { id: "u-123", email: "202310001@std.morshidi.edu.jo" },
         }),
         { status: 200, headers: { "Content-Type": "application/json" } },
       );
@@ -416,7 +408,7 @@ describe("LoginForm Component & University Integration (Step 5)", () => {
 
     const idInput = screen.getByLabelText("الرقم الجامعي") as HTMLInputElement;
     await waitFor(() => expect(idInput.disabled).toBe(false));
-    await userEvent.type(idInput, "0200104");
+    await userEvent.type(idInput, "202310001");
     await userEvent.type(screen.getByLabelText("كلمة مرور الجامعة"), "pass123");
     await userEvent.click(screen.getByRole("button", { name: "تسجيل الدخول" }));
 

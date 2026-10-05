@@ -5,13 +5,22 @@ import { useEffect, useState, type FormEvent } from "react";
 import { useAuth } from "@/auth/auth-provider";
 import { EyeIcon, EyeOffIcon } from "@/components/ui/Icons";
 
-export type LoginMode = "student" | "staff";
-
 function safeReturnTo(value: string | null): string {
-  return value && (value === "/student" || value.startsWith("/student/")
-    || value === "/institutional/change-impact" || value === "/institutional/ai-query" || value === "/institutional/cohorts")
+  return value && (
+    value === "/student" ||
+    value.startsWith("/student/") ||
+    value === "/institutional/change-impact" ||
+    value === "/institutional/ai-query" ||
+    value === "/institutional/cohorts"
+  )
     ? value
     : "/student";
+}
+
+export function normalizeStudentId(rawInput: string): string | null {
+  const raw = rawInput.trim().toLowerCase();
+  const match = raw.match(/^(\d{9})(?:@std\.morshidi\.edu\.jo)?$/);
+  return match?.[1] ?? null;
 }
 
 export function LoginForm() {
@@ -19,18 +28,12 @@ export function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
-  const [mode, setMode] = useState<LoginMode>("student");
-  // Student fields
   const [studentId, setStudentId] = useState("");
   const [universityPassword, setUniversityPassword] = useState("");
-
-  // Staff fields
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-
   const [showPassword, setShowPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
   const destination = safeReturnTo(searchParams.get("returnTo"));
 
   useEffect(() => {
@@ -40,54 +43,49 @@ export function LoginForm() {
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (isSubmitting) return;
+
     setError(null);
 
     if (auth.status === "configuration_error") {
-      setError("تعذّر تهيئة تسجيل الدخول. تواصل مع مسؤول النظام.");
+      setError("\u062a\u0639\u0630\u0651\u0631 \u062a\u0647\u064a\u0626\u0629 \u062a\u0633\u062c\u064a\u0644 \u0627\u0644\u062f\u062e\u0648\u0644. \u062a\u0648\u0627\u0635\u0644 \u0645\u0639 \u0645\u0633\u0624\u0648\u0644 \u0627\u0644\u0646\u0638\u0627\u0645.");
+      return;
+    }
+
+    const cleanStudentId = normalizeStudentId(studentId);
+
+    if (!cleanStudentId) {
+      setError("\u0623\u062f\u062e\u0644 \u0627\u0644\u0631\u0642\u0645 \u0627\u0644\u062c\u0627\u0645\u0639\u064a \u0627\u0644\u0645\u0643\u0648\u0651\u0646 \u0645\u0646 9 \u0623\u0631\u0642\u0627\u0645.");
+      return;
+    }
+
+    if (!universityPassword) {
+      setError("\u062a\u0623\u0643\u062f \u0645\u0646 \u0627\u0644\u0631\u0642\u0645 \u0627\u0644\u062c\u0627\u0645\u0639\u064a \u0648\u0643\u0644\u0645\u0629 \u0627\u0644\u0645\u0631\u0648\u0631.");
       return;
     }
 
     setIsSubmitting(true);
+
     try {
-      if (mode === "student") {
-        const cleanStudentId = studentId.trim();
-        if (!cleanStudentId || !universityPassword) {
-          setError("تأكد من الرقم الجامعي وكلمة المرور.");
-          setIsSubmitting(false);
-          return;
-        }
+      const result = await auth.signInWithUniversity(
+        cleanStudentId,
+        universityPassword,
+      );
 
-        const result = await auth.signInWithUniversity(cleanStudentId, universityPassword);
-        if (!result.ok) {
-          setError(result.error || "تعذر تسجيل الدخول. حاول مرة أخرى.");
-          setUniversityPassword("");
-          return;
-        }
+      if (!result.ok) {
+        setError(
+          result.error ||
+            "\u062a\u0639\u0630\u0631 \u062a\u0633\u062c\u064a\u0644 \u0627\u0644\u062f\u062e\u0648\u0644. \u062d\u0627\u0648\u0644 \u0645\u0631\u0629 \u0623\u062e\u0631\u0649.",
+        );
         setUniversityPassword("");
-        router.replace(destination);
-        router.refresh();
-      } else {
-        const cleanEmail = email.trim();
-        if (!cleanEmail || !password) {
-          setError("تعذّر تسجيل الدخول. تأكد من البريد الإلكتروني وكلمة المرور.");
-          setIsSubmitting(false);
-          return;
-        }
-
-        const result = await auth.signIn(cleanEmail, password);
-        if (!result.ok) {
-          setError("تعذّر تسجيل الدخول. تأكد من البريد الإلكتروني وكلمة المرور.");
-          setPassword("");
-          return;
-        }
-        setPassword("");
-        router.replace(destination);
-        router.refresh();
+        return;
       }
+
+      setUniversityPassword("");
+      router.replace(destination);
+      router.refresh();
     } catch {
-      setError("تعذر تسجيل الدخول. حاول مرة أخرى.");
-      if (mode === "student") setUniversityPassword("");
-      else setPassword("");
+      setError("\u062a\u0639\u0630\u0631 \u062a\u0633\u062c\u064a\u0644 \u0627\u0644\u062f\u062e\u0648\u0644. \u062d\u0627\u0648\u0644 \u0645\u0631\u0629 \u0623\u062e\u0631\u0649.");
+      setUniversityPassword("");
     } finally {
       setIsSubmitting(false);
     }
@@ -95,154 +93,81 @@ export function LoginForm() {
 
   return (
     <div className="mt-8 space-y-6">
-      {/* Mode Switcher */}
-      <div
-        className="grid grid-cols-2 gap-1 rounded-2xl bg-[#0B1210] p-1 border border-[#344739]"
-        role="tablist"
-        aria-label="نوع تسجيل الدخول"
+      <p className="text-xs text-[#AEBCB3] leading-relaxed">
+        {"\u0627\u0633\u062a\u062e\u062f\u0645 \u0646\u0641\u0633 \u0627\u0644\u0631\u0642\u0645 \u0627\u0644\u062c\u0627\u0645\u0639\u064a \u0648\u0643\u0644\u0645\u0629 \u0627\u0644\u0645\u0631\u0648\u0631 \u0627\u0644\u062e\u0627\u0635\u0629 \u0628\u0628\u0648\u0627\u0628\u0629 \u062c\u0627\u0645\u0639\u062a\u0643."}
+      </p>
+
+      <form
+        method="post"
+        className="space-y-5"
+        onSubmit={handleSubmit}
+        aria-busy={isSubmitting}
       >
-        <button
-          type="button"
-          role="tab"
-          aria-selected={mode === "student"}
-          onClick={() => {
-            setMode("student");
-            setError(null);
-          }}
-          className={`rounded-xl py-2.5 text-xs font-bold transition-all ${
-            mode === "student"
-              ? "bg-[#D9884A] text-white shadow-xs"
-              : "text-[#AEBCB3] hover:text-[#F3E9D8]"
-          }`}
-        >
-          تسجيل دخول الطالب
-        </button>
-        <button
-          type="button"
-          role="tab"
-          aria-selected={mode === "staff"}
-          onClick={() => {
-            setMode("staff");
-            setError(null);
-          }}
-          className={`rounded-xl py-2.5 text-xs font-bold transition-all ${
-            mode === "staff"
-              ? "bg-[#D9884A] text-white shadow-xs"
-              : "text-[#AEBCB3] hover:text-[#F3E9D8]"
-          }`}
-        >
-          تسجيل دخول المرشد أو الموظف
-        </button>
-      </div>
+        <div>
+          <label
+            className="mb-2 block text-xs font-bold text-[#F3E9D8]"
+            htmlFor="studentId"
+          >
+            {"\u0627\u0644\u0631\u0642\u0645 \u0627\u0644\u062c\u0627\u0645\u0639\u064a"}
+          </label>
 
-      {mode === "student" && (
-        <p className="text-xs text-[#AEBCB3] leading-relaxed">
-          استخدم نفس بيانات الدخول الخاصة ببوابة جامعتك.
-        </p>
-      )}
+          <input
+            className="min-h-12 w-full rounded-xl border border-[#344739] bg-surface px-4 text-left font-mono text-sm text-[#F3E9D8] placeholder:text-[#AEBCB3]/50 focus:border-[#D9884A] focus:ring-1 focus:ring-[#D9884A] disabled:opacity-60"
+            dir="ltr"
+            id="studentId"
+            name="studentId"
+            type="text"
+            inputMode="numeric"
+            autoComplete="off"
+            placeholder="202310001"
+            required
+            disabled={isSubmitting || auth.isLoading}
+            value={studentId}
+            onChange={(event) => setStudentId(event.target.value)}
+          />
+        </div>
 
-      <form method="post" className="space-y-5" onSubmit={handleSubmit} aria-busy={isSubmitting}>
-        {mode === "student" ? (
-          <>
-            <div>
-              <label className="mb-2 block text-xs font-bold text-[#F3E9D8]" htmlFor="studentId">
-                الرقم الجامعي
-              </label>
-              <input
-                className="min-h-12 w-full rounded-xl border border-[#344739] bg-surface px-4 text-left font-mono text-sm text-[#F3E9D8] placeholder:text-[#AEBCB3]/50 focus:border-[#D9884A] focus:ring-1 focus:ring-[#D9884A] disabled:opacity-60"
-                dir="ltr"
-                id="studentId"
-                name="studentId"
-                type="text"
-                autoComplete="username"
-                placeholder="202310001"
-                required
-                disabled={isSubmitting || auth.isLoading}
-                value={studentId}
-                onChange={(event) => setStudentId(event.target.value)}
-              />
-            </div>
+        <div>
+          <label
+            className="mb-2 block text-xs font-bold text-[#F3E9D8]"
+            htmlFor="universityPassword"
+          >
+            {"\u0643\u0644\u0645\u0629 \u0645\u0631\u0648\u0631 \u0627\u0644\u062c\u0627\u0645\u0639\u0629"}
+          </label>
 
-            <div>
-              <label className="mb-2 block text-xs font-bold text-[#F3E9D8]" htmlFor="universityPassword">
-                كلمة مرور الجامعة
-              </label>
-              <div className="relative">
-                <input
-                  className="min-h-12 w-full rounded-xl border border-[#344739] bg-surface px-4 pl-12 text-left font-mono text-sm text-[#F3E9D8] placeholder:text-[#AEBCB3]/50 focus:border-[#D9884A] focus:ring-1 focus:ring-[#D9884A] disabled:opacity-60"
-                  dir="ltr"
-                  id="universityPassword"
-                  name="password"
-                  type={showPassword ? "text" : "password"}
-                  autoComplete="current-password"
-                  required
-                  disabled={isSubmitting || auth.isLoading}
-                  value={universityPassword}
-                  onChange={(event) => setUniversityPassword(event.target.value)}
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword((prev) => !prev)}
-                  className="absolute left-3 top-1/2 -translate-y-1/2 text-[#AEBCB3] hover:text-[#F3E9D8] transition-colors p-1"
-                  aria-label={showPassword ? "إخفاء كلمة المرور" : "إظهار كلمة المرور"}
-                  tabIndex={0}
-                >
-                  {showPassword ? <EyeOffIcon className="h-5 w-5" /> : <EyeIcon className="h-5 w-5" />}
-                </button>
-              </div>
-            </div>
-          </>
-        ) : (
-          <>
-            <div>
-              <label className="mb-2 block text-xs font-bold text-[#F3E9D8]" htmlFor="email">
-                البريد الإلكتروني
-              </label>
-              <input
-                className="min-h-12 w-full rounded-xl border border-[#344739] bg-surface px-4 text-left font-mono text-sm text-[#F3E9D8] placeholder:text-[#AEBCB3]/50 focus:border-[#D9884A] focus:ring-1 focus:ring-[#D9884A] disabled:opacity-60"
-                dir="ltr"
-                id="email"
-                name="email"
-                type="email"
-                autoComplete="email"
-                placeholder="advisor@example.com"
-                required
-                disabled={isSubmitting || auth.isLoading}
-                value={email}
-                onChange={(event) => setEmail(event.target.value)}
-              />
-            </div>
+          <div className="relative">
+            <input
+              className="min-h-12 w-full rounded-xl border border-[#344739] bg-surface px-4 pl-12 text-left font-mono text-sm text-[#F3E9D8] placeholder:text-[#AEBCB3]/50 focus:border-[#D9884A] focus:ring-1 focus:ring-[#D9884A] disabled:opacity-60"
+              dir="ltr"
+              id="universityPassword"
+              name="password"
+              type={showPassword ? "text" : "password"}
+              autoComplete="current-password"
+              required
+              disabled={isSubmitting || auth.isLoading}
+              value={universityPassword}
+              onChange={(event) => setUniversityPassword(event.target.value)}
+            />
 
-            <div>
-              <label className="mb-2 block text-xs font-bold text-[#F3E9D8]" htmlFor="password">
-                كلمة المرور
-              </label>
-              <div className="relative">
-                <input
-                  className="min-h-12 w-full rounded-xl border border-[#344739] bg-surface px-4 pl-12 text-left font-mono text-sm text-[#F3E9D8] placeholder:text-[#AEBCB3]/50 focus:border-[#D9884A] focus:ring-1 focus:ring-[#D9884A] disabled:opacity-60"
-                  dir="ltr"
-                  id="password"
-                  name="password"
-                  type={showPassword ? "text" : "password"}
-                  autoComplete="current-password"
-                  required
-                  disabled={isSubmitting || auth.isLoading}
-                  value={password}
-                  onChange={(event) => setPassword(event.target.value)}
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword((prev) => !prev)}
-                  className="absolute left-3 top-1/2 -translate-y-1/2 text-[#AEBCB3] hover:text-[#F3E9D8] transition-colors p-1"
-                  aria-label={showPassword ? "إخفاء كلمة المرور" : "إظهار كلمة المرور"}
-                  tabIndex={0}
-                >
-                  {showPassword ? <EyeOffIcon className="h-5 w-5" /> : <EyeIcon className="h-5 w-5" />}
-                </button>
-              </div>
-            </div>
-          </>
-        )}
+            <button
+              type="button"
+              onClick={() => setShowPassword((prev) => !prev)}
+              className="absolute left-3 top-1/2 -translate-y-1/2 text-[#AEBCB3] hover:text-[#F3E9D8] transition-colors p-1"
+              aria-label={
+                showPassword
+                  ? "\u0625\u062e\u0641\u0627\u0621 \u0643\u0644\u0645\u0629 \u0627\u0644\u0645\u0631\u0648\u0631"
+                  : "\u0625\u0638\u0647\u0627\u0631 \u0643\u0644\u0645\u0629 \u0627\u0644\u0645\u0631\u0648\u0631"
+              }
+              tabIndex={0}
+            >
+              {showPassword ? (
+                <EyeOffIcon className="h-5 w-5" />
+              ) : (
+                <EyeIcon className="h-5 w-5" />
+              )}
+            </button>
+          </div>
+        </div>
 
         {error ? (
           <p
@@ -255,40 +180,17 @@ export function LoginForm() {
 
         <button
           className="inline-flex min-h-12 w-full items-center justify-center rounded-xl bg-[#D9884A] px-5 py-3 text-sm font-bold text-white shadow-xs transition-all hover:bg-[#E5AC7C] active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-60"
-          disabled={isSubmitting || auth.isLoading || auth.status === "configuration_error"}
+          disabled={
+            isSubmitting ||
+            auth.isLoading ||
+            auth.status === "configuration_error"
+          }
           type="submit"
         >
-          {isSubmitting ? "جاري تسجيل الدخول…" : "تسجيل الدخول"}
+          {isSubmitting
+            ? "\u062c\u0627\u0631\u064a \u062a\u0633\u062c\u064a\u0644 \u0627\u0644\u062f\u062e\u0648\u0644\u2026"
+            : "\u062a\u0633\u062c\u064a\u0644 \u0627\u0644\u062f\u062e\u0648\u0644"}
         </button>
-
-        {/* Secondary Switch Link */}
-        <div className="text-center pt-1">
-          {mode === "student" ? (
-            <button
-              type="button"
-              onClick={() => {
-                setMode("staff");
-                setError(null);
-              }}
-              className="text-xs font-medium text-[#AEBCB3] hover:text-[#E5AC7C] transition-colors"
-            >
-              مرشد أكاديمي أو موظف؟{" "}
-              <span className="font-bold underline text-[#E5AC7C]">تسجيل الدخول بالبريد الإلكتروني</span>
-            </button>
-          ) : (
-            <button
-              type="button"
-              onClick={() => {
-                setMode("student");
-                setError(null);
-              }}
-              className="text-xs font-medium text-[#AEBCB3] hover:text-[#E5AC7C] transition-colors"
-            >
-              طالب جامعي؟{" "}
-              <span className="font-bold underline text-[#E5AC7C]">تسجيل الدخول بالرقم الجامعي</span>
-            </button>
-          )}
-        </div>
       </form>
     </div>
   );
