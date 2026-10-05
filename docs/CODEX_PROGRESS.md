@@ -1,5 +1,26 @@
 # Morshidi — Codex Progress Record
 
+## Backend-only preview CORS release branch (2026-10-05)
+
+**Phase/slice and objective:** Isolate the verified FastAPI CORS repair from the student-chat frontend branch so it can be reviewed and deployed independently. Starting point is latest `origin/main` at `da277b54f068db0508542ecc16747ae75e124353`; branch is `fix/preview-cors`. The six-file working change was preserved from `fix/student-chat-recovery` in named stash `codex-preview-cors-transfer-20261005`, then applied to this branch. The docs conflict was resolved by retaining `origin/main` and adding only this CORS record. The frontend recovery commit `053da32eca2600b30d73449ad2ed0689a810525e` and remote `fix/student-chat-recovery` remain unchanged. No frontend source, Supabase file, migration, replay SQL, secret file, production frontend, or database was transferred or modified.
+
+**Implementation:** `CORS_ALLOWED_ORIGINS` provides a comma-separated explicit additional-origin list. `app/core/cors.py` validates and de-duplicates the production `FRONTEND_URL`, local `http://127.0.0.1:3000`, and additional origins; rejects wildcard/non-origin inputs; retains credentials; and restricts methods to `GET`, `POST`, `PATCH`, `DELETE`, `OPTIONS` and non-safelisted request headers to `Authorization`, `Content-Type`. `app/main.py` installs that policy. The example lists exactly `https://morshidi-git-fix-student-chat-recovery-mohannad-121s-projects.vercel.app` and `https://morshidi-fdsa3o1cj-mohannad-121s-projects.vercel.app`. No arbitrary Vercel regex or authentication bypass exists.
+
+**Current verification:** Focused CORS: **11 passed, 0 failed, 0 skipped, 2 dependency warnings in 0.58s**. Middleware/auth/health/timing/advisor/conversation subset: **77 passed, 0 failed, 0 skipped, 2 warnings in 19.39s**. Broader CORS/advisor/interpretation/conversation subset: **195 passed, 0 failed, 0 skipped, 2 warnings in 20.77s**. Corrected `compileall` completed with exit 0. Scoped `mypy --follow-imports=skip --ignore-missing-imports` completed with **0 issues in 4 source files**; the known repository-aware baseline remains 165 existing errors across 63 files. A real imported `app.main` with process-only intended origin settings returned preflight `200`, the exact preview origin, and credentials `true` for advisor POST and conversations GET; the unrelated Vercel origin returned `400` with no allow-origin header. `git diff --check` passed.
+
+**Deployment and security status:** Commit, push, merge, Render environment update, Render deployment, and real remote preflight are authorized by the current owner task but remain pending at this checkpoint. Required Render value is the two exact public origins above; `FRONTEND_URL=https://morshidi.vercel.app` must be preserved. Backend restart/redeploy is required; frontend production deployment and database migration are forbidden. Migration status: **NOT APPLIED**. Acceptance at this checkpoint: **BACKEND-ONLY DIFF VERIFIED; READY TO COMMIT AND DEPLOY**. Exact next point: stage only the six files below, commit `fix(api): allow trusted Morshidi preview origins`, push `fix/preview-cors`, verify diff against `origin/main`, merge only that branch to main, configure/redeploy Render, then verify health and positive/negative real preflights.
+
+**Verified file inventory before final progress-size refresh:**
+
+| File | Bytes | Purpose |
+| --- | ---: | --- |
+| `apps/api/.env.example` | 450 | Document the exact preview-origin setting |
+| `apps/api/app/core/config.py` | 1,104 | Add the environment-backed additional-origin field |
+| `apps/api/app/core/cors.py` | 1,794 | Validate and install the explicit credentialed CORS policy |
+| `apps/api/app/main.py` | 26,858 | Register the centralized CORS policy |
+| `apps/api/tests/test_cors.py` | 4,993 | Positive, negative, preflight, method/header, and wildcard coverage |
+| `docs/CODEX_PROGRESS.md` | 271,025 | This release evidence and exact next point |
+
 ## P16 Sandbox Integration — Contributor University Integrated & Verified (2026-10-02)
 
 **P16 IMPLEMENTATION = READY FOR OWNER REVIEW.** Starting and current HEAD: `ca52a894850547d6983e6053f14d879bdee1746b` on main. Objective: Integrate the authoritative contributor Sandbox University (`morshidi-uni`) into the Morshidi Academic Intelligence Platform (`Morshidi`) without rebuilding it, adhering strictly to contract-driven architecture, isolated synthetic tenant boundaries, zero credential leakage, and full test verification.

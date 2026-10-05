@@ -3,7 +3,6 @@ from contextlib import asynccontextmanager
 import httpx
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import JSONResponse
-from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.routes.eligibility import router as eligibility_router
 from app.api.routes.health import router as health_router
@@ -74,6 +73,7 @@ from app.catalog.errors import (
 )
 from app.catalog.supabase_repository import SupabaseAcademicCatalogRepository
 from app.core.config import settings
+from app.core.cors import add_cors_middleware
 from app.core.academic_compute import AcademicComputeLimiter
 from app.core.request_timing import RequestTimingMiddleware
 from app.services.eligibility import EligibilityConfigurationError, EligibilityService
@@ -310,13 +310,7 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=[settings.frontend_url, "http://127.0.0.1:3000"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+add_cors_middleware(app)
 app.add_middleware(RequestTimingMiddleware)
 
 app.include_router(health_router)
