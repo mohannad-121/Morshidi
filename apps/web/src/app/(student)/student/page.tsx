@@ -107,6 +107,23 @@ export default function StudentPage({ client: injectedClient }: StudentPageProps
   const [isReloading, setIsReloading] = useState(false);
   const [refreshIndex, setRefreshIndex] = useState(0);
 
+  const reportedEarnedCredits = profile?.reported_earned_credit_hours;
+  const reportedRemainingCredits =
+    progress && reportedEarnedCredits !== null && reportedEarnedCredits !== undefined
+      ? Math.max(0, progress.plan_total_required_credits - reportedEarnedCredits)
+      : null;
+  const universityProgressPercent =
+    progress &&
+    progress.plan_total_required_credits > 0 &&
+    reportedEarnedCredits !== null &&
+    reportedEarnedCredits !== undefined
+      ? (
+          Math.round(
+            (reportedEarnedCredits / progress.plan_total_required_credits) * 1000
+          ) / 10
+        ).toFixed(1)
+      : null;
+
   const client = useMemo(() => {
     if (injectedClient) return injectedClient;
     try {
@@ -330,7 +347,7 @@ export default function StudentPage({ client: injectedClient }: StudentPageProps
       {!loading && !activeError && profile && progress ? (
         <div className="space-y-8">
           {/* Quick Stats Grid */}
-          <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-5">
             <StatCard
               title="إجمالي ساعات الخطة"
               value={`${displayValue(progress.plan_total_required_credits)} ساعة`}
@@ -338,14 +355,22 @@ export default function StudentPage({ client: injectedClient }: StudentPageProps
               variant="warm"
             />
             <StatCard
-              title="الساعات المنجزة"
-              value={`${displayValue(progress.completed_plan_credits)} ساعة`}
-              subtitle="ساعة محتسبة ومستوفاة"
+              title="الساعات المكتسبة (سجل الجامعة)"
+              value={`${displayValue(reportedEarnedCredits)} ساعة`}
+              subtitle="سجل الجامعة الرسمي"
               badge={
-                progress.all_modeled_plan_requirements_satisfied ? (
-                  <Badge variant="success" size="sm">مكتمل</Badge>
+                universityProgressPercent !== null ? (
+                  <Badge variant="gold" size="sm">
+                    {`${universityProgressPercent}%`}
+                  </Badge>
                 ) : undefined
               }
+            />
+            <StatCard
+              title="الساعات المتبقية (حسب سجل الجامعة)"
+              value={`${displayValue(reportedRemainingCredits)} ساعة`}
+              subtitle="متبقية حسب سجل الجامعة"
+              variant="gold"
             />
             <StatCard
               title="الساعات قيد التسجيل"
@@ -353,10 +378,9 @@ export default function StudentPage({ client: injectedClient }: StudentPageProps
               subtitle="مسجلة في الفصل الحالي"
             />
             <StatCard
-              title="الساعات المتبقية"
-              value={`${displayValue(progress.remaining_plan_credits)} ساعة`}
-              subtitle="ساعة مطلوب إتمامها"
-              variant="gold"
+              title="نسبة الإنجاز (سجل الجامعة)"
+              value={universityProgressPercent !== null ? `${universityProgressPercent}%` : "غير متوفر"}
+              subtitle="نسبة الساعات المكتسبة إلى الخطة"
             />
           </div>
 
@@ -416,7 +440,7 @@ export default function StudentPage({ client: injectedClient }: StudentPageProps
                   </dd>
                 </div>
                 <div>
-                  <dt className="text-xs font-semibold text-[#AEBCB3]">الساعات المنجزة</dt>
+                  <dt className="text-xs font-semibold text-[#AEBCB3]">الساعات المحتسبة ضمن متطلبات الخطة</dt>
                   <dd className="mt-1 font-mono text-base font-bold text-[#F3E9D8]">
                     {displayValue(progress.completed_plan_credits)}
                   </dd>
@@ -428,7 +452,7 @@ export default function StudentPage({ client: injectedClient }: StudentPageProps
                   </dd>
                 </div>
                 <div>
-                  <dt className="text-xs font-semibold text-[#AEBCB3]">الساعات المتبقية</dt>
+                  <dt className="text-xs font-semibold text-[#AEBCB3]">المتبقي حسب نموذج الخطة</dt>
                   <dd className="mt-1 font-mono text-base font-bold text-[#F3E9D8]">
                     {displayValue(progress.remaining_plan_credits)}
                   </dd>
