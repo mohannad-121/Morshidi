@@ -10,6 +10,7 @@ class Settings(BaseSettings):
     app_version: str = "0.1.0"
     app_env: str = "development"
     frontend_url: str = "http://localhost:3000"
+    cors_allowed_origins: str = ""
     supabase_url: str | None = None
     supabase_secret_key: SecretStr | None = None
     advisor_llm_api_key: SecretStr | None = None
