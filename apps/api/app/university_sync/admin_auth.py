@@ -58,7 +58,7 @@ def build_canonical_student_email(university_student_id: str, university_id: str
     clean_uni_id = str(university_id).strip().lower()
 
     if clean_uni_id == ZARQA_UNIVERSITY_ID:
-        return f"{clean_student_id}@std.morshidi.edu.jo"
+        return f"{clean_student_id}@shadow.morshidi.internal"
     # Future-proof fallback for subsequent institutions
     return f"{clean_student_id}@{clean_uni_id[:8]}.morshidi.internal"
 

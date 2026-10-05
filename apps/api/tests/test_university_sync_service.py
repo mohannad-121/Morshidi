@@ -422,7 +422,7 @@ async def test_01_first_time_student_authentication_succeeds(test_service: tuple
     assert result.is_new_user is True
     assert result.university_student_id == "202310001"
     assert result.university_id == TEST_UNIVERSITY_ID
-    assert result.canonical_email == "202310001@std.morshidi.edu.jo"
+    assert result.canonical_email == "202310001@shadow.morshidi.internal"
     assert len(mock_supabase.auth_users) == 1
     assert len(mock_supabase.identities) == 1
     assert len(mock_supabase.profiles) == 1
