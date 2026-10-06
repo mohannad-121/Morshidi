@@ -28,7 +28,7 @@ export function ProgressBar({
         </div>
       ) : null}
       <div
-        className="h-2.5 w-full overflow-hidden rounded-full bg-border/60"
+        className="progress-track h-2.5 w-full overflow-hidden rounded-full"
         role="progressbar"
         aria-valuenow={safeCompleted}
         aria-valuemin={0}
@@ -36,7 +36,7 @@ export function ProgressBar({
         aria-label={label ?? "مؤشر التقدم"}
       >
         <div
-          className={`h-full rounded-full transition-all duration-500 ease-out ${barColor}`}
+          className={`progress-fill h-full rounded-full transition-all duration-500 ease-out ${barColor}`}
           style={{ width: `${percent}%` }}
         />
       </div>

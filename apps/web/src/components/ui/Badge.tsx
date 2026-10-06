@@ -6,6 +6,8 @@ export type BadgeVariant =
   | "warning"
   | "review"
   | "error"
+  | "danger"
+  | "info"
   | "neutral";
 
 interface BadgeProps {
@@ -24,17 +26,19 @@ export function Badge({
   const sizeClasses = size === "sm" ? "px-2 py-0.5 text-xs" : "px-2.5 py-1 text-xs font-semibold";
 
   const variantClasses = {
-    gold: "bg-accent-soft text-accent border border-border",
-    success: "bg-emerald-50 text-emerald-800 border border-emerald-200",
-    warning: "bg-amber-50 text-amber-800 border border-amber-200",
-    review: "bg-amber-100/70 text-amber-900 border border-amber-300 font-bold",
-    error: "bg-red-50 text-red-800 border border-red-200",
-    neutral: "bg-surface-muted text-muted border border-border",
+    gold: "badge-gold",
+    success: "badge-success",
+    warning: "badge-warning",
+    review: "badge-review font-bold",
+    error: "badge-danger",
+    danger: "badge-danger",
+    info: "badge-info",
+    neutral: "badge-neutral",
   }[variant];
 
   return (
     <span
-      className={`inline-flex items-center gap-1.5 rounded-full ${sizeClasses} ${variantClasses} ${className}`}
+      className={`badge inline-flex items-center gap-1.5 rounded-full ${sizeClasses} ${variantClasses} ${className}`}
     >
       {children}
     </span>

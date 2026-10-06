@@ -45,10 +45,10 @@ export function ErrorAlert({
   return (
     <div
       role="alert"
-      className={`flex flex-col gap-3 rounded-2xl border border-red-200 bg-red-50/80 p-5 text-red-900 shadow-sm sm:flex-row sm:items-center sm:justify-between ${className}`}
+      className={`status-danger flex flex-col gap-3 rounded-2xl border p-5 shadow-sm sm:flex-row sm:items-center sm:justify-between ${className}`}
     >
       <div className="flex items-center gap-3">
-        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-red-100 text-red-700">
+        <div className="status-icon flex h-10 w-10 shrink-0 items-center justify-center rounded-xl">
           <AlertTriangleIcon className="h-5 w-5" />
         </div>
         <p className="text-sm font-medium leading-relaxed">{message}</p>
@@ -57,7 +57,7 @@ export function ErrorAlert({
         <button
           type="button"
           onClick={onRetry}
-          className="inline-flex min-h-10 items-center justify-center gap-1.5 self-start rounded-xl border border-red-300 bg-surface px-4 py-2 text-xs font-semibold text-red-800 shadow-xs transition-colors hover:bg-red-50 sm:self-center"
+          className="status-action inline-flex min-h-10 items-center justify-center gap-1.5 self-start rounded-xl border px-4 py-2 text-xs font-semibold shadow-xs transition-colors sm:self-center"
         >
           <RefreshIcon className="h-3.5 w-3.5" />
           <span>إعادة المحاولة</span>

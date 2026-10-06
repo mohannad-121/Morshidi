@@ -1,7 +1,7 @@
 export function LoadingSkeletonCard({ className = "" }: { className?: string }) {
   return (
     <div
-      className={`animate-pulse rounded-2xl border border-border bg-surface-muted p-6 shadow-xs ${className}`}
+      className={`loading-skeleton animate-pulse rounded-2xl border border-border p-6 shadow-xs ${className}`}
       role="status"
       aria-label="جاري التحميل"
     >
@@ -25,7 +25,7 @@ export function LoadingSkeletonGrid({ count = 4 }: { count?: number }) {
 export function LoadingSkeletonTable({ rows = 5 }: { rows?: number }) {
   return (
     <div
-      className="animate-pulse rounded-2xl border border-border bg-surface p-6"
+      className="loading-skeleton animate-pulse rounded-2xl border border-border p-6"
       role="status"
       aria-label="جاري التحميل"
     >

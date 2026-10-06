@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, type ButtonHTMLAttributes, type ReactNode } from 'react';
+import { useEffect, useRef, type ButtonHTMLAttributes, type HTMLAttributes, type ReactNode } from 'react';
 import { Compass, RotateCcw } from 'lucide-react';
 import { motion, useReducedMotion } from 'framer-motion';
 import { label } from '@/lib/labels';
@@ -28,12 +28,17 @@ export function CountUp({ value }: { value: number }) {
   return <span ref={ref} className="tabular-nums">{value}</span>;
 }
 
-export function Button({ children, className = '', ...props }: ButtonHTMLAttributes<HTMLButtonElement>) {
-  return <button {...props} className={`button-primary ${className}`}>{children}</button>;
+type ButtonVariant = 'primary' | 'secondary' | 'ghost' | 'icon';
+
+export function Button({ children, className = '', variant = 'primary', ...props }: ButtonHTMLAttributes<HTMLButtonElement> & { variant?: ButtonVariant }) {
+  const variantClass = variant === 'icon' ? 'icon-button' : `button-${variant}`;
+  return <button {...props} className={`${variantClass} ${className}`}>{children}</button>;
 }
 
-export function Card({ children, className = '' }: { children: ReactNode; className?: string }) {
-  return <div className={`engraved ${className}`}>{children}</div>;
+type SurfaceLevel = 'base' | 'raised' | 'feature' | 'interactive';
+
+export function Card({ children, className = '', level = 'base', ...props }: HTMLAttributes<HTMLDivElement> & { level?: SurfaceLevel }) {
+  return <div {...props} className={`engraved surface-${level} ${className}`}>{children}</div>;
 }
 
 export function PageHeader({ eyebrow, title, description, action, className = '' }: { eyebrow?: string; title: string; description?: string; action?: ReactNode; className?: string }) {
