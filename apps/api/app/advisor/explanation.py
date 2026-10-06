@@ -323,11 +323,32 @@ def deterministic_explanation(
                         if arabic else
                         f"Course {course_label} has no official prerequisites in the study plan.")
             return AdvisorExplanationOutput(text, language)
-        credits_str = f"{payload.credit_hours} ساعات معتمدة" if payload.credit_hours is not None else ""
-        prereq_str = f"المتطلب السابق: {payload.raw_prerequisite_text}" if payload.raw_prerequisite_text else "لا يوجد متطلب سابق"
-        text = (f"معلومات مساق {course_label}: {credits_str}. {prereq_str}."
-                if arabic else
-                f"Course information for {course_label}: {credits_str}. {prereq_str}.")
+        details: list[str] = []
+        if payload.credit_hours is not None:
+            details.append(f"{payload.credit_hours} ساعات معتمدة" if arabic else f"{payload.credit_hours} credit hours")
+        if payload.requirement_group_code:
+            details.append(f"المجموعة: {payload.requirement_group_code}" if arabic else f"Requirement group: {payload.requirement_group_code}")
+        if payload.raw_prerequisite_text:
+            details.append(f"المتطلب السابق: {payload.raw_prerequisite_text}" if arabic else f"Prerequisites: {payload.raw_prerequisite_text}")
+        else:
+            details.append("لا يوجد متطلب سابق رسمي مسجل في الخطة" if arabic else "No official prerequisites in the study plan")
+        if payload.difficulty_level is not None:
+            levels_ar = {
+                "VERY_EASY": "سهلة جدًا",
+                "EASY": "سهلة",
+                "MODERATE": "متوسطة",
+                "HARD": "صعبة",
+                "VERY_HARD": "صعبة جدًا",
+            }
+            diff_level = levels_ar.get(payload.difficulty_level, payload.difficulty_level) if arabic else payload.difficulty_level.replace("_", " ").lower()
+            score_part = f" ({payload.difficulty_score}/100)" if payload.difficulty_score is not None else ""
+            details.append(f"مستوى الصعوبة البنيوية: {diff_level}{score_part}" if arabic else f"Structural difficulty: {diff_level}{score_part}")
+
+        text = (
+            f"معلومات مساق {course_label}:\n" + "\n".join(f"- {d}" for d in details)
+            if arabic else
+            f"Course information for {course_label}:\n" + "\n".join(f"- {d}" for d in details)
+        )
         return AdvisorExplanationOutput(text, language)
     if isinstance(payload, CanTakeDecision):
         name = payload.target_name_ar if arabic else (payload.target_name_en or payload.target_name_ar or payload.target_course_code)

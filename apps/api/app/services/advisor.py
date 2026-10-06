@@ -23,6 +23,7 @@ from app.advisor.interpretation import (
     InterpretationStatus,
     invoke_advisor_provider_async,
     normalize_advisor_interpretation,
+    resolve_course_references,
 )
 from app.advisor.models import (
     AdvisorIntent,
@@ -135,43 +136,84 @@ class AdvisorService:
         self, owner_user_id: str, message: str, conversation_context: str = "",
     ) -> tuple[StructuredAdvisorResult, str | None]:
         started = perf_counter()
-
-        provider_output = await invoke_advisor_provider_async(
-            self._provider, message, conversation_context)
-        routing_ms = round((perf_counter() - started) * 1000, 1)
-        if isinstance(provider_output, ProviderFailure):
-            raise AdvisorProviderError(provider_output)
-        assert isinstance(provider_output, RawAdvisorInterpretation)
-
-        if provider_output.intent == AdvisorIntent.GENERAL_CHAT.value:
-            guarded_intent = _academic_guard_intent(message)
-            if guarded_intent is None and provider_output.general_response is not None:
-                # A misbehaving general-chat response must not assert academic decisions.
-                if _academic_guard_intent(provider_output.general_response) is not None:
-                    guarded_intent = AdvisorIntent.CLARIFICATION_REQUIRED
-            if guarded_intent is not None:
-                provider_output = RawAdvisorInterpretation(
-                    intent=guarded_intent.value,
-                    course_mentions=(provider_output.course_mentions
-                                     if guarded_intent in (AdvisorIntent.COURSE_ELIGIBILITY, AdvisorIntent.COURSE_INFORMATION, AdvisorIntent.COURSE_COMPARISON)
-                                     else ()),
-                    course_codes_mentioned=(provider_output.course_codes_mentioned or
-                        tuple(re.findall(r"(?<!\d)\d{6,8}(?!\d)", message)))
-                    if guarded_intent in (AdvisorIntent.COURSE_ELIGIBILITY, AdvisorIntent.COURSE_INFORMATION, AdvisorIntent.COURSE_COMPARISON) else (),
-                )
-        elif provider_output.intent == AdvisorIntent.CLARIFICATION_REQUIRED.value:
-            pre_routed = pre_route_academic_intent(message, conversation_context)
-            if pre_routed is not None:
-                provider_output = pre_routed
-
-        state: StudentAcademicState | None = None
+        routing_ms = 0.0
         student_context_ms = 0.0
         catalog_ms = 0.0
-        resolution_catalog = ()
-        if _needs_course_catalog(provider_output):
-            phase_started = perf_counter()
-            state = await self._student_repository.load_student_academic_state(owner_user_id)
-            student_context_ms += (perf_counter() - phase_started) * 1000
+
+        state: StudentAcademicState | None = None
+        resolution_catalog: tuple[ResolvedCourseReference, ...] = ()
+        provider_output: RawAdvisorInterpretation | None = None
+
+        # 1. High-confidence deterministic pre-router runs FIRST
+        pre_routed = pre_route_academic_intent(message, conversation_context)
+        if pre_routed is not None:
+            if _needs_course_catalog(pre_routed):
+                phase_started = perf_counter()
+                state = await self._student_repository.load_student_academic_state(owner_user_id)
+                student_context_ms += (perf_counter() - phase_started) * 1000
+                phase_started = perf_counter()
+                resolution_catalog = await self._catalog_repository.load_advisor_course_catalog(
+                    state.study_plan_id
+                )
+                catalog_ms += (perf_counter() - phase_started) * 1000
+
+                # Validate whether candidate course(s) actually resolve in the student's catalog
+                references = pre_routed.course_codes_mentioned + pre_routed.course_mentions
+                resolution = resolve_course_references(references, resolution_catalog) if references else None
+
+                if resolution is not None and resolution.status is EntityResolutionStatus.NOT_FOUND:
+                    if (
+                        pre_routed.clarification_hint == "GENERAL_COURSE_INFORMATION"
+                        or pre_routed.intent == AdvisorIntent.COURSE_COMPARISON.value
+                        or (pre_routed.intent == AdvisorIntent.COURSE_ELIGIBILITY.value and not pre_routed.course_codes_mentioned)
+                    ):
+                        # Safeguard: do not blindly convert non-course nouns (e.g. "احكيلي عن الجامعة", "هل أقدر أسجل الذكاء الاصطناعي؟")
+                        # into deterministic course intents when not in catalog. Fall back to LLM provider.
+                        pre_routed = None
+
+            if pre_routed is not None:
+                provider_output = pre_routed
+                routing_ms = round((perf_counter() - started) * 1000, 1)
+
+        # 2. If pre-router did not match or fell back, invoke the LLM provider
+        if provider_output is None:
+            llm_started = perf_counter()
+            llm_output = await invoke_advisor_provider_async(
+                self._provider, message, conversation_context
+            )
+            routing_ms = round((perf_counter() - llm_started) * 1000, 1)
+            if isinstance(llm_output, ProviderFailure):
+                raise AdvisorProviderError(llm_output)
+            assert isinstance(llm_output, RawAdvisorInterpretation)
+            provider_output = llm_output
+
+            if provider_output.intent == AdvisorIntent.GENERAL_CHAT.value:
+                guarded_intent = _academic_guard_intent(message)
+                if guarded_intent is None and provider_output.general_response is not None:
+                    # A misbehaving general-chat response must not assert academic decisions.
+                    if _academic_guard_intent(provider_output.general_response) is not None:
+                        guarded_intent = AdvisorIntent.CLARIFICATION_REQUIRED
+                if guarded_intent is not None:
+                    provider_output = RawAdvisorInterpretation(
+                        intent=guarded_intent.value,
+                        course_mentions=(provider_output.course_mentions
+                                         if guarded_intent in (AdvisorIntent.COURSE_ELIGIBILITY, AdvisorIntent.COURSE_INFORMATION, AdvisorIntent.COURSE_COMPARISON)
+                                         else ()),
+                        course_codes_mentioned=(provider_output.course_codes_mentioned or
+                            tuple(re.findall(r"(?<!\d)\d{6,8}(?!\d)", message)))
+                        if guarded_intent in (AdvisorIntent.COURSE_ELIGIBILITY, AdvisorIntent.COURSE_INFORMATION, AdvisorIntent.COURSE_COMPARISON) else (),
+                    )
+            elif provider_output.intent == AdvisorIntent.CLARIFICATION_REQUIRED.value:
+                secondary_pre = pre_route_academic_intent(message, conversation_context)
+                if secondary_pre is not None:
+                    provider_output = secondary_pre
+
+        # Ensure catalog is loaded if needed and not loaded yet
+        if _needs_course_catalog(provider_output) and not resolution_catalog:
+            if state is None:
+                phase_started = perf_counter()
+                state = await self._student_repository.load_student_academic_state(owner_user_id)
+                student_context_ms += (perf_counter() - phase_started) * 1000
             phase_started = perf_counter()
             resolution_catalog = await self._catalog_repository.load_advisor_course_catalog(
                 state.study_plan_id

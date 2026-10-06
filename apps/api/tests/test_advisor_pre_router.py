@@ -174,7 +174,55 @@ def test_unrelated_chat_returns_none_for_llm_fallback() -> None:
         "شو اسمك؟",
         "شكراً جزيلاً",
         "مين طورك؟",
+        "احكيلي عن الحرب العالمية الثانية",
+        "شو يعني prerequisite؟",
+        "احكيلي عن الذكاء الاصطناعي بشكل عام",
+        "كيف أدرس بشكل أفضل؟",
     ]
     for q in non_academic:
-        assert pre_route_academic_intent(q) is None
+        assert pre_route_academic_intent(q) is None, f"Expected None for: {q}"
+
+
+def test_generic_course_information_queries() -> None:
+    arabic_queries = [
+        "احكيلي عن تعلم الآلة",
+        "احكيلي عن مادة تعلم الآلة",
+        "شو هي تعلم الآلة؟",
+        "شو مادة تعلم الآلة؟",
+        "اعطيني معلومات عن تعلم الآلة",
+        "بدي أعرف عن تعلم الآلة",
+        "معلومات عن تعلم الآلة",
+        "عرفني على تعلم الآلة",
+        "معلومات عن مساق تعلم الآلة",
+    ]
+    for q in arabic_queries:
+        routed = pre_route_academic_intent(q)
+        assert routed is not None, f"Failed to pre-route: {q}"
+        assert routed.intent == AdvisorIntent.COURSE_INFORMATION.value, f"Wrong intent for {q}: {routed.intent}"
+        assert routed.clarification_hint == "GENERAL_COURSE_INFORMATION"
+        all_mentions = routed.course_mentions + routed.course_codes_mentioned
+        assert any("تعلم الآلة" in m for m in all_mentions), f"Missing 'تعلم الآلة' in {all_mentions} for {q}"
+
+    english_queries = [
+        ("Tell me about Machine Learning", "Machine Learning"),
+        ("What is Machine Learning?", "Machine Learning"),
+        ("Give me information about Machine Learning", "Machine Learning"),
+    ]
+    for q, expected in english_queries:
+        routed = pre_route_academic_intent(q)
+        assert routed is not None, f"Failed to pre-route: {q}"
+        assert routed.intent == AdvisorIntent.COURSE_INFORMATION.value
+        assert routed.clarification_hint == "GENERAL_COURSE_INFORMATION"
+        all_mentions = routed.course_mentions + routed.course_codes_mentioned
+        assert any(expected.lower() in m.lower() for m in all_mentions)
+
+
+def test_generic_course_information_pronoun_with_context() -> None:
+    context = "معلومات مساق تعلم الآلة (1505311): 3 ساعات معتمدة."
+    routed = pre_route_academic_intent("احكيلي عنها", conversation_context=context)
+    assert routed is not None
+    assert routed.intent == AdvisorIntent.COURSE_INFORMATION.value
+    assert routed.clarification_hint == "GENERAL_COURSE_INFORMATION"
+    all_mentions = routed.course_mentions + routed.course_codes_mentioned
+    assert "1505311" in all_mentions or any("تعلم الآلة" in m for m in all_mentions)
 
