@@ -19,6 +19,39 @@ create table if not exists public.student_ai_memories (
 create index if not exists student_ai_memories_owner_idx on public.student_ai_memories
   (owner_user_id, institution_id, memory_category);
 
+create or replace function public.validate_student_ai_memory_scope()
+returns trigger language plpgsql set search_path = '' as $$
+begin
+  -- 1. Verify owner owns an existing student_academic_profile at the stated institution
+  if not exists (
+    select 1 from public.student_academic_profiles p
+    join public.study_plans sp on sp.id = p.study_plan_id
+    join public.majors m on m.id = sp.major_id
+    join public.faculties f on f.id = m.faculty_id
+    where p.owner_user_id = new.owner_user_id and f.university_id = new.institution_id
+  ) then
+    raise exception 'Student AI memory owner/institution scope mismatch' using errcode = '23514';
+  end if;
+
+  -- 2. If source_thread_id is set, verify referenced thread matches id, owner_user_id, and institution_id
+  if new.source_thread_id is not null and not exists (
+    select 1 from public.student_conversation_threads t
+    where t.id = new.source_thread_id
+      and t.owner_user_id = new.owner_user_id
+      and t.institution_id = new.institution_id
+  ) then
+    raise exception 'Student AI memory source thread scope mismatch' using errcode = '23514';
+  end if;
+
+  return new;
+end;
+$$;
+
+drop trigger if exists student_ai_memory_scope_guard on public.student_ai_memories;
+create trigger student_ai_memory_scope_guard
+before insert or update on public.student_ai_memories
+for each row execute function public.validate_student_ai_memory_scope();
+
 alter table public.student_ai_memories enable row level security;
 
 revoke all on public.student_ai_memories from anon, authenticated;
@@ -37,3 +70,6 @@ create policy student_ai_memories_owner_select on public.student_ai_memories
       where p.owner_user_id = auth.uid() and f.university_id = student_ai_memories.institution_id
     )
   );
+
+revoke all on function public.validate_student_ai_memory_scope() from public, anon, authenticated;
+grant execute on function public.validate_student_ai_memory_scope() to service_role;

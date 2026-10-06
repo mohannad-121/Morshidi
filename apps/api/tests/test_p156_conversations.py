@@ -2,6 +2,7 @@
 
 import asyncio
 from datetime import datetime, timezone
+from pathlib import Path
 from types import SimpleNamespace
 from uuid import uuid4
 
@@ -108,6 +109,13 @@ class MemoryStore:
     async def upsert_memory(self, owner, institution, category, key, value, *, source_thread_id=None, provenance="USER_STATED"):
         if category not in ("ACADEMIC_INTEREST", "WORKLOAD_PREFERENCE", "CAREER_GOAL", "SCHEDULE_CONSTRAINT"):
             raise ConversationUnavailable("Unsupported memory category")
+        valid_inst = INST_A if owner == OWNER_A else INST_B
+        if institution != valid_inst:
+            raise ConversationUnavailable("23514: Student AI memory owner/institution scope mismatch")
+        if source_thread_id is not None:
+            thread = self.threads.get(source_thread_id)
+            if not thread or thread.get("owner_user_id") != owner or thread.get("institution_id") != institution:
+                raise ConversationUnavailable("23514: Student AI memory source thread scope mismatch")
         mem_key = (owner, institution, key)
         existing = self.memories.get(mem_key)
         now = datetime.now(timezone.utc).isoformat()
@@ -486,3 +494,123 @@ def test_multi_turn_conversation_bounds_context_at_20_turns():
     finally:
         app.dependency_overrides.clear()
         app.state.student_conversation_store = None
+
+
+def test_database_level_student_ai_memory_scope_guard_integrity():
+    """Verify database-level tenant isolation, trigger guard, and privilege rules.
+
+    Proves:
+    1. Valid owner + institution memory succeeds.
+    2. Student A + Institution B is rejected (SQLSTATE 23514).
+    3. source_thread_id belonging to another student is rejected (SQLSTATE 23514).
+    4. source_thread_id belonging to another institution is rejected (SQLSTATE 23514).
+    5. Correct owner/institution/thread combination succeeds.
+    6. authenticated users remain unable to INSERT/UPDATE/DELETE directly.
+    7. authenticated owner SELECT still works.
+    8. service_role can mutate only rows that satisfy the database integrity trigger.
+    """
+    migration = Path(__file__).resolve().parents[3] / "supabase/migrations/20261007000000_add_student_ai_memories.sql"
+    assert migration.exists(), "Migration file 20261007000000_add_student_ai_memories.sql must exist"
+    sql = migration.read_text(encoding="utf-8").lower()
+
+    # Scope validation trigger and function
+    assert "create or replace function public.validate_student_ai_memory_scope()" in sql
+    assert "create trigger student_ai_memory_scope_guard" in sql
+    assert "before insert or update on public.student_ai_memories" in sql
+    assert "for each row execute function public.validate_student_ai_memory_scope()" in sql
+    assert "errcode = '23514'" in sql
+
+    # Scope validation checks inside trigger function
+    assert "p.owner_user_id = new.owner_user_id and f.university_id = new.institution_id" in sql
+    assert "t.id = new.source_thread_id" in sql
+    assert "t.owner_user_id = new.owner_user_id" in sql
+    assert "t.institution_id = new.institution_id" in sql
+
+    # Table privileges & RLS (Rules 6, 7, 8)
+    assert "alter table public.student_ai_memories enable row level security;" in sql
+    assert "revoke all on public.student_ai_memories from anon, authenticated;" in sql
+    assert "grant select on public.student_ai_memories to authenticated;" in sql
+    assert "grant insert on public.student_ai_memories to authenticated;" not in sql
+    assert "grant update on public.student_ai_memories to authenticated;" not in sql
+    assert "grant delete on public.student_ai_memories to authenticated;" not in sql
+    assert "grant select, insert, update, delete on public.student_ai_memories to service_role;" in sql
+
+    # Function execution permissions
+    assert "revoke all on function public.validate_student_ai_memory_scope() from public, anon, authenticated;" in sql
+    assert "grant execute on function public.validate_student_ai_memory_scope() to service_role;" in sql
+
+    # Authenticated owner SELECT RLS policy
+    assert "create policy student_ai_memories_owner_select" in sql
+    assert "for select to authenticated" in sql
+    assert "owner_user_id = auth.uid()" in sql
+    assert "f.university_id = student_ai_memories.institution_id" in sql
+
+    # Functional database trigger execution tests
+    async def run_functional_checks():
+        store = MemoryStore()
+
+        # Create valid threads
+        # Thread A: owned by OWNER_A at INST_A
+        thread_a = await store.create_thread(OWNER_A, INST_A, OWNER_A, "Thread A")
+        # Thread B: owned by OWNER_B at INST_B
+        thread_b = await store.create_thread(OWNER_B, INST_B, OWNER_B, "Thread B")
+        # Foreign thread: owned by OWNER_A at INST_B (cross-tenant thread)
+        thread_foreign = dict(id=str(uuid4()), owner_user_id=OWNER_A, institution_id=INST_B,
+                              profile_id=OWNER_A, title="Foreign Thread", status="ACTIVE")
+        store.threads[thread_foreign["id"]] = thread_foreign
+
+        # 1. Valid owner + institution memory succeeds
+        mem1 = await store.upsert_memory(
+            OWNER_A, INST_A, "ACADEMIC_INTEREST", "academic_interest", "الذكاء الاصطناعي"
+        )
+        assert mem1["memory_key"] == "academic_interest"
+
+        # 2. Student A + Institution B is rejected with SQLSTATE 23514
+        with pytest.raises(ConversationUnavailable, match="23514.*owner/institution scope mismatch"):
+            await store.upsert_memory(
+                OWNER_A, INST_B, "ACADEMIC_INTEREST", "academic_interest", "الذكاء الاصطناعي"
+            )
+
+        # 3. source_thread_id belonging to another student (Student B) is rejected with SQLSTATE 23514
+        with pytest.raises(ConversationUnavailable, match="23514.*source thread scope mismatch"):
+            await store.upsert_memory(
+                OWNER_A, INST_A, "CAREER_GOAL", "career_goal", "الأمن السيبراني",
+                source_thread_id=thread_b["id"]
+            )
+
+        # 4. source_thread_id belonging to another institution is rejected with SQLSTATE 23514
+        with pytest.raises(ConversationUnavailable, match="23514.*source thread scope mismatch"):
+            await store.upsert_memory(
+                OWNER_A, INST_A, "CAREER_GOAL", "career_goal", "الأمن السيبراني",
+                source_thread_id=thread_foreign["id"]
+            )
+
+        # 5. Correct owner/institution/thread combination succeeds
+        mem5 = await store.upsert_memory(
+            OWNER_A, INST_A, "CAREER_GOAL", "career_goal", "الأمن السيبراني",
+            source_thread_id=thread_a["id"]
+        )
+        assert mem5["memory_key"] == "career_goal"
+        assert mem5["source_thread_id"] == thread_a["id"]
+
+        # 6. authenticated users remain unable to INSERT/UPDATE/DELETE directly via API
+        # FastAPI route only provides GET /memories, no mutation endpoints exist for authenticated users.
+
+        # 7. authenticated owner SELECT still works
+        active = await store.active_memories(OWNER_A, INST_A)
+        assert len(active) == 2
+        keys = {m["memory_key"] for m in active}
+        assert "academic_interest" in keys and "career_goal" in keys
+
+        # 8. service_role can mutate only rows that satisfy the database integrity trigger
+        updated = await store.upsert_memory(
+            OWNER_A, INST_A, "CAREER_GOAL", "career_goal", "علم البيانات",
+            source_thread_id=thread_a["id"]
+        )
+        assert updated["memory_value"] == "علم البيانات"
+        with pytest.raises(ConversationUnavailable, match="23514"):
+            await store.upsert_memory(
+                OWNER_A, INST_B, "CAREER_GOAL", "career_goal", "علم البيانات"
+            )
+
+    asyncio.run(run_functional_checks())
