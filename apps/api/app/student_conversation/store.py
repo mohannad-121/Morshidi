@@ -21,6 +21,12 @@ class ConversationNotFound(RuntimeError):
 
 
 PREFERENCE_KEYS = ("regular_load", "summer_enabled", "summer_load", "graduation_pace")
+SUPPORTED_MEMORY_CATEGORIES = (
+    "ACADEMIC_INTEREST",
+    "WORKLOAD_PREFERENCE",
+    "CAREER_GOAL",
+    "SCHEDULE_CONSTRAINT",
+)
 
 
 class SupabaseConversationStore:
@@ -183,6 +189,94 @@ class SupabaseConversationStore:
             if rows:
                 active[key] = rows[0]["preference_value"]
         return active
+
+    async def upsert_memory(
+        self,
+        owner: str,
+        institution: str,
+        category: str,
+        key: str,
+        value: str,
+        *,
+        source_thread_id: str | None = None,
+        provenance: str = "USER_STATED",
+    ) -> dict[str, Any]:
+        if category not in SUPPORTED_MEMORY_CATEGORIES:
+            raise ConversationUnavailable(f"Unsupported memory category: {category}")
+        existing = await self._rows("GET", "student_ai_memories", params={
+            **self._scope(owner, institution),
+            "memory_key": f"eq.{key}",
+            "select": "id,owner_user_id,institution_id,memory_category,memory_key,memory_value,provenance,source_thread_id,created_at,updated_at",
+            "limit": "1",
+        })
+        self._verify_scope(existing, owner, institution)
+        if existing:
+            row_id = existing[0]["id"]
+            patch_payload: dict[str, Any] = {
+                "memory_category": category,
+                "memory_value": value,
+                "provenance": provenance,
+            }
+            if source_thread_id is not None:
+                patch_payload["source_thread_id"] = source_thread_id
+            rows = await self._rows("PATCH", "student_ai_memories", params={
+                **self._scope(owner, institution),
+                "id": f"eq.{row_id}",
+            }, payload=patch_payload)
+            if len(rows) != 1:
+                raise ConversationUnavailable("Memory update failed")
+            self._verify_scope(rows, owner, institution)
+            return rows[0]
+        else:
+            post_payload: dict[str, Any] = {
+                "owner_user_id": owner,
+                "institution_id": institution,
+                "memory_category": category,
+                "memory_key": key,
+                "memory_value": value,
+                "provenance": provenance,
+            }
+            if source_thread_id is not None:
+                post_payload["source_thread_id"] = source_thread_id
+            rows = await self._rows("POST", "student_ai_memories", payload=post_payload)
+            if len(rows) != 1:
+                raise ConversationUnavailable("Memory persistence failed")
+            self._verify_scope(rows, owner, institution)
+            return rows[0]
+
+    async def active_memories(
+        self,
+        owner: str,
+        institution: str,
+        categories: tuple[str, ...] | list[str] | None = None,
+    ) -> list[dict[str, Any]]:
+        params: dict[str, str] = {
+            **self._scope(owner, institution),
+            "select": "id,owner_user_id,institution_id,memory_category,memory_key,memory_value,provenance,source_thread_id,created_at,updated_at",
+            "order": "updated_at.desc,id.desc",
+            "limit": "50",
+        }
+        if categories:
+            cat_list = ",".join(categories)
+            params["memory_category"] = f"in.({cat_list})"
+        rows = await self._rows("GET", "student_ai_memories", params=params)
+        self._verify_scope(rows, owner, institution)
+        return rows
+
+    async def memory_by_key(
+        self,
+        owner: str,
+        institution: str,
+        key: str,
+    ) -> dict[str, Any] | None:
+        rows = await self._rows("GET", "student_ai_memories", params={
+            **self._scope(owner, institution),
+            "memory_key": f"eq.{key}",
+            "select": "id,owner_user_id,institution_id,memory_category,memory_key,memory_value,provenance,source_thread_id,created_at,updated_at",
+            "limit": "1",
+        })
+        self._verify_scope(rows, owner, institution)
+        return rows[0] if rows else None
 
     async def recent_user_history(self, owner: str, institution: str) -> list[str]:
         rows = await self._rows("GET", "student_conversation_messages", params={

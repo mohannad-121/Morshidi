@@ -16,7 +16,11 @@ from app.api.schemas.advisor import AdvisorResponse
 from app.core.auth import CurrentUser, get_current_user
 from app.services.advisor import AdvisorService
 from app.services.student import StudentService
-from app.student_conversation.context import bounded_conversation_context, extract_explicit_preferences
+from app.student_conversation.context import (
+    bounded_conversation_context,
+    extract_explicit_memories,
+    extract_explicit_preferences,
+)
 from app.student_conversation.store import (ConversationNotFound, ConversationUnavailable,
                                             SupabaseConversationStore)
 
@@ -105,6 +109,15 @@ async def get_preferences(user: User, student: Student, request: Request) -> dic
     return await _store(request).active_preferences(owner, institution)
 
 
+@router.get("/memories")
+async def get_memories(user: User, student: Student, request: Request) -> list[dict]:
+    owner, institution, _ = await _scope(user, student)
+    store = _store(request)
+    if hasattr(store, "active_memories"):
+        return await store.active_memories(owner, institution)
+    return []
+
+
 @router.get("/{thread_id}/messages")
 async def get_messages(thread_id: UUID, user: User, student: Student, request: Request,
                        offset: int = 0) -> list[dict]:
@@ -151,10 +164,13 @@ async def continue_thread(thread_id: UUID, body: NewMessage, user: User, student
             history_task = store.recent_thread_messages(owner, institution, str(thread_id), limit=20)
         else:
             history_task = store.recent_user_history(owner, institution)
-        preferences, history = await asyncio.gather(
+        memories_task = store.active_memories(owner, institution) if hasattr(store, "active_memories") else asyncio.sleep(0, result=[])
+        preferences, history, raw_memories = await asyncio.gather(
             store.active_preferences(owner, institution),
             history_task,
+            memories_task,
         )
+        memories: list[dict] = list(raw_memories) if isinstance(raw_memories, list) else []
         message = body.message.strip()
         if not message:
             raise HTTPException(status_code=422, detail="Message must not be blank")
@@ -187,9 +203,36 @@ async def continue_thread(thread_id: UUID, body: NewMessage, user: User, student
         if changed:
             summary = "; ".join(f"{key}={preferences[key]}" for key in sorted(preferences))[:800]
             await store.update_thread(owner, institution, str(thread_id), {"summary_text": summary})
+
+        changed_memories = extract_explicit_memories(message)
+        if user_created and hasattr(store, "upsert_memory"):
+            for mem in changed_memories:
+                await store.upsert_memory(
+                    owner, institution,
+                    category=mem["category"],
+                    key=mem["key"],
+                    value=mem["value"],
+                    source_thread_id=str(thread_id),
+                )
+        existing_mem_keys = {m.get("memory_key") for m in memories if isinstance(m, dict)}
+        for mem in changed_memories:
+            mem_dict = {
+                "memory_category": mem["category"],
+                "memory_key": mem["key"],
+                "memory_value": mem["value"],
+            }
+            if mem["key"] in existing_mem_keys:
+                for idx, m in enumerate(memories):
+                    if m.get("memory_key") == mem["key"]:
+                        memories[idx] = mem_dict
+                        break
+            else:
+                memories.append(mem_dict)
+                existing_mem_keys.add(mem["key"])
+
         result = await advisor.advise_with_explanation(
             owner, message, bounded_conversation_context(
-                preferences, history, thread.get("summary_text")))
+                preferences, history, thread.get("summary_text"), memories=memories))
         response = AdvisorResponse.from_domain(
             result.structured_result, explanation=result.explanation,
             explanation_status=result.explanation_status,

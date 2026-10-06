@@ -17,10 +17,17 @@ from app.api.routes.student import get_student_service
 from app.core.auth import CurrentUser, get_current_user
 from app.main import app
 from app.services.advisor import AdvisorServiceResult
-from app.student_conversation.context import (bounded_conversation_context,
-                                              extract_explicit_preferences)
-from app.student_conversation.store import (ConversationNotFound, ConversationUnavailable,
-                                            SupabaseConversationStore)
+from app.student_conversation.context import (
+    bounded_conversation_context,
+    extract_explicit_memories,
+    extract_explicit_preferences,
+)
+from app.student_conversation.store import (
+    ConversationNotFound,
+    ConversationUnavailable,
+    SUPPORTED_MEMORY_CATEGORIES,
+    SupabaseConversationStore,
+)
 
 OWNER_A = "11111111-1111-1111-1111-111111111111"
 OWNER_B = "22222222-2222-2222-2222-222222222222"
@@ -42,6 +49,7 @@ class MemoryStore:
         self.threads = {}
         self.messages = []
         self.preferences = []
+        self.memories = {}
 
     async def create_thread(self, owner, institution, profile_id, title):
         row = dict(id=str(uuid4()), owner_user_id=owner, institution_id=institution,
@@ -97,10 +105,57 @@ class MemoryStore:
                 result[key] = value
         return result
 
+    async def upsert_memory(self, owner, institution, category, key, value, *, source_thread_id=None, provenance="USER_STATED"):
+        if category not in ("ACADEMIC_INTEREST", "WORKLOAD_PREFERENCE", "CAREER_GOAL", "SCHEDULE_CONSTRAINT"):
+            raise ConversationUnavailable("Unsupported memory category")
+        mem_key = (owner, institution, key)
+        existing = self.memories.get(mem_key)
+        now = datetime.now(timezone.utc).isoformat()
+        if existing:
+            row = dict(existing)
+            row["memory_category"] = category
+            row["memory_value"] = value
+            row["provenance"] = provenance
+            row["updated_at"] = now
+            if source_thread_id:
+                row["source_thread_id"] = source_thread_id
+        else:
+            row = dict(
+                id=str(uuid4()),
+                owner_user_id=owner,
+                institution_id=institution,
+                memory_category=category,
+                memory_key=key,
+                memory_value=value,
+                provenance=provenance,
+                source_thread_id=source_thread_id,
+                created_at=now,
+                updated_at=now,
+            )
+        self.memories[mem_key] = row
+        return row
+
+    async def active_memories(self, owner, institution, categories=None):
+        results = [
+            row for (row_owner, row_inst, _), row in self.memories.items()
+            if (row_owner, row_inst) == (owner, institution)
+            and (categories is None or row["memory_category"] in categories)
+        ]
+        results.sort(key=lambda r: r.get("updated_at", ""), reverse=True)
+        return results
+
+    async def memory_by_key(self, owner, institution, key):
+        return self.memories.get((owner, institution, key))
+
     async def recent_user_history(self, owner, institution):
         visible = {row["id"] for row in await self.list_threads(owner, institution)}
         return [row["content"][:180] for row in self.messages
                 if row["thread_id"] in visible and row["role"] == "USER"][-4:]
+
+    async def recent_thread_messages(self, owner, institution, thread_id, limit=20):
+        await self.get_thread(owner, institution, thread_id)
+        rows = [row for row in self.messages if row["thread_id"] == thread_id]
+        return [{"role": str(row["role"]), "content": str(row["content"])} for row in rows[-limit:]]
 
 
 class Advisor:
@@ -252,3 +307,182 @@ def test_service_role_repository_rejects_cross_tenant_response_even_if_upstream_
                 await store.list_threads(OWNER_A, INST_A)
 
     asyncio.run(exercise())
+
+
+def test_cross_chat_memory_persistence_and_update_without_conflict():
+    store, advisor = MemoryStore(), Advisor()
+    app.dependency_overrides[get_current_user] = lambda: CurrentUser(OWNER_A)
+    app.dependency_overrides[get_student_service] = lambda: Student()
+    app.dependency_overrides[get_advisor_service] = lambda: advisor
+    try:
+        with TestClient(app) as client:
+            app.state.student_conversation_store = store
+            # Conversation A
+            thread_a = client.post("/api/v1/me/conversations", json={"title": "Chat A"}).json()["id"]
+            res1 = client.post(f"/api/v1/me/conversations/{thread_a}/messages", json={
+                "message": "أنا مهتم بالذكاء الاصطناعي وبدي أتخصص بمجال الأمن السيبراني",
+                "client_message_id": str(uuid4()),
+            })
+            assert res1.status_code == 200
+            memories = client.get("/api/v1/me/conversations/memories").json()
+            mem_dict = {m["memory_key"]: m["memory_value"] for m in memories}
+            assert mem_dict["academic_interest"] == "الذكاء الاصطناعي"
+            assert mem_dict["career_goal"] == "الأمن السيبراني"
+
+            # Conversation B (New thread - persistent cross-chat intelligence)
+            thread_b = client.post("/api/v1/me/conversations", json={"title": "Chat B"}).json()["id"]
+            res2 = client.post(f"/api/v1/me/conversations/{thread_b}/messages", json={
+                "message": "شو بتنصحني أنزل مواد؟",
+                "client_message_id": str(uuid4()),
+            })
+            assert res2.status_code == 200
+            # Advisor in Chat B received the stored memories without student having to repeat them
+            context_b = advisor.contexts[-1]
+            assert "academic_interest=الذكاء الاصطناعي" in context_b
+            assert "career_goal=الأمن السيبراني" in context_b
+
+            # Update preference/goal in Conversation B - must update in place without conflict
+            res3 = client.post(f"/api/v1/me/conversations/{thread_b}/messages", json={
+                "message": "بدي أتخصص بمجال علم البيانات",
+                "client_message_id": str(uuid4()),
+            })
+            assert res3.status_code == 200
+            updated_memories = client.get("/api/v1/me/conversations/memories").json()
+            updated_dict = {m["memory_key"]: m["memory_value"] for m in updated_memories}
+            assert updated_dict["career_goal"] == "علم البيانات"
+            # Exactly one entry for career_goal (deterministic deduplication)
+            career_entries = [m for m in updated_memories if m["memory_key"] == "career_goal"]
+            assert len(career_entries) == 1
+    finally:
+        app.dependency_overrides.clear()
+        app.state.student_conversation_store = None
+
+
+def test_stored_memory_never_overrides_live_academic_facts():
+    # Academic facts: live rules decide, memory personalizes
+    context = bounded_conversation_context(
+        {"regular_load": "15"},
+        ["USER: ما هو وضعي الأكاديمي؟"],
+        summary="Safe summary",
+        memories=[
+            {"memory_category": "ACADEMIC_INTEREST", "memory_key": "academic_interest", "memory_value": "الذكاء الاصطناعي"},
+            {"memory_category": "CAREER_GOAL", "memory_key": "gpa", "memory_value": "4.0"},
+        ],
+    )
+    # The fact leak attempt "gpa" was stripped
+    assert "gpa=4.0" not in context
+    assert "gpa" not in context
+    assert "academic_interest=الذكاء الاصطناعي" in context
+    assert len(context) <= 1600
+
+
+def test_academic_facts_are_never_stored_as_ai_memory():
+    # Negative fact tests: declaring or asking GPA/credits/grades never generates memory records
+    assert extract_explicit_memories("معدلي 90") == []
+    assert extract_explicit_memories("قديش معدلي؟") == []
+    assert extract_explicit_memories("أنا مخلص 80 ساعة") == []
+    assert extract_explicit_memories("كم ساعة مجتاز؟") == []
+    assert extract_explicit_memories("شو ال GPA تبعي؟") == []
+    assert extract_explicit_memories("عندي إنذار أكاديمي") == []
+    assert extract_explicit_memories("I completed 80 hours and my GPA is 3.9") == []
+    assert extract_explicit_memories("I got an A in programming 2") == []
+
+    # Integration via API
+    store = MemoryStore()
+    app.dependency_overrides[get_current_user] = lambda: CurrentUser(OWNER_A)
+    app.dependency_overrides[get_student_service] = lambda: Student()
+    app.dependency_overrides[get_advisor_service] = lambda: Advisor()
+    try:
+        with TestClient(app) as client:
+            app.state.student_conversation_store = store
+            thread_id = client.post("/api/v1/me/conversations", json={"title": "Academic Question"}).json()["id"]
+            client.post(f"/api/v1/me/conversations/{thread_id}/messages", json={
+                "message": "معدلي 92 وأنا مجتاز 85 ساعة",
+                "client_message_id": str(uuid4()),
+            })
+            assert client.get("/api/v1/me/conversations/memories").json() == []
+    finally:
+        app.dependency_overrides.clear()
+        app.state.student_conversation_store = None
+
+
+def test_student_ai_memories_tenant_and_owner_isolation():
+    store = MemoryStore()
+    current = [OWNER_A]
+    app.dependency_overrides[get_current_user] = lambda: CurrentUser(current[0])
+    app.dependency_overrides[get_student_service] = lambda: Student()
+    app.dependency_overrides[get_advisor_service] = lambda: Advisor()
+    try:
+        with TestClient(app) as client:
+            app.state.student_conversation_store = store
+            # OWNER_A at INST_A stores a memory
+            thread_a = client.post("/api/v1/me/conversations", json={"title": "Owner A Thread"}).json()["id"]
+            client.post(f"/api/v1/me/conversations/{thread_a}/messages", json={
+                "message": "أنا مهتم بالذكاء الاصطناعي",
+                "client_message_id": str(uuid4()),
+            })
+            assert len(client.get("/api/v1/me/conversations/memories").json()) == 1
+
+            # Switch to OWNER_B (tenant INST_B)
+            current[0] = OWNER_B
+            assert client.get("/api/v1/me/conversations/memories").json() == []
+
+            # Switch back to OWNER_A, but change tenant to INST_B
+            current[0] = OWNER_A
+            class OtherTenantStudent(Student):
+                async def resolve_student_university_id(self, owner):
+                    return INST_B
+
+            app.dependency_overrides[get_student_service] = lambda: OtherTenantStudent()
+            assert client.get("/api/v1/me/conversations/memories").json() == []
+    finally:
+        app.dependency_overrides.clear()
+        app.state.student_conversation_store = None
+
+
+def test_student_ai_memories_service_role_scope_verification():
+    async def exercise():
+        def response(request: httpx.Request) -> httpx.Response:
+            assert request.url.params["owner_user_id"] == f"eq.{OWNER_A}"
+            assert request.url.params["institution_id"] == f"eq.{INST_A}"
+            return httpx.Response(200, json=[{
+                "id": str(uuid4()), "owner_user_id": OWNER_B, "institution_id": INST_B,
+                "memory_category": "ACADEMIC_INTEREST", "memory_key": "academic_interest",
+                "memory_value": "AI", "provenance": "USER_STATED",
+            }])
+
+        async with httpx.AsyncClient(transport=httpx.MockTransport(response)) as client:
+            store = SupabaseConversationStore("http://127.0.0.1:1", "test-only", client)
+            with pytest.raises(ConversationUnavailable, match="scope mismatch"):
+                await store.active_memories(OWNER_A, INST_A)
+
+            with pytest.raises(ConversationUnavailable, match="scope mismatch"):
+                await store.upsert_memory(OWNER_A, INST_A, "ACADEMIC_INTEREST", "academic_interest", "AI")
+
+    asyncio.run(exercise())
+
+
+def test_multi_turn_conversation_bounds_context_at_20_turns():
+    store, advisor = MemoryStore(), Advisor()
+    app.dependency_overrides[get_current_user] = lambda: CurrentUser(OWNER_A)
+    app.dependency_overrides[get_student_service] = lambda: Student()
+    app.dependency_overrides[get_advisor_service] = lambda: advisor
+    try:
+        with TestClient(app) as client:
+            app.state.student_conversation_store = store
+            thread_id = client.post("/api/v1/me/conversations", json={"title": "Long Chat"}).json()["id"]
+
+            for turn in range(22):
+                msg = f"سؤال رقم {turn + 1}: احكيلي عن مساق برمجة {turn + 1}"
+                res = client.post(f"/api/v1/me/conversations/{thread_id}/messages", json={
+                    "message": msg,
+                    "client_message_id": str(uuid4()),
+                })
+                assert res.status_code == 200
+                ctx = advisor.contexts[-1]
+                assert len(ctx) <= 1600
+            assert len(advisor.contexts) == 22
+            assert len(advisor.contexts[-1]) <= 1600
+    finally:
+        app.dependency_overrides.clear()
+        app.state.student_conversation_store = None

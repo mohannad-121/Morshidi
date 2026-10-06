@@ -23,9 +23,17 @@ alter table public.student_ai_memories enable row level security;
 
 revoke all on public.student_ai_memories from anon, authenticated;
 grant select on public.student_ai_memories to authenticated;
+grant select, insert, update, delete on public.student_ai_memories to service_role;
 
 drop policy if exists student_ai_memories_owner_select on public.student_ai_memories;
 create policy student_ai_memories_owner_select on public.student_ai_memories
   for select to authenticated
-  using (owner_user_id = auth.uid());
-
+  using (
+    owner_user_id = auth.uid() and exists (
+      select 1 from public.student_academic_profiles p
+      join public.study_plans sp on sp.id = p.study_plan_id
+      join public.majors m on m.id = sp.major_id
+      join public.faculties f on f.id = m.faculty_id
+      where p.owner_user_id = auth.uid() and f.university_id = student_ai_memories.institution_id
+    )
+  );
