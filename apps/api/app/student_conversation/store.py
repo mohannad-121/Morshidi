@@ -192,6 +192,18 @@ class SupabaseConversationStore:
         self._verify_scope(rows, owner, institution)
         return [str(row["content"])[:180] for row in reversed(rows)]
 
+    async def recent_thread_messages(self, owner: str, institution: str, thread_id: str,
+                                     limit: int = 20) -> list[dict[str, str]]:
+        rows = await self._rows("GET", "student_conversation_messages", params={
+            **self._scope(owner, institution),
+            "thread_id": f"eq.{thread_id}",
+            "select": "owner_user_id,institution_id,thread_id,role,content",
+            "order": "created_at.desc,id.desc",
+            "limit": str(min(limit, 50)),
+        })
+        self._verify_scope(rows, owner, institution)
+        return [{"role": str(row["role"]), "content": str(row["content"])} for row in reversed(rows)]
+
     async def export_owned_chats(self, owner: str, institution: str) -> dict[str, Any]:
         """Bounded owner export; no provider internals, hidden reasoning, or N+1 reads."""
         threads: list[dict[str, Any]] = []

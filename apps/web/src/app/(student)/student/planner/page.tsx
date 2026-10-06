@@ -21,6 +21,7 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { ErrorAlert } from "@/components/ui/ErrorAlert";
 import { LoadingSkeletonCard } from "@/components/ui/LoadingSkeleton";
 import { StatCard } from "@/components/ui/StatCard";
+import { AcademicAnalysisProgress, type ProgressStep } from "@/components/academic/AcademicAnalysisProgress";
 import {
   CheckCircleIcon,
   CoursesIcon,
@@ -47,6 +48,13 @@ export default function PlannerPage() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [selectedOptionIndex, setSelectedOptionIndex] = useState<number>(0);
   const [acceptHeavyBalance, setAcceptHeavyBalance] = useState(false);
+  const INITIAL_PLANNER_STEPS: ProgressStep[] = [
+    { id: "audit", title: "التحقق من السجل الأكاديمي وسقف الساعات", description: "فحص الساعات المعتمدة وسجل المواد المجتازة", status: "ACTIVE" },
+    { id: "prereq", title: "فحص شروط المواد والمتطلبات السابقة", description: "استبعاد المواد غير المستوفية واختيار المواد المؤهلة", status: "WAITING" },
+    { id: "optimization", title: "معالجة الخوارزمية الفصيلة وموازنة العبء", description: "توليد باقات التسجيل المثلى ومراعاة المواد الثقيلة", status: "WAITING" },
+    { id: "graph", title: "توليد شجرة التفسير الأكاديمي الحتمي", description: "توثيق سلاسل القيود والأسباب المنهجية", status: "WAITING" },
+  ];
+  const [plannerSteps, setPlannerSteps] = useState<ProgressStep[]>(INITIAL_PLANNER_STEPS);
   const [graph, setGraph] = useState<AcademicExplanationGraph | null>(null);
   const [graphLoading, setGraphLoading] = useState(false);
   const [graphError, setGraphError] = useState(false);
@@ -59,7 +67,15 @@ export default function PlannerPage() {
     setGraphError(false);
     try {
       const nextGraph = await new StudentApiService(client).createSemesterPlanGraph(request);
-      if (currentId === graphRequestId.current) setGraph(nextGraph);
+      if (currentId === graphRequestId.current) {
+        setGraph(nextGraph);
+        setPlannerSteps([
+          { ...INITIAL_PLANNER_STEPS[0], status: "COMPLETE" },
+          { ...INITIAL_PLANNER_STEPS[1], status: "COMPLETE" },
+          { ...INITIAL_PLANNER_STEPS[2], status: "COMPLETE" },
+          { ...INITIAL_PLANNER_STEPS[3], status: "COMPLETE" },
+        ]);
+      }
     } catch {
       if (currentId === graphRequestId.current) setGraphError(true);
     } finally {
@@ -75,6 +91,7 @@ export default function PlannerPage() {
     graphRequestId.current += 1;
     setGraph(null);
     setGraphError(false);
+    setPlannerSteps(INITIAL_PLANNER_STEPS);
 
     try {
       const api = new StudentApiService(client);
@@ -84,6 +101,12 @@ export default function PlannerPage() {
         max_options: maxOptions,
         accept_heavy_balance: acceptHeavyBalance,
       };
+      setPlannerSteps([
+        { ...INITIAL_PLANNER_STEPS[0], status: "COMPLETE" },
+        { ...INITIAL_PLANNER_STEPS[1], status: "ACTIVE" },
+        { ...INITIAL_PLANNER_STEPS[2], status: "WAITING" },
+        { ...INITIAL_PLANNER_STEPS[3], status: "WAITING" },
+      ]);
       const [data, intelligence] = await Promise.all([
         api.createSemesterPlans(req), api.getAdaptiveCourseIntelligence().catch(() => null),
       ]);
@@ -91,10 +114,21 @@ export default function PlannerPage() {
       setAdaptive(intelligence);
       setSelectedOptionIndex(0);
       lastGraphRequest.current = req;
+      setPlannerSteps([
+        { ...INITIAL_PLANNER_STEPS[0], status: "COMPLETE" },
+        { ...INITIAL_PLANNER_STEPS[1], status: "COMPLETE" },
+        { ...INITIAL_PLANNER_STEPS[2], status: "COMPLETE" },
+        { ...INITIAL_PLANNER_STEPS[3], status: "ACTIVE" },
+      ]);
       setLoading(false);
       void loadGraph(req);
     } catch {
       setErrorMessage("تعذر توليد خطة الفصل الدراسي. تأكد من توفر مواد مؤهلة في خطتك الأكاديمية.");
+      setPlannerSteps((prev) =>
+        prev.map((step) =>
+          step.status === "ACTIVE" ? { ...step, status: "ERROR" } : step
+        )
+      );
     } finally {
       setLoading(false);
     }
@@ -218,13 +252,17 @@ export default function PlannerPage() {
       {/* Loading Skeleton */}
       {loading ? (
         <div role="status" aria-live="polite" aria-label="جارٍ احتساب الخيارات الفصلية" className="space-y-6">
+          <AcademicAnalysisProgress
+            title="جاري احتساب الخيارات الفصلية المثلى"
+            subtitle="يقوم المحرك الحتمي بفحص السجل الأكاديمي، شروط المتطلبات، وموازنة العبء الفصلي"
+            steps={plannerSteps}
+          />
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
             <LoadingSkeletonCard />
             <LoadingSkeletonCard />
             <LoadingSkeletonCard />
             <LoadingSkeletonCard />
           </div>
-          <LoadingSkeletonCard />
         </div>
       ) : null}
 

@@ -20,7 +20,9 @@ from app.advisor.models import (
     CourseInformation,
     CourseComparison,
 )
-from app.rules.models import CanTakeDecision, Decision
+from app.rules.models import CanTakeDecision, Decision, DecisionReason
+from app.progress.models import AcademicProgress, CourseProgressState
+from app.recommendations.models import RecommendationResult
 
 
 ADVISOR_EXPLANATION_SYSTEM_INSTRUCTION = """
@@ -311,6 +313,125 @@ def deterministic_explanation(
                     f"The official passing threshold for {course_label} is not available in the connected academic data. "
                     "That is separate from prerequisites and registration eligibility; consult the university's official grade policy.")
             return AdvisorExplanationOutput(text, language)
+        if re.search(r"(?:متطلب|شروط|prereq)", folded_message):
+            if payload.raw_prerequisite_text:
+                text = (f"المتطلبات السابقة الرسمية لمساق {course_label}: {payload.raw_prerequisite_text}."
+                        if arabic else
+                        f"Official prerequisites for {course_label}: {payload.raw_prerequisite_text}.")
+            else:
+                text = (f"مساق {course_label} ليس له أي متطلب سابق رسمي مسجل في الخطة الدراسية."
+                        if arabic else
+                        f"Course {course_label} has no official prerequisites in the study plan.")
+            return AdvisorExplanationOutput(text, language)
+        credits_str = f"{payload.credit_hours} ساعات معتمدة" if payload.credit_hours is not None else ""
+        prereq_str = f"المتطلب السابق: {payload.raw_prerequisite_text}" if payload.raw_prerequisite_text else "لا يوجد متطلب سابق"
+        text = (f"معلومات مساق {course_label}: {credits_str}. {prereq_str}."
+                if arabic else
+                f"Course information for {course_label}: {credits_str}. {prereq_str}.")
+        return AdvisorExplanationOutput(text, language)
+    if isinstance(payload, CanTakeDecision):
+        name = payload.target_name_ar if arabic else (payload.target_name_en or payload.target_name_ar or payload.target_course_code)
+        code = payload.target_course_code
+        course_label = f"{name} ({code})" if name else code
+        if payload.decision is Decision.ELIGIBLE:
+            text = (f"نعم، أنت مؤهل لتسجيل مساق {course_label}. جميع المتطلبات السابقة مستوفاة في سجلك الأكاديمي."
+                    if arabic else
+                    f"Yes, you are eligible to register for {course_label}. All prerequisites are satisfied.")
+            return AdvisorExplanationOutput(text, language)
+        if payload.decision is Decision.NOT_ELIGIBLE:
+            if DecisionReason.TARGET_ALREADY_COMPLETED in payload.reasons:
+                text = (f"لا يمكنك تسجيل مساق {course_label} لأنك اجتزت هذا المساق بنجاح مسبقاً."
+                        if arabic else
+                        f"You cannot register for {course_label} because you have already completed it.")
+            elif DecisionReason.TARGET_CURRENTLY_ENROLLED in payload.reasons:
+                text = (f"أنت مسجل حالياً في مساق {course_label} لهذا الفصل."
+                        if arabic else
+                        f"You are currently enrolled in {course_label} for this term.")
+            elif payload.missing_dependency_groups:
+                missing_codes = []
+                for grp in payload.missing_dependency_groups:
+                    missing_codes.extend(grp.non_passed_option_course_codes)
+                missing_str = "، ".join(missing_codes) if missing_codes else (payload.raw_prerequisite_text or "المتطلبات السابقة")
+                text = (f"لا يمكنك تسجيل مساق {course_label} حالياً لعدم استيفاء المتطلبات السابقة. المتطلب غير المنجز: {missing_str}."
+                        if arabic else
+                        f"You cannot register for {course_label} yet because prerequisites are unsatisfied. Missing: {missing_str}.")
+            elif payload.raw_prerequisite_text:
+                text = (f"لا يمكنك تسجيل مساق {course_label} حالياً لعدم استيفاء المتطلبات السابقة ({payload.raw_prerequisite_text})."
+                        if arabic else
+                        f"You cannot register for {course_label} yet due to unmet prerequisites ({payload.raw_prerequisite_text}).")
+            else:
+                text = (f"لا يمكنك تسجيل مساق {course_label} حالياً وفقاً لقواعد الخطة الأكاديمية."
+                        if arabic else
+                        f"You cannot register for {course_label} at this time according to plan rules.")
+            return AdvisorExplanationOutput(text, language)
+        if payload.decision is Decision.REVIEW_REQUIRED:
+            text = (f"تسجيل مساق {course_label} يتطلب مراجعة أكاديمية رسمية لوجود شروط غير محسومة."
+                    if arabic else
+                    f"Registration for {course_label} requires official academic review due to unresolved conditions.")
+            return AdvisorExplanationOutput(text, language)
+    if isinstance(payload, AcademicProgress):
+        # 1. Remaining requirements / credits inquiry
+        if result.intent is AdvisorIntent.REMAINING_REQUIREMENTS or re.search(r"(?:ساع[ةه]|ساعات|ضايل|باقي|متبقي|تخرج|remaining|credits|left)", folded_message):
+            earned = payload.reported_earned_credit_hours if payload.reported_earned_credit_hours is not None else payload.completed_plan_credits
+            total = payload.plan_total_required_credits
+            remaining = max(Decimal(0), total - earned)
+            text = (f"ساعاتك المنجزة حتى الآن: {earned} ساعة معتمدة من أصل {total} ساعة مطلوبة للتخرج.\nالمتبقي عليك لإتمام الخطة: {remaining} ساعة معتمدة."
+                    if arabic else
+                    f"Completed credits: {earned} out of {total} required for graduation.\nRemaining credits to complete the plan: {remaining}.")
+            return AdvisorExplanationOutput(text, language)
+        # 2. Academic Status inquiries
+        if result.intent is AdvisorIntent.ACADEMIC_STATUS:
+            # Passed courses
+            if re.search(r"(?:خلصت|خلصتها|نجحت|المجتازة|المنجزة|passed|completed)", folded_message):
+                completed = [c for c in payload.courses if c.state == CourseProgressState.COMPLETED]
+                if completed:
+                    lines = [f"- {c.course_name_ar or c.course_code} ({c.course_code})" for c in completed]
+                    text = (f"المساقات التي اجتزتها بنجاح ({len(completed)} مساق):\n" + "\n".join(lines)
+                            if arabic else
+                            f"Passed courses ({len(completed)} courses):\n" + "\n".join(lines))
+                else:
+                    text = ("لا توجد مساقات مجتازة مسجلة في سجلك حتى الآن."
+                            if arabic else
+                            "No passed courses recorded in your academic record yet.")
+                return AdvisorExplanationOutput(text, language)
+            # Enrolled courses
+            if re.search(r"(?:مسجل|مسجلها|منزل|منزلها|حاليا|الان|هذا الفصل|enrolled|registered)", folded_message):
+                in_progress = [c for c in payload.courses if c.state == CourseProgressState.IN_PROGRESS]
+                if in_progress:
+                    lines = [f"- {c.course_name_ar or c.course_code} ({c.course_code})" for c in in_progress]
+                    text = (f"المساقات المسجلة حالياً ({len(in_progress)} مساق):\n" + "\n".join(lines)
+                            if arabic else
+                            f"Currently enrolled courses ({len(in_progress)} courses):\n" + "\n".join(lines))
+                else:
+                    text = ("لا توجد مساقات مسجلة حالياً لهذا الفصل."
+                            if arabic else
+                            "You have no courses currently enrolled for this term.")
+                return AdvisorExplanationOutput(text, language)
+            # Default: GPA
+            gpa = f"{payload.reported_cumulative_gpa}" if payload.reported_cumulative_gpa is not None else ("غير مسجل" if arabic else "not recorded")
+            scale = f" من {payload.reported_gpa_scale}" if payload.reported_gpa_scale is not None else (f" out of {payload.reported_gpa_scale}" if not arabic and payload.reported_gpa_scale else "")
+            earned = payload.reported_earned_credit_hours if payload.reported_earned_credit_hours is not None else payload.completed_plan_credits
+            text = (f"معدلك التراكمي هو {gpa}{scale}.\nوقد أنجزت {earned} ساعة معتمدة من أصل {payload.plan_total_required_credits} ساعة للتخرج."
+                    if arabic else
+                    f"Your cumulative GPA is {gpa}{scale}.\nYou have completed {earned} credit hours out of {payload.plan_total_required_credits} required.")
+            return AdvisorExplanationOutput(text, language)
+    if isinstance(payload, RecommendationResult):
+        if payload.ranked_recommendations:
+            top = payload.ranked_recommendations[:5]
+            lines = []
+            for rec in top:
+                name = rec.course_name_ar or rec.course_code
+                credits = f"{rec.credit_hours} ساعات" if arabic else f"{rec.credit_hours} cr"
+                req_type = ("إجباري" if rec.requirement_type == "required" else "اختياري") if arabic else rec.requirement_type
+                lines.append(f"- {name} ({rec.course_code}) — {credits} ({req_type})")
+            text = (("بناءً على خطتك الدراسية والمواد المجتازة، المواد الموصى بتسجيلها هي:\n" + "\n".join(lines))
+                    if arabic else
+                    ("Based on your study plan and completed courses, recommended courses are:\n" + "\n".join(lines)))
+        else:
+            text = ("لا توجد توصيات متاحة حالياً للتسجيل بناءً على وضعك الأكاديمي."
+                    if arabic else
+                    "No course recommendations currently available based on your academic status.")
+        return AdvisorExplanationOutput(text, language)
     if isinstance(payload, CourseComparison):
         first, second = payload.courses
         def course_summary(course: CourseInformation) -> str:

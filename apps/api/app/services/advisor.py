@@ -30,6 +30,7 @@ from app.advisor.models import (
     StructuredAdvisorResult,
 )
 from app.advisor.orchestrator import AdvisorContext, orchestrate_advisor_request
+from app.advisor.pre_router import pre_route_academic_intent
 from app.advisor.provider import AdvisorLLMProvider, ProviderFailure, RawAdvisorInterpretation
 from app.degree_path.models import DegreePathCapacityError, DegreePathComputationTimeout
 from app.core.academic_compute import AcademicComputeLimiter
@@ -158,6 +159,10 @@ class AdvisorService:
                         tuple(re.findall(r"(?<!\d)\d{6,8}(?!\d)", message)))
                     if guarded_intent in (AdvisorIntent.COURSE_ELIGIBILITY, AdvisorIntent.COURSE_INFORMATION, AdvisorIntent.COURSE_COMPARISON) else (),
                 )
+        elif provider_output.intent == AdvisorIntent.CLARIFICATION_REQUIRED.value:
+            pre_routed = pre_route_academic_intent(message, conversation_context)
+            if pre_routed is not None:
+                provider_output = pre_routed
 
         state: StudentAcademicState | None = None
         student_context_ms = 0.0

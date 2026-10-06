@@ -478,7 +478,7 @@ describe("Student Dashboard (لوحة الطالب)", () => {
       </AuthProvider>,
     );
 
-    await screen.findByRole("heading", { name: /أحمد محمد العلي/ });
+    await screen.findByRole("heading", { name: "الملف الأكاديمي", level: 2 });
 
     expect(capturedProfileHeaders?.get("Authorization")).toBe("Bearer student-jwt-abc-123");
     expect(capturedProgressHeaders?.get("Authorization")).toBe("Bearer student-jwt-abc-123");

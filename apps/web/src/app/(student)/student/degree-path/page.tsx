@@ -10,6 +10,7 @@ import { PathMap } from "@/components/ui/PathMap";
 import { Button, FriendlyState } from "@/components/ui/DesignSystem";
 import { Compass, Printer } from "lucide-react";
 import { LoadingSkeletonCard } from "@/components/ui/LoadingSkeleton";
+import { AcademicAnalysisProgress, type ProgressStep } from "@/components/academic/AcademicAnalysisProgress";
 import type {
   AcademicExplanationGraph,
   AcademicProgressResponse,
@@ -56,6 +57,13 @@ export default function DegreePathPage() {
   const [graph, setGraph] = useState<AcademicExplanationGraph | null>(null);
   const [graphLoading, setGraphLoading] = useState(false);
   const [graphError, setGraphError] = useState(false);
+  const INITIAL_DEGREE_PATH_STEPS: ProgressStep[] = [
+    { id: "audit_credits", title: "مطابقة سجل الساعات المعتمدة ومتطلبات الخطة", description: "فحص الساعات المتبقية وفق سجل الجامعة والحدود الأكاديمية", status: "ACTIVE" },
+    { id: "critical_path", title: "تحليل المسارات الحرجة وسلاسل المتطلبات", description: "فحص شجرة المواد الإلزامية والمتطلبات السابقة المتتابعة", status: "WAITING" },
+    { id: "scenarios", title: "توليد استراتيجيات التخرج والمقارنة الزمنية", description: "احتساب خطط المسارات: الأسرع، المتوازن، والأخف", status: "WAITING" },
+    { id: "journey_map", title: "تجهيز خريطة التخرج والتفسير البياني", description: "بناء المحطات الفصلية وشجرة التعليل الحتمي", status: "WAITING" },
+  ];
+  const [pathSteps, setPathSteps] = useState<ProgressStep[]>(INITIAL_DEGREE_PATH_STEPS);
   const requestId = useRef(0);
 
   const loadGraph = async () => {
@@ -63,6 +71,12 @@ export default function DegreePathPage() {
     setGraphError(false);
     try {
       setGraph(await new StudentApiService(client).createDegreePathGraph(AUTOMATIC_PATH_REQUEST));
+      setPathSteps([
+        { ...INITIAL_DEGREE_PATH_STEPS[0], status: "COMPLETE" },
+        { ...INITIAL_DEGREE_PATH_STEPS[1], status: "COMPLETE" },
+        { ...INITIAL_DEGREE_PATH_STEPS[2], status: "COMPLETE" },
+        { ...INITIAL_DEGREE_PATH_STEPS[3], status: "COMPLETE" },
+      ]);
     } catch {
       setGraphError(true);
     } finally {
@@ -78,10 +92,17 @@ export default function DegreePathPage() {
     setComparison(null);
     setGraph(null);
     setGraphError(false);
+    setPathSteps(INITIAL_DEGREE_PATH_STEPS);
     const signal = AbortSignal.timeout(60_000);
     const now = new Date();
     try {
       const api = new StudentApiService(client);
+      setPathSteps([
+        { ...INITIAL_DEGREE_PATH_STEPS[0], status: "COMPLETE" },
+        { ...INITIAL_DEGREE_PATH_STEPS[1], status: "ACTIVE" },
+        { ...INITIAL_DEGREE_PATH_STEPS[2], status: "WAITING" },
+        { ...INITIAL_DEGREE_PATH_STEPS[3], status: "WAITING" },
+      ]);
       const [paths, academicProgress, scenarios] = await Promise.all([
         api.createDegreePaths(AUTOMATIC_PATH_REQUEST, signal),
         api.getProgress(),
@@ -92,12 +113,23 @@ export default function DegreePathPage() {
       setProgress(academicProgress);
       setComparison(scenarios);
       setSelectedIndex(0);
+      setPathSteps([
+        { ...INITIAL_DEGREE_PATH_STEPS[0], status: "COMPLETE" },
+        { ...INITIAL_DEGREE_PATH_STEPS[1], status: "COMPLETE" },
+        { ...INITIAL_DEGREE_PATH_STEPS[2], status: "COMPLETE" },
+        { ...INITIAL_DEGREE_PATH_STEPS[3], status: "ACTIVE" },
+      ]);
       void loadGraph();
     } catch {
       if (currentRequest !== requestId.current) return;
       setErrorMessage(signal.aborted
         ? "استغرق إنشاء مسارات التخرج وقتًا أطول من المتوقع. حاول مرة أخرى."
         : "تعذر إنشاء مسارات التخرج الآن. حاول مرة أخرى.");
+      setPathSteps((prev) =>
+        prev.map((step) =>
+          step.status === "ACTIVE" ? { ...step, status: "ERROR" } : step
+        )
+      );
     } finally {
       if (currentRequest === requestId.current) setLoading(false);
     }
@@ -119,7 +151,16 @@ export default function DegreePathPage() {
       </Button>
     </div>
     {errorMessage && <FriendlyState error title={errorMessage} onRetry={() => void handleGeneratePath()}/>}
-    {loading && <LoadingSkeletonCard className="min-h-80"/>}
+    {loading && (
+      <div className="space-y-6">
+        <AcademicAnalysisProgress
+          title="جاري رسم مسارات التخرج الحتمية"
+          subtitle="يقوم المحرك بمطابقة الساعات المتبقية، تحليل المسار الحرج، وتوليد السيناريوهات المعتمدة"
+          steps={pathSteps}
+        />
+        <LoadingSkeletonCard className="min-h-48"/>
+      </div>
+    )}
     {!loading && result && comparison && progress && <>
       <div className="strategy-grid" aria-label="خيارات مسار التخرج">
         {comparison.scenarios.map((scenario, index) => {

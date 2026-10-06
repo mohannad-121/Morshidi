@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import re
 from typing import Annotated
 from uuid import NAMESPACE_URL, UUID, uuid5
 
@@ -18,6 +19,22 @@ from app.services.student import StudentService
 from app.student_conversation.context import bounded_conversation_context, extract_explicit_preferences
 from app.student_conversation.store import (ConversationNotFound, ConversationUnavailable,
                                             SupabaseConversationStore)
+
+
+def _generate_arabic_title(first_message: str) -> str:
+    cleaned = first_message.strip()
+    if re.search(r"(?:معدلي|gpa|المعدل)", cleaned, re.I):
+        return "المعدل التراكمي والسجل الأكاديمي"
+    if re.search(r"(?:ساع[ةه]|ساعات|ضايل|باقي|تخرج)", cleaned, re.I):
+        return "الساعات المتبقية ومتطلبات التخرج"
+    if re.search(r"(?:شو\s+المواد|شو\s+انزل|شو\s+اسجل|بتنصحني|اقترح|متاحة)", cleaned, re.I):
+        return "المساقات الموصى بها للتسجيل"
+    course_code_match = re.search(r"(?<!\d)\d{6,8}(?!\d)", cleaned)
+    if course_code_match:
+        return f"استفسار عن مساق {course_code_match.group(0)}"
+    if len(cleaned) <= 35:
+        return cleaned
+    return cleaned[:35].rstrip() + "..."
 
 router = APIRouter(prefix="/api/v1/me/conversations", tags=["student-conversations"],
                    dependencies=[Depends(get_current_user)])
@@ -130,9 +147,13 @@ async def continue_thread(thread_id: UUID, body: NewMessage, user: User, student
         thread = await store.get_thread(owner, institution, str(thread_id))
         if thread["status"] != "ACTIVE":
             raise ConversationNotFound("Conversation archived")
+        if hasattr(store, "recent_thread_messages"):
+            history_task = store.recent_thread_messages(owner, institution, str(thread_id), limit=20)
+        else:
+            history_task = store.recent_user_history(owner, institution)
         preferences, history = await asyncio.gather(
             store.active_preferences(owner, institution),
-            store.recent_user_history(owner, institution),
+            history_task,
         )
         message = body.message.strip()
         if not message:
@@ -152,6 +173,12 @@ async def continue_thread(thread_id: UUID, body: NewMessage, user: User, student
                 owner, institution, str(thread_id), "USER", message, "USER_STATED",
                 message_id=persisted_user_id)
             user_created = True
+        if user_created and thread.get("title") in ("New conversation", "محادثة جديدة", "", None):
+            new_title = _generate_arabic_title(message)
+            try:
+                await store.update_thread(owner, institution, str(thread_id), {"title": new_title})
+            except Exception:
+                pass
         changed = extract_explicit_preferences(message)
         if user_created:
             for key, value in changed.items():

@@ -1,7 +1,7 @@
 """Bounded, non-authoritative context from explicitly stated planning preferences."""
 
 import re
-from typing import Mapping
+from typing import Any, Mapping
 
 
 def extract_explicit_preferences(message: str) -> dict[str, str]:
@@ -33,14 +33,27 @@ def extract_explicit_preferences(message: str) -> dict[str, str]:
     return found
 
 
-def bounded_conversation_context(preferences: Mapping[str, str], recent: list[str],
-                                 summary: str | None = None) -> str:
+def bounded_conversation_context(
+    preferences: Mapping[str, str],
+    recent: list[str] | list[dict[str, Any]],
+    summary: str | None = None,
+) -> str:
     """No transcript dump, authoritative facts, hidden reasoning or raw logs."""
     safe = {key: value for key, value in preferences.items()
-            if key in {"regular_load", "summer_enabled", "summer_load", "graduation_pace"}}
+            if key in {"regular_load", "summer_enabled", "summer_load", "graduation_pace",
+                       "academic_interest", "career_goal", "schedule_constraint"}}
     preference_summary = "; ".join(f"{key}={safe[key]}" for key in sorted(safe))
-    snippets = [item.replace("\n", " ")[:180] for item in recent[-4:]]
+
+    snippets: list[str] = []
+    for item in recent[-20:]:
+        if isinstance(item, dict):
+            role = item.get("role", "USER")
+            content = str(item.get("content", "")).replace("\n", " ")[:180]
+            snippets.append(f"{role}: {content}")
+        else:
+            snippets.append(str(item).replace("\n", " ")[:180])
+
     safe_summary = (summary or "").replace("\n", " ")[:800]
     return (f"USER_STATED planning preferences: {preference_summary or 'none'}\n"
             f"CHAT_DERIVED bounded summary (not academic facts): {safe_summary or 'none'}\n"
-            f"CHAT_DERIVED recent topics (not academic facts): {' | '.join(snippets)}")[:1600]
+            f"CHAT_DERIVED recent turns (not academic facts):\n" + "\n".join(snippets))[:1600]
