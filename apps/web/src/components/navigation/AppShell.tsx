@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useState, type ReactNode } from 'react';
 import { motion } from 'framer-motion';
-import { LayoutDashboard, UserRound, ChartNoAxesCombined, BookOpen, CalendarDays, MessagesSquare, Compass, DoorOpen, Route, ClipboardList, LibraryBig, Columns3, ScrollText, Menu, X, ChevronDown, Bell, Command } from 'lucide-react';
+import { LayoutDashboard, UserRound, ChartNoAxesCombined, BookOpen, CalendarDays, MessagesSquare, Compass, DoorOpen, Route, ClipboardList, LibraryBig, Columns3, ScrollText, Menu, X, ChevronDown, Bell, Command, BookOpenCheck } from 'lucide-react';
 import { useAuth } from '@/auth/auth-provider';
 import { SignOutButton } from '@/auth/sign-out-button';
 import { Logo, LogoMark } from '@/components/ui/Logo';
@@ -13,7 +13,7 @@ import { getStudentDisplayName, getStudentInitial } from '@/lib/student-identity
 const groups = [
   { title: 'مساحتي', items: [['', 'نظرة عامة', LayoutDashboard], ['profile', 'الملف الأكاديمي', UserRound], ['progress', 'التقدم الدراسي', ChartNoAxesCombined], ['courses', 'المواد والدرجات', BookOpen]] },
   { title: 'قراراتي', items: [['planner', 'خطة الفصل', CalendarDays], ['advisor', 'مرشدي AI', MessagesSquare], ['recommendations', 'التوصيات', Compass], ['eligibility', 'أهلية التسجيل', DoorOpen], ['degree-path', 'مسار التخرج', Route], ['mock-registration', 'محاكاة التسجيل', ClipboardList]] },
-  { title: 'مصادري', items: [['roadmap', 'الخطة الدراسية', LibraryBig], ['offerings', 'المواد المطروحة', Columns3], ['policies', 'اللوائح', ScrollText]] },
+  { title: 'مصادري', items: [['roadmap', 'الخطة الدراسية', LibraryBig], ['offerings', 'المواد المطروحة', Columns3], ['chapters', 'شباتر المواد', BookOpenCheck], ['policies', 'اللوائح', ScrollText]] },
 ] as const;
 
 export function AppShell({ children }: { children: ReactNode }) {
