@@ -5,7 +5,11 @@ import type { AuthClientPort } from "@/auth/auth-provider";
 export const fakeUser = {
   id: "user-1",
   email: "student@example.com",
-} as User;
+  user_metadata: {
+    full_name: "أحمد محمد العلي",
+    university_student_id: "202310001",
+  },
+} as unknown as User;
 
 export function fakeSession(token = "current-access-token"): Session {
   return {

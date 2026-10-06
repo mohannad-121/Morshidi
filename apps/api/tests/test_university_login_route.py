@@ -145,10 +145,15 @@ class MockSupabaseAuthAndRestEnvironment:
         # 3. GoTrue admin user update: /auth/v1/admin/users/{user_id}
         if path.startswith("/auth/v1/admin/users/"):
             user_id = path.split("/")[-1]
+            user = next((item for item in self.auth_users if item["id"] == user_id), None)
+            if method == "GET":
+                return httpx.Response(200, json=user) if user else httpx.Response(404)
             if method == "PUT":
                 payload = json.loads(request.content)
                 if "password" in payload:
                     self.passwords[user_id] = payload["password"]
+                if user and "user_metadata" in payload:
+                    user["user_metadata"] = payload["user_metadata"]
                 return httpx.Response(200, json={"id": user_id, "updated": True})
 
         # 4. PostgREST: student_university_identities
@@ -470,7 +475,7 @@ def test_03_returned_morshidi_access_token_belongs_to_internal_session(test_setu
     user_id = data["user"]["id"]
     assert token == f"morshidi-access-token-{user_id}"
     assert data["user"]["student_id"] == "202310001"
-    assert data["user"]["email"] == "202310001@std.morshidi.edu.jo"
+    assert data["user"]["email"] == "202310001@shadow.morshidi.internal"
 
 
 def test_04_refresh_token_returned_correctly(test_setup):
@@ -675,7 +680,7 @@ def test_15_unmapped_course_returns_safe_503_academic_sync_unavailable(mock_env)
 def test_16_unsafe_canonical_email_collision_returns_409_identity_conflict(test_setup):
     client, mock_env, _, _, _ = test_setup
     # Pre-register unproven account with same canonical email in Auth, but with missing/arbitrary metadata
-    colliding_email = "202310001@std.morshidi.edu.jo"
+    colliding_email = "202310001@shadow.morshidi.internal"
     mock_env.auth_users.append({
         "id": str(uuid4()),
         "email": colliding_email,

@@ -24,12 +24,12 @@ export function Badge({
   const sizeClasses = size === "sm" ? "px-2 py-0.5 text-xs" : "px-2.5 py-1 text-xs font-semibold";
 
   const variantClasses = {
-    gold: "bg-[#15271F] text-[#E5AC7C] border border-[#344739]",
+    gold: "bg-accent-soft text-accent border border-border",
     success: "bg-emerald-50 text-emerald-800 border border-emerald-200",
     warning: "bg-amber-50 text-amber-800 border border-amber-200",
     review: "bg-amber-100/70 text-amber-900 border border-amber-300 font-bold",
     error: "bg-red-50 text-red-800 border border-red-200",
-    neutral: "bg-[#0F1A17] text-[#AEBCB3] border border-[#344739]",
+    neutral: "bg-surface-muted text-muted border border-border",
   }[variant];
 
   return (

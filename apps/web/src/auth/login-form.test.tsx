@@ -54,7 +54,7 @@ describe("LoginForm Component & University Integration (Step 5)", () => {
   test("4, 5, 6, 7, 8, 9, 10, 11, 12: student login preserves leading zeros, calls backend POST /api/v1/auth/university-login, never calls Fake Uni directly, and calls setSession", async () => {
     const client = new FakeAuthClient();
     let capturedUrl = "";
-    let capturedBody: any = null;
+    let capturedBody: unknown = null;
 
     const mockFetcher = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
       capturedUrl = String(input);
@@ -75,7 +75,7 @@ describe("LoginForm Component & University Integration (Step 5)", () => {
     });
 
     render(
-      <AuthProvider client={client} fetcher={mockFetcher as any}>
+      <AuthProvider client={client} fetcher={mockFetcher as typeof fetch}>
         <LoginForm />
       </AuthProvider>,
     );
@@ -127,7 +127,7 @@ describe("LoginForm Component & University Integration (Step 5)", () => {
     });
 
     render(
-      <AuthProvider client={client} fetcher={mockFetcher as any}>
+      <AuthProvider client={client} fetcher={mockFetcher as typeof fetch}>
         <LoginForm />
       </AuthProvider>,
     );
@@ -153,7 +153,7 @@ describe("LoginForm Component & University Integration (Step 5)", () => {
     });
 
     render(
-      <AuthProvider client={client} fetcher={mockFetcher as any}>
+      <AuthProvider client={client} fetcher={mockFetcher as typeof fetch}>
         <LoginForm />
       </AuthProvider>,
     );
@@ -178,7 +178,7 @@ describe("LoginForm Component & University Integration (Step 5)", () => {
     });
 
     render(
-      <AuthProvider client={client} fetcher={mockFetcher as any}>
+      <AuthProvider client={client} fetcher={mockFetcher as typeof fetch}>
         <LoginForm />
       </AuthProvider>,
     );
@@ -203,7 +203,7 @@ describe("LoginForm Component & University Integration (Step 5)", () => {
     });
 
     render(
-      <AuthProvider client={client} fetcher={mockFetcher as any}>
+      <AuthProvider client={client} fetcher={mockFetcher as typeof fetch}>
         <LoginForm />
       </AuthProvider>,
     );
@@ -228,7 +228,7 @@ describe("LoginForm Component & University Integration (Step 5)", () => {
     });
 
     render(
-      <AuthProvider client={client} fetcher={mockFetcher as any}>
+      <AuthProvider client={client} fetcher={mockFetcher as typeof fetch}>
         <LoginForm />
       </AuthProvider>,
     );
@@ -253,7 +253,7 @@ describe("LoginForm Component & University Integration (Step 5)", () => {
     });
 
     render(
-      <AuthProvider client={client} fetcher={mockFetcher as any}>
+      <AuthProvider client={client} fetcher={mockFetcher as typeof fetch}>
         <LoginForm />
       </AuthProvider>,
     );
@@ -275,7 +275,7 @@ describe("LoginForm Component & University Integration (Step 5)", () => {
     });
 
     render(
-      <AuthProvider client={client} fetcher={mockFetcher as any}>
+      <AuthProvider client={client} fetcher={mockFetcher as typeof fetch}>
         <LoginForm />
       </AuthProvider>,
     );
@@ -293,7 +293,7 @@ describe("LoginForm Component & University Integration (Step 5)", () => {
 
   test("20. Duplicate submit is prevented while loading", async () => {
     const client = new FakeAuthClient();
-    let resolveCall!: (value: any) => void;
+    let resolveCall!: (value: Response) => void;
     const mockFetcher = vi.fn(
       () =>
         new Promise((res) => {
@@ -302,7 +302,7 @@ describe("LoginForm Component & University Integration (Step 5)", () => {
     );
 
     render(
-      <AuthProvider client={client} fetcher={mockFetcher as any}>
+      <AuthProvider client={client} fetcher={mockFetcher as typeof fetch}>
         <LoginForm />
       </AuthProvider>,
     );
@@ -401,7 +401,7 @@ describe("LoginForm Component & University Integration (Step 5)", () => {
     }
 
     render(
-      <AuthProvider client={client} fetcher={mockFetcher as any}>
+      <AuthProvider client={client} fetcher={mockFetcher as typeof fetch}>
         <AppHarness />
       </AuthProvider>,
     );
@@ -437,7 +437,7 @@ describe("LoginForm Component & University Integration (Step 5)", () => {
     });
 
     render(
-      <AuthProvider client={client} fetcher={mockFetcher as any}>
+      <AuthProvider client={client} fetcher={mockFetcher as typeof fetch}>
         <LoginForm />
       </AuthProvider>,
     );

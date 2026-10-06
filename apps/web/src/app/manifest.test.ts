@@ -11,7 +11,7 @@ describe("P9 local PWA manifest contract", () => {
     expect(data.display).toBe("standalone");
     expect(data.lang).toBe("ar");
     expect(data.dir).toBe("rtl");
-    expect(data.theme_color).toBe("#805400");
-    expect(data.icons?.some((icon) => icon.src === "/favicon.ico")).toBe(true);
+    expect(data.theme_color).toBe("#A94721");
+    expect(data.icons?.some((icon) => icon.src === "/brand/morshidi-favicon.png")).toBe(true);
   });
 });

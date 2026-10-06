@@ -122,20 +122,20 @@ export function AcademicGraphExplanation({ graph, focusId, loading, error, onRet
   const branch = (node: EligibilityGraphNode, depth: number, visited: Set<string>): React.ReactNode => {
     const relations = graph?.edges.filter((edge) => edge.from_node_id === node.id) ?? [];
     return <div className="space-y-2">
-      <h4 className="text-sm font-bold text-[#F3E9D8]">{node.course_code || (node.type === "COURSE" && node.reference_code)
+      <h4 className="text-sm font-bold text-foreground">{node.course_code || (node.type === "COURSE" && node.reference_code)
         ? <CourseIdentity courseCode={node.course_code ?? node.reference_code!} identities={identities} /> : title(node)}</h4>
       {node.facts?.length ? <dl className="grid grid-cols-1 gap-x-4 gap-y-1 text-xs sm:grid-cols-2">
         {node.facts.map((fact, index) => <div key={`${fact.key}-${index}`} className="flex flex-wrap gap-1">
-          <dt className="font-bold text-[#AEBCB3]">{factLabels[fact.key] ?? "حقيقة"}:</dt>
-          <dd className="text-[#F3E9D8]"><bdi>{readableValue(fact)}</bdi></dd>
+          <dt className="font-bold text-muted">{factLabels[fact.key] ?? "حقيقة"}:</dt>
+          <dd className="text-foreground"><bdi>{readableValue(fact)}</bdi></dd>
         </div>)}
       </dl> : null}
-      {depth < 3 && relations.length ? <ul className="space-y-2 border-r-2 border-[#344739] pr-3">
+      {depth < 3 && relations.length ? <ul className="space-y-2 border-r-2 border-border pr-3">
         {relations.map((edge) => {
           const child = nodes.get(edge.to_node_id);
           if (!child || visited.has(edge.to_node_id) || child.type === "LIMITATION") return null;
-          return <li key={`${edge.relation}:${edge.to_node_id}`} className="rounded-xl border border-[#344739] bg-[#0B1210] p-3">
-            <p className="mb-1 text-xs font-bold text-[#E5AC7C]">{edgeLabels[edge.relation]}</p>
+          return <li key={`${edge.relation}:${edge.to_node_id}`} className="rounded-xl border border-border bg-background p-3">
+            <p className="mb-1 text-xs font-bold text-accent">{edgeLabels[edge.relation]}</p>
             {branch(child, depth + 1, new Set([...visited, child.id]))}
           </li>;
         })}
@@ -144,8 +144,8 @@ export function AcademicGraphExplanation({ graph, focusId, loading, error, onRet
   };
 
   return <section dir="rtl" aria-label="لماذا هذه النتيجة؟"
-    className="min-w-0 rounded-2xl border border-[#344739] bg-surface p-4 text-right sm:p-5">
-    <h3 className="text-sm font-bold text-[#F3E9D8]">لماذا هذه النتيجة؟</h3>
+    className="min-w-0 rounded-2xl border border-border bg-surface p-4 text-right sm:p-5">
+    <h3 className="text-sm font-bold text-foreground">لماذا هذه النتيجة؟</h3>
     {loading ? <p role="status" className="mt-2 text-xs">جارٍ تحميل التفسير...</p> : null}
     {!loading && error ? <div role="alert" className="mt-2 text-xs">
       <p>تعذر تحميل التفسير؛ النتيجة الأصلية أعلاه لا تتغير.</p>
@@ -155,7 +155,7 @@ export function AcademicGraphExplanation({ graph, focusId, loading, error, onRet
     {!loading && !error && root ? <div className="mt-3 space-y-3">{branch(root, 0, new Set([root.id]))}</div> : null}
     {!loading && !error && graph?.limitations.length ? <div className="mt-4 border-t pt-3">
       <h4 className="text-xs font-bold">حدود التفسير</h4>
-      <ul className="mt-1 list-inside list-disc space-y-1 text-xs text-[#AEBCB3]">
+      <ul className="mt-1 list-inside list-disc space-y-1 text-xs text-muted">
         {graph.limitations.map((item) => <li key={item}>{limitationLabels[item] ?? "يوجد حد غير متاح للعرض."}</li>)}
       </ul>
     </div> : null}

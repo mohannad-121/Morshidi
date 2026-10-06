@@ -154,29 +154,29 @@ export default function MockRegistrationPage() {
   return (
     <div className="space-y-8">
       {/* Header */}
-      <div className="flex flex-col gap-2 border-b border-[#344739] pb-5 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex flex-col gap-2 border-b border-border pb-5 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <div className="flex items-center gap-2">
-            <span className="rounded-full bg-[#D9884A]/10 px-2.5 py-0.5 text-xs font-bold text-[#D9884A]">
+            <span className="rounded-full bg-accent/10 px-2.5 py-0.5 text-xs font-bold text-accent">
               التسجيل التجريبي الذكي
             </span>
-            <span className="text-xs text-[#AEBCB3]">رغبات تسجيل غير ملزمة</span>
+            <span className="text-xs text-muted">رغبات تسجيل غير ملزمة</span>
           </div>
-          <h1 className="mt-1 text-2xl font-bold tracking-tight text-[#F3E9D8]">
+          <h1 className="mt-1 text-2xl font-bold tracking-tight text-foreground">
             التسجيل التجريبي والمحاكاة
           </h1>
-          <p className="text-xs text-[#AEBCB3]">
+          <p className="text-xs text-muted">
             حصر مبكر لرغبات تسجيل المواد لمساعدة قسمك الأكاديمي في تخطيط وتوزيع الشعب الدراسية.
           </p>
         </div>
 
         {/* Period Selector */}
         <div className="flex items-center gap-2 text-xs">
-          <span className="font-bold text-[#AEBCB3]">الفصل الدراسي المستهدف:</span>
+          <span className="font-bold text-muted">الفصل الدراسي المستهدف:</span>
           <select
             value={targetPeriod}
             onChange={(e) => setTargetPeriod(e.target.value)}
-            className="rounded-xl border border-[#344739] bg-surface px-3 py-1.5 font-mono text-xs font-bold text-[#F3E9D8] focus:border-[#D9884A] focus:outline-hidden"
+            className="rounded-xl border border-border bg-surface px-3 py-1.5 font-mono text-xs font-bold text-foreground focus:border-accent focus:outline-hidden"
             dir="ltr"
           >
             <option value="2024-1">2024-1 (الفصل الأول)</option>
@@ -187,11 +187,11 @@ export default function MockRegistrationPage() {
       </div>
 
       {/* Non-binding Transparency Notice */}
-      <div className="rounded-3xl border border-[#344739] bg-[#0F1A17] p-5 text-xs text-[#AEBCB3] shadow-xs">
+      <div className="rounded-3xl border border-border bg-surface-muted p-5 text-xs text-muted shadow-xs">
         <div className="flex items-start gap-3">
-          <InfoIcon className="h-5 w-5 text-[#D9884A] shrink-0 mt-0.5" />
+          <InfoIcon className="h-5 w-5 text-accent shrink-0 mt-0.5" />
           <div className="space-y-1">
-            <h3 className="font-bold text-[#F3E9D8]">إشعار الشفافية والمسؤولية الأكاديمية:</h3>
+            <h3 className="font-bold text-foreground">إشعار الشفافية والمسؤولية الأكاديمية:</h3>
             <p className="leading-relaxed">
               هذا التسجيل استطلاعي وتجريبي (Non-binding Mock Registration). لا يُعد تسجيلاً رسمياً، ولا يمنح حقاً مكتسباً في الشعب، ولا تترتب عليه أي التزامات مالية. التسجيل الرسمي يتم حصراً عبر بوابة القبول والتسجيل الرسمية عند فتح فترات التسجيل.
             </p>
@@ -220,21 +220,21 @@ export default function MockRegistrationPage() {
         <div className="space-y-6">
           {/* Active Intent View */}
           {intent && intent.lifecycle_status !== "WITHDRAWN" && !isEditing ? (
-            <div className="rounded-3xl border border-[#344739] bg-surface p-7 shadow-xs space-y-6">
-              <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between border-b border-[#344739]/60 pb-5">
+            <div className="rounded-3xl border border-border bg-surface p-7 shadow-xs space-y-6">
+              <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between border-b border-border/60 pb-5">
                 <div>
                   <div className="flex items-center gap-2">
-                    <span className="font-mono text-xs font-bold text-[#D9884A]" dir="ltr">
+                    <span className="font-mono text-xs font-bold text-accent" dir="ltr">
                       الفصل {intent.target_period_id}
                     </span>
-                    <span className="text-xs text-[#AEBCB3]">
+                    <span className="text-xs text-muted">
                       • المراجعة #{intent.revision}
                     </span>
                   </div>
-                  <h2 className="text-lg font-bold text-[#F3E9D8] mt-1">
+                  <h2 className="text-lg font-bold text-foreground mt-1">
                     رغبة التسجيل التجريبي المسجلة
                   </h2>
-                  <p className="text-xs text-[#AEBCB3]">
+                  <p className="text-xs text-muted">
                     تم توثيق الرغبة بنجاح وإدراجها في حسابات الاحتياج الفصلي.
                   </p>
                 </div>
@@ -259,14 +259,14 @@ export default function MockRegistrationPage() {
 
               {/* Course Badges List */}
               <div className="space-y-2">
-                <span className="text-xs font-bold text-[#F3E9D8]">
+                <span className="text-xs font-bold text-foreground">
                   المواد المختارة في هذه الرغبة ({intent.course_codes.length} مواد):
                 </span>
                 <div className="flex flex-wrap gap-2 pt-1">
                   {intent.course_codes.map((code) => (
                     <span
                       key={code}
-                      className="rounded-2xl border border-[#344739] bg-[#0F1A17] px-4 py-2 font-mono text-xs font-bold text-[#F3E9D8] shadow-xs"
+                      className="rounded-2xl border border-border bg-surface-muted px-4 py-2 font-mono text-xs font-bold text-foreground shadow-xs"
                       dir="ltr"
                     >
                       <CourseIdentity courseCode={code} identities={identities} />
@@ -276,11 +276,11 @@ export default function MockRegistrationPage() {
               </div>
 
               {/* Actions */}
-              <div className="flex flex-wrap items-center justify-between gap-3 border-t border-[#344739]/60 pt-5">
+              <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border/60 pt-5">
                 <button
                   type="button"
                   onClick={() => setIsEditing(true)}
-                  className="rounded-2xl bg-[#D9884A] px-6 py-2.5 text-xs font-bold text-[#F3E9D8] hover:bg-[#D9884A] hover:text-white transition-all shadow-xs"
+                  className="rounded-2xl bg-accent px-6 py-2.5 text-xs font-bold text-white hover:bg-accent-hover transition-all shadow-xs"
                 >
                   تعديل الرغبات وإرسال مراجعة جديدة
                 </button>
@@ -299,14 +299,14 @@ export default function MockRegistrationPage() {
 
           {/* Form to Create or Edit Intent */}
           {(!intent || intent.lifecycle_status === "WITHDRAWN" || isEditing) ? (
-            <div className="rounded-3xl border border-[#344739] bg-surface p-7 shadow-xs space-y-6">
-              <div className="border-b border-[#344739] pb-4">
-                <h2 className="text-base font-bold text-[#F3E9D8]">
+            <div className="rounded-3xl border border-border bg-surface p-7 shadow-xs space-y-6">
+              <div className="border-b border-border pb-4">
+                <h2 className="text-base font-bold text-foreground">
                   {intent && intent.lifecycle_status !== "WITHDRAWN"
                     ? `تعديل رغبة التسجيل (المراجعة القادمة #${intent.revision + 1})`
                     : `تسجيل رغبة فصلية تجريبية جديدة (${targetPeriod})`}
                 </h2>
-                <p className="text-xs text-[#AEBCB3]">
+                <p className="text-xs text-muted">
                   أضف رموز المواد التي ترغب في دراستها خلال الفصل القادم.
                 </p>
               </div>
@@ -319,7 +319,7 @@ export default function MockRegistrationPage() {
 
               {/* Add Course Input Form */}
               <form onSubmit={handleAddCourse} className="space-y-2">
-                <label className="block text-xs font-bold text-[#F3E9D8]">
+                <label className="block text-xs font-bold text-foreground">
                   إضافة مادة إلى قائمة الرغبات:
                 </label>
                 <div className="flex gap-2">
@@ -329,13 +329,13 @@ export default function MockRegistrationPage() {
                     list="registration-course-identities"
                     onChange={(e) => setNewCourseCode(e.target.value.toUpperCase())}
                     placeholder="أدخل رمز المادة (مثل: CS101 أو AI201)..."
-                    className="flex-1 rounded-2xl border border-[#344739] bg-[#0B1210] px-4 py-2.5 font-mono text-xs uppercase text-[#F3E9D8] focus:border-[#D9884A] focus:bg-surface focus:outline-hidden"
+                    className="flex-1 rounded-2xl border border-border bg-background px-4 py-2.5 font-mono text-xs uppercase text-foreground focus:border-accent focus:bg-surface focus:outline-hidden"
                     dir="ltr"
                   />
                   <CourseOptions id="registration-course-identities" identities={identities} />
                   <button
                     type="submit"
-                    className="inline-flex items-center gap-1.5 rounded-2xl bg-[#0F1A17] border border-[#344739] px-5 py-2.5 text-xs font-bold text-[#E5AC7C] hover:bg-[#15271F] hover:border-[#D9884A] transition-all"
+                    className="inline-flex items-center gap-1.5 rounded-2xl bg-surface-muted border border-border px-5 py-2.5 text-xs font-bold text-accent hover:bg-accent-soft hover:border-accent transition-all"
                   >
                     <PlusIcon className="h-4 w-4" />
                     <span>إضافة</span>
@@ -345,11 +345,11 @@ export default function MockRegistrationPage() {
 
               {/* Current List in Draft */}
               <div className="space-y-3">
-                <span className="text-xs font-bold text-[#F3E9D8]">
+                <span className="text-xs font-bold text-foreground">
                   المواد المضافة في القائمة الحالية ({courseList.length}):
                 </span>
                 {courseList.length === 0 ? (
-                  <p className="rounded-2xl border border-dashed border-[#344739] p-5 text-center text-xs text-[#AEBCB3]">
+                  <p className="rounded-2xl border border-dashed border-border p-5 text-center text-xs text-muted">
                     لم تقم بإضافة أي مواد بعد. أضف المواد من الحقل أعلاه.
                   </p>
                 ) : (
@@ -357,7 +357,7 @@ export default function MockRegistrationPage() {
                     {courseList.map((code) => (
                       <span
                         key={code}
-                        className="inline-flex items-center gap-2 rounded-2xl border border-[#344739] bg-[#0F1A17] px-3.5 py-1.5 font-mono text-xs font-bold text-[#F3E9D8]"
+                        className="inline-flex items-center gap-2 rounded-2xl border border-border bg-surface-muted px-3.5 py-1.5 font-mono text-xs font-bold text-foreground"
                         dir="ltr"
                       >
                         <CourseIdentity courseCode={code} identities={identities} />
@@ -375,13 +375,13 @@ export default function MockRegistrationPage() {
               </div>
 
               {/* Transparency Agreement */}
-              <div className="rounded-2xl bg-[#0B1210] p-4 border border-[#344739]/70 text-xs text-[#AEBCB3]">
+              <div className="rounded-2xl bg-background p-4 border border-border/70 text-xs text-muted">
                 <label className="flex items-start gap-2.5 cursor-pointer">
                   <input
                     type="checkbox"
                     checked={agreedTransparency}
                     onChange={(e) => setAgreedTransparency(e.target.checked)}
-                    className="mt-0.5 h-4 w-4 rounded border-[#344739] text-[#D9884A] focus:ring-[#D9884A]"
+                    className="mt-0.5 h-4 w-4 rounded border-border text-accent focus:ring-accent"
                   />
                   <span>
                     أقر بأن هذا التسجيل تجريبي وغير ملزم ومخصص لأغراض دراسة الاحتياج الفصلي والتخطيط الأكاديمي، ولا يغني عن التسجيل الرسمي.
@@ -390,7 +390,7 @@ export default function MockRegistrationPage() {
               </div>
 
               {/* Submit Buttons */}
-              <div className="flex items-center justify-end gap-3 pt-4 border-t border-[#344739]/60">
+              <div className="flex items-center justify-end gap-3 pt-4 border-t border-border/60">
                 {isEditing ? (
                   <button
                     type="button"
@@ -398,7 +398,7 @@ export default function MockRegistrationPage() {
                       setIsEditing(false);
                       if (intent) setCourseList(intent.course_codes);
                     }}
-                    className="rounded-2xl border border-[#344739] px-5 py-2.5 text-xs font-bold text-[#AEBCB3] hover:bg-[#0F1A17]"
+                    className="rounded-2xl border border-border px-5 py-2.5 text-xs font-bold text-muted hover:bg-surface-muted"
                   >
                     إلغاء التعديل
                   </button>
@@ -408,7 +408,7 @@ export default function MockRegistrationPage() {
                   type="button"
                   onClick={() => void handleSubmitRevision()}
                   disabled={actionLoading || courseList.length === 0}
-                  className="rounded-2xl bg-[#D9884A] px-7 py-2.5 text-xs font-bold text-[#F3E9D8] hover:bg-[#D9884A] hover:text-white transition-all shadow-xs disabled:opacity-50"
+                  className="rounded-2xl bg-accent px-7 py-2.5 text-xs font-bold text-white hover:bg-accent-hover transition-all shadow-xs disabled:opacity-50"
                 >
                   {actionLoading ? "جاري الإرسال..." : "إرسال رغبة التسجيل التجريبي"}
                 </button>

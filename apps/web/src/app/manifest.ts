@@ -11,8 +11,8 @@ export default function manifest(): MetadataRoute.Manifest {
     start_url: "/",
     scope: "/",
     display: "standalone",
-    background_color: "#FFFCF4",
-    theme_color: "#805400",
-    icons: [{ src: "/favicon.ico", sizes: "any", type: "image/x-icon" }],
+    background_color: "#FAFAF8",
+    theme_color: "#A94721",
+    icons: [{ src: "/brand/morshidi-favicon.png", sizes: "256x256", type: "image/png" }],
   };
 }

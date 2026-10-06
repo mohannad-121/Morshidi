@@ -80,14 +80,14 @@ export function UniversityLiveSync() {
 
   return <div className="relative">
     <button type="button" onClick={() => { setOpen((value) => !value); setUnread(0); }} aria-label={`الإشعارات${unread ? `، ${unread} جديدة` : ""}`} aria-expanded={open}
-      className="relative inline-flex h-10 w-10 items-center justify-center rounded-xl border border-[#C9A45C]/30 bg-[#14201B] text-[#F3E9D8] hover:border-[#D9884A] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#D9884A]">
+      className="relative inline-flex h-10 w-10 items-center justify-center rounded-xl border border-border/30 bg-surface text-foreground hover:border-accent focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent">
       <BellMark />
       {unread > 0 && <span className="absolute -left-1 -top-1 min-w-4 rounded-full bg-[#B8672E] px-1 text-[10px] text-white">{unread}</span>}
     </button>
-    {open && <div className="absolute left-0 top-12 z-50 w-[min(22rem,90vw)] rounded-2xl border border-[#C9A45C]/30 bg-[#0F1A17] p-3 shadow-xl" dir="rtl">
-      <div className="flex items-center justify-between border-b border-[#C9A45C]/20 pb-2"><strong className="text-sm text-[#F3E9D8]">إشعارات الجامعة</strong><button type="button" onClick={() => void poll().catch(() => setConnected(false))} className="rounded-lg p-1 text-[#D9884A]" aria-label="تحديث الإشعارات"><SyncMark /></button></div>
-      <p className="py-2 text-[10px] text-[#B7A78E]">{connected ? "متصل" : "مزامنة دورية"} · آخر تحديث {syncLabel}</p>
-      <ul className="max-h-72 space-y-2 overflow-y-auto">{items.length ? items.map(item => <li key={item.id} className="rounded-xl border border-[#C9A45C]/15 bg-[#14201B] p-2 text-xs text-[#F3E9D8]">{item.summary}<time className="mt-1 block text-[10px] text-[#B7A78E]" dir="ltr">{new Date(item.created_at).toLocaleString("ar-JO")}</time></li>) : <li className="py-6 text-center text-xs text-[#B7A78E]">لا إشعارات جديدة</li>}</ul>
+    {open && <div className="absolute left-0 top-12 z-50 w-[min(22rem,90vw)] rounded-2xl border border-border/30 bg-surface-muted p-3 shadow-xl" dir="rtl">
+      <div className="flex items-center justify-between border-b border-border/20 pb-2"><strong className="text-sm text-foreground">إشعارات الجامعة</strong><button type="button" onClick={() => void poll().catch(() => setConnected(false))} className="rounded-lg p-1 text-accent" aria-label="تحديث الإشعارات"><SyncMark /></button></div>
+      <p className="py-2 text-[10px] text-tertiary">{connected ? "متصل" : "مزامنة دورية"} · آخر تحديث {syncLabel}</p>
+      <ul className="max-h-72 space-y-2 overflow-y-auto">{items.length ? items.map(item => <li key={item.id} className="rounded-xl border border-border/15 bg-surface p-2 text-xs text-foreground">{item.summary}<time className="mt-1 block text-[10px] text-tertiary" dir="ltr">{new Date(item.created_at).toLocaleString("ar-JO")}</time></li>) : <li className="py-6 text-center text-xs text-tertiary">لا إشعارات جديدة</li>}</ul>
     </div>}
   </div>;
 }

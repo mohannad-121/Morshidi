@@ -1,18 +1,21 @@
 import type { Metadata, Viewport } from "next";
-import { Reem_Kufi, Readex_Pro } from "next/font/google";
+import { Alexandria, IBM_Plex_Sans_Arabic } from "next/font/google";
 import "./globals.css";
 import { AuthProvider } from "@/auth/auth-provider";
 import { GlobalNavbar } from "@/components/layout/GlobalNavbar";
 import { GlobalFooter } from "@/components/layout/GlobalFooter";
 
-const geistSans = Readex_Pro({
+const bodyFont = IBM_Plex_Sans_Arabic({
   variable: "--font-body",
+  weight: ["400", "500", "600", "700"],
   subsets: ["arabic", "latin"],
+  display: "swap",
 });
 
-const geistMono = Reem_Kufi({
+const headingFont = Alexandria({
   variable: "--font-heading",
   subsets: ["arabic", "latin"],
+  display: "swap",
 });
 
 export const metadata: Metadata = {
@@ -20,13 +23,14 @@ export const metadata: Metadata = {
   description: "قرارات أكاديمية أوضح، تخطيط أذكى، ومسار دراسي يمكنك فهمه.",
   icons: {
     icon: [
-      { url: "/brand/mark.svg", type: "image/svg+xml" },
+      { url: "/brand/morshidi-favicon.png", type: "image/png", sizes: "256x256" },
     ],
-    shortcut: "/brand/mark.svg",
+    shortcut: "/brand/morshidi-favicon.png",
+    apple: "/brand/morshidi-favicon.png",
   },
 };
 
-export const viewport: Viewport = { themeColor: "#0B1210", width: "device-width", initialScale: 1 };
+export const viewport: Viewport = { themeColor: "#fafaf8", width: "device-width", initialScale: 1 };
 
 export default function RootLayout({
   children,
@@ -37,7 +41,7 @@ export default function RootLayout({
     <html
       lang="ar"
       dir="rtl"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      className={`${bodyFont.variable} ${headingFont.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">
         <AuthProvider>

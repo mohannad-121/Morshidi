@@ -148,6 +148,19 @@ class MockSupabaseEnvironment:
             elif request.method == "GET":
                 return httpx.Response(200, json={"users": self.auth_users})
 
+        if path.startswith("/auth/v1/admin/users/"):
+            user_id = path.split("/")[-1]
+            user = next((item for item in self.auth_users if item["id"] == user_id), None)
+            if not user:
+                return httpx.Response(404, json={"message": "not found"})
+            if request.method == "GET":
+                return httpx.Response(200, json=user)
+            if request.method == "PUT":
+                payload = json.loads(request.content)
+                if "user_metadata" in payload:
+                    user["user_metadata"] = payload["user_metadata"]
+                return httpx.Response(200, json=user)
+
         # 2. Identities: /rest/v1/student_university_identities
         if path == "/rest/v1/student_university_identities":
             if request.method == "GET":
@@ -424,6 +437,7 @@ async def test_01_first_time_student_authentication_succeeds(test_service: tuple
     assert result.university_id == TEST_UNIVERSITY_ID
     assert result.canonical_email == "202310001@shadow.morshidi.internal"
     assert len(mock_supabase.auth_users) == 1
+    assert mock_supabase.auth_users[0]["user_metadata"]["full_name"] == "Tariq Ahmad"
     assert len(mock_supabase.identities) == 1
     assert len(mock_supabase.profiles) == 1
 
@@ -540,11 +554,19 @@ async def test_11_and_12_profile_created_on_first_sync_and_updated_on_second(tes
     res1 = await service.authenticate_and_sync_student("202310001", "pass")
     assert len(mock_supabase.profiles) == 1
     assert mock_supabase.profiles[0]["reported_cumulative_gpa"] == "3.45"
+    mock_supabase.auth_users[0]["user_metadata"]["existing_safe_key"] = "preserved"
 
     # Second sync
     res2 = await service.authenticate_and_sync_student("202310001", "pass")
     assert len(mock_supabase.profiles) == 1
     assert res2.profile_id == res1.profile_id
+    assert mock_supabase.auth_users[0]["user_metadata"] == {
+        "university_id": TEST_UNIVERSITY_ID,
+        "university_student_id": "202310001",
+        "provider": "fake_university",
+        "full_name": "Tariq Ahmad",
+        "existing_safe_key": "preserved",
+    }
 
 
 @pytest.mark.anyio

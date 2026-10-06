@@ -119,7 +119,7 @@ function createMockClient(
 }
 
 describe("Student Dashboard (لوحة الطالب)", () => {
-  it("renders page heading, student email, academic profile, and progress successfully", async () => {
+  it("renders the student name, academic profile, and progress without exposing email", async () => {
     const { client } = createMockClient(
       () => new Response(JSON.stringify(mockProfile), { status: 200 }),
       () => new Response(JSON.stringify(mockProgress), { status: 200 }),
@@ -133,11 +133,10 @@ describe("Student Dashboard (لوحة الطالب)", () => {
     );
 
     // Verify main page heading
-    const heading = await screen.findByRole("heading", { name: "لوحة الطالب", level: 1 });
+    const heading = await screen.findByRole("heading", { name: /أحمد محمد العلي/, level: 1 });
     expect(heading).toBeDefined();
 
-    // Verify authenticated user email
-    expect(screen.getByText("student@example.com")).toBeDefined();
+    expect(screen.queryByText("student@example.com")).toBeNull();
 
     // Verify Academic Profile Card
     const profileHeading = await screen.findByRole("heading", { name: "الملف الأكاديمي", level: 2 });
@@ -479,7 +478,7 @@ describe("Student Dashboard (لوحة الطالب)", () => {
       </AuthProvider>,
     );
 
-    await screen.findByRole("heading", { name: "لوحة الطالب" });
+    await screen.findByRole("heading", { name: /أحمد محمد العلي/ });
 
     expect(capturedProfileHeaders?.get("Authorization")).toBe("Bearer student-jwt-abc-123");
     expect(capturedProgressHeaders?.get("Authorization")).toBe("Bearer student-jwt-abc-123");

@@ -202,7 +202,8 @@ class UniversitySyncService:
 
         # Phase 4: Resolve or Provision Internal Morshidi Identity
         owner_user_id, is_new_user, canonical_email, shadow_pw = await self._resolve_or_provision_identity(
-            verified_student_id
+            verified_student_id,
+            full_name=profile_data.name,
         )
 
         # Phase 5: Upsert Student Academic Profile
@@ -315,6 +316,8 @@ class UniversitySyncService:
     async def _resolve_or_provision_identity(
         self,
         verified_student_id: str,
+        *,
+        full_name: str | None,
     ) -> tuple[str, bool, str, str]:
         """Resolve existing or provision new internal Morshidi shadow identity.
 
@@ -331,6 +334,10 @@ class UniversitySyncService:
             self._university_id, verified_student_id
         )
         if existing:
+            await self._admin_auth.update_shadow_user_metadata(
+                user_id=existing.owner_user_id,
+                full_name=full_name,
+            )
             return existing.owner_user_id, False, canonical_email, shadow_password
 
         # 2. Provision internal Auth user (or look up existing by email)
@@ -339,6 +346,7 @@ class UniversitySyncService:
             password=shadow_password,
             university_id=self._university_id,
             university_student_id=verified_student_id,
+            full_name=full_name,
         )
 
         # 3. Create student_university_identities mapping (with concurrency protection)

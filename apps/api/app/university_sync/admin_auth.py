@@ -134,6 +134,39 @@ class SupabaseAdminAuthClient:
             logger.warning("Failed to query auth.users by email: %s", error)
             return None
 
+    async def update_shadow_user_metadata(
+        self,
+        *,
+        user_id: str,
+        full_name: str | None,
+    ) -> None:
+        """Merge the authoritative display name without replacing existing metadata."""
+        clean_full_name = " ".join((full_name or "").split())
+        if not clean_full_name:
+            return
+
+        try:
+            response = await self._client.get(
+                f"{self._auth_admin_url}/users/{user_id}",
+                headers=self._headers(),
+                timeout=10,
+            )
+            response.raise_for_status()
+            existing_metadata = response.json().get("user_metadata") or {}
+            update_response = await self._client.put(
+                f"{self._auth_admin_url}/users/{user_id}",
+                headers=self._headers(),
+                json={"user_metadata": {**existing_metadata, "full_name": clean_full_name}},
+                timeout=10,
+            )
+            update_response.raise_for_status()
+        except (httpx.HTTPError, ValueError, AttributeError) as error:
+            logger.warning(
+                "Display metadata sync failed for managed shadow user %s: %s",
+                user_id,
+                error,
+            )
+
     async def create_or_get_shadow_user(
         self,
         *,
@@ -141,20 +174,26 @@ class SupabaseAdminAuthClient:
         password: str,
         university_id: str,
         university_student_id: str,
+        full_name: str | None = None,
     ) -> str:
         """Provision or locate an internal Supabase Auth user for this student.
 
         Returns the user's UUID (str).
         """
+        managed_metadata = {
+            "university_id": str(university_id),
+            "university_student_id": str(university_student_id).strip(),
+            "provider": "fake_university",
+        }
+        clean_full_name = " ".join((full_name or "").split())
+        if clean_full_name:
+            managed_metadata["full_name"] = clean_full_name
+
         payload = {
             "email": email.strip().lower(),
             "password": password,
             "email_confirm": True,
-            "user_metadata": {
-                "university_id": str(university_id),
-                "university_student_id": str(university_student_id).strip(),
-                "provider": "fake_university",
-            },
+            "user_metadata": managed_metadata,
         }
 
         try:
@@ -201,12 +240,15 @@ class SupabaseAdminAuthClient:
                 )
 
             user_id = str(existing["id"])
-            # Synchronize shadow password on proven managed account
+            # Preserve existing safe metadata while refreshing server-managed identity fields.
             try:
                 await self._client.put(
                     f"{self._auth_admin_url}/users/{user_id}",
                     headers=self._headers(),
-                    json={"password": password},
+                    json={
+                        "password": password,
+                        "user_metadata": {**meta, **managed_metadata},
+                    },
                     timeout=10,
                 )
             except Exception as update_err:

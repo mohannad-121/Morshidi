@@ -93,7 +93,7 @@ export function LoginForm() {
 
   return (
     <div className="mt-8 space-y-6">
-      <p className="text-xs text-[#AEBCB3] leading-relaxed">
+      <p className="text-xs text-muted leading-relaxed">
         {"\u0627\u0633\u062a\u062e\u062f\u0645 \u0646\u0641\u0633 \u0627\u0644\u0631\u0642\u0645 \u0627\u0644\u062c\u0627\u0645\u0639\u064a \u0648\u0643\u0644\u0645\u0629 \u0627\u0644\u0645\u0631\u0648\u0631 \u0627\u0644\u062e\u0627\u0635\u0629 \u0628\u0628\u0648\u0627\u0628\u0629 \u062c\u0627\u0645\u0639\u062a\u0643."}
       </p>
 
@@ -105,14 +105,14 @@ export function LoginForm() {
       >
         <div>
           <label
-            className="mb-2 block text-xs font-bold text-[#F3E9D8]"
+            className="mb-2 block text-xs font-bold text-foreground"
             htmlFor="studentId"
           >
             {"\u0627\u0644\u0631\u0642\u0645 \u0627\u0644\u062c\u0627\u0645\u0639\u064a"}
           </label>
 
           <input
-            className="min-h-12 w-full rounded-xl border border-[#344739] bg-surface px-4 text-left font-mono text-sm text-[#F3E9D8] placeholder:text-[#AEBCB3]/50 focus:border-[#D9884A] focus:ring-1 focus:ring-[#D9884A] disabled:opacity-60"
+            className="min-h-12 w-full rounded-xl border border-border bg-surface px-4 text-left font-mono text-sm text-foreground placeholder:text-muted/50 focus:border-accent focus:ring-1 focus:ring-accent disabled:opacity-60"
             dir="ltr"
             id="studentId"
             name="studentId"
@@ -129,7 +129,7 @@ export function LoginForm() {
 
         <div>
           <label
-            className="mb-2 block text-xs font-bold text-[#F3E9D8]"
+            className="mb-2 block text-xs font-bold text-foreground"
             htmlFor="universityPassword"
           >
             {"\u0643\u0644\u0645\u0629 \u0645\u0631\u0648\u0631 \u0627\u0644\u062c\u0627\u0645\u0639\u0629"}
@@ -137,7 +137,7 @@ export function LoginForm() {
 
           <div className="relative">
             <input
-              className="min-h-12 w-full rounded-xl border border-[#344739] bg-surface px-4 pl-12 text-left font-mono text-sm text-[#F3E9D8] placeholder:text-[#AEBCB3]/50 focus:border-[#D9884A] focus:ring-1 focus:ring-[#D9884A] disabled:opacity-60"
+              className="min-h-12 w-full rounded-xl border border-border bg-surface px-4 pl-12 text-left font-mono text-sm text-foreground placeholder:text-muted/50 focus:border-accent focus:ring-1 focus:ring-accent disabled:opacity-60"
               dir="ltr"
               id="universityPassword"
               name="password"
@@ -152,7 +152,7 @@ export function LoginForm() {
             <button
               type="button"
               onClick={() => setShowPassword((prev) => !prev)}
-              className="absolute left-3 top-1/2 -translate-y-1/2 text-[#AEBCB3] hover:text-[#F3E9D8] transition-colors p-1"
+              className="absolute left-3 top-1/2 -translate-y-1/2 text-muted hover:text-foreground transition-colors p-1"
               aria-label={
                 showPassword
                   ? "\u0625\u062e\u0641\u0627\u0621 \u0643\u0644\u0645\u0629 \u0627\u0644\u0645\u0631\u0648\u0631"
@@ -179,7 +179,7 @@ export function LoginForm() {
         ) : null}
 
         <button
-          className="inline-flex min-h-12 w-full items-center justify-center rounded-xl bg-[#D9884A] px-5 py-3 text-sm font-bold text-white shadow-xs transition-all hover:bg-[#E5AC7C] active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-60"
+          className="inline-flex min-h-12 w-full items-center justify-center rounded-xl bg-accent px-5 py-3 text-sm font-bold text-white shadow-xs transition-all hover:bg-accent-hover active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-60"
           disabled={
             isSubmitting ||
             auth.isLoading ||

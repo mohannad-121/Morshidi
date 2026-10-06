@@ -13,7 +13,7 @@ export function ProgressBar({
   label,
   showPercent = true,
   className = "",
-  barColor = "bg-[#D9884A]",
+  barColor = "bg-accent",
 }: ProgressBarProps) {
   const safeTotal = Number(total) || 0;
   const safeCompleted = Number(completed) || 0;
@@ -22,13 +22,13 @@ export function ProgressBar({
   return (
     <div className={`w-full ${className}`}>
       {label || showPercent ? (
-        <div className="mb-2 flex items-center justify-between text-xs font-semibold text-[#AEBCB3]">
+        <div className="mb-2 flex items-center justify-between text-xs font-semibold text-muted">
           {label ? <span>{label}</span> : <span />}
-          {showPercent ? <span className="font-mono text-[#F3E9D8]">{percent}%</span> : null}
+          {showPercent ? <span className="font-mono text-foreground">{percent}%</span> : null}
         </div>
       ) : null}
       <div
-        className="h-2.5 w-full overflow-hidden rounded-full bg-[#344739]/60"
+        className="h-2.5 w-full overflow-hidden rounded-full bg-border/60"
         role="progressbar"
         aria-valuenow={safeCompleted}
         aria-valuemin={0}
