@@ -62,6 +62,7 @@ def test_01_advisor_intent_exact_members() -> None:
         "DEGREE_PATH_MODELING",
         "OPTION_COMPARISON",
         "COURSE_INFORMATION",
+        "COURSE_COMPARISON",
         "GENERAL_ACADEMIC_INFORMATION",
         "GENERAL_CHAT",
         "CLARIFICATION_REQUIRED",

@@ -197,6 +197,35 @@ async def test_general_chat_academic_claim_is_rejected_even_for_general_question
 
 
 @pytest.mark.anyio
+@pytest.mark.parametrize(("message", "expected"), (
+    ("هل مادة برمجة الحاسوب 1 صعبة؟", "التقدير البنيوي لصعوبة"),
+    ("كم لازم أجيب عشان أنجح بمادة برمجة الحاسوب 1؟", "الحد الرسمي للنجاح"),
+    ("How difficult is Computer Programming 1?", "structural difficulty estimate"),
+    ("What grade do I need to pass Computer Programming 1?", "official passing threshold"),
+))
+async def test_course_difficulty_and_passing_questions_are_grounded(message: str, expected: str) -> None:
+    service, _, _, _ = _service(RawAdvisorInterpretation(
+        "COURSE_INFORMATION", course_mentions=("برمجة الحاسوب 1" if any("\u0600" <= c <= "\u06ff" for c in message)
+                                                else "Computer Programming 1",)))
+    response = await service.advise_with_explanation(OWNER, message)
+    assert response.structured_result.intent is AdvisorIntent.COURSE_INFORMATION
+    assert expected in (response.explanation or "")
+    payload = response.structured_result.authoritative_payload
+    assert payload.difficulty_score is not None  # type: ignore[union-attr]
+
+
+@pytest.mark.anyio
+async def test_two_course_comparison_uses_canonical_catalog_facts() -> None:
+    service, _, _, _ = _service(RawAdvisorInterpretation(
+        "COURSE_COMPARISON", course_mentions=("Machine Learning", "Computer Programming 1")))
+    response = await service.advise_with_explanation(
+        OWNER, "Compare Machine Learning and Computer Programming 1")
+    assert response.structured_result.intent is AdvisorIntent.COURSE_COMPARISON
+    assert "1505311" in (response.explanation or "")
+    assert "1501110" in (response.explanation or "")
+
+
+@pytest.mark.anyio
 async def test_01_general_information_avoids_student_and_catalog_loads() -> None:
     service, provider, students, catalogs = _service(
         RawAdvisorInterpretation("GENERAL_ACADEMIC_INFORMATION")

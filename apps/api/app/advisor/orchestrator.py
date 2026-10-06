@@ -23,6 +23,7 @@ from app.advisor.models import (
     ClarificationReason,
     ClarificationRequest,
     CourseInformation,
+    CourseComparison,
     CourseResolution,
     DecisionReference,
     EntityResolutionStatus,
@@ -49,6 +50,7 @@ from app.recommendations.models import (
     RecommendationCandidate,
     RecommendationResult,
 )
+from app.student_intelligence.adaptive import evaluate_general_course_difficulty
 from app.rules.evaluator import evaluate_can_take
 from app.rules.models import (
     CanTakeCatalog,
@@ -119,6 +121,8 @@ def orchestrate_advisor_request(
         return _option_comparison_result(request, context)
     if request.intent is AdvisorIntent.COURSE_INFORMATION:
         return _course_information_result(request, context)
+    if request.intent is AdvisorIntent.COURSE_COMPARISON:
+        return _course_comparison_result(request, context)
     if request.intent in (AdvisorIntent.GENERAL_CHAT, AdvisorIntent.GENERAL_ACADEMIC_INFORMATION):
         return _general_information_result(request)
     if request.intent is AdvisorIntent.CLARIFICATION_REQUIRED:
@@ -474,6 +478,12 @@ def _course_information_result(
         ),
         None,
     )
+    difficulty = (
+        evaluate_general_course_difficulty(
+            course.course_code, plan_course.credit_hours, context.eligibility_catalog)
+        if plan_course is not None and context.eligibility_catalog is not None and rule is not None
+        else None
+    )
     information = CourseInformation(
         course_code=course.course_code,
         canonical_arabic_name=course.canonical_arabic_name,
@@ -483,6 +493,10 @@ def _course_information_result(
         catalog_status=identity.catalog_status.value if identity else None,
         prerequisite_logic_status=rule.prerequisite_logic_status.value if rule else None,
         raw_prerequisite_text=rule.raw_prerequisite_text if rule else None,
+        difficulty_score=difficulty.score if difficulty else None,
+        difficulty_level=difficulty.level if difficulty else None,
+        difficulty_provenance=difficulty.provenance if difficulty else None,
+        difficulty_model_version=difficulty.model_version if difficulty else None,
     )
     references = ()
     if information.prerequisite_logic_status is not None:
@@ -504,6 +518,33 @@ def _course_information_result(
         evidence=(evidence,),
         payload=information,
         course_resolution=request.course_resolution,
+    )
+
+
+def _course_comparison_result(
+    request: NormalizedAdvisorRequest,
+    context: AdvisorContext,
+) -> StructuredAdvisorResult:
+    rows: list[CourseInformation] = []
+    evidence: list[AdvisorEvidence] = []
+    for course in request.comparison_courses:
+        single = _course_information_result(
+            NormalizedAdvisorRequest(
+                request.user_message,
+                AdvisorIntent.COURSE_INFORMATION,
+                course_resolution=CourseResolution(
+                    EntityResolutionStatus.RESOLVED, resolved_course=course)),
+            context,
+        )
+        if not isinstance(single.authoritative_payload, CourseInformation):
+            return _insufficient_result(request.intent, "course-comparison-context-unavailable")
+        rows.append(single.authoritative_payload)
+        evidence.extend(single.evidence)
+    return _build_result(
+        intent=request.intent,
+        authority=AnswerAuthority.DETERMINISTIC,
+        evidence=tuple(evidence),
+        payload=CourseComparison(tuple(rows)),
     )
 
 

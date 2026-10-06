@@ -117,7 +117,8 @@ def test_comparison_service_uses_owner_progress_and_p155_workload_evidence():
     async def run():
         service = StudentService(None, None, None)
         service.get_academic_progress = AsyncMock(return_value=SimpleNamespace(
-            plan_total_required_credits=Decimal(132), completed_plan_credits=Decimal(60)))
+            plan_total_required_credits=Decimal(132), completed_plan_credits=Decimal(60),
+            reported_earned_credit_hours=Decimal(90)))
         service.get_adaptive_course_intelligence = AsyncMock(return_value=SimpleNamespace(
             recommendations=[SimpleNamespace(workload_risk=80), SimpleNamespace(workload_risk=60)],
             model_version="PERSONAL_DIFFICULTY_MODEL_V1"))
@@ -128,6 +129,8 @@ def test_comparison_service_uses_owner_progress_and_p155_workload_evidence():
         assert all(row.current_workload_risk == 70 for row in result.scenarios)
         assert all(row.difficulty_evidence.startswith("CURRENT_ELIGIBLE_COURSES_ONLY") for row in result.scenarios)
         assert all(row.confidence == "MODELED_CREDIT_ONLY" for row in result.scenarios)
+        assert all(row.timeline.initial_remaining_credits == Decimal(42)
+                   for row in result.scenarios)
     asyncio.run(run())
 
 

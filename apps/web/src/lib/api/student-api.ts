@@ -260,11 +260,12 @@ export class StudentApiService {
       `/api/v1/me/conversations/${encodeURIComponent(id)}/messages?offset=${offset}`, { cache: "no-store" }));
   }
 
-  async continueConversation(id: string, message: string, signal?: AbortSignal): Promise<ConversationReply> {
+  async continueConversation(id: string, message: string, clientMessageId: string,
+    signal?: AbortSignal): Promise<ConversationReply> {
     return parseJson<ConversationReply>(await this.client.request(
       `/api/v1/me/conversations/${encodeURIComponent(id)}/messages`, {
         method: "POST", signal, headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message }),
+        body: JSON.stringify({ message, client_message_id: clientMessageId }),
       }));
   }
 

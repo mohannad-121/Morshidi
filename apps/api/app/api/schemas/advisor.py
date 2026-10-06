@@ -13,6 +13,7 @@ from app.advisor.models import (
     AnswerAuthority,
     AuthoritativeSource,
     CourseInformation,
+    CourseComparison,
     EntityResolutionStatus,
     OutOfScopeReason,
     StructuredAdvisorResult,
@@ -254,6 +255,15 @@ class CourseInformationAdvisorPayload(BaseModel):
     catalog_status: str | None
     prerequisite_logic_status: str | None
     raw_prerequisite_text: str | None
+    difficulty_score: int | None
+    difficulty_level: str | None
+    difficulty_provenance: str | None
+    difficulty_model_version: str | None
+
+
+class CourseComparisonAdvisorPayload(BaseModel):
+    kind: Literal["course_comparison"] = "course_comparison"
+    courses: list[CourseInformationAdvisorPayload]
 
 
 AdvisorPayloadResponse = Annotated[
@@ -263,7 +273,8 @@ AdvisorPayloadResponse = Annotated[
     | RecommendationsAdvisorPayload
     | SemesterPlansAdvisorPayload
     | DegreePathsAdvisorPayload
-    | CourseInformationAdvisorPayload,
+    | CourseInformationAdvisorPayload
+    | CourseComparisonAdvisorPayload,
     Field(discriminator="kind"),
 ]
 
@@ -470,6 +481,12 @@ def _payload_response(payload: object) -> AdvisorPayloadResponse | None:
     if isinstance(payload, CourseInformation):
         return CourseInformationAdvisorPayload.model_validate(
             {"kind": "course_information", **_attributes(payload)}
+        )
+    if isinstance(payload, CourseComparison):
+        return CourseComparisonAdvisorPayload(
+            courses=[CourseInformationAdvisorPayload.model_validate(
+                {"kind": "course_information", **_attributes(course)})
+                for course in payload.courses]
         )
     raise ValueError("Unsupported advisor payload type")
 

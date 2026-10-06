@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import asyncio
 from typing import Annotated
-from uuid import UUID
+from uuid import NAMESPACE_URL, UUID, uuid5
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, ConfigDict, Field
@@ -34,6 +34,7 @@ class NewThread(BaseModel):
 class NewMessage(BaseModel):
     model_config = ConfigDict(extra="forbid")
     message: str = Field(min_length=1, max_length=4000)
+    client_message_id: UUID
 
 
 class RenameThread(BaseModel):
@@ -136,11 +137,25 @@ async def continue_thread(thread_id: UUID, body: NewMessage, user: User, student
         message = body.message.strip()
         if not message:
             raise HTTPException(status_code=422, detail="Message must not be blank")
-        user_row = await store.append_message(
-            owner, institution, str(thread_id), "USER", message, "USER_STATED")
+        persisted_user_id = str(uuid5(
+            NAMESPACE_URL,
+            f"morshidi-user:{owner}:{institution}:{thread_id}:{body.client_message_id}",
+        ))
+        try:
+            user_row = await store.get_message(
+                owner, institution, str(thread_id), persisted_user_id)
+            if user_row.get("role") != "USER" or user_row.get("content") != message:
+                raise HTTPException(status_code=409, detail="Message retry identity conflict")
+            user_created = False
+        except ConversationNotFound:
+            user_row = await store.append_message(
+                owner, institution, str(thread_id), "USER", message, "USER_STATED",
+                message_id=persisted_user_id)
+            user_created = True
         changed = extract_explicit_preferences(message)
-        for key, value in changed.items():
-            await store.save_preference(owner, institution, key, value, user_row["id"])
+        if user_created:
+            for key, value in changed.items():
+                await store.save_preference(owner, institution, key, value, user_row["id"])
         preferences.update(changed)
         if changed:
             summary = "; ".join(f"{key}={preferences[key]}" for key in sorted(preferences))[:800]
@@ -154,10 +169,20 @@ async def continue_thread(thread_id: UUID, body: NewMessage, user: User, student
             explanation_language=result.explanation_language,
         )
         display = response.explanation or "تمت معالجة استفسارك وفق القواعد الحتمية."
-        assistant_row = await store.append_message(
-            owner, institution, str(thread_id), "ASSISTANT", display,
-            "GUARDED_PROVIDER" if response.explanation_status.value == "GENERATED"
-            else "DETERMINISTIC_EXPLANATION")
+        assistant_id = str(uuid5(
+            NAMESPACE_URL,
+            f"morshidi-assistant:{owner}:{institution}:{thread_id}:{body.client_message_id}",
+        ))
+        try:
+            assistant_row = await store.get_message(
+                owner, institution, str(thread_id), assistant_id)
+            if assistant_row.get("role") != "ASSISTANT":
+                raise HTTPException(status_code=409, detail="Assistant retry identity conflict")
+        except ConversationNotFound:
+            assistant_row = await store.append_message(
+                owner, institution, str(thread_id), "ASSISTANT", display,
+                "GUARDED_PROVIDER" if response.explanation_status.value == "GENERATED"
+                else "DETERMINISTIC_EXPLANATION", message_id=assistant_id)
         return MessageReply(thread_id=thread_id, user_message=user_row,
                             assistant_message=assistant_row, advisor=response)
     except ConversationNotFound as error:

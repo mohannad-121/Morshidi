@@ -24,6 +24,8 @@ interface ChatMessage {
   text: string;
   advisorData?: AdvisorResponse;
   timestamp: string;
+  clientMessageId?: string;
+  delivery?: "sending" | "failed";
 }
 
 type HistoryStatus = "initializing" | "loading" | "ready" | "error" | "auth-error";
@@ -32,6 +34,13 @@ type SendError = "failed" | "timeout" | null;
 const CHAT_RESPONSE_TIMEOUT_MS = 55_000;
 
 const INITIAL_MESSAGES: ChatMessage[] = [];
+
+function newMessageId(): string {
+  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+    return crypto.randomUUID();
+  }
+  return "00000000-0000-4000-8000-" + Date.now().toString().padStart(12, "0").slice(-12);
+}
 
 const SUGGESTED_QUESTIONS = [
   "هل يمكنني تسجيل مادة الذكاء الاصطناعي؟",
@@ -56,7 +65,6 @@ export default function AdvisorPage() {
   const [inputPrompt, setInputPrompt] = useState("");
   const [loading, setLoading] = useState(false);
   const [sendError, setSendError] = useState<SendError>(null);
-  const [failedMessage, setFailedMessage] = useState("");
   const [historyOpen, setHistoryOpen] = useState(false);
   const [copied, setCopied] = useState<string|null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -105,8 +113,6 @@ export default function AdvisorPage() {
       setHistoryStatus("ready");
     } catch (error) {
       if (requestId !== historyRequestRef.current) return;
-      setThreadId(null);
-      setMessages(INITIAL_MESSAGES);
       setHistoryStatus(isAuthError(error) ? "auth-error" : "error");
     }
   }, [client]);
@@ -130,8 +136,6 @@ export default function AdvisorPage() {
       setOlderAvailable(rows.length === 100);
       setHistoryStatus("ready");
     } catch (error) {
-      setThreadId(null);
-      setMessages(INITIAL_MESSAGES);
       setHistoryStatus(isAuthError(error) ? "auth-error" : "error");
     }
   };
@@ -148,7 +152,8 @@ export default function AdvisorPage() {
     }
   };
 
-  const handleSendMessage = async (textToSend?: string) => {
+  const handleSendMessage = async (textToSend?: string, retryId?: string,
+    retryClientMessageId?: string) => {
     const query = (textToSend ?? inputPrompt).trim();
     if (!query || loading || historyStatus === "initializing" ||
         historyStatus === "loading" || historyStatus === "auth-error" ||
@@ -157,9 +162,23 @@ export default function AdvisorPage() {
     setInputPrompt("");
     setLoading(true);
     setSendError(null);
-    setFailedMessage("");
     let activeThreadId = threadId;
     const signal = AbortSignal.timeout(CHAT_RESPONSE_TIMEOUT_MS);
+    const optimisticId = retryId ?? `optimistic-${newMessageId()}`;
+    const clientMessageId = retryClientMessageId ?? newMessageId();
+    const optimisticMessage: ChatMessage = {
+      id: optimisticId,
+      sender: "student",
+      text: query,
+      timestamp: new Date().toLocaleTimeString("ar-JO-u-nu-latn", { hour: "2-digit", minute: "2-digit" }),
+      clientMessageId,
+      delivery: "sending",
+    };
+    setMessages((current) => retryId
+      ? current.map((message) => message.id === retryId
+        ? { ...message, delivery: "sending" as const }
+        : message)
+      : [...current, optimisticMessage]);
 
     try {
       const api = new StudentApiService(client);
@@ -169,7 +188,7 @@ export default function AdvisorPage() {
         const id = activeThreadId ?? (await api.createConversation(query.slice(0, 100))).id;
         activeThreadId = id;
         if (!threadId) setThreadId(id);
-        const reply = await api.continueConversation(id, query, signal);
+        const reply = await api.continueConversation(id, query, clientMessageId, signal);
         advisorMsg = {
           id: reply.assistant_message.id,
           sender: "advisor",
@@ -190,8 +209,15 @@ export default function AdvisorPage() {
           timestamp,
         };
       }
-      setMessages((prev) => [...(prev === INITIAL_MESSAGES ? [] : prev), studentMsg, advisorMsg]);
-      setLoadedCount((count) => count + 2);
+      setMessages((current) => {
+        const reconciled = current.map((message) => message.id === optimisticId
+          ? { ...studentMsg, clientMessageId }
+          : message);
+        return reconciled.some((message) => message.id === advisorMsg.id)
+          ? reconciled
+          : [...reconciled, advisorMsg];
+      });
+      setLoadedCount((count) => count + (historyStatus === "ready" ? 2 : 0));
       if (historyStatus === "ready") {
         try {
           setThreads(await api.listConversations());
@@ -200,7 +226,9 @@ export default function AdvisorPage() {
         }
       }
     } catch (error) {
-      setFailedMessage(query);
+      setMessages((current) => current.map((message) => message.id === optimisticId
+        ? { ...message, delivery: "failed" as const }
+        : message));
       if (isAuthError(error)) setHistoryStatus("auth-error");
       else setSendError(signal.aborted ? "timeout" : "failed");
     } finally {
@@ -211,7 +239,7 @@ export default function AdvisorPage() {
 
   const archived=Boolean(threadId&&threads.find(t=>t.id===threadId)?.status==='ARCHIVED');
   return <div className="chat-workspace">
-    <div className="chat-mobile-heading"><h1>المحادثة</h1><button className="icon-button" aria-label="سجل المحادثات" aria-expanded={historyOpen} onClick={()=>setHistoryOpen(!historyOpen)}><PanelRight size={20}/></button></div>
+    <div className="chat-mobile-heading"><h1>مرشدي AI</h1><button className="icon-button" aria-label="سجل محادثات مرشدي AI" aria-expanded={historyOpen} onClick={()=>setHistoryOpen(!historyOpen)}><PanelRight size={20}/></button></div>
     <aside className={`chat-sidebar ${historyOpen?'is-open':''}`}>
       <ChatHistory threads={threads.map(t=>({...t,title:conversationTitle(t.title,t.id===threadId?messages.find(m=>m.sender==='student')?.text:undefined)}))} activeId={threadId} disabled={loading||historyStatus==='loading'||historyStatus==='auth-error'}
         onNew={()=>{setThreadId(null);setMessages(INITIAL_MESSAGES);setLoadedCount(0);setOlderAvailable(false);setHistoryOpen(false);}}
@@ -219,12 +247,11 @@ export default function AdvisorPage() {
         onArchive={id=>{void new StudentApiService(client).archiveConversation(id).then(async()=>setThreads(await new StudentApiService(client).listConversations())).catch((error)=>setHistoryStatus(isAuthError(error)?'auth-error':'error'));}}/>
       {olderThreadsAvailable&&<button className="button-secondary" onClick={()=>{void new StudentApiService(client).listConversations(threads.length).then(older=>{setThreads(c=>[...c,...older]);setOlderThreadsAvailable(older.length===100);}).catch((error)=>setHistoryStatus(isAuthError(error)?'auth-error':'error'));}}>محادثات أقدم</button>}
     </aside>
-    <section className="chat-main" aria-label="المحادثة">
+    <section className="chat-main" aria-label="مرشدي AI">
       <div className="chat-reading panel-scroll" role="log" aria-live="polite" aria-relevant="additions">
         {(historyStatus==='initializing'||historyStatus==='loading')&&!messages.length?<LoadingSkeletonCard/>:null}
-        {historyStatus==='error'&&<div className="chat-history-warning" role="alert"><span>تعذّر تحميل المحادثات السابقة. يمكنك بدء محادثة جديدة.</span><button className="button-secondary" onClick={()=>void loadHistory()}>إعادة المحاولة</button></div>}
+        {historyStatus==='error'&&<div className="chat-history-warning" role="alert"><span>تعذّر مزامنة السجل مؤقتًا. رسائلك الظاهرة باقية، لكن الرسائل الجديدة لن تُحفظ حتى تعود المزامنة.</span><button className="button-secondary" onClick={()=>void loadHistory()}>إعادة المحاولة</button></div>}
         {historyStatus==='auth-error'?<FriendlyState error title="انتهت صلاحية الجلسة. يرجى تسجيل الدخول مرة أخرى."/>:null}
-        {sendError&&<div className="chat-send-error" role="alert"><span>{sendError==='timeout'?'استغرق الرد وقتًا أطول من المتوقع. حاول مرة أخرى.':'تعذّر إرسال الرسالة. حاول مرة أخرى.'}</span><button className="button-secondary" onClick={()=>void handleSendMessage(failedMessage)}>إعادة المحاولة</button></div>}
         {historyStatus!=='auth-error'&&!messages.length&&historyStatus!=='initializing'&&historyStatus!=='loading'&&<div className="chat-welcome"><div className="chat-mascot"><Image src="/brand/morshidi-guide-cutout.png" alt="" width={160} height={240}/></div><h1>كيف نرسم خطوتك القادمة؟</h1><div className="chat-suggestions">{SUGGESTED_QUESTIONS.map((q,i)=><button key={q} onClick={()=>setInputPrompt(q)}><span className="suggestion-number">0{i+1}</span><span>{q}</span><span aria-hidden="true">↖</span></button>)}</div></div>}
         {olderAvailable&&<button className="button-secondary" onClick={()=>void loadOlder()}>رسائل أقدم</button>}
         {messages.map(msg=><article key={msg.id} className={`chat-message ${msg.sender==='student'?'message-user':'message-advisor'}`}>
@@ -234,6 +261,7 @@ export default function AdvisorPage() {
             {msg.advisorData.clarification?.candidate_course_codes?.map(code=><button className="button-secondary" key={code} onClick={()=>void handleSendMessage(`ما هي متطلبات المادة ${code}؟`)}><CourseIdentity courseCode={code} identities={identities}/></button>)}
           </div>}
           <div className="message-meta"><time>{msg.timestamp}</time><button aria-label="نسخ الرسالة" onClick={()=>{void navigator.clipboard.writeText(msg.text).then(()=>setCopied(msg.id)).catch(()=>setCopied(null));}}>{copied===msg.id?<Check size={14}/>:<Copy size={14}/>}</button></div>
+          {msg.delivery==='failed'&&<div className="message-retry" role="alert"><span>{sendError==='timeout'?'استغرق الرد وقتًا أطول من المتوقع.':'تعذّر إرسال الرسالة.'}</span><button className="button-secondary" onClick={()=>void handleSendMessage(msg.text,msg.id,msg.clientMessageId)}>إعادة المحاولة</button></div>}
         </article>)}
         {loading&&<div className="chat-pending" role="status"><Compass className="needle-loading" size={22}/><span>يجهّز مرشدي الرد…</span></div>}
         <div ref={messagesEndRef}/>

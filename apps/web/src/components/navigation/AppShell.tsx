@@ -7,7 +7,7 @@ import {LayoutDashboard,UserRound,ChartNoAxesCombined,BookOpen,CalendarDays,Mess
 import {useAuth} from '@/auth/auth-provider';
 import {SignOutButton} from '@/auth/sign-out-button';
 import {Logo,LogoMark} from '@/components/ui/Logo';
-const groups=[{title:'حسابي',items:[['','نظرة عامة',LayoutDashboard],['profile','الملف',UserRound],['progress','التقدم',ChartNoAxesCombined],['courses','المواد والدرجات',BookOpen]]},{title:'التخطيط',items:[['planner','خطة الفصل',CalendarDays],['advisor','المحادثة',MessagesSquare],['recommendations','التوصيات',Compass],['eligibility','أهلية التسجيل',DoorOpen],['degree-path','مسار التخرج',Route],['mock-registration','محاكاة التسجيل',ClipboardList]]},{title:'مراجع',items:[['roadmap','الخطة الدراسية',LibraryBig],['offerings','المواد المطروحة',Columns3],['policies','اللوائح',ScrollText]]}] as const;
+const groups=[{title:'حسابي',items:[['','نظرة عامة',LayoutDashboard],['profile','الملف',UserRound],['progress','التقدم',ChartNoAxesCombined],['courses','المواد والدرجات',BookOpen]]},{title:'التخطيط',items:[['planner','خطة الفصل',CalendarDays],['advisor','مرشدي AI',MessagesSquare],['recommendations','التوصيات',Compass],['eligibility','أهلية التسجيل',DoorOpen],['degree-path','مسار التخرج',Route],['mock-registration','محاكاة التسجيل',ClipboardList]]},{title:'مراجع',items:[['roadmap','الخطة الدراسية',LibraryBig],['offerings','المواد المطروحة',Columns3],['policies','اللوائح',ScrollText]]}] as const;
 export function AppShell({children}:{children:ReactNode}) {
  const pathname=usePathname();const auth=useAuth();const [pinned,setPinned]=useState(false);const [drawer,setDrawer]=useState(false);const [bell,setBell]=useState(false);
  const active=groups.flatMap(g=>[...g.items]).find(([path])=>pathname===`/student${path?'/'+path:''}`);

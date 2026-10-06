@@ -53,6 +53,9 @@ class AdvisorIntent(str, Enum):
     COURSE_INFORMATION = "COURSE_INFORMATION"
     """Return canonical catalog facts for a resolved course."""
 
+    COURSE_COMPARISON = "COURSE_COMPARISON"
+    """Compare two resolved courses using canonical catalog and difficulty facts."""
+
     GENERAL_ACADEMIC_INFORMATION = "GENERAL_ACADEMIC_INFORMATION"
     """Explain a general concept without a student-specific decision."""
 
@@ -289,6 +292,10 @@ class CourseInformation:
     catalog_status: str | None = None
     prerequisite_logic_status: str | None = None
     raw_prerequisite_text: str | None = None
+    difficulty_score: int | None = None
+    difficulty_level: str | None = None
+    difficulty_provenance: str | None = None
+    difficulty_model_version: str | None = None
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "course_code", _required_text(self.course_code, "course_code"))
@@ -303,6 +310,9 @@ class CourseInformation:
             "catalog_status",
             "prerequisite_logic_status",
             "raw_prerequisite_text",
+            "difficulty_level",
+            "difficulty_provenance",
+            "difficulty_model_version",
         ):
             object.__setattr__(self, field_name, _optional_text(getattr(self, field_name), field_name))
         if self.credit_hours is not None:
@@ -310,6 +320,19 @@ class CourseInformation:
                 raise AdvisorContractError("credit_hours must be a finite Decimal or None")
             if self.credit_hours < Decimal("0"):
                 raise AdvisorContractError("credit_hours cannot be negative")
+        if self.difficulty_score is not None and not 0 <= self.difficulty_score <= 100:
+            raise AdvisorContractError("difficulty_score must be between 0 and 100")
+
+
+@dataclass(frozen=True)
+class CourseComparison:
+    """Two canonical course-information rows; ordering follows the student's request."""
+
+    courses: tuple[CourseInformation, ...]
+
+    def __post_init__(self) -> None:
+        if len(self.courses) != 2 or len({course.course_code for course in self.courses}) != 2:
+            raise AdvisorContractError("CourseComparison requires exactly two distinct courses")
 
 
 AdvisorPayload: TypeAlias = (
@@ -320,6 +343,7 @@ AdvisorPayload: TypeAlias = (
     | SemesterPlannerResult
     | DegreePathResult
     | CourseInformation
+    | CourseComparison
     | tuple[RecommendationCandidate, ...]
     | tuple[SemesterPlanOption, ...]
     | tuple[DegreePathOption, ...]
@@ -428,6 +452,7 @@ class NormalizedAdvisorRequest:
     user_message: str
     intent: AdvisorIntent
     course_resolution: CourseResolution | None = None
+    comparison_courses: tuple[ResolvedCourseReference, ...] = ()
     planning_constraints: PlanningConstraints | None = None
     option_references: tuple[int, ...] = ()
     clarification_request: ClarificationRequest | None = None
@@ -439,6 +464,11 @@ class NormalizedAdvisorRequest:
         if any(isinstance(value, bool) or not isinstance(value, int) or value < 1 for value in options):
             raise AdvisorContractError("option_references must contain positive integers")
         object.__setattr__(self, "option_references", options)
+        if self.intent is AdvisorIntent.COURSE_COMPARISON:
+            if len(self.comparison_courses) != 2 or len({course.course_code for course in self.comparison_courses}) != 2:
+                raise AdvisorContractError("COURSE_COMPARISON requires two distinct resolved courses")
+        elif self.comparison_courses:
+            raise AdvisorContractError("comparison_courses are valid only for COURSE_COMPARISON")
 
         if isinstance(self.planning_constraints, PlannerConstraints):
             if self.intent is not AdvisorIntent.SEMESTER_PLANNING:

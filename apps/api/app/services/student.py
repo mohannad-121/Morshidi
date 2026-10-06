@@ -210,7 +210,9 @@ class StudentService:
         progress = await self.get_academic_progress(owner)
         return simulate_credit_timeline(
             required=progress.plan_total_required_credits,
-            earned=progress.completed_plan_credits,
+            earned=(progress.reported_earned_credit_hours
+                    if progress.reported_earned_credit_hours is not None
+                    else progress.completed_plan_credits),
             regular_load=regular_load, summer_enabled=summer_enabled,
             summer_load=summer_load, start_year=start_year, start_term=start_term,
         )
@@ -226,7 +228,9 @@ class StudentService:
         risks = [course.workload_risk for course in intelligence.recommendations]
         return compare_credit_timelines(
             required=progress.plan_total_required_credits,
-            earned=progress.completed_plan_credits,
+            earned=(progress.reported_earned_credit_hours
+                    if progress.reported_earned_credit_hours is not None
+                    else progress.completed_plan_credits),
             start_year=start_year, start_term=start_term,
             preferred_regular_load=preferred_regular_load,
             preferred_summer_enabled=preferred_summer_enabled,

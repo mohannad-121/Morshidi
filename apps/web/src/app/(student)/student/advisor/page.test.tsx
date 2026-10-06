@@ -102,7 +102,7 @@ describe("student AI chat resilience", () => {
     });
     renderPage();
 
-    await screen.findByText("تعذّر تحميل المحادثات السابقة. يمكنك بدء محادثة جديدة.");
+    await screen.findByText(/تعذّر مزامنة السجل مؤقتًا/);
     await send("كيفك؟");
 
     expect(await screen.findByText("أنا بخير، كيف أقدر أساعدك؟")).toBeDefined();
@@ -123,12 +123,12 @@ describe("student AI chat resilience", () => {
     });
     renderPage();
 
-    await screen.findByText(/تعذّر تحميل المحادثات السابقة/);
+    await screen.findByText(/تعذّر مزامنة السجل مؤقتًا/);
     const user = userEvent.setup();
     await user.click(screen.getByRole("button", { name: "إعادة المحاولة" }));
 
     await screen.findByText("كيف نرسم خطوتك القادمة؟");
-    expect(screen.queryByText(/تعذّر تحميل المحادثات السابقة/)).toBeNull();
+    expect(screen.queryByText(/تعذّر مزامنة السجل مؤقتًا/)).toBeNull();
     expect(historyCalls).toBe(2);
   });
 
@@ -144,7 +144,7 @@ describe("student AI chat resilience", () => {
     });
     renderPage();
 
-    await screen.findByText(/تعذّر تحميل المحادثات السابقة/);
+    await screen.findByText(/تعذّر مزامنة السجل مؤقتًا/);
     await send("شو المواد اللي بقدر أسجلها؟");
 
     expect(await screen.findByText(grounded)).toBeDefined();
@@ -187,6 +187,42 @@ describe("student AI chat resilience", () => {
     expect(screen.getByText("مرحبا")).toBeDefined();
   });
 
+  it("renders the user message and pending state before the persisted assistant reply, then reconciles without duplication", async () => {
+    let finishReply!: (value: Response) => void;
+    const pendingReply = new Promise<Response>((resolve) => { finishReply = resolve; });
+    fetchSpy.mockImplementation(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (url.endsWith("/conversations?offset=0")) return response([]);
+      if (url.endsWith("/conversations") && init?.method === "POST") return response(thread, 201);
+      if (url.endsWith(`/conversations/${thread.id}/messages`) && init?.method === "POST") {
+        const body = JSON.parse(String(init.body)) as { message: string; client_message_id: string };
+        expect(body.message).toBe("رسالة فورية");
+        expect(body.client_message_id).toMatch(/^[0-9a-f-]{36}$/i);
+        return pendingReply;
+      }
+      return response({}, 404);
+    });
+    renderPage();
+    await screen.findByText("كيف نرسم خطوتك القادمة؟");
+
+    await send("رسالة فورية");
+
+    expect(screen.getByText("رسالة فورية")).toBeDefined();
+    expect(screen.getByText("يجهّز مرشدي الرد…")).toBeDefined();
+    expect((screen.getByRole("textbox", { name: "الاستفسار الأكاديمي" }) as HTMLTextAreaElement).value).toBe("");
+
+    finishReply(response({
+      thread_id: thread.id,
+      user_message: { id: "persisted-user", thread_id: thread.id, role: "USER", content: "رسالة فورية", message_type: "TEXT", provenance: "USER_STATED", created_at: "2026-10-05T08:01:00Z" },
+      assistant_message: { id: "persisted-assistant", thread_id: thread.id, role: "ASSISTANT", content: "رد محفوظ", message_type: "TEXT", provenance: "DETERMINISTIC_EXPLANATION", created_at: "2026-10-05T08:01:01Z" },
+      advisor: advisorResponse("رد محفوظ"),
+    }));
+
+    expect(await screen.findByText("رد محفوظ")).toBeDefined();
+    expect(screen.getAllByText("رسالة فورية")).toHaveLength(1);
+    expect(screen.queryByText("يجهّز مرشدي الرد…")).toBeNull();
+  });
+
   it("shows an authentication-expired state and does not enable sending", async () => {
     fetchSpy.mockResolvedValue(response({ detail: "Authentication is required" }, 401));
     renderPage();
@@ -209,10 +245,11 @@ describe("student AI chat resilience", () => {
       return response({}, 404);
     });
     renderPage();
-    await screen.findByText(/تعذّر تحميل المحادثات السابقة/);
+    await screen.findByText(/تعذّر مزامنة السجل مؤقتًا/);
     await send("حاول إرسالها");
 
-    expect(await screen.findByText("تعذّر إرسال الرسالة. حاول مرة أخرى.")).toBeDefined();
+    expect(await screen.findByText("تعذّر إرسال الرسالة.")).toBeDefined();
+    expect(screen.getByText("حاول إرسالها")).toBeDefined();
     expect(screen.queryByText("استعاد مرشدي الاتصال")).toBeNull();
     const user = userEvent.setup();
     const retries = screen.getAllByRole("button", { name: "إعادة المحاولة" });
@@ -236,10 +273,10 @@ describe("student AI chat resilience", () => {
       return response({}, 404);
     });
     renderPage();
-    await screen.findByText(/تعذّر تحميل المحادثات السابقة/);
+    await screen.findByText(/تعذّر مزامنة السجل مؤقتًا/);
     await send("رسالة بطيئة");
 
-    expect(await screen.findByText("استغرق الرد وقتًا أطول من المتوقع. حاول مرة أخرى.")).toBeDefined();
+    expect(await screen.findByText("استغرق الرد وقتًا أطول من المتوقع.")).toBeDefined();
     expect(screen.queryByText("يجهّز مرشدي الرد…")).toBeNull();
     const user = userEvent.setup();
     const retries = screen.getAllByRole("button", { name: "إعادة المحاولة" });

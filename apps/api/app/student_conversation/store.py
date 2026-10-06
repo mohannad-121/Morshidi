@@ -114,16 +114,37 @@ class SupabaseConversationStore:
                  if key not in {"owner_user_id", "institution_id"}}
                 for row in reversed(rows)]
 
+    async def get_message(self, owner: str, institution: str, thread_id: str,
+                          message_id: str) -> dict[str, Any]:
+        await self.get_thread(owner, institution, thread_id)
+        rows = await self._rows("GET", "student_conversation_messages", params={
+            **self._scope(owner, institution), "thread_id": f"eq.{thread_id}",
+            "id": f"eq.{message_id}",
+            "select": "id,thread_id,owner_user_id,institution_id,role,content,message_type,provenance,created_at",
+            "limit": "2",
+        })
+        if len(rows) != 1:
+            raise ConversationNotFound("Conversation message not found")
+        self._verify_scope(rows, owner, institution)
+        if rows[0].get("thread_id") != thread_id:
+            raise ConversationUnavailable("Conversation message scope mismatch")
+        return {key: value for key, value in rows[0].items()
+                if key not in {"owner_user_id", "institution_id"}}
+
     async def append_message(self, owner: str, institution: str, thread_id: str,
-                             role: str, content: str, provenance: str) -> dict[str, Any]:
+                             role: str, content: str, provenance: str, *,
+                             message_id: str | None = None) -> dict[str, Any]:
         thread = await self.get_thread(owner, institution, thread_id)
         if thread["status"] != "ACTIVE":
             raise ConversationNotFound("Archived conversation cannot be continued")
-        rows = await self._rows("POST", "student_conversation_messages", payload={
+        payload = {
             "thread_id": thread_id, "owner_user_id": owner, "institution_id": institution,
             "role": role, "content": content, "provenance": provenance,
             "message_type": "ACADEMIC_EXPLANATION" if role == "ASSISTANT" else "TEXT",
-        })
+        }
+        if message_id is not None:
+            payload["id"] = message_id
+        rows = await self._rows("POST", "student_conversation_messages", payload=payload)
         if len(rows) != 1:
             raise ConversationUnavailable("Message persistence failed")
         self._verify_scope(rows, owner, institution)

@@ -188,6 +188,33 @@ def _skills(code: str, plan_id: str) -> CourseSkillProfile:
                               "MODELED_CURRICULUM_CODE_MAPPING" if domain else "MODELED_FALLBACK")
 
 
+def evaluate_general_course_difficulty(course_code: str, credit_hours: Decimal,
+                                       eligibility_catalog: CanTakeCatalog) -> GeneralDifficulty:
+    """Return the existing structural difficulty model for one canonical course."""
+    rules = {rule.course_code: rule for rule in eligibility_catalog.plan_courses}
+    if course_code not in rules:
+        raise ValueError("Course is outside the eligibility catalog")
+
+    def depth(code: str, visited: frozenset[str] = frozenset()) -> int:
+        if code in visited or len(visited) > 8:
+            return 0
+        rule = rules[code]
+        if rule.prerequisite_logic_status is not PrerequisiteLogicStatus.VERIFIED:
+            return 0
+        options = [option for group in rule.dependency_groups
+                   for option in group.option_course_codes if option in rules]
+        return 1 + min(5, max((depth(option, visited | {code}) for option in options), default=0))
+
+    rule = rules[course_code]
+    options = {option for group in rule.dependency_groups for option in group.option_course_codes}
+    structured = rule.prerequisite_logic_status in {
+        PrerequisiteLogicStatus.VERIFIED, PrerequisiteLogicStatus.NOT_APPLICABLE}
+    score = max(0, min(100, 38 + min(25, round(float(credit_hours) * 5))
+                       + min(20, len(options) * 6) + min(20, depth(course_code) * 4)))
+    return GeneralDifficulty(score, _level(score),
+                             "MODEL_BASED" if structured else "MODELED_FALLBACK")
+
+
 def _snapshot_version(state: StudentAcademicState, records: tuple[StudentCourseAttemptRecord, ...],
                       institution_id: str) -> str:
     parts = [institution_id, state.profile_id, state.study_plan_id, str(state.updated_at),
@@ -267,26 +294,13 @@ def build_adaptive_courses(state: StudentAcademicState, institution_id: str,
         strong, weak, "UNKNOWN_NO_CANONICAL_PERIOD_ORDER", skill_evidence, freshness,
     )
 
-    def depth(code: str, visited: frozenset[str] = frozenset()) -> int:
-        if code in visited or len(visited) > 8:
-            return 0
-        rule = rules[code]
-        if rule.prerequisite_logic_status is not PrerequisiteLogicStatus.VERIFIED:
-            return 0
-        options = [option for group in rule.dependency_groups
-                   for option in group.option_course_codes if option in rules]
-        return 1 + min(5, max((depth(option, visited | {code}) for option in options), default=0))
-
     course_rows: list[CourseDifficulty] = []
     for course in sorted(progress_catalog.plan_courses, key=lambda item: (item.display_order, item.course_code)):
         rule = rules[course.course_code]
         options = {option for group in rule.dependency_groups for option in group.option_course_codes}
-        structured = rule.prerequisite_logic_status in {
-            PrerequisiteLogicStatus.VERIFIED, PrerequisiteLogicStatus.NOT_APPLICABLE}
-        general_score = max(0, min(100, 38 + min(25, round(float(course.credit_hours) * 5))
-                                   + min(20, len(options) * 6) + min(20, depth(course.course_code) * 4)))
-        general = GeneralDifficulty(general_score, _level(general_score),
-                                    "MODEL_BASED" if structured else "MODELED_FALLBACK")
+        general = evaluate_general_course_difficulty(
+            course.course_code, course.credit_hours, eligibility_catalog)
+        general_score = general.score
         relevant = tuple(sorted(skill for skill in profiles[course.course_code].skills
                                 if not skill.startswith("COURSE:") and skill in mastery))
         values = [mastery[skill].mastery_score for skill in relevant if mastery[skill].mastery_score is not None]

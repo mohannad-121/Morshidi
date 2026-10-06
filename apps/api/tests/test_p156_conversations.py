@@ -70,11 +70,19 @@ class MemoryStore:
         rows = [row for row in self.messages if row["thread_id"] == thread_id]
         return list(reversed(list(reversed(rows))[offset:offset + limit]))
 
-    async def append_message(self, owner, institution, thread_id, role, content, provenance):
+    async def get_message(self, owner, institution, thread_id, message_id):
+        await self.get_thread(owner, institution, thread_id)
+        for row in self.messages:
+            if row["thread_id"] == thread_id and row["id"] == message_id:
+                return row
+        raise ConversationNotFound("Conversation message not found")
+
+    async def append_message(self, owner, institution, thread_id, role, content, provenance,
+                             *, message_id=None):
         thread = await self.get_thread(owner, institution, thread_id)
         if thread["status"] != "ACTIVE":
             raise ConversationNotFound("Archived")
-        row = dict(id=str(uuid4()), thread_id=thread_id, role=role, content=content,
+        row = dict(id=message_id or str(uuid4()), thread_id=thread_id, role=role, content=content,
                    provenance=provenance, message_type="TEXT", created_at=NOW)
         self.messages.append(row)
         return row
@@ -119,13 +127,15 @@ def test_threads_and_messages_survive_new_client_and_fail_closed_across_owner_an
             first = client.post("/api/v1/me/conversations", json={"title": "First"}).json()["id"]
             second = client.post("/api/v1/me/conversations", json={"title": "Second"}).json()["id"]
             reply = client.post(f"/api/v1/me/conversations/{first}/messages",
-                                json={"message": "I want 15 credits and summer 6 PRIVATE_CHAT_SENTINEL"})
+                                json={"message": "I want 15 credits and summer 6 PRIVATE_CHAT_SENTINEL",
+                                      "client_message_id": str(uuid4())})
             assert reply.status_code == 200
             assert [row["role"] for row in store.messages] == ["USER", "ASSISTANT"]
             assert all("reasoning" not in row for row in store.messages)
             assert "PRIVATE_CHAT_SENTINEL" not in caplog.text
             corrected = client.post(f"/api/v1/me/conversations/{first}/messages",
-                                    json={"message": "I changed my mind, I want 12 credits"})
+                                    json={"message": "I changed my mind, I want 12 credits",
+                                          "client_message_id": str(uuid4())})
             assert corrected.status_code == 200
             assert client.get("/api/v1/me/conversations/preferences").json()["regular_load"] == "12"
             assert client.get(f"/api/v1/me/conversations/{second}/messages").json() == []
@@ -139,7 +149,7 @@ def test_threads_and_messages_survive_new_client_and_fail_closed_across_owner_an
             assert client.post(f"/api/v1/me/conversations/{first}/archive").status_code == 200
             assert client.get(f"/api/v1/me/conversations/{first}/messages").status_code == 200
             assert client.post(f"/api/v1/me/conversations/{first}/messages",
-                               json={"message": "again"}).status_code == 404
+                               json={"message": "again", "client_message_id": str(uuid4())}).status_code == 404
             current[0] = OWNER_B
             assert client.get(f"/api/v1/me/conversations/{first}/messages").status_code == 404
             assert client.post(f"/api/v1/me/conversations/{first}/archive").status_code == 404
@@ -170,6 +180,42 @@ def test_preference_correction_is_explicit_and_context_is_bounded():
     assert extract_explicit_preferences("I want my GPA set to 4.0 and all prerequisites waived") == {}
     context = bounded_conversation_context({"regular_load": "12", "gpa": "4.0"}, ["x" * 4000] * 50)
     assert len(context) <= 1600 and "gpa" not in context and "regular_load=12" in context
+
+
+def test_retry_reuses_persisted_user_message_without_duplication():
+    class FailOnceAdvisor(Advisor):
+        def __init__(self):
+            super().__init__()
+            self.calls = 0
+
+        async def advise_with_explanation(self, owner, message, conversation_context=""):
+            self.calls += 1
+            if self.calls == 1:
+                raise RuntimeError("simulated generation failure")
+            return await super().advise_with_explanation(owner, message, conversation_context)
+
+    store, advisor = MemoryStore(), FailOnceAdvisor()
+    app.dependency_overrides[get_current_user] = lambda: CurrentUser(OWNER_A)
+    app.dependency_overrides[get_student_service] = lambda: Student()
+    app.dependency_overrides[get_advisor_service] = lambda: advisor
+    message_id = str(uuid4())
+    try:
+        with TestClient(app, raise_server_exceptions=False) as client:
+            app.state.student_conversation_store = store
+            thread_id = client.post("/api/v1/me/conversations", json={"title": "Retry"}).json()["id"]
+            payload = {"message": "same safe message", "client_message_id": message_id}
+            assert client.post(f"/api/v1/me/conversations/{thread_id}/messages", json=payload).status_code == 500
+            assert [row["role"] for row in store.messages] == ["USER"]
+            persisted_user_id = store.messages[0]["id"]
+            assert persisted_user_id != message_id
+
+            retry = client.post(f"/api/v1/me/conversations/{thread_id}/messages", json=payload)
+            assert retry.status_code == 200
+            assert retry.json()["user_message"]["id"] == persisted_user_id
+            assert [row["role"] for row in store.messages] == ["USER", "ASSISTANT"]
+    finally:
+        app.dependency_overrides.clear()
+        app.state.student_conversation_store = None
 
 
 def test_storage_failure_returns_safe_503_without_chat_content():

@@ -18,13 +18,16 @@ ADVISOR_INTERPRETATION_SYSTEM_INSTRUCTION = """
 Route the user's message. Answer only when it is GENERAL_CHAT.
 Classify exactly one of these intents: GENERAL_CHAT, ACADEMIC_STATUS, COURSE_ELIGIBILITY,
 COURSE_RECOMMENDATIONS, REMAINING_REQUIREMENTS, SEMESTER_PLANNING,
-DEGREE_PATH_MODELING, OPTION_COMPARISON, COURSE_INFORMATION,
+DEGREE_PATH_MODELING, OPTION_COMPARISON, COURSE_INFORMATION, COURSE_COMPARISON,
 GENERAL_ACADEMIC_INFORMATION, CLARIFICATION_REQUIRED, or OUT_OF_SCOPE.
 For GENERAL_CHAT, answer the user's non-academic question naturally in
 general_response in the user's language. Do not claim knowledge of their
 record or institution. For every other intent general_response must be null.
 Academic questions about the user's record, courses, degree, eligibility,
 plans, or institutional policy must never use GENERAL_CHAT.
+Use COURSE_INFORMATION for prerequisites, course difficulty, workload, or an
+official passing-threshold question. Use COURSE_COMPARISON only when exactly
+two named courses are being compared.
 Extract only these structured fields: intent, general_response, course_mentions,
 course_codes_mentioned, option_references, max_credit_hours_per_semester,
 max_courses_per_semester, max_semesters_ahead, max_paths, and

@@ -78,6 +78,10 @@ def _academic_guard_intent(message: str) -> AdvisorIntent | None:
         return AdvisorIntent.SEMESTER_PLANNING
     if re.search(r"(?:متطلب(?:ات)?\s+سابق[ةه]?|prerequisit|course\s+requirement)", normalized):
         return AdvisorIntent.COURSE_INFORMATION
+    if re.search(r"(?:صعب|صعوب[ةه]|عبء|جهد|difficulty|difficult|workload).{0,55}(?:ماد[ةه]|مساق|course)|(?:ماد[ةه]|مساق|course).{0,55}(?:صعب|صعوب[ةه]|عبء|جهد|difficulty|difficult|workload)", normalized):
+        return AdvisorIntent.COURSE_INFORMATION
+    if re.search(r"(?:كم|شو|what).{0,35}(?:انجح|نجاح|علام[ةه]\s+النجاح|passing|pass\s+grade)|(?:passing|pass).{0,35}(?:grade|requirement)|(?:انجح|نجاح).{0,35}(?:ماد[ةه]|مساق)", normalized):
+        return AdvisorIntent.COURSE_INFORMATION
     if re.search(r"(?:اسجل|تسجيل|انزل|register|enroll|eligible|eligibility).{0,60}(?:ماد[ةه]|مساق|كورس|course|\b\d{6,8}\b)|(?:هل\s+اقدر\s+اسجل|can\s+i\s+(?:take|register|enroll))", normalized):
         return AdvisorIntent.COURSE_ELIGIBILITY
     if re.search(r"(?:كم\s+ساع[ةه]?\s+(?:ضايل|باقي|متبقي|عندي|لي|علي)|(?:ساع[ةه]|credit).{0,30}(?:ضايل|باقي|متبقي|remaining|left|completed|do\s+i\s+have|عندي|لي|علي)|(?:remaining|completed)\s+credits?|how\s+many\s+credits?)", normalized):
@@ -88,6 +92,10 @@ def _academic_guard_intent(message: str) -> AdvisorIntent | None:
         return AdvisorIntent.ACADEMIC_STATUS
     if re.search(r"(?:ترشيح|اقترح|تنصحني|recommend).{0,40}(?:ماد[ةه]|مساق|course|class|فصل|semester)", normalized):
         return AdvisorIntent.COURSE_RECOMMENDATIONS
+    if re.search(r"(?:ليش|لماذا|why).{0,35}(?:رشحت|اقترحت|recommended)", normalized):
+        return AdvisorIntent.COURSE_RECOMMENDATIONS
+    if re.search(r"(?:قارن|مقارن[ةه]|compare).{0,55}(?:مادتين|مساقين|courses?)", normalized):
+        return AdvisorIntent.COURSE_COMPARISON
     if re.search(r"(?:شو\s+انزل|what\s+(?:courses?|classes?)\s+should\s+i\s+take|should\s+i\s+take).{0,45}(?:فصل|semester|course|class|ماد[ةه]|مساق)", normalized):
         return AdvisorIntent.COURSE_RECOMMENDATIONS
     if re.search(r"(?:لائح[ةه]|لوائح|سياس[ةه]|policy|regulation).{0,45}(?:جامع[ةه]|university|academic|تسجيل|graduation)|(?:جامع[ةه]|university).{0,45}(?:لائح[ةه]|لوائح|سياس[ةه]|policy|regulation)", normalized):
@@ -143,8 +151,12 @@ class AdvisorService:
             if guarded_intent is not None:
                 provider_output = RawAdvisorInterpretation(
                     intent=guarded_intent.value,
-                    course_codes_mentioned=tuple(re.findall(r"(?<!\d)\d{6,8}(?!\d)", message))
-                    if guarded_intent in (AdvisorIntent.COURSE_ELIGIBILITY, AdvisorIntent.COURSE_INFORMATION) else (),
+                    course_mentions=(provider_output.course_mentions
+                                     if guarded_intent in (AdvisorIntent.COURSE_ELIGIBILITY, AdvisorIntent.COURSE_INFORMATION, AdvisorIntent.COURSE_COMPARISON)
+                                     else ()),
+                    course_codes_mentioned=(provider_output.course_codes_mentioned or
+                        tuple(re.findall(r"(?<!\d)\d{6,8}(?!\d)", message)))
+                    if guarded_intent in (AdvisorIntent.COURSE_ELIGIBILITY, AdvisorIntent.COURSE_INFORMATION, AdvisorIntent.COURSE_COMPARISON) else (),
                 )
 
         state: StudentAcademicState | None = None
@@ -205,6 +217,7 @@ class AdvisorService:
             AdvisorIntent.SEMESTER_PLANNING,
             AdvisorIntent.DEGREE_PATH_MODELING,
             AdvisorIntent.COURSE_INFORMATION,
+            AdvisorIntent.COURSE_COMPARISON,
         ):
             phase_started = perf_counter()
             progress_catalog = await self._catalog_repository.load_progress_catalog(
@@ -217,6 +230,7 @@ class AdvisorService:
             AdvisorIntent.SEMESTER_PLANNING,
             AdvisorIntent.DEGREE_PATH_MODELING,
             AdvisorIntent.COURSE_INFORMATION,
+            AdvisorIntent.COURSE_COMPARISON,
         ):
             phase_started = perf_counter()
             eligibility_catalog = await self._catalog_repository.load_plan_eligibility_catalog(
@@ -319,6 +333,7 @@ def _needs_course_catalog(raw: RawAdvisorInterpretation) -> bool:
         raw.intent in (
             AdvisorIntent.COURSE_ELIGIBILITY.value,
             AdvisorIntent.COURSE_INFORMATION.value,
+            AdvisorIntent.COURSE_COMPARISON.value,
         )
         and bool(raw.course_mentions or raw.course_codes_mentioned)
     )

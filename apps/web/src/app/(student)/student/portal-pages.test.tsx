@@ -25,6 +25,7 @@ import type {
   CanTakeDecisionResponse,
   EligibilityExplanationGraph,
   CourseAttemptResponse,
+  CreditComparisonResponse,
   DegreePathResponse,
   RecommendationResponse,
   SemesterPlannerResponse,
@@ -44,7 +45,7 @@ const mockProfile: AcademicProfileResponse = {
   study_plan_id: 'test-plan-uuid',
   reported_cumulative_gpa: 3.75,
   reported_gpa_scale: 4.0,
-  reported_earned_credit_hours: 60,
+  reported_earned_credit_hours: 90,
   created_at: '2026-01-01T00:00:00Z',
   updated_at: '2026-01-02T00:00:00Z',
 };
@@ -91,7 +92,7 @@ const mockProgress: AcademicProgressResponse = {
   ],
   reported_cumulative_gpa: 3.75,
   reported_gpa_scale: 4.0,
-  reported_earned_credit_hours: 60,
+  reported_earned_credit_hours: 90,
 };
 
 const mockAttempts: CourseAttemptResponse[] = [
@@ -303,6 +304,41 @@ const mockDegreePath: DegreePathResponse = {
   limitations: [],
 };
 
+const mockCreditComparison: CreditComparisonResponse = {
+  policy_version: 'P15_6_CREDIT_COMPARISON_V1',
+  evaluated_scenarios: 12,
+  limitations: ['Credit-only'],
+  scenarios: [
+    { mode: 'FASTEST', loads: [18, 18, 6], summer: false },
+    { mode: 'BALANCED', loads: [15, 15, 6, 6], summer: true },
+    { mode: 'LOWER_LOAD', loads: [12, 12, 12, 6], summer: false },
+  ].map((item, index) => ({
+    scenario_id: `scenario-${index}`,
+    mode: item.mode as 'FASTEST' | 'BALANCED' | 'LOWER_LOAD',
+    total_modeled_terms: item.loads.length,
+    workload_indicator: index === 0 ? 'HIGH' : index === 1 ? 'MODERATE' : 'LOWER',
+    preference_match: false,
+    provenance: 'MODELED_ACADEMIC_CALENDAR',
+    difficulty_evidence: 'NO_FUTURE_COURSE_ALLOCATION',
+    confidence: 'MODELED_CREDIT_ONLY',
+    current_workload_risk: null,
+    timeline: {
+      policy_version: 'P15_6_CREDIT_TIMELINE_V1', total_required_credits: 132,
+      earned_credits: 90, initial_remaining_credits: 42, regular_load: item.loads[0],
+      summer_enabled: item.summer, summer_load: item.summer ? 6 : 0,
+      regular_semester_count: item.loads.length - (item.summer ? 1 : 0),
+      summer_count: item.summer ? 1 : 0, completion_year: 2027,
+      completion_term: item.summer ? 'SUMMER' : 'SECOND_SEMESTER', assumptions: [], warnings: [],
+      terms: item.loads.map((planned_credits, termIndex) => ({
+        academic_year: 2026 + Math.floor(termIndex / 3),
+        term: item.summer && termIndex === item.loads.length - 1 ? 'SUMMER'
+          : termIndex % 2 === 0 ? 'FIRST_SEMESTER' : 'SECOND_SEMESTER',
+        planned_credits, remaining_after: Math.max(0, 42 - item.loads.slice(0, termIndex + 1).reduce((a, b) => a + b, 0)),
+      })),
+    },
+  })),
+};
+
 const mockIntent: StudentIntentResponse = {
   kind: 'mock_registration_intent',
   intent_id: 'intent-123',
@@ -448,6 +484,9 @@ function setupMockFetch() {
     }
     if (url.includes('/degree-paths/explanation-graph')) {
       return new Response(JSON.stringify(mockPathGraph), { status: 200 });
+    }
+    if (url.includes('/degree-paths/credit-comparison')) {
+      return new Response(JSON.stringify(mockCreditComparison), { status: 200 });
     }
     if (url.includes('/explanation-graph')) {
       return new Response(JSON.stringify(mockEligibilityGraph), {
@@ -606,46 +645,19 @@ describe('Morshidi Student Portal Pages Suite', () => {
     expect(fetchSpy.mock.calls.filter(([url]: [RequestInfo | URL]) => String(url).endsWith('/course-identities'))).toHaveLength(1);
   });
 
-  it('prefills stored planning preferences, compares three modeled strategies, and permits explicit override', async () => {
-    const normalFetch = fetchSpy.getMockImplementation()!;
-    fetchSpy.mockImplementation(async (input: RequestInfo | URL, init?: RequestInit) => {
-      const url = String(input);
-      if (url.includes('/conversations/preferences')) return new Response(JSON.stringify({
-        regular_load: '15', summer_enabled: 'true', summer_load: '6', graduation_pace: 'BALANCED',
-      }));
-      if (url.endsWith('/credit-comparison')) return new Response(JSON.stringify({
-        policy_version: 'P15_6_CREDIT_COMPARISON_V1', evaluated_scenarios: 12,
-        limitations: ['Credit-only; future courses are unassigned. MODELED_ACADEMIC_CALENDAR'],
-        scenarios: ['FASTEST', 'BALANCED', 'LOWER_LOAD'].map((mode, index) => ({
-          scenario_id: `scenario-${index}`, mode, total_modeled_terms: 5 + index,
-          timeline: { regular_load: [18, 15, 12][index], summer_enabled: true, summer_load: 6,
-            regular_semester_count: 4 + index, summer_count: 1, completion_term: 'FIRST_SEMESTER', completion_year: 2028 },
-          workload_indicator: 'MODERATE', preference_match: mode === 'BALANCED',
-          provenance: 'MODELED_ACADEMIC_CALENDAR', difficulty_evidence: 'CURRENT_ELIGIBLE_COURSES_ONLY',
-          confidence: 'MODELED_CREDIT_ONLY', current_workload_risk: 50,
-        })),
-      }));
-      return normalFetch(input, init);
-    });
+  it('requests three automatic paths without exposing technical selectors', async () => {
     renderWithAuth(<DegreePathPage />);
     const user = userEvent.setup();
-    await user.click(screen.getByText('التقدير الزمني والمقارنة'));
-    const regular = await screen.findByLabelText('ساعات التقدير الزمني');
-    await waitFor(() => expect((screen.getByRole('checkbox', {name:'الصيفي'}) as HTMLInputElement).checked).toBe(true));
-    expect((regular as HTMLSelectElement).value).toBe('15');
-    await user.click(screen.getByRole('button', { name: 'قارن المسارات' }));
-    await screen.findByRole('heading', { name: 'المتوازن' });
-    expect(screen.getByRole('heading', { name: 'الأسرع' })).toBeTruthy();
-    expect(screen.getByRole('heading', { name: 'الأخف' })).toBeTruthy();
-    expect(screen.queryByText(/MODELED_ACADEMIC_CALENDAR/)).toBeNull();
-    expect(screen.getByText('يناسب تفضيلك')).toBeTruthy();
-    await user.selectOptions(regular, '18');
-    await user.click(screen.getByRole('button', { name: 'قارن المسارات' }));
+    expect(screen.queryByLabelText('عدد الفصول')).toBeNull();
+    expect(screen.queryByLabelText('المسارات')).toBeNull();
+    await user.click(screen.getByRole('button', { name: 'ارسم المسار' }));
+    await screen.findByText('الأسرع');
     await waitFor(() => {
-      const requests = fetchSpy.mock.calls.filter(([url]: [RequestInfo | URL]) => String(url).endsWith('/credit-comparison'));
-      expect(requests).toHaveLength(2);
-      expect(JSON.parse(requests[1][1].body)).toMatchObject({ preferred_regular_load: 18,
-        preferred_summer_enabled: true, preferred_summer_load: 6, graduation_pace: 'BALANCED' });
+      const request = fetchSpy.mock.calls.find(([url]: [RequestInfo | URL]) =>
+        String(url).endsWith('/api/v1/me/degree-paths'));
+      expect(JSON.parse(String(request?.[1]?.body))).toEqual({
+        max_credit_hours_per_semester: 18, max_semesters_ahead: 16, max_paths: 3,
+      });
     });
   });
 
@@ -685,10 +697,16 @@ describe('Morshidi Student Portal Pages Suite', () => {
     await user.click(simulateBtn);
 
     await waitFor(() => {
-      expect(screen.getByText('متبقية بعد المسار')).toBeDefined();
+      expect(screen.getByText('الأسرع')).toBeDefined();
     });
+    expect(screen.getByText('المتوازن')).toBeDefined();
+    expect(screen.getByText('الأخف')).toBeDefined();
+    expect(screen.queryByRole('combobox', { name: 'عدد الفصول' })).toBeNull();
+    expect(screen.queryByRole('combobox', { name: 'المسارات' })).toBeNull();
+    expect(screen.getAllByText('42').length).toBeGreaterThan(0);
+    expect(screen.getByText(/نموذج الخطة يرى 72 ساعة/)).toBeDefined();
     expect(screen.getAllByText('الفصل 1').length).toBeGreaterThan(0);
-    await user.click(screen.getByText('تفاصيل الاختيار'));
+    await user.click(screen.getByText('لماذا هذا التسلسل؟'));
     await waitFor(() => expect(screen.getByText('مسار نموذجي #1')).toBeDefined());
   });
 
@@ -704,7 +722,7 @@ describe('Morshidi Student Portal Pages Suite', () => {
   it('renders AdvisorPage with suggested questions and conversational message sending', async () => {
     const user = userEvent.setup();
     renderWithAuth(<AdvisorPage />);
-    expect(screen.getByRole('heading', {name: 'المحادثة'})).toBeDefined();
+    expect(screen.getByRole('heading', {name: 'مرشدي AI'})).toBeDefined();
 
     const quickBtn = (await screen.findByText('هل يمكنني تسجيل مادة الذكاء الاصطناعي؟')).closest('button')!;
     await waitFor(() => expect((quickBtn as HTMLButtonElement).disabled).toBe(false));
@@ -761,25 +779,26 @@ describe('Morshidi Student Portal Pages Suite', () => {
     const requests: string[] = [];
     fetchSpy.mockImplementation(async (input: RequestInfo | URL, init?: RequestInit) => {
       requests.push(`${init?.method ?? 'GET'} ${String(input)}`);
-      if (String(input).includes('/degree-paths')) expect(init?.signal).toBeInstanceOf(AbortSignal);
+      if (String(input).endsWith('/api/v1/me/degree-paths')) expect(init?.signal).toBeInstanceOf(AbortSignal);
       return new Response('{}', { status: 503 });
     });
     const user = userEvent.setup();
-    const { container } = renderWithAuth(<DegreePathPage />);
+    renderWithAuth(<DegreePathPage />);
     await user.click(screen.getByRole('button', {name:'ارسم المسار'}));
     await screen.findByRole('alert');
-    expect(screen.getByRole('alert').textContent).toContain('تعذّر التحميل');
+    expect(screen.getByRole('alert').textContent).toContain('تعذر إنشاء مسارات التخرج');
     expect(screen.getByRole('alert').textContent).not.toContain('استغرق إنشاء');
     expect(screen.queryByRole('status')).toBeNull();
     expect(requests.filter((request) => request.includes('/degree-paths'))).toEqual([
       expect.stringMatching(/^POST .*\/api\/v1\/me\/degree-paths$/),
+      expect.stringMatching(/^POST .*\/api\/v1\/me\/degree-paths\/credit-comparison$/),
     ]);
   });
 
   it('clears degree-path loading when response JSON is malformed', async () => {
     fetchSpy.mockImplementation(async () => new Response('not-json', { status: 200 }));
     const user = userEvent.setup();
-    const { container } = renderWithAuth(<DegreePathPage />);
+    renderWithAuth(<DegreePathPage />);
     await user.click(screen.getByRole('button', {name:'ارسم المسار'}));
     await screen.findByRole('alert');
     expect(screen.queryByRole('status')).toBeNull();
@@ -788,7 +807,7 @@ describe('Morshidi Student Portal Pages Suite', () => {
   it('rejects a malformed degree-path shape before rendering it', async () => {
     fetchSpy.mockImplementation(async () => new Response('{}', { status: 200 }));
     const user = userEvent.setup();
-    const { container } = renderWithAuth(<DegreePathPage />);
+    renderWithAuth(<DegreePathPage />);
     await user.click(screen.getByRole('button', {name:'ارسم المسار'}));
     await screen.findByRole('alert');
     expect(screen.queryByRole('status')).toBeNull();
@@ -802,10 +821,10 @@ describe('Morshidi Student Portal Pages Suite', () => {
     });
     try {
       const user = userEvent.setup();
-      const { container } = renderWithAuth(<DegreePathPage />);
+      renderWithAuth(<DegreePathPage />);
       await user.click(screen.getByRole('button', {name:'ارسم المسار'}));
       await screen.findByRole('alert');
-      expect(screen.getByRole('alert').textContent).toContain('تعذّر التحميل');
+      expect(screen.getByRole('alert').textContent).toContain('استغرق إنشاء مسارات التخرج');
       expect(screen.queryByRole('status')).toBeNull();
     } finally {
       timeout.mockRestore();

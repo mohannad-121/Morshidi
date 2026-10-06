@@ -5,6 +5,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from enum import Enum
 import inspect
+import re
+import unicodedata
 
 from app.advisor.models import (
     AdvisorContractError,
@@ -174,6 +176,34 @@ def normalize_advisor_interpretation(
     if not _fields_allowed_for_intent(raw, intent):
         return _schema_failure()
 
+    if intent is AdvisorIntent.COURSE_COMPARISON:
+        references = raw.course_codes_mentioned + raw.course_mentions
+        if len(references) != 2:
+            return _clarification(user_message, ClarificationReason.MISSING_COURSE)
+        resolutions = tuple(resolve_course_references((reference,), catalog)
+                            for reference in references)
+        ambiguous = tuple(code for resolution in resolutions
+                          for code in resolution.candidate_course_codes)
+        if ambiguous:
+            unique = tuple(sorted(set(ambiguous)))
+            if len(unique) >= 2:
+                resolution = CourseResolution(EntityResolutionStatus.AMBIGUOUS,
+                    candidate_course_codes=unique,
+                    candidate_courses=tuple(course for course in catalog if course.course_code in unique))
+                return _clarification(user_message, ClarificationReason.AMBIGUOUS_COURSE,
+                                      resolution=resolution)
+            return _clarification(user_message, ClarificationReason.MISSING_COURSE)
+        if any(resolution.status is EntityResolutionStatus.NOT_FOUND for resolution in resolutions):
+            return _clarification(user_message, ClarificationReason.MISSING_COURSE)
+        courses = tuple(resolution.resolved_course for resolution in resolutions)
+        if any(course is None for course in courses):
+            return _clarification(user_message, ClarificationReason.MISSING_COURSE)
+        try:
+            return _success(NormalizedAdvisorRequest(
+                user_message, intent, comparison_courses=courses))  # type: ignore[arg-type]
+        except AdvisorContractError:
+            return _clarification(user_message, ClarificationReason.MISSING_COURSE)
+
     if intent in (AdvisorIntent.COURSE_ELIGIBILITY, AdvisorIntent.COURSE_INFORMATION):
         references = raw.course_codes_mentioned + raw.course_mentions
         if not references:
@@ -273,9 +303,15 @@ def resolve_course_references(
         if not isinstance(reference, str) or not reference.strip():
             raise ValueError("course references must be non-empty strings")
         normalized_reference = _normalize_match_text(reference)
+        exact_matches: set[ResolvedCourseReference] = set()
+        partial_matches: set[ResolvedCourseReference] = set()
         for course in catalog:
-            if _course_matches(normalized_reference, course):
-                matches.add(course)
+            match = _course_match_kind(normalized_reference, course)
+            if match == "exact":
+                exact_matches.add(course)
+            elif match == "partial":
+                partial_matches.add(course)
+        matches.update(exact_matches or partial_matches)
 
     ordered = tuple(sorted(matches, key=lambda course: course.course_code))
     if not ordered:
@@ -290,14 +326,24 @@ def resolve_course_references(
 
 
 def _normalize_match_text(value: str) -> str:
-    return " ".join(value.split()).casefold()
+    normalized = unicodedata.normalize("NFKC", value).casefold()
+    normalized = "".join(character for character in normalized
+                         if unicodedata.category(character) != "Mn")
+    normalized = normalized.translate(str.maketrans("أإآىة", "ااايه"))
+    normalized = re.sub(r"[^\w\s]", " ", normalized)
+    return " ".join(normalized.split())
 
 
-def _course_matches(reference: str, course: ResolvedCourseReference) -> bool:
+def _course_match_kind(reference: str, course: ResolvedCourseReference) -> str | None:
     candidates = (course.course_code, course.canonical_arabic_name)
     if course.canonical_english_name is not None:
         candidates += (course.canonical_english_name,)
-    return any(reference == _normalize_match_text(candidate) for candidate in candidates)
+    normalized_candidates = tuple(_normalize_match_text(candidate) for candidate in candidates)
+    if reference in normalized_candidates:
+        return "exact"
+    if len(reference) >= 3 and any(reference in candidate for candidate in normalized_candidates):
+        return "partial"
+    return None
 
 
 def _validate_raw_shape(
@@ -344,7 +390,8 @@ def _fields_allowed_for_intent(raw: RawAdvisorInterpretation, intent: AdvisorInt
     )
     has_degree_bounds = raw.max_semesters_ahead is not None or raw.max_paths is not None
 
-    if intent in (AdvisorIntent.COURSE_ELIGIBILITY, AdvisorIntent.COURSE_INFORMATION):
+    if intent in (AdvisorIntent.COURSE_ELIGIBILITY, AdvisorIntent.COURSE_INFORMATION,
+                  AdvisorIntent.COURSE_COMPARISON):
         return not has_options and not has_credit_or_courses and not has_degree_bounds
     if intent is AdvisorIntent.SEMESTER_PLANNING:
         return not has_course and not has_options and not has_degree_bounds

@@ -327,9 +327,27 @@ def test_38_ambiguous_candidates_are_deterministically_sorted() -> None:
     assert clarification.candidate_course_codes == ("1505311", "9999001")
 
 
-@pytest.mark.parametrize("reference", ("Data Structure", "هندسة البيانات", "تعلم الاله"))
-def test_39_no_fuzzy_alias_or_arabic_equivalency(reference: str) -> None:
-    assert resolve_course_references((reference,), CATALOG).status is EntityResolutionStatus.NOT_FOUND
+@pytest.mark.parametrize("reference", ("Data Structure", "تعلم الاله"))
+def test_39_partial_canonical_names_and_arabic_spelling_variants_resolve(reference: str) -> None:
+    assert resolve_course_references((reference,), CATALOG).status is EntityResolutionStatus.RESOLVED
+
+
+def test_39b_unrelated_alias_is_not_guessed() -> None:
+    assert resolve_course_references(("هندسة البيانات",), CATALOG).status is EntityResolutionStatus.NOT_FOUND
+
+
+def test_39c_two_named_courses_resolve_for_comparison_without_reranking() -> None:
+    result = normalize_advisor_interpretation(
+        "Compare Data Structures and Machine Learning",
+        RawAdvisorInterpretation("COURSE_COMPARISON", course_mentions=(
+            "Data Structures", "Machine Learning")),
+        CATALOG,
+    )
+    request = result.normalized_request
+    assert request is not None
+    assert request.intent is AdvisorIntent.COURSE_COMPARISON
+    assert tuple(course.course_code for course in request.comparison_courses) == (
+        "1501221", "1505311")
 
 
 def test_40_raw_prerequisite_text_is_not_in_provider_schema() -> None:

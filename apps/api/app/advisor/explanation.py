@@ -5,6 +5,7 @@ from __future__ import annotations
 import inspect
 import json
 import re
+import unicodedata
 from collections.abc import Awaitable
 from dataclasses import asdict, dataclass, is_dataclass
 from decimal import Decimal
@@ -16,6 +17,8 @@ from app.advisor.models import (
     AnswerAuthority,
     EntityResolutionStatus,
     StructuredAdvisorResult,
+    CourseInformation,
+    CourseComparison,
 )
 from app.rules.models import CanTakeDecision, Decision
 
@@ -279,6 +282,51 @@ def deterministic_explanation(
 
     language = select_explanation_language(message)
     arabic = language is ExplanationLanguage.ARABIC
+    payload = result.authoritative_payload
+    folded_message = unicodedata.normalize("NFKC", message).casefold()
+    folded_message = "".join(character for character in folded_message
+                             if unicodedata.category(character) != "Mn")
+    folded_message = folded_message.translate(str.maketrans("أإآىة", "ااايه"))
+    if isinstance(payload, CourseInformation):
+        course_label = (f"{payload.canonical_arabic_name} ({payload.course_code})" if arabic
+                        else f"{payload.canonical_english_name or payload.canonical_arabic_name} ({payload.course_code})")
+        if re.search(r"(?:صعب|صعوب|عبء|جهد|difficulty|difficult|workload)", folded_message):
+            if payload.difficulty_score is None or payload.difficulty_level is None:
+                text = (f"لا تتوفر بيانات كافية لتقدير صعوبة {course_label} بأمان."
+                        if arabic else f"There is not enough connected evidence to estimate the difficulty of {course_label} safely.")
+            else:
+                levels_ar = {"VERY_EASY": "سهلة جدًا", "EASY": "سهلة", "MODERATE": "متوسطة",
+                             "HARD": "صعبة", "VERY_HARD": "صعبة جدًا"}
+                level = levels_ar.get(payload.difficulty_level, payload.difficulty_level) if arabic else payload.difficulty_level.replace("_", " ").lower()
+                text = (f"التقدير البنيوي لصعوبة {course_label}: {level} ({payload.difficulty_score}/100). "
+                        "يعتمد على ساعات المساق وعمق سلسلة المتطلبات، وليس على نسبة نجاح متوقعة أو حكم على قدراتك الشخصية."
+                        if arabic else
+                        f"The structural difficulty estimate for {course_label} is {level} ({payload.difficulty_score}/100). "
+                        "It uses course credits and prerequisite-chain depth; it is not a predicted pass rate or a judgment of your ability.")
+            return AdvisorExplanationOutput(text, language)
+        if re.search(r"(?:انجح|نجاح|علامه\s+النجاح|passing|pass\s+grade|need\s+to\s+pass)", folded_message):
+            text = (f"الحد الرسمي للنجاح في {course_label} غير متاح في البيانات الأكاديمية المتصلة حاليًا. "
+                    "هذا يختلف عن المتطلبات السابقة وأهلية التسجيل، ويمكنك الرجوع إلى لائحة الدرجات الرسمية للجامعة."
+                    if arabic else
+                    f"The official passing threshold for {course_label} is not available in the connected academic data. "
+                    "That is separate from prerequisites and registration eligibility; consult the university's official grade policy.")
+            return AdvisorExplanationOutput(text, language)
+    if isinstance(payload, CourseComparison):
+        first, second = payload.courses
+        def course_summary(course: CourseInformation) -> str:
+            name = (course.canonical_arabic_name if arabic else
+                    course.canonical_english_name or course.canonical_arabic_name)
+            level = course.difficulty_level or ("غير متاح" if arabic else "unavailable")
+            credits = str(course.credit_hours) if course.credit_hours is not None else ("غير متاح" if arabic else "unavailable")
+            return (f"{name} ({course.course_code}): {credits} ساعات، صعوبة بنيوية {level}."
+                    if arabic else
+                    f"{name} ({course.course_code}): {credits} credits, structural difficulty {level.replace('_', ' ').lower()}.")
+        text = (f"مقارنة من البيانات الأكاديمية المتصلة:\n- {course_summary(first)}\n- {course_summary(second)}\n"
+                "هذه مقارنة بنيوية للمساقين وليست توقعًا لعلامتك أو قرار تسجيل."
+                if arabic else
+                f"Comparison from connected academic data:\n- {course_summary(first)}\n- {course_summary(second)}\n"
+                "This is a structural comparison, not a grade prediction or registration decision.")
+        return AdvisorExplanationOutput(text, language)
     if result.intent is AdvisorIntent.CLARIFICATION_REQUIRED and result.clarification:
         candidates = result.clarification.candidate_course_codes
         if candidates:
