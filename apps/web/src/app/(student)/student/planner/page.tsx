@@ -199,7 +199,7 @@ export default function PlannerPage() {
             <button
               type="submit"
               disabled={loading}
-              className="inline-flex items-center justify-center gap-2 rounded-2xl bg-accent px-7 py-3 text-xs font-bold text-white shadow-xs hover:bg-accent-hover transition-all disabled:opacity-50"
+              className="button-primary inline-flex items-center justify-center gap-2 rounded-2xl bg-accent px-7 py-3 text-xs font-bold text-white shadow-xs hover:bg-accent-hover transition-all disabled:opacity-50"
             >
               <SparklesIcon className="h-4 w-4" />
               <span>{loading ? "جاري احتساب الخيارات الفصلية..." : "توليد خيارات الفصل الدراسي"}</span>

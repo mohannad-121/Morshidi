@@ -224,7 +224,7 @@ export default function InstitutionalChangeImpactPage() {
           onChange={set("provenance_reference")} hint="مرجع موجز؛ لا تدخل بيانات طلاب أو أسرارًا." />
       </div>
       <button type="submit" disabled={submitting}
-        className="min-h-11 rounded-xl bg-amber-800 px-5 py-2 font-semibold text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-900 disabled:opacity-60">
+        className="button-primary min-h-11 rounded-xl bg-amber-800 px-5 py-2 font-semibold text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-900 disabled:opacity-60">
         {submitting ? "جارٍ التحليل والتدقيق…" : "تحليل الأثر المقترح"}
       </button>
     </form>}

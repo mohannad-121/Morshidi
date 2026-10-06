@@ -280,7 +280,7 @@ export default function MockRegistrationPage() {
                 <button
                   type="button"
                   onClick={() => setIsEditing(true)}
-                  className="rounded-2xl bg-accent px-6 py-2.5 text-xs font-bold text-white hover:bg-accent-hover transition-all shadow-xs"
+                  className="button-primary rounded-2xl bg-accent px-6 py-2.5 text-xs font-bold text-white hover:bg-accent-hover transition-all shadow-xs"
                 >
                   تعديل الرغبات وإرسال مراجعة جديدة
                 </button>
@@ -408,7 +408,7 @@ export default function MockRegistrationPage() {
                   type="button"
                   onClick={() => void handleSubmitRevision()}
                   disabled={actionLoading || courseList.length === 0}
-                  className="rounded-2xl bg-accent px-7 py-2.5 text-xs font-bold text-white hover:bg-accent-hover transition-all shadow-xs disabled:opacity-50"
+                  className="button-primary rounded-2xl bg-accent px-7 py-2.5 text-xs font-bold text-white hover:bg-accent-hover transition-all shadow-xs disabled:opacity-50"
                 >
                   {actionLoading ? "جاري الإرسال..." : "إرسال رغبة التسجيل التجريبي"}
                 </button>

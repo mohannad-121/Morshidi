@@ -55,7 +55,7 @@ export default function ModeledReportPage() {
   return <article className="modeled-report mx-auto max-w-4xl space-y-6" lang={locale} dir={locale === "ar" ? "rtl" : "ltr"}>
     <div className="report-controls flex flex-wrap gap-3">
       <button type="button" onClick={() => setLocale(locale === "ar" ? "en" : "ar")} className="rounded-xl border border-accent px-4 py-2" aria-label={locale === "ar" ? "Switch to English" : "التبديل إلى العربية"}>{locale === "ar" ? "English" : "العربية"}</button>
-      {data && <button type="button" onClick={() => window.print()} className="rounded-xl bg-accent px-4 py-2 font-bold text-white">{copy.print}</button>}
+      {data && <button type="button" onClick={() => window.print()} className="button-primary rounded-xl bg-accent px-4 py-2 font-bold text-white">{copy.print}</button>}
     </div>
     <header className="rounded-2xl border-2 border-accent p-6"><p className="text-sm font-bold">Morshidi · WC-047 · MODELED / UNOFFICIAL</p><h1 className="mt-2 text-2xl font-bold">{copy.title}</h1><p className="mt-3 leading-7">{copy.notice}</p></header>
     {loading && <p role="status" aria-live="polite">{copy.loading}</p>}

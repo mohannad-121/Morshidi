@@ -231,7 +231,7 @@ export default function CoursesPage() {
         <button
           type="button"
           onClick={openAddModal}
-          className="inline-flex items-center justify-center gap-2 rounded-2xl bg-accent px-5 py-2.5 text-xs font-bold text-white shadow-xs hover:bg-accent-hover transition-all focus:outline-hidden focus:ring-2 focus:ring-accent/50"
+          className="button-primary inline-flex items-center justify-center gap-2 rounded-2xl bg-accent px-5 py-2.5 text-xs font-bold text-white shadow-xs hover:bg-accent-hover transition-all focus:outline-hidden focus:ring-2 focus:ring-accent/50"
         >
           <PlusIcon className="h-4 w-4" />
           <span>إضافة محاولة دراسية</span>
@@ -336,7 +336,7 @@ export default function CoursesPage() {
                 <button
                   type="button"
                   onClick={openAddModal}
-                  className="rounded-xl bg-accent px-4 py-2 text-xs font-bold text-white hover:bg-accent-hover transition-colors"
+                  className="button-primary rounded-xl bg-accent px-4 py-2 text-xs font-bold text-white hover:bg-accent-hover transition-colors"
                 >
                   إضافة محاولة دراسية
                 </button>
@@ -521,7 +521,7 @@ export default function CoursesPage() {
                 <button
                   type="submit"
                   disabled={actionLoading}
-                  className="rounded-xl bg-accent px-5 py-2 font-bold text-white hover:bg-accent-hover transition-all disabled:opacity-50"
+                  className="button-primary rounded-xl bg-accent px-5 py-2 font-bold text-white hover:bg-accent-hover transition-all disabled:opacity-50"
                 >
                   {actionLoading ? "جاري الحفظ..." : "حفظ المحاولة"}
                 </button>
@@ -611,7 +611,7 @@ export default function CoursesPage() {
                 <button
                   type="submit"
                   disabled={actionLoading}
-                  className="rounded-xl bg-accent px-5 py-2 font-bold text-white hover:bg-accent-hover transition-all disabled:opacity-50"
+                  className="button-primary rounded-xl bg-accent px-5 py-2 font-bold text-white hover:bg-accent-hover transition-all disabled:opacity-50"
                 >
                   {actionLoading ? "جاري الحفظ..." : "تحديث المحاولة"}
                 </button>

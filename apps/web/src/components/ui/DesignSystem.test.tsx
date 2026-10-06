@@ -18,6 +18,7 @@ describe('luxury design-system primitives', () => {
     expect(screen.getByRole('button', { name: 'Secondary' }).classList.contains('button-secondary')).toBe(true);
     expect(screen.getByRole('button', { name: 'Ghost' }).classList.contains('button-ghost')).toBe(true);
     expect(screen.getByRole('button', { name: 'Open command palette' }).classList.contains('icon-button')).toBe(true);
+    expect(screen.getByRole('button', { name: 'Primary' }).querySelector('.button-content')?.textContent).toBe('Primary');
   });
 
   it('supports distinct surface hierarchy and semantic badge treatments', () => {

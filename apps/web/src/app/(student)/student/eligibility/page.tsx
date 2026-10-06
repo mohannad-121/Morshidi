@@ -188,7 +188,7 @@ export default function EligibilityPage() {
               <button
                 type="submit"
                 disabled={loading || !courseCodeInput.trim()}
-                className="inline-flex items-center justify-center gap-2 rounded-2xl bg-accent px-7 py-3 text-xs font-bold text-white shadow-xs hover:bg-accent-hover transition-all disabled:opacity-50"
+                className="button-primary inline-flex items-center justify-center gap-2 rounded-2xl bg-accent px-7 py-3 text-xs font-bold text-white shadow-xs hover:bg-accent-hover transition-all disabled:opacity-50"
               >
                 <EligibilityIcon className="h-4 w-4" />
                 <span>{loading ? "جاري الفحص..." : "فحص الأهلية"}</span>

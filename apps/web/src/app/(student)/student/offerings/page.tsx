@@ -71,7 +71,7 @@ export default function OfferingsPage() {
         onChange={event => setCourse(event.target.value)} className="rounded border p-2" /></label>
       <label className="grid gap-1">{t.period}<input required maxLength={80} value={period}
         onChange={event => setPeriod(event.target.value)} className="rounded border p-2" /></label>
-      <button disabled={busy} className="self-end rounded bg-amber-800 p-2 text-white disabled:opacity-50">{t.submit}</button>
+      <button disabled={busy} className="button-primary self-end rounded bg-amber-800 p-2 text-white disabled:opacity-50">{t.submit}</button>
     </form>
     {busy && <p role="status">{t.loading}</p>}
     {error && <p role="alert">{t.error}</p>}
@@ -98,7 +98,7 @@ export default function OfferingsPage() {
       <label className="grid gap-1">{t.credits}<input type="number" min="0" max="30" value={maxCredits}
         onChange={event => setMaxCredits(Number(event.target.value))} className="rounded border p-2" /></label>
       <button type="button" disabled={busy || !period.trim()} onClick={() => void plan()}
-        className="rounded bg-stone-800 px-4 py-2 text-white disabled:opacity-50">{t.planner}</button>
+        className="button-primary rounded bg-stone-800 px-4 py-2 text-white disabled:opacity-50">{t.planner}</button>
       {planner && <div aria-live="polite" className="space-y-2">
         {planner.source_type === "SYNTHETIC" && <p className="rounded bg-amber-100 p-2 font-semibold">{t.synthetic}</p>}
         {planner.offering_overlay.map(option => <div key={option.academic_rank} className="rounded border p-2">

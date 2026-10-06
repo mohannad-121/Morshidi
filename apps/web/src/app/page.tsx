@@ -82,7 +82,7 @@ export default function Home() {
                 <div className="flex items-center gap-2">
                   <Link
                     href="/student"
-                    className="inline-flex items-center gap-1.5 rounded-xl bg-accent px-4 py-2 text-xs font-bold text-white shadow-2xs hover:bg-accent-hover transition-colors"
+                    className="button-primary inline-flex items-center gap-1.5 rounded-xl bg-accent px-4 py-2 text-xs font-bold text-white shadow-2xs hover:bg-accent-hover transition-colors"
                   >
                     <span>افتح حسابي الأكاديمي</span>
                     <span>←</span>
@@ -121,7 +121,7 @@ export default function Home() {
                   <>
                     <Link
                       href="/student"
-                      className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-accent px-6 py-3 text-sm font-bold text-white shadow-sm hover:bg-accent-hover transition-all active:scale-95"
+                      className="button-primary inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-accent px-6 py-3 text-sm font-bold text-white shadow-sm hover:bg-accent-hover transition-all active:scale-95"
                     >
                       <span>الانتقال إلى حسابي</span>
                       <span>←</span>
@@ -137,7 +137,7 @@ export default function Home() {
                   <>
                     <Link
                       href="/login"
-                      className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-accent px-6 py-3 text-sm font-bold text-white shadow-sm hover:bg-accent-hover transition-all active:scale-95"
+                      className="button-primary inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-accent px-6 py-3 text-sm font-bold text-white shadow-sm hover:bg-accent-hover transition-all active:scale-95"
                     >
                       <span>دخول الطالب</span>
                       <span>←</span>
@@ -567,7 +567,7 @@ export default function Home() {
             {auth.isAuthenticated ? (
               <Link
                 href="/student"
-                className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-accent px-6 py-2.5 text-xs font-bold text-white shadow-xs hover:bg-accent-hover transition-colors"
+                className="button-primary inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-accent px-6 py-2.5 text-xs font-bold text-white shadow-xs hover:bg-accent-hover transition-colors"
               >
                 <span>الانتقال إلى حسابي</span>
                 <span>←</span>
@@ -575,7 +575,7 @@ export default function Home() {
             ) : (
               <Link
                 href="/login"
-                className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-accent px-6 py-2.5 text-xs font-bold text-white shadow-xs hover:bg-accent-hover transition-colors"
+                className="button-primary inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-accent px-6 py-2.5 text-xs font-bold text-white shadow-xs hover:bg-accent-hover transition-colors"
               >
                 <span>دخول الطالب الآن</span>
                 <span>←</span>

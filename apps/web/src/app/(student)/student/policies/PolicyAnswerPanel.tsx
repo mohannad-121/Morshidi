@@ -64,7 +64,7 @@ export function PolicyAnswerPanel() {
         placeholder="مثال: ما سياسة الانسحاب من المساق؟"
         className="min-w-0 flex-1 rounded-xl border border-border px-3 py-2 text-sm text-foreground" />
       <button type="submit" disabled={state === "loading" || question.trim().length < 3}
-        className="rounded-xl bg-accent px-4 py-2 text-xs font-semibold text-white disabled:opacity-60">
+        className="button-primary rounded-xl bg-accent px-4 py-2 text-xs font-semibold text-white disabled:opacity-60">
         {state === "loading" ? "جارٍ البحث في اللوائح..." : "اسأل عن اللوائح"}
       </button>
     </form>

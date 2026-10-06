@@ -104,14 +104,14 @@ export default function RoadmapPage() {
         <div><p className="text-sm font-semibold text-accent">Morshidi · WC-006</p><h1 className="mt-2 text-3xl font-bold">{copy.title}</h1><p className="mt-2 max-w-3xl text-sm leading-7">{copy.intro}</p></div>
         <button type="button" onClick={() => setLocale(locale === "ar" ? "en" : "ar")} className="rounded-xl border border-accent px-4 py-2 text-sm font-bold" aria-label={locale === "ar" ? "Switch to English" : "التبديل إلى العربية"}>{locale === "ar" ? "English" : "العربية"}</button>
       </div>
-      <Link href="/student/report" className="mt-5 inline-flex rounded-xl bg-accent px-4 py-2 text-sm font-semibold text-white">{copy.report}</Link>
+      <Link href="/student/report" className="button-primary mt-5 inline-flex rounded-xl bg-accent px-4 py-2 text-sm font-semibold text-white">{copy.report}</Link>
     </header>
     {loading && <p role="status" aria-live="polite">{copy.loading}</p>}
     {error && <div role="alert" className="rounded-xl border border-red-300 p-4"><p>{copy.error}</p><button type="button" onClick={() => void load()} className="mt-2 underline">{copy.retry}</button></div>}
     {data && !loading && <>
       <div className="rounded-xl border border-border p-4">
         <p>{data.modeling_status === "NOT_REQUESTED" ? (locale === "ar" ? "لم تُنشأ خطة دراسية مُنمذجة بعد؛ لا تظهر مواد مخططة حتى تطلب إنشاءها." : "No modeled path has been generated; planned courses are absent until you request one.") : data.modeling_status === "NO_VALID_PATH" ? (locale === "ar" ? "لم يُعثر على مسار مُنمذج صالح ضمن الحدود المختارة." : "No valid modeled path was found within the selected limits.") : (locale === "ar" ? "المواد المخططة تقدير مُنمذج وليست تسجيلاً أو جدولاً رسمياً." : "Planned courses are modeled, not registered or officially scheduled.")}</p>
-        <button type="button" disabled={modeling} onClick={() => void generatePath()} className="mt-3 rounded-xl bg-accent px-4 py-2 font-semibold text-white disabled:opacity-60">{modeling ? (locale === "ar" ? "جارٍ إنشاء المسار المُنمذج…" : "Generating modeled path…") : (locale === "ar" ? "إنشاء مسار دراسي مُنمذج" : "Generate modeled path")}</button>
+        <button type="button" disabled={modeling} onClick={() => void generatePath()} className="button-primary mt-3 rounded-xl bg-accent px-4 py-2 font-semibold text-white disabled:opacity-60">{modeling ? (locale === "ar" ? "جارٍ إنشاء المسار المُنمذج…" : "Generating modeled path…") : (locale === "ar" ? "إنشاء مسار دراسي مُنمذج" : "Generate modeled path")}</button>
         {modeling && <p role="status" aria-live="polite">{locale === "ar" ? "جارٍ حساب المسار؛ قد يستغرق حتى دقيقة واحدة." : "Calculating the path; this may take up to one minute."}</p>}
         {modelError && <p role="alert" className="mt-2">{locale === "ar" ? "تعذر إنشاء المسار أو انتهت المهلة. لا تزال الخارطة الأساسية متاحة؛ يمكنك المحاولة لاحقاً." : "The path could not be generated or timed out. The base roadmap remains available; try again later."}</p>}
       </div>

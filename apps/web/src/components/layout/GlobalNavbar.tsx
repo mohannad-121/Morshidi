@@ -390,7 +390,7 @@ export function GlobalNavbar() {
           ) : (
             <Link
               href="/login"
-              className="inline-flex min-h-9 items-center justify-center gap-2 rounded-xl bg-accent px-4 py-1.5 text-xs font-semibold text-white shadow-xs transition-colors hover:bg-accent-hover"
+              className="button-primary inline-flex min-h-9 items-center justify-center gap-2 rounded-xl bg-accent px-4 py-1.5 text-xs font-semibold text-white shadow-xs transition-colors hover:bg-accent-hover"
             >
               <span>دخول الطالب</span>
             </Link>

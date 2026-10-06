@@ -50,7 +50,7 @@ export default function CohortsPage() {
         <label className="grid gap-1">{ar ? "فترة الالتحاق" : "Entry period"}<input required pattern="[A-Za-z0-9-]+" value={entry} onChange={e => setEntry(e.target.value)} className="rounded border p-2" /></label>
         <label className="grid gap-1">{ar ? "فترة الرصد" : "Observation period"}<input required pattern="[A-Za-z0-9-]+" value={period} onChange={e => setPeriod(e.target.value)} className="rounded border p-2" /></label>
         <label className="grid gap-1">{ar ? "فترة المقارنة (اختياري)" : "Comparison period (optional)"}<input pattern="[A-Za-z0-9-]+" value={comparisonPeriod} onChange={e => setComparisonPeriod(e.target.value)} className="rounded border p-2" /></label>
-        <button disabled={busy} className="rounded bg-amber-800 px-3 py-2 text-white disabled:opacity-50">{ar ? "عرض الإجماليات" : "Load aggregates"}</button>
+        <button disabled={busy} className="button-primary rounded bg-amber-800 px-3 py-2 text-white disabled:opacity-50">{ar ? "عرض الإجماليات" : "Load aggregates"}</button>
       </form>
       {busy && <p role="status">{ar ? "جارٍ التحميل…" : "Loading…"}</p>}
       {error && <p role="alert">{ar ? "تعذر تحميل الإجماليات أو رُفضت الصلاحية." : "Aggregates unavailable or access denied."}</p>}

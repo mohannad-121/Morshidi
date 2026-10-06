@@ -115,7 +115,7 @@ export default function InstitutionalAIQueryPage() {
           placeholder="كم الطلب المعلن على هذه المادة؟" className={`${fieldClass} py-3`} />
         <p className="text-xs text-stone-600">{question.length} / 300 حرف · لا تطلب سجلات طلاب فردية.</p>
         <button type="submit" disabled={submitting || !universityId}
-          className="min-h-12 rounded-xl bg-amber-800 px-6 py-3 font-semibold text-white hover:bg-amber-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-800 disabled:opacity-60">
+          className="button-primary min-h-12 rounded-xl bg-amber-800 px-6 py-3 font-semibold text-white hover:bg-amber-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-800 disabled:opacity-60">
           {submitting ? "جارٍ تحليل السؤال…" : "تحليل السؤال"}
         </button>
       </section>

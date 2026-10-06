@@ -32,7 +32,7 @@ type ButtonVariant = 'primary' | 'secondary' | 'ghost' | 'icon';
 
 export function Button({ children, className = '', variant = 'primary', ...props }: ButtonHTMLAttributes<HTMLButtonElement> & { variant?: ButtonVariant }) {
   const variantClass = variant === 'icon' ? 'icon-button' : `button-${variant}`;
-  return <button {...props} className={`${variantClass} ${className}`}>{children}</button>;
+  return <button {...props} className={`${variantClass} ${className}`}><span className="button-content">{children}</span></button>;
 }
 
 type SurfaceLevel = 'base' | 'raised' | 'feature' | 'interactive';

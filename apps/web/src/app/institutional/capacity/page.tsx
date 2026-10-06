@@ -78,7 +78,7 @@ export default function CapacityPage() {
       <label className="grid gap-1">{ar ? "معرّف الفصل" : "Period ID"}<input required value={period} onChange={e => setPeriod(e.target.value)} className="rounded border p-2" /></label>
       <label className="grid gap-1">{ar ? "رمز المادة" : "Course code"}<input list="capacity-course-identities" required value={course} onChange={e => setCourse(e.target.value)} className="rounded border p-2" /></label>
       <CourseOptions id="capacity-course-identities" identities={identities} locale={language} />
-      <button disabled={busy} className="self-end rounded bg-amber-800 p-2 text-white disabled:opacity-50">{ar ? "عرض المقارنة" : "Compare demand and supply"}</button>
+      <button disabled={busy} className="button-primary self-end rounded bg-amber-800 p-2 text-white disabled:opacity-50">{ar ? "عرض المقارنة" : "Compare demand and supply"}</button>
     </form>
     {busy && <p role="status">{ar ? "جارٍ التحميل…" : "Loading…"}</p>}
     {error && <p role="alert">{error}</p>}
@@ -104,7 +104,7 @@ export default function CapacityPage() {
       <label className="grid gap-1">{ar ? "رمز الشعبة الافتراضية" : "Modeled section ID"}<input value={section} onChange={e => setSection(e.target.value)} className="rounded border p-2" /></label>
       <label className="grid gap-1">{ar ? "طاقة افتراضية" : "Modeled capacity"}<input type="number" min="0" max="1000" value={capacity} onChange={e => setCapacity(Number(e.target.value))} className="rounded border p-2" /></label>
       <button type="button" disabled={busy || !university || !period || !course || !section} onClick={() => void model()}
-        className="rounded bg-stone-800 px-4 py-2 text-white disabled:opacity-50">{ar ? "شغّل المحاكاة" : "Run simulation"}</button>
+        className="button-primary rounded bg-stone-800 px-4 py-2 text-white disabled:opacity-50">{ar ? "شغّل المحاكاة" : "Run simulation"}</button>
       {scenario && <div aria-live="polite"><p className="font-semibold">{scenario.label}</p>
         {scenario.source_type === "SYNTHETIC" && <p className="rounded bg-amber-100 p-2 font-semibold">SANDBOX / SYNTHETIC DATA — {ar ? "غير رسمية" : "not official"}</p>}
         {scenario.freshness_status === "STALE" && <p role="alert">{ar ? "أساس المحاكاة قديم." : "Scenario base snapshot is stale."}</p>}
@@ -122,7 +122,7 @@ export default function CapacityPage() {
         <input value={sweepSection} onChange={e => setSweepSection(e.target.value)} className="rounded border p-2" />
       </label>
       <button type="button" disabled={busy || !result || !sweepSection.trim()} onClick={() => void runSweep()}
-        className="rounded bg-stone-800 px-4 py-2 text-white disabled:opacity-50">
+        className="button-primary rounded bg-stone-800 px-4 py-2 text-white disabled:opacity-50">
         {ar ? "اعرض تغير الافتراض" : "Compare modeled capacities"}</button>
       {sweep && <div aria-live="polite" className="space-y-2">
         <p className="font-semibold">{sweep.label}</p>

@@ -179,7 +179,7 @@ export function LoginForm() {
         ) : null}
 
         <button
-          className="inline-flex min-h-12 w-full items-center justify-center rounded-xl bg-accent px-5 py-3 text-sm font-bold text-white shadow-xs transition-all hover:bg-accent-hover active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-60"
+          className="button-primary inline-flex min-h-12 w-full items-center justify-center rounded-xl bg-accent px-5 py-3 text-sm font-bold text-white shadow-xs transition-all hover:bg-accent-hover active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-60"
           disabled={
             isSubmitting ||
             auth.isLoading ||

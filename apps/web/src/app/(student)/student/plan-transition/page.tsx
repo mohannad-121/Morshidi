@@ -78,7 +78,7 @@ export default function PlanTransitionPage() {
           </option>)}
         </select>
         <button type="button" disabled={busy} onClick={() => void compare()}
-          className="ms-3 rounded bg-amber-800 px-3 py-2 text-white disabled:opacity-50">{t.compare}</button>
+          className="button-primary ms-3 rounded bg-amber-800 px-3 py-2 text-white disabled:opacity-50">{t.compare}</button>
       </section>}
     </>}
     {busy && <p role="status">{t.loading}</p>}
