@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -45,7 +45,7 @@ const mockProfile: AcademicProfileResponse = {
   study_plan_id: 'test-plan-uuid',
   reported_cumulative_gpa: 3.75,
   reported_gpa_scale: 4.0,
-  reported_earned_credit_hours: 90,
+  reported_earned_credit_hours: 96,
   created_at: '2026-01-01T00:00:00Z',
   updated_at: '2026-01-02T00:00:00Z',
 };
@@ -53,9 +53,9 @@ const mockProfile: AcademicProfileResponse = {
 const mockProgress: AcademicProgressResponse = {
   study_plan_id: 'test-plan-uuid',
   plan_total_required_credits: 132,
-  completed_plan_credits: 60,
+  completed_plan_credits: 88,
   in_progress_plan_credits: 15,
-  remaining_plan_credits: 57,
+  remaining_plan_credits: 44,
   satisfied_requirement_group_count: 2,
   total_requirement_group_count: 4,
   all_modeled_plan_requirements_satisfied: false,
@@ -92,7 +92,7 @@ const mockProgress: AcademicProgressResponse = {
   ],
   reported_cumulative_gpa: 3.75,
   reported_gpa_scale: 4.0,
-  reported_earned_credit_hours: 90,
+  reported_earned_credit_hours: 96,
 };
 
 const mockAttempts: CourseAttemptResponse[] = [
@@ -293,8 +293,8 @@ const mockDegreePath: DegreePathResponse = {
       reason_codes: [],
     },
   ],
-  initial_completed_credits: 60,
-  initial_remaining_credits: 72,
+  initial_completed_credits: 88,
+  initial_remaining_credits: 44,
   initial_satisfied_group_count: 2,
   total_requirement_group_count: 4,
   unresolved_review_required_courses: [],
@@ -309,9 +309,9 @@ const mockCreditComparison: CreditComparisonResponse = {
   evaluated_scenarios: 12,
   limitations: ['Credit-only'],
   scenarios: [
-    { mode: 'FASTEST', loads: [18, 18, 6], summer: false },
-    { mode: 'BALANCED', loads: [15, 15, 6, 6], summer: true },
-    { mode: 'LOWER_LOAD', loads: [12, 12, 12, 6], summer: false },
+    { mode: 'FASTEST', loads: [18, 18], summer: false },
+    { mode: 'BALANCED', loads: [15, 15, 6], summer: true },
+    { mode: 'LOWER_LOAD', loads: [12, 12, 12], summer: false },
   ].map((item, index) => ({
     scenario_id: `scenario-${index}`,
     mode: item.mode as 'FASTEST' | 'BALANCED' | 'LOWER_LOAD',
@@ -324,7 +324,7 @@ const mockCreditComparison: CreditComparisonResponse = {
     current_workload_risk: null,
     timeline: {
       policy_version: 'P15_6_CREDIT_TIMELINE_V1', total_required_credits: 132,
-      earned_credits: 90, initial_remaining_credits: 42, regular_load: item.loads[0],
+      earned_credits: 96, initial_remaining_credits: 36, regular_load: item.loads[0],
       summer_enabled: item.summer, summer_load: item.summer ? 6 : 0,
       regular_semester_count: item.loads.length - (item.summer ? 1 : 0),
       summer_count: item.summer ? 1 : 0, completion_year: 2027,
@@ -333,7 +333,7 @@ const mockCreditComparison: CreditComparisonResponse = {
         academic_year: 2026 + Math.floor(termIndex / 3),
         term: item.summer && termIndex === item.loads.length - 1 ? 'SUMMER'
           : termIndex % 2 === 0 ? 'FIRST_SEMESTER' : 'SECOND_SEMESTER',
-        planned_credits, remaining_after: Math.max(0, 42 - item.loads.slice(0, termIndex + 1).reduce((a, b) => a + b, 0)),
+        planned_credits, remaining_after: Math.max(0, 36 - item.loads.slice(0, termIndex + 1).reduce((a, b) => a + b, 0)),
       })),
     },
   })),
@@ -703,8 +703,14 @@ describe('Morshidi Student Portal Pages Suite', () => {
     expect(screen.getByText('الأخف')).toBeDefined();
     expect(screen.queryByRole('combobox', { name: 'عدد الفصول' })).toBeNull();
     expect(screen.queryByRole('combobox', { name: 'المسارات' })).toBeNull();
-    expect(screen.getAllByText('42').length).toBeGreaterThan(0);
-    expect(screen.getByText(/نموذج الخطة يرى 72 ساعة/)).toBeDefined();
+    const strategyCards = screen.getByLabelText('خيارات مسار التخرج');
+    expect(within(strategyCards).getAllByText('36')).toHaveLength(6);
+    expect(within(strategyCards).getAllByText('المتبقي حسب سجل الجامعة')).toHaveLength(3);
+    expect(within(strategyCards).queryByText('44')).toBeNull();
+    expect(within(strategyCards).queryByText('المتبقي في النموذج')).toBeNull();
+    expect(screen.getByText('تفاصيل نموذج الخطة')).toBeDefined();
+    expect(screen.getByText(/نموذج مرشدي يحتسب 44 ساعة/)).toBeDefined();
+    expect(screen.getByText(/المتبقي للتخرج هو 36 ساعة/)).toBeDefined();
     expect(screen.getAllByText('الفصل 1').length).toBeGreaterThan(0);
     await user.click(screen.getByText('لماذا هذا التسلسل؟'));
     await waitFor(() => expect(screen.getByText('مسار نموذجي #1')).toBeDefined());

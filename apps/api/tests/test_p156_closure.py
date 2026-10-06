@@ -117,8 +117,8 @@ def test_comparison_service_uses_owner_progress_and_p155_workload_evidence():
     async def run():
         service = StudentService(None, None, None)
         service.get_academic_progress = AsyncMock(return_value=SimpleNamespace(
-            plan_total_required_credits=Decimal(132), completed_plan_credits=Decimal(60),
-            reported_earned_credit_hours=Decimal(90)))
+            plan_total_required_credits=Decimal(132), completed_plan_credits=Decimal(88),
+            reported_earned_credit_hours=Decimal(96)))
         service.get_adaptive_course_intelligence = AsyncMock(return_value=SimpleNamespace(
             recommendations=[SimpleNamespace(workload_risk=80), SimpleNamespace(workload_risk=60)],
             model_version="PERSONAL_DIFFICULTY_MODEL_V1"))
@@ -129,8 +129,34 @@ def test_comparison_service_uses_owner_progress_and_p155_workload_evidence():
         assert all(row.current_workload_risk == 70 for row in result.scenarios)
         assert all(row.difficulty_evidence.startswith("CURRENT_ELIGIBLE_COURSES_ONLY") for row in result.scenarios)
         assert all(row.confidence == "MODELED_CREDIT_ONLY" for row in result.scenarios)
-        assert all(row.timeline.initial_remaining_credits == Decimal(42)
+        assert all(row.timeline.earned_credits == Decimal(96) for row in result.scenarios)
+        assert all(row.timeline.initial_remaining_credits == Decimal(36)
                    for row in result.scenarios)
+        assert all(sum(term.planned_credits for term in row.timeline.terms) == Decimal(36)
+                   for row in result.scenarios)
+    asyncio.run(run())
+
+
+def test_credit_timeline_services_fall_back_to_modeled_credits_when_reported_is_null():
+    async def run():
+        service = StudentService(None, None, None)
+        service.get_academic_progress = AsyncMock(return_value=SimpleNamespace(
+            plan_total_required_credits=Decimal(132), completed_plan_credits=Decimal(88),
+            reported_earned_credit_hours=None))
+        service.get_adaptive_course_intelligence = AsyncMock(return_value=SimpleNamespace(
+            recommendations=[], model_version="PERSONAL_DIFFICULTY_MODEL_V1"))
+
+        timeline = await service.get_credit_timeline(
+            OWNER, start_year=2026, start_term=AcademicTerm.FIRST_SEMESTER,
+            regular_load=Decimal(18), summer_enabled=False, summer_load=Decimal(0))
+        comparison = await service.compare_credit_timelines(
+            OWNER, start_year=2026, start_term=AcademicTerm.FIRST_SEMESTER)
+
+        assert timeline.earned_credits == Decimal(88)
+        assert timeline.initial_remaining_credits == Decimal(44)
+        assert all(row.timeline.earned_credits == Decimal(88) for row in comparison.scenarios)
+        assert all(row.timeline.initial_remaining_credits == Decimal(44)
+                   for row in comparison.scenarios)
     asyncio.run(run())
 
 

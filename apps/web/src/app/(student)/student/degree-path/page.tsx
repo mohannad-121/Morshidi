@@ -137,17 +137,20 @@ export default function DegreePathPage() {
               </span>)}</div>
             <dl>
               <div><dt>إجمالي العبء الموزع</dt><dd>{plannedCredits}</dd></div>
-              <div><dt>المتبقي حسب الجامعة</dt><dd>{reportedRemaining ?? "غير متاح"}</dd></div>
-              <div><dt>المتبقي في النموذج</dt><dd>{result.initial_remaining_credits}</dd></div>
+              <div><dt>المتبقي حسب سجل الجامعة</dt><dd>{reportedRemaining ?? "غير متاح"}</dd></div>
             </dl>
             <p>{strategy.reason}</p>
             {!path && <small>لم ينتج المحرك مسار مقررات كاملًا لهذا الخيار؛ يظهر تقدير الساعات فقط.</small>}
           </button>;
         })}
       </div>
-      {reportedRemaining !== result.initial_remaining_credits && <div className="chat-history-warning" role="note">
-        سجل الجامعة يبلغ عن {reportedRemaining ?? "رصيد مكتسب غير متاح"} ساعة متبقية، بينما نموذج الخطة يرى {result.initial_remaining_credits} ساعة. نستخدم سجل الجامعة لتقدير العبء الزمني، ونموذج الخطة لتسلسل المقررات والمتطلبات.
-      </div>}
+      {reportedRemaining !== null && reportedRemaining !== result.initial_remaining_credits &&
+        <details className="engraved p-5">
+          <summary>تفاصيل نموذج الخطة</summary>
+          <p className="text-xs text-muted mt-3">
+            نموذج مرشدي يحتسب {result.initial_remaining_credits} ساعة ضمن متطلبات الخطة بسبب اختلاف وزن بعض المقررات التاريخية، بينما سجل الجامعة الرسمي يثبت أن المتبقي للتخرج هو {reportedRemaining} ساعة. نستخدم النموذج الحتمي لتسلسل المقررات والمتطلبات فقط.
+          </p>
+        </details>}
       <div className="flex items-center justify-between flex-wrap gap-4">
         <div>
           <h2 className="text-xl">بديل تسلسل المقررات {selectedIndex + 1}</h2>
@@ -159,7 +162,7 @@ export default function DegreePathPage() {
         <div className="journey-kpis">
           <div className="engraved"><strong>{selectedPath.semester_count}</strong><span>فصول مقررات مخططة</span></div>
           <div className="engraved"><strong>{selectedPath.total_planned_credits}</strong><span>ساعات مقررات مخططة</span></div>
-          <div className="engraved"><strong>{selectedPath.final_remaining_plan_credits}</strong><span>متبقية بعد المسار النموذجي</span></div>
+          <div className="engraved"><strong>{selectedPath.final_remaining_plan_credits}</strong><span>متطلبات الخطة النموذجية المتبقية بعد هذا البديل</span></div>
         </div>
         <PathMap key={selectedPath.rank} stations={selectedPath.semesters.map((semester) => ({
           id: String(semester.semester_index), title: `الفصل ${semester.semester_index}`,
