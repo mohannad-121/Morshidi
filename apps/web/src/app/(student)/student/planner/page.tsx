@@ -106,9 +106,9 @@ export default function PlannerPage() {
       : null;
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-8 planner-page">
       {/* Header */}
-      <div className="border-b border-border pb-5">
+      <div className="page-heading planner-heading">
         <div className="flex items-center gap-2">
           <span className="rounded-full bg-accent/10 px-2.5 py-0.5 text-xs font-bold text-accent">
             المخطط الفصلي الرياضي
@@ -124,7 +124,7 @@ export default function PlannerPage() {
       </div>
 
       {/* Constraints Config Card */}
-      <div className="rounded-3xl border border-border bg-surface p-7 shadow-xs">
+      <div className="planner-controls">
         <form onSubmit={handleGeneratePlans} className="space-y-6">
           <div className="grid grid-cols-1 gap-6 sm:grid-cols-3">
             {/* Max Credits */}
@@ -260,7 +260,7 @@ export default function PlannerPage() {
           {selectedOption ? (
             <div className="space-y-6">
               {/* Option Summary Card */}
-              <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+              <div className="planner-summary">
                 <StatCard
                   title="إجمالي الساعات"
                   value={`${selectedOption.total_credit_hours} س`}
@@ -296,7 +296,7 @@ export default function PlannerPage() {
               </section>
 
               {/* Course List in Selected Option */}
-              <div className="overflow-hidden rounded-3xl border border-border bg-surface shadow-xs">
+              <div className="planner-course-stack">
                 <div className="border-b border-border bg-surface-muted/80 px-6 py-4 flex items-center justify-between">
                   <h3 className="font-bold text-foreground text-sm">
                     مواد الباقة المقترحة للخيار #{selectedOption.rank}

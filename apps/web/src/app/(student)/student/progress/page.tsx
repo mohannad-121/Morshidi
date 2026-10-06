@@ -102,7 +102,7 @@ export default function ProgressPage() {
   }, [progress, selectedStateFilter, searchQuery]);
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-8 progress-page">
       {/* Page Header */}
       <div className="flex flex-col gap-2 border-b border-border pb-5 sm:flex-row sm:items-center sm:justify-between">
         <div>

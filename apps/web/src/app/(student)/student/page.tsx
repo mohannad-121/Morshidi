@@ -226,7 +226,7 @@ export default function StudentPage({ client: injectedClient }: StudentPageProps
   }
 
   return (
-    <div className="space-y-8" dir="rtl">
+    <div className="space-y-8 dashboard-page" dir="rtl">
       <header className="dashboard-heading">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
@@ -320,7 +320,7 @@ export default function StudentPage({ client: injectedClient }: StudentPageProps
       {!loading && !activeError && profile && progress ? (
         <div className="space-y-8">
           {/* Quick Stats Grid */}
-          <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-5">
+          <div className="dashboard-journey" aria-label="ملخص الرحلة الأكاديمية">
             <StatCard
               title="إجمالي ساعات الخطة"
               value={`${displayValue(progress.plan_total_required_credits)} ساعة`}
@@ -358,7 +358,7 @@ export default function StudentPage({ client: injectedClient }: StudentPageProps
           </div>
 
           {/* Profile & Progress Section */}
-          <section className="grid gap-6 lg:grid-cols-2">
+          <section className="dashboard-foundation">
             {/* Academic Profile Card */}
             <article className="rounded-3xl border border-border bg-surface p-6 shadow-xs">
               <div className="flex items-center justify-between border-b border-border/60 pb-4">
@@ -448,13 +448,13 @@ export default function StudentPage({ client: injectedClient }: StudentPageProps
           </section>
 
           {/* Quick Actions Panel */}
-          <div className="rounded-2xl border border-border bg-surface-muted/80 p-6">
+          <div className="dashboard-actions">
             <h3 className="text-sm font-bold text-foreground">إجراءات سريعة</h3>
             <p className="mt-1 text-xs text-muted">
               انتقل مباشرة إلى الأدوات الأكاديمية الذكية لاتخاذ قرارات مدروسة:
             </p>
 
-            <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="dashboard-action-grid">
               <Link
                 href="/student/eligibility"
                 className="flex items-center gap-3 rounded-xl border border-border bg-surface p-3.5 text-xs font-semibold text-foreground shadow-2xs transition-all hover:bg-accent-soft hover:border-accent"
@@ -498,7 +498,7 @@ export default function StudentPage({ client: injectedClient }: StudentPageProps
           </div>
 
           {/* Requirement Groups Breakdown */}
-          <section className="rounded-3xl border border-border bg-surface p-6 shadow-xs">
+          <section className="dashboard-requirements">
             <h2 className="text-xl font-bold text-foreground">تفاصيل متطلبات الخطة</h2>
             <div className="mt-5 grid gap-4">
               {progress.requirement_groups.map((group) => (

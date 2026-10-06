@@ -140,7 +140,7 @@ export default function EligibilityPage() {
   };
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-8 eligibility-page">
       {/* Header */}
       <div className="border-b border-border pb-5">
         <div className="flex items-center gap-2">

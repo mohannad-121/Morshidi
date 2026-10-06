@@ -210,7 +210,7 @@ export default function CoursesPage() {
   }, [attempts, selectedStatusFilter, searchQuery]);
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-8 courses-page">
       {/* Header */}
       <div className="flex flex-col gap-4 border-b border-border pb-5 sm:flex-row sm:items-center sm:justify-between">
         <div>
