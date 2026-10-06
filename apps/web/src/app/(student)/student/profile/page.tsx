@@ -1,11 +1,19 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import Image from "next/image";
+import { Camera, LoaderCircle } from "lucide-react";
+import { useCallback, useEffect, useRef, useState, type ChangeEvent } from "react";
 import { useAuth } from "@/auth/auth-provider";
 import { getStudentDisplayName } from "@/lib/student-identity";
 import { useAuthenticatedApi } from "@/lib/api/use-authenticated-api";
 import { StudentApiService } from "@/lib/api/student-api";
 import type { AcademicProfileResponse, DashboardError } from "@/lib/api/student-types";
+import {
+  downloadProfileAvatar,
+  PROFILE_AVATAR_MIME_TYPES,
+  uploadProfileAvatar,
+  validateProfileAvatar,
+} from "@/lib/profile-avatar-storage";
 import { Badge } from "@/components/ui/Badge";
 import { ErrorAlert, isRetryableError } from "@/components/ui/ErrorAlert";
 import { LoadingSkeletonCard } from "@/components/ui/LoadingSkeleton";
@@ -23,6 +31,19 @@ export default function ProfilePage() {
   const [error, setError] = useState<DashboardError | null>(null);
   const [loading, setLoading] = useState(true);
   const [showTechnicalDetails, setShowTechnicalDetails] = useState(false);
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const [avatarUploading, setAvatarUploading] = useState(false);
+  const [avatarMessage, setAvatarMessage] = useState<string | null>(null);
+  const [avatarError, setAvatarError] = useState<string | null>(null);
+  const avatarInputRef = useRef<HTMLInputElement>(null);
+  const avatarObjectUrlRef = useRef<string | null>(null);
+
+  const showAvatarBlob = useCallback((blob: Blob) => {
+    if (avatarObjectUrlRef.current) URL.revokeObjectURL(avatarObjectUrlRef.current);
+    const objectUrl = URL.createObjectURL(blob);
+    avatarObjectUrlRef.current = objectUrl;
+    setAvatarUrl(objectUrl);
+  }, []);
 
   const fetchProfile = async () => {
     setLoading(true);
@@ -47,6 +68,56 @@ export default function ProfilePage() {
       void fetchProfile();
     }
   }, [auth.isAuthenticated]);
+
+  useEffect(() => {
+    const userId = auth.user?.id;
+    if (!userId) return;
+    let active = true;
+
+    void downloadProfileAvatar(userId)
+      .then((blob) => {
+        if (active && blob) showAvatarBlob(blob);
+      })
+      .catch(() => {
+        if (active) setAvatarError("تعذّر تحميل صورة الملف الشخصي حالياً.");
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [auth.user?.id, showAvatarBlob]);
+
+  useEffect(() => () => {
+    if (avatarObjectUrlRef.current) URL.revokeObjectURL(avatarObjectUrlRef.current);
+  }, []);
+
+  const handleAvatarChange = async (event: ChangeEvent<HTMLInputElement>) => {
+    const input = event.currentTarget;
+    const file = input.files?.[0];
+    const userId = auth.user?.id;
+    if (!file || !userId) return;
+
+    setAvatarMessage(null);
+    const validationError = validateProfileAvatar(file);
+    if (validationError) {
+      setAvatarError(validationError);
+      input.value = "";
+      return;
+    }
+
+    setAvatarError(null);
+    setAvatarUploading(true);
+    try {
+      await uploadProfileAvatar(userId, file);
+      showAvatarBlob(file);
+      setAvatarMessage("تم تحديث صورة الملف الشخصي.");
+    } catch {
+      setAvatarError("تعذّر رفع الصورة. حاول مرة أخرى.");
+    } finally {
+      setAvatarUploading(false);
+      input.value = "";
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -94,10 +165,41 @@ export default function ProfilePage() {
           {/* Main Info Card */}
           <div className="rounded-3xl border border-border bg-surface p-7 shadow-xs">
             <div className="flex items-center gap-4 border-b border-border/60 pb-6">
-              <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-accent-soft text-accent">
-                <ProfileIcon className="h-7 w-7" />
+              <div className="shrink-0">
+                <button
+                  type="button"
+                  className="group relative flex h-16 w-16 items-center justify-center overflow-hidden rounded-2xl border border-accent/30 bg-accent-soft text-accent shadow-sm transition hover:border-accent hover:shadow-[0_0_24px_rgba(255,210,119,0.16)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:cursor-wait disabled:opacity-70"
+                  onClick={() => avatarInputRef.current?.click()}
+                  disabled={avatarUploading}
+                  aria-label="تغيير صورة الملف الشخصي"
+                  title="تغيير صورة الملف الشخصي"
+                >
+                  {avatarUrl ? (
+                    <Image
+                      src={avatarUrl}
+                      alt=""
+                      fill
+                      sizes="64px"
+                      className="object-cover"
+                      unoptimized
+                    />
+                  ) : (
+                    <ProfileIcon className="h-7 w-7" />
+                  )}
+                  <span className="absolute inset-x-0 bottom-0 z-10 flex h-6 items-center justify-center bg-black/70 text-champagne opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100">
+                    {avatarUploading ? <LoaderCircle className="h-3.5 w-3.5 animate-spin" /> : <Camera className="h-3.5 w-3.5" />}
+                  </span>
+                </button>
+                <input
+                  ref={avatarInputRef}
+                  type="file"
+                  accept={PROFILE_AVATAR_MIME_TYPES.join(",")}
+                  className="sr-only"
+                  onChange={handleAvatarChange}
+                  aria-label="اختيار صورة الملف الشخصي من الجهاز"
+                />
               </div>
-              <div>
+              <div className="min-w-0">
                 <h2 className="text-lg font-bold text-foreground">
                   {displayName}
                 </h2>
@@ -106,6 +208,16 @@ export default function ProfilePage() {
                     {String(auth.user.user_metadata.university_student_id)}
                   </p>
                 ) : null}
+                <button
+                  type="button"
+                  className="mt-1 text-xs font-semibold text-accent transition hover:text-accent-hover disabled:cursor-wait disabled:opacity-60"
+                  onClick={() => avatarInputRef.current?.click()}
+                  disabled={avatarUploading}
+                >
+                  {avatarUploading ? "جارٍ رفع الصورة…" : "تغيير الصورة"}
+                </button>
+                {avatarMessage ? <p className="mt-1 text-xs text-emerald-400" role="status">{avatarMessage}</p> : null}
+                {avatarError ? <p className="mt-1 text-xs text-red-400" role="alert">{avatarError}</p> : null}
               </div>
             </div>
 

@@ -40,6 +40,19 @@ vi.mock('next/navigation', () => ({
   usePathname: () => '/student',
 }));
 
+const avatarMocks = vi.hoisted(() => ({
+  download: vi.fn(),
+  upload: vi.fn(),
+  validate: vi.fn(),
+}));
+
+vi.mock('@/lib/profile-avatar-storage', () => ({
+  PROFILE_AVATAR_MIME_TYPES: ['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/avif'],
+  downloadProfileAvatar: avatarMocks.download,
+  uploadProfileAvatar: avatarMocks.upload,
+  validateProfileAvatar: avatarMocks.validate,
+}));
+
 const mockProfile: AcademicProfileResponse = {
   id: 'test-profile-uuid',
   study_plan_id: 'test-plan-uuid',
@@ -552,6 +565,17 @@ describe('Morshidi Student Portal Pages Suite', () => {
 
   beforeEach(() => {
     fetchSpy = setupMockFetch();
+    avatarMocks.download.mockReset().mockResolvedValue(null);
+    avatarMocks.upload.mockReset().mockResolvedValue(undefined);
+    avatarMocks.validate.mockReset().mockReturnValue(null);
+    Object.defineProperty(URL, 'createObjectURL', {
+      configurable: true,
+      value: vi.fn(() => 'blob:student-avatar'),
+    });
+    Object.defineProperty(URL, 'revokeObjectURL', {
+      configurable: true,
+      value: vi.fn(),
+    });
   });
 
   afterEach(() => {
@@ -565,6 +589,32 @@ describe('Morshidi Student Portal Pages Suite', () => {
       expect(screen.getByText('3.75')).toBeDefined();
     });
     expect(screen.getByText('حساب معتمد')).toBeDefined();
+  });
+
+  it('uploads a selected profile image for the authenticated student', async () => {
+    const user = userEvent.setup();
+    renderWithAuth(<ProfilePage />);
+
+    const input = await screen.findByLabelText('اختيار صورة الملف الشخصي من الجهاز');
+    const file = new File(['avatar'], 'avatar.png', { type: 'image/png' });
+    await user.upload(input, file);
+
+    await waitFor(() => {
+      expect(avatarMocks.upload).toHaveBeenCalledWith('user-1', file);
+      expect(screen.getByText('تم تحديث صورة الملف الشخصي.')).toBeDefined();
+    });
+  });
+
+  it('rejects an invalid profile image before upload', async () => {
+    const user = userEvent.setup();
+    avatarMocks.validate.mockReturnValue('صيغة غير مدعومة.');
+    renderWithAuth(<ProfilePage />);
+
+    const input = await screen.findByLabelText('اختيار صورة الملف الشخصي من الجهاز');
+    await user.upload(input, new File(['image'], 'oversized.png', { type: 'image/png' }));
+
+    expect((await screen.findByRole('alert')).textContent).toContain('صيغة غير مدعومة.');
+    expect(avatarMocks.upload).not.toHaveBeenCalled();
   });
 
   it('renders ProgressPage with credit progress and requirement groups', async () => {
