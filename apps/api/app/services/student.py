@@ -1,6 +1,7 @@
 """Ownership-safe orchestration for self-service student operations."""
 
 import asyncio
+from dataclasses import replace
 from decimal import Decimal
 import logging
 from threading import Event
@@ -15,6 +16,7 @@ from app.degree_path.models import (
     DegreePathConstraints,
     DegreePathResult,
 )
+from app.degree_path.strategy_allocator import allocate_strategy_degree_path
 from app.planner.engine import plan_semester
 from app.planner.learning_profile import resolve_learning_profile
 from app.planner.models import (
@@ -226,7 +228,7 @@ class StudentService:
         progress, intelligence = await asyncio.gather(
             self.get_academic_progress(owner), self.get_adaptive_course_intelligence(owner))
         risks = [course.workload_risk for course in intelligence.recommendations]
-        return compare_credit_timelines(
+        comparison = compare_credit_timelines(
             required=progress.plan_total_required_credits,
             earned=(progress.reported_earned_credit_hours
                     if progress.reported_earned_credit_hours is not None
@@ -240,6 +242,32 @@ class StudentService:
             difficulty_evidence=(f"CURRENT_ELIGIBLE_COURSES_ONLY:{intelligence.model_version}"
                                  if risks else "NO_FUTURE_COURSE_ALLOCATION"),
         )
+        if self._catalog_repository is not None and self._repository is not None:
+            try:
+                state = await self.get_profile(owner)
+                progress_catalog, eligibility_catalog = await asyncio.gather(
+                    self._catalog_repository.load_progress_catalog(state.study_plan_id),
+                    self._catalog_repository.load_plan_eligibility_catalog(state.study_plan_id),
+                )
+                allocated = [
+                    replace(
+                        scenario,
+                        course_path=allocate_strategy_degree_path(
+                            progress_catalog,
+                            eligibility_catalog,
+                            state.attempts,
+                            scenario,
+                            reported_cumulative_gpa=state.reported_cumulative_gpa,
+                            reported_gpa_scale=state.reported_gpa_scale,
+                            reported_earned_credit_hours=state.reported_earned_credit_hours,
+                        ),
+                    )
+                    for scenario in comparison.scenarios
+                ]
+                return replace(comparison, scenarios=tuple(allocated))
+            except Exception as e:
+                logger.warning("Failed to allocate courses for degree path strategies: %s", e)
+        return comparison
 
     async def get_semester_plans(
         self,

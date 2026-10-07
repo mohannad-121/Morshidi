@@ -351,6 +351,28 @@ const mockCreditComparison: CreditComparisonResponse = {
         planned_credits, remaining_after: Math.max(0, 36 - item.loads.slice(0, termIndex + 1).reduce((a, b) => a + b, 0)),
       })),
     },
+    course_path: {
+      strategy: item.mode,
+      status: 'COMPLETE',
+      total_target_credits: 36,
+      total_allocated_credits: 36,
+      unallocated_credit_hours: 0,
+      terms: item.loads.map((planned_credits, termIndex) => ({
+        semester_index: termIndex + 1,
+        academic_year: 2026 + Math.floor(termIndex / 3),
+        term: item.summer && termIndex === item.loads.length - 1 ? 'SUMMER'
+          : termIndex % 2 === 0 ? 'FIRST_SEMESTER' : 'SECOND_SEMESTER',
+        target_credit_hours: planned_credits,
+        allocated_credit_hours: planned_credits,
+        courses: Array.from({ length: planned_credits / 3 }).map((_, cIdx) => ({
+          course_code: `150${index}${termIndex}${cIdx}0`,
+          course_name_ar: `مادة تجريبية ${cIdx + 1}`,
+          course_name_en: `Course ${cIdx + 1}`,
+          credit_hours: 3,
+          requirement_type: 'required',
+        })),
+      })),
+    },
   })),
 };
 
@@ -769,8 +791,19 @@ describe('Morshidi Student Portal Pages Suite', () => {
     expect(screen.getByText('تفاصيل نموذج الخطة')).toBeDefined();
     expect(screen.getByText(/نموذج مرشدي يحتسب 44 ساعة/)).toBeDefined();
     expect(screen.getByText(/المتبقي للتخرج هو 36 ساعة/)).toBeDefined();
-    expect(screen.getByText(/تفاصيل نموذج تسلسل المواد/)).toBeDefined();
     expect(screen.getAllByText('الفصل 1').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('الفصل 2').length).toBeGreaterThan(0);
+
+    // Switch to BALANCED strategy
+    await user.click(screen.getByText('المتوازن'));
+    expect(screen.getAllByText('الفصل 3 (صيفي)').length).toBeGreaterThan(0);
+
+    // Switch to LOWER_LOAD strategy
+    await user.click(screen.getByText('الأخف'));
+    expect(screen.getAllByText('الفصل 3').length).toBeGreaterThan(0);
+
+    // Switch back to FASTEST
+    await user.click(screen.getByText('الأسرع'));
     await user.click(screen.getByText('لماذا هذا التسلسل؟'));
     await waitFor(() => expect(screen.getByText('مسار نموذجي #1')).toBeDefined());
   });

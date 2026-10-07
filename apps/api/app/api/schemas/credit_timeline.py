@@ -51,6 +51,37 @@ class CreditComparisonRequest(BaseModel):
     graduation_pace: ComparisonMode | None = None
 
 
+class StrategyCourseResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    course_code: str
+    course_name_ar: str
+    course_name_en: str | None = None
+    credit_hours: Decimal
+    requirement_type: str | None = None
+
+
+class StrategyTermResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    semester_index: int
+    academic_year: int
+    term: AcademicTerm
+    target_credit_hours: Decimal
+    allocated_credit_hours: Decimal
+    courses: list[StrategyCourseResponse]
+
+
+class StrategyDegreePathResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    strategy: str
+    status: str
+    terms: list[StrategyTermResponse]
+    total_target_credits: Decimal
+    total_allocated_credits: Decimal
+    unallocated_credit_hours: Decimal
+    unresolved_course_codes: list[str] = Field(default_factory=list)
+    limitations: list[str] = Field(default_factory=list)
+
+
 class CreditComparisonScenarioResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     scenario_id: str
@@ -65,6 +96,7 @@ class CreditComparisonScenarioResponse(BaseModel):
     difficulty_evidence: str
     confidence: str
     current_workload_risk: int | None
+    course_path: StrategyDegreePathResponse | None = None
 
 
 class CreditComparisonResponse(BaseModel):

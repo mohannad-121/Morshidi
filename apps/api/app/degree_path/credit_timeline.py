@@ -39,6 +39,12 @@ class CreditTimeline:
     warnings: tuple[str, ...]
 
 
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from app.degree_path.strategy_allocator import StrategyDegreePath
+
+
 class ComparisonMode(str, Enum):
     FASTEST = "FASTEST"
     BALANCED = "BALANCED"
@@ -59,6 +65,7 @@ class CreditComparisonScenario:
     difficulty_evidence: str = "NO_FUTURE_COURSE_ALLOCATION"
     confidence: str = "MODELED_CREDIT_ONLY"
     current_workload_risk: int | None = None
+    course_path: StrategyDegreePath | None = None
 
 
 @dataclass(frozen=True)

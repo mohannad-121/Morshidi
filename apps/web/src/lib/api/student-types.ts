@@ -636,6 +636,34 @@ export interface CreditTimelineResponse {
   assumptions: string[]; warnings: string[];
 }
 
+export interface StrategyCourseResponse {
+  course_code: string;
+  course_name_ar: string;
+  course_name_en?: string | null;
+  credit_hours: number;
+  requirement_type?: string | null;
+}
+
+export interface StrategyTermResponse {
+  semester_index: number;
+  academic_year: number;
+  term: "FIRST_SEMESTER" | "SECOND_SEMESTER" | "SUMMER";
+  target_credit_hours: number;
+  allocated_credit_hours: number;
+  courses: StrategyCourseResponse[];
+}
+
+export interface StrategyDegreePathResponse {
+  strategy: "FASTEST" | "BALANCED" | "LOWER_LOAD" | string;
+  status: "COMPLETE" | "PARTIAL" | "UNRESOLVABLE" | string;
+  terms: StrategyTermResponse[];
+  total_target_credits: number;
+  total_allocated_credits: number;
+  unallocated_credit_hours: number;
+  unresolved_course_codes?: string[];
+  limitations?: string[];
+}
+
 export interface CreditComparisonResponse {
   policy_version: string; evaluated_scenarios: number; limitations: string[];
   scenarios: Array<{ scenario_id: string; mode: "FASTEST" | "BALANCED" | "LOWER_LOAD";
@@ -643,7 +671,8 @@ export interface CreditComparisonResponse {
     scheduled_term_count?: number; calendar_slots_elapsed?: number;
     workload_indicator: string; preference_match: boolean;
     provenance: string; difficulty_evidence: string; confidence: string;
-    current_workload_risk: number | null }>;
+    current_workload_risk: number | null;
+    course_path?: StrategyDegreePathResponse | null }>;
 }
 
 export interface StudentPolicySearchResult {
