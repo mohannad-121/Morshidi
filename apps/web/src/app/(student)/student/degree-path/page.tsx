@@ -44,6 +44,13 @@ function termLabel(term: CreditTimelineRequest["start_term"]): string {
   return term === "FIRST_SEMESTER" ? "الأول" : "الثاني";
 }
 
+function formatCreditHours(value: number | string | null | undefined): string {
+  if (value === null || value === undefined) return "—";
+  const num = Number(value);
+  if (Number.isNaN(num)) return String(value);
+  return Number.isInteger(num) ? num.toString() : num.toFixed(1).replace(/\.0$/, "");
+}
+
 export default function DegreePathPage() {
   const auth = useAuth();
   const client = useAuthenticatedApi();
@@ -137,6 +144,13 @@ export default function DegreePathPage() {
 
   const selectedPath: DegreePathOptionResponse | null = result?.paths[selectedIndex] ?? null;
   const reportedRemaining = progress ? remainingReported(progress) : null;
+  const selectedScenario = comparison ? comparison.scenarios[selectedIndex] : null;
+  const selectedScenarioPlannedCredits = selectedScenario
+    ? selectedScenario.timeline.terms.reduce((sum, term) => sum + Number(term.planned_credits), 0)
+    : 0;
+  const selectedScenarioStudyTerms = selectedScenario
+    ? (selectedScenario.scheduled_term_count ?? selectedScenario.total_modeled_terms)
+    : 0;
 
   return <div className="space-y-8 degree-page">
     <div className="page-heading">
@@ -166,19 +180,20 @@ export default function DegreePathPage() {
         {comparison.scenarios.map((scenario, index) => {
           const strategy = STRATEGIES[scenario.mode];
           const path = result.paths[index];
-          const plannedCredits = scenario.timeline.terms.reduce((sum, term) => sum + term.planned_credits, 0);
+          const plannedCredits = scenario.timeline.terms.reduce((sum, term) => sum + Number(term.planned_credits), 0);
+          const studyTerms = scenario.scheduled_term_count ?? scenario.total_modeled_terms;
           return <button key={scenario.mode} type="button" className="strategy-card engraved"
             data-selected={selectedIndex === index} aria-pressed={selectedIndex === index}
             onClick={() => setSelectedIndex(index)}>
             <span className="eyebrow">الخيار {index + 1}</span><h2>{strategy.name}</h2>
-            <strong>{scenario.total_modeled_terms}</strong><span> فصول متوقعة</span>
+            <strong>{studyTerms}</strong><span> فصول متوقعة</span>
             <div className="strategy-loads">{scenario.timeline.terms.map((term, termIndex) =>
               <span key={`${term.academic_year}-${term.term}-${termIndex}`} data-summer={term.term === "SUMMER"}>
-                {termLabel(term.term)} · {term.planned_credits} ساعة
+                {termLabel(term.term)} · <span dir="ltr">{formatCreditHours(term.planned_credits)}</span> ساعة
               </span>)}</div>
             <dl>
-              <div><dt>إجمالي العبء الموزع</dt><dd>{plannedCredits}</dd></div>
-              <div><dt>المتبقي حسب سجل الجامعة</dt><dd>{reportedRemaining ?? "غير متاح"}</dd></div>
+              <div><dt>إجمالي العبء الموزع</dt><dd dir="ltr">{formatCreditHours(plannedCredits)}</dd></div>
+              <div><dt>المتبقي حسب سجل الجامعة</dt><dd dir="ltr">{reportedRemaining !== null ? formatCreditHours(reportedRemaining) : "غير متاح"}</dd></div>
             </dl>
             <p>{strategy.reason}</p>
             {!path && <small>لم ينتج المحرك مسار مقررات كاملًا لهذا الخيار؛ يظهر تقدير الساعات فقط.</small>}
@@ -194,16 +209,25 @@ export default function DegreePathPage() {
         </details>}
       <div className="flex items-center justify-between flex-wrap gap-4">
         <div>
-          <h2 className="text-xl">بديل تسلسل المقررات {selectedIndex + 1}</h2>
-          <p className="text-xs text-muted mt-2">بدائل المقررات مرتبة من المحرك الحتمي بسقف 18 ساعة، وهي منفصلة عن توزيع العبء الزمني لخيار {STRATEGIES[comparison.scenarios[selectedIndex].mode].name} أعلاه.</p>
+          <h2 className="text-xl">بديل تسلسل المقررات {selectedIndex + 1}{selectedScenario ? ` (${STRATEGIES[selectedScenario.mode].name})` : ""}</h2>
+          <p className="text-xs text-muted mt-2">بدائل المقررات مرتبة من المحرك الحتمي بسقف 18 ساعة، وهي منفصلة عن توزيع العبء الزمني لخيار {selectedScenario ? STRATEGIES[selectedScenario.mode].name : ""} أعلاه.</p>
         </div>
         <button className="button-secondary" onClick={() => window.print()}><Printer size={16}/>تصدير PDF</button>
       </div>
       {selectedPath ? <>
         <div className="journey-kpis">
-          <div className="engraved"><strong>{selectedPath.semester_count}</strong><span>فصول مقررات مخططة</span></div>
-          <div className="engraved"><strong>{selectedPath.total_planned_credits}</strong><span>ساعات مقررات مخططة</span></div>
-          <div className="engraved"><strong>{selectedPath.final_remaining_plan_credits}</strong><span>متطلبات الخطة النموذجية المتبقية بعد هذا البديل</span></div>
+          <div className="engraved">
+            <strong dir="ltr">{selectedScenarioStudyTerms}</strong>
+            <span>الفصول المخططة</span>
+          </div>
+          <div className="engraved">
+            <strong dir="ltr">{reportedRemaining !== null ? formatCreditHours(reportedRemaining) : "—"}</strong>
+            <span>الساعات المتبقية حسب سجل الجامعة</span>
+          </div>
+          <div className="engraved">
+            <strong dir="ltr">{formatCreditHours(selectedScenarioPlannedCredits)}</strong>
+            <span>الساعات الموزعة في السيناريو</span>
+          </div>
         </div>
         <PathMap key={selectedPath.rank} stations={selectedPath.semesters.map((semester) => ({
           id: String(semester.semester_index), title: `الفصل ${semester.semester_index}`,
@@ -213,6 +237,27 @@ export default function DegreePathPage() {
           })),
         }))}/>
         {selectedPath.status !== "MODELED_COMPLETE" && <p className="text-xs text-copper">هذا أفضل مسار صالح وجده المحرك ضمن الحدود الآمنة، وقد يكون جزئيًا.</p>}
+        {reportedRemaining !== null && selectedPath.total_planned_credits !== reportedRemaining && (
+          <div className="p-3 rounded-lg border border-gold/30 bg-gold/5 text-xs text-muted">
+            ملاحظة توضيحية: يعرض هذا المسار تسلسلًا حتميًا لـ <span dir="ltr">{formatCreditHours(selectedPath.total_planned_credits)}</span> ساعة من المقررات المؤهلة حاليًا، بينما الساعات الرسمية المتبقية للتخرج وفق سجل الجامعة هي <span dir="ltr">{formatCreditHours(reportedRemaining)}</span> ساعة.
+          </div>
+        )}
+        <details className="engraved p-5">
+          <summary>تفاصيل نموذج تسلسل المواد ({formatCreditHours(selectedPath.total_planned_credits)} ساعة مقررات)</summary>
+          <div className="space-y-2 text-xs text-muted mt-3">
+            <p>
+              وزّع محرك تسلسل المقررات الحتمي <strong dir="ltr">{formatCreditHours(selectedPath.total_planned_credits)}</strong> ساعة موزعة على {selectedPath.semester_count} فصول بناءً على شبكة المتطلبات السابقة وشروط فتح المواد.
+            </p>
+            {reportedRemaining !== null && reportedRemaining !== selectedPath.total_planned_credits && (
+              <p>
+                يختلف هذا الرقم (<span dir="ltr">{formatCreditHours(selectedPath.total_planned_credits)}</span> ساعة مقررات مجدولة) عن العبء الأكاديمي الرسمي المتبقي للتخرج (<span dir="ltr">{formatCreditHours(reportedRemaining)}</span> ساعة) بسبب حزم الساعات المعتمدة للمقررات واشتراطات السقف الفصلي. الساعات الرسمية المعتمدة هي <span dir="ltr">{formatCreditHours(reportedRemaining)}</span> ساعة.
+              </p>
+            )}
+            <p>
+              المتطلبات المتبقية في نموذج الخطة بعد هذا البديل: <strong dir="ltr">{formatCreditHours(selectedPath.final_remaining_plan_credits)}</strong> ساعة.
+            </p>
+          </div>
+        </details>
         <details className="engraved p-5"><summary>لماذا هذا التسلسل؟</summary>
           <AcademicGraphExplanation graph={graph} focusId={`degree-path:${selectedPath.rank}`}
             identities={identities} loading={graphLoading} error={graphError} onRetry={() => void loadGraph()}/>

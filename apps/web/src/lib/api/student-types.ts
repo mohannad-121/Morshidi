@@ -640,6 +640,7 @@ export interface CreditComparisonResponse {
   policy_version: string; evaluated_scenarios: number; limitations: string[];
   scenarios: Array<{ scenario_id: string; mode: "FASTEST" | "BALANCED" | "LOWER_LOAD";
     timeline: CreditTimelineResponse; total_modeled_terms: number;
+    scheduled_term_count?: number; calendar_slots_elapsed?: number;
     workload_indicator: string; preference_match: boolean;
     provenance: string; difficulty_evidence: string; confidence: string;
     current_workload_risk: number | null }>;

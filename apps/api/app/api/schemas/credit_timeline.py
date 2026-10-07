@@ -57,6 +57,8 @@ class CreditComparisonScenarioResponse(BaseModel):
     mode: ComparisonMode
     timeline: CreditTimelineResponse
     total_modeled_terms: int
+    scheduled_term_count: int = 0
+    calendar_slots_elapsed: int = 0
     workload_indicator: str
     preference_match: bool
     provenance: str

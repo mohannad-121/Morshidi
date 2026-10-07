@@ -329,6 +329,8 @@ const mockCreditComparison: CreditComparisonResponse = {
     scenario_id: `scenario-${index}`,
     mode: item.mode as 'FASTEST' | 'BALANCED' | 'LOWER_LOAD',
     total_modeled_terms: item.loads.length,
+    scheduled_term_count: item.loads.length,
+    calendar_slots_elapsed: item.loads.length,
     workload_indicator: index === 0 ? 'HIGH' : index === 1 ? 'MODERATE' : 'LOWER',
     preference_match: false,
     provenance: 'MODELED_ACADEMIC_CALENDAR',
@@ -758,9 +760,16 @@ describe('Morshidi Student Portal Pages Suite', () => {
     expect(within(strategyCards).getAllByText('المتبقي حسب سجل الجامعة')).toHaveLength(3);
     expect(within(strategyCards).queryByText('44')).toBeNull();
     expect(within(strategyCards).queryByText('المتبقي في النموذج')).toBeNull();
+    expect(within(strategyCards).getByText('2')).toBeDefined();
+    expect(within(strategyCards).getAllByText('3')).toHaveLength(2);
+    expect(screen.getByText('الفصول المخططة')).toBeDefined();
+    expect(screen.getByText('الساعات الموزعة في السيناريو')).toBeDefined();
+    expect(screen.queryByText('ساعات مقررات مخططة')).toBeNull();
+    expect(screen.queryByText('متطلبات الخطة النموذجية المتبقية بعد هذا البديل')).toBeNull();
     expect(screen.getByText('تفاصيل نموذج الخطة')).toBeDefined();
     expect(screen.getByText(/نموذج مرشدي يحتسب 44 ساعة/)).toBeDefined();
     expect(screen.getByText(/المتبقي للتخرج هو 36 ساعة/)).toBeDefined();
+    expect(screen.getByText(/تفاصيل نموذج تسلسل المواد/)).toBeDefined();
     expect(screen.getAllByText('الفصل 1').length).toBeGreaterThan(0);
     await user.click(screen.getByText('لماذا هذا التسلسل؟'));
     await waitFor(() => expect(screen.getByText('مسار نموذجي #1')).toBeDefined());

@@ -53,6 +53,8 @@ class CreditComparisonScenario:
     total_modeled_terms: int
     workload_indicator: str
     preference_match: bool
+    scheduled_term_count: int = 0
+    calendar_slots_elapsed: int = 0
     provenance: str = "MODELED_ACADEMIC_CALENDAR"
     difficulty_evidence: str = "NO_FUTURE_COURSE_ALLOCATION"
     confidence: str = "MODELED_CREDIT_ONLY"
@@ -137,10 +139,20 @@ def compare_credit_timelines(*, required: Decimal, earned: Decimal,
                         or item.summer_load == preferred_summer_load))
         indicator = ("HIGH" if item.regular_load >= 18 or item.summer_load >= 9 else
                      "MODERATE" if item.regular_load >= 15 or item.summer_enabled else "LOWER")
+        study_terms = len(item.terms)
+        calendar_slots = modeled_terms(item)
         return CreditComparisonScenario(
-            f"REGULAR_{format(item.regular_load.normalize(), 'f')}_SUMMER_{format(item.summer_load.normalize(), 'f')}", mode, item,
-            modeled_terms(item), indicator, matches, difficulty_evidence=difficulty_evidence,
-            current_workload_risk=current_workload_risk)
+            f"REGULAR_{format(item.regular_load.normalize(), 'f')}_SUMMER_{format(item.summer_load.normalize(), 'f')}",
+            mode,
+            item,
+            study_terms,
+            indicator,
+            matches,
+            scheduled_term_count=study_terms,
+            calendar_slots_elapsed=calendar_slots,
+            difficulty_evidence=difficulty_evidence,
+            current_workload_risk=current_workload_risk,
+        )
 
     return CreditComparison(
         "P15_6_CREDIT_COMPARISON_V1",
