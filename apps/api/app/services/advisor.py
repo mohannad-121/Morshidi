@@ -8,6 +8,7 @@ import asyncio
 import re
 from time import perf_counter
 import unicodedata
+from typing import Awaitable, Callable
 
 from app.advisor.explanation import (
     AdvisorExplanationProvider,
@@ -30,6 +31,7 @@ from app.advisor.models import (
     EntityResolutionStatus,
     StructuredAdvisorResult,
 )
+from app.student_intelligence.profile_v2 import StudentIntelligenceProfileV2
 from app.advisor.orchestrator import AdvisorContext, orchestrate_advisor_request
 from app.advisor.pre_router import pre_route_academic_intent
 from app.advisor.provider import AdvisorLLMProvider, ProviderFailure, RawAdvisorInterpretation
@@ -119,12 +121,14 @@ class AdvisorService:
         provider: AdvisorLLMProvider,
         explanation_provider: AdvisorExplanationProvider | None = None,
         academic_compute_limiter: AcademicComputeLimiter | None = None,
+        intelligence_loader: Callable[[str], Awaitable[StudentIntelligenceProfileV2]] | None = None,
     ) -> None:
         self._student_repository = student_repository
         self._catalog_repository = catalog_repository
         self._provider = provider
         self._explanation_provider = explanation_provider
         self._academic_compute_limiter = academic_compute_limiter or AcademicComputeLimiter()
+        self._intelligence_loader = intelligence_loader
 
     async def advise(self, owner_user_id: str, message: str) -> StructuredAdvisorResult:
         """Interpret once, load server-owned context in batches, and orchestrate."""
@@ -344,7 +348,22 @@ class AdvisorService:
                 ExplanationStatus.UNAVAILABLE,
                 None,
             )
-        explanation_input = build_explanation_input(message, structured)
+        intelligence_summary: tuple[str, ...] = ()
+        if (self._intelligence_loader is not None and structured.intent in {
+                AdvisorIntent.COURSE_RECOMMENDATIONS, AdvisorIntent.SEMESTER_PLANNING,
+                AdvisorIntent.DEGREE_PATH_MODELING, AdvisorIntent.COURSE_INFORMATION,
+                AdvisorIntent.ACADEMIC_STATUS}):
+            try:
+                profile = await self._intelligence_loader(owner_user_id)
+                intelligence_summary = tuple(
+                    f"{skill.skill_id}:score={skill.score}:confidence={skill.confidence}:"
+                    f"university_evidence={skill.university_evidence_count}:"
+                    f"diagnostic_evidence={skill.diagnostic_evidence_count}"
+                    for skill in profile.skills if skill.score is not None
+                )[:8] + (f"limitations={' | '.join(profile.limitations)}",)
+            except Exception:
+                logger.warning("student intelligence context unavailable")
+        explanation_input = build_explanation_input(message, structured, intelligence_summary)
         llm_started = perf_counter()
         response = await invoke_explanation_provider(
             self._explanation_provider,

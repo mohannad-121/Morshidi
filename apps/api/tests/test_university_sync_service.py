@@ -37,6 +37,7 @@ from __future__ import annotations
 
 import asyncio
 from datetime import datetime, timezone
+from decimal import Decimal
 import json
 import logging
 from typing import Any
@@ -100,6 +101,38 @@ def _with_university_envelopes(handler):
                     return response
                 if isinstance(payload, dict) and payload.get("success") is True:
                     return response
+                if suffix == "/student/me" and isinstance(payload, dict):
+                    payload = dict(payload)
+                    payload.setdefault("gpaScale", 100)
+                if suffix == "/student/grades" and isinstance(payload, list):
+                    courses = []
+                    for item in payload:
+                        status = str(item.get("status", "PASSED")).lower()
+                        courses.append({
+                            "courseCode": item["courseCode"],
+                            "name": item.get("courseName", item["courseCode"]),
+                            "credits": item.get("creditHours", 3),
+                            "grade": item.get("numericGrade", 0),
+                            "letterGrade": item.get("letterGrade", "N/A"),
+                            "status": status,
+                        })
+                    return httpx.Response(200, json={
+                        "success": True,
+                        "cumulativeGpa": 93.6,
+                        "gpaScale": 100,
+                        "gradingPolicy": {
+                            "version": "FAKE_UNIVERSITY_GRADING_POLICY_V1",
+                            "gpa": {"numericMin": 0, "numericMax": 100, "scale": 100},
+                            "courseGrade": {"numericMin": 0, "numericMax": 100},
+                        },
+                        "semesters": [{
+                            "term": "2023-1", "termLabel": "First Semester 2023",
+                            "registeredHours": len(courses) * 3,
+                            "passedHours": len(courses) * 3,
+                            "semesterGpa": 93.6, "cumulativeGpa": 93.6,
+                            "courses": courses,
+                        }],
+                    })
                 return httpx.Response(200, json={"success": True, payload_key: payload})
         return response
 
@@ -245,6 +278,15 @@ class MockSupabaseEnvironment:
                 rec = {"id": aid, **payload}
                 self.attempts.append(rec)
                 return httpx.Response(201, json=[rec])
+            elif request.method == "PATCH":
+                target_id = request.url.params.get("id", "").replace("eq.", "")
+                payload = json.loads(request.content)
+                matched = []
+                for attempt in self.attempts:
+                    if attempt["id"] == target_id:
+                        attempt.update(payload)
+                        matched.append(attempt)
+                return httpx.Response(200, json=matched)
             elif request.method == "DELETE":
                 target_id = request.url.params.get("id", "").replace("eq.", "")
                 self.attempts = [a for a in self.attempts if a["id"] != target_id]
@@ -296,8 +338,9 @@ def test_service(mock_supabase: MockSupabaseEnvironment) -> tuple[UniversitySync
                         "admissionYear": 2023,
                         "academicAdvisor": "Test Advisor",
                         "academicStatus": "active",
-                        "gpa": 3.45,
-                        "earnedCredits": 45,
+                        "gpa": 93.6,
+                        "gpaScale": 100,
+                        "earnedCredits": 96,
                     },
                 },
             )
@@ -323,15 +366,21 @@ def test_service(mock_supabase: MockSupabaseEnvironment) -> tuple[UniversitySync
                 200,
                 json={
                     "success": True,
-                    "cumulativeGpa": 3.45,
+                    "cumulativeGpa": 93.6,
+                    "gpaScale": 100,
+                    "gradingPolicy": {
+                        "version": "FAKE_UNIVERSITY_GRADING_POLICY_V1",
+                        "gpa": {"numericMin": 0, "numericMax": 100, "scale": 100},
+                        "courseGrade": {"numericMin": 0, "numericMax": 100},
+                    },
                     "semesters": [
                         {
                             "term": "2023-1",
                             "termLabel": "First Semester 2023",
                             "registeredHours": 6,
                             "passedHours": 6,
-                            "semesterGpa": 3.45,
-                            "cumulativeGpa": 3.45,
+                            "semesterGpa": 93.6,
+                            "cumulativeGpa": 93.6,
                             "courses": [
                                 {
                                     "courseCode": "0200104",
@@ -553,7 +602,8 @@ async def test_11_and_12_profile_created_on_first_sync_and_updated_on_second(tes
     # First sync
     res1 = await service.authenticate_and_sync_student("202310001", "pass")
     assert len(mock_supabase.profiles) == 1
-    assert mock_supabase.profiles[0]["reported_cumulative_gpa"] == "3.45"
+    assert mock_supabase.profiles[0]["reported_cumulative_gpa"] == "93.6"
+    assert Decimal(mock_supabase.profiles[0]["reported_gpa_scale"]) == Decimal("100")
     mock_supabase.auth_users[0]["user_metadata"]["existing_safe_key"] = "preserved"
 
     # Second sync
@@ -570,6 +620,49 @@ async def test_11_and_12_profile_created_on_first_sync_and_updated_on_second(tes
 
 
 @pytest.mark.anyio
+async def test_percentage_gpa_and_explicit_scale_persist_without_conversion(
+    test_service: tuple[UniversitySyncService, httpx.AsyncClient],
+    mock_supabase: MockSupabaseEnvironment,
+) -> None:
+    service, _ = test_service
+    profile = UniversityStudentProfile.model_validate({
+        "studentId": "202310001", "cumulativeGpa": 93.6, "gpaScale": 100,
+    })
+    await service._sync_academic_profile("owner-percentage", TEST_PLAN_ID, profile)
+    assert Decimal(mock_supabase.profiles[0]["reported_cumulative_gpa"]) == Decimal("93.6")
+    assert Decimal(mock_supabase.profiles[0]["reported_gpa_scale"]) == Decimal("100")
+
+
+@pytest.mark.anyio
+async def test_gpa_without_scale_never_defaults_to_four(
+    test_service: tuple[UniversitySyncService, httpx.AsyncClient],
+    mock_supabase: MockSupabaseEnvironment,
+) -> None:
+    service, _ = test_service
+    profile = UniversityStudentProfile.model_validate({
+        "studentId": "202310001", "cumulativeGpa": 93.6,
+    })
+    await service._sync_academic_profile("owner-no-scale", TEST_PLAN_ID, profile)
+    assert mock_supabase.profiles[0]["reported_cumulative_gpa"] is None
+    assert mock_supabase.profiles[0]["reported_gpa_scale"] is None
+    assert mock_supabase.profiles[0]["reported_gpa_scale"] != "4"
+
+
+@pytest.mark.anyio
+async def test_zero_history_null_gpa_does_not_become_zero_or_break_atomic_pair(
+    test_service: tuple[UniversitySyncService, httpx.AsyncClient],
+    mock_supabase: MockSupabaseEnvironment,
+) -> None:
+    service, _ = test_service
+    profile = UniversityStudentProfile.model_validate({
+        "studentId": "future-zero-history", "cumulativeGpa": None, "gpaScale": 100,
+    })
+    await service._sync_academic_profile("owner-zero-history", TEST_PLAN_ID, profile)
+    assert mock_supabase.profiles[0]["reported_cumulative_gpa"] is None
+    assert mock_supabase.profiles[0]["reported_gpa_scale"] is None
+
+
+@pytest.mark.anyio
 async def test_13_14_15_grade_records_mapped_scoped_and_leading_zero(test_service: tuple[UniversitySyncService, httpx.AsyncClient], mock_supabase: MockSupabaseEnvironment) -> None:
     service, _ = test_service
     await service.authenticate_and_sync_student("202310001", "pass")
@@ -583,6 +676,8 @@ async def test_13_14_15_grade_records_mapped_scoped_and_leading_zero(test_servic
     assert calc_attempt["record_source"] == "university_integration"
     assert calc_attempt["performance_provenance"] == "OFFICIAL_VERIFIED"
     assert calc_attempt["performance_verification_state"] == "VERIFIED"
+    assert calc_attempt["performance_source_reference"] == (
+        f"university:{TEST_UNIVERSITY_ID}:grading-policy:FAKE_UNIVERSITY_GRADING_POLICY_V1")
 
     enrollment_attempt = next(
         attempt
@@ -600,11 +695,30 @@ async def test_16_completed_attempts_are_idempotent(test_service: tuple[Universi
     service, _ = test_service
     await service.authenticate_and_sync_student("202310001", "pass")
     attempts_first = len(mock_supabase.attempts)
+    completed = next(attempt for attempt in mock_supabase.attempts
+                     if attempt["course_id"] == "c1000000-0000-0000-0000-000000000001")
+    original_id = completed["id"]
+    original_sequence = completed["attempt_sequence"]
+    completed.update({
+        "raw_numeric_grade": None,
+        "performance_provenance": "UNVERIFIED",
+        "performance_verification_state": "UNVERIFIED",
+        "performance_source_reference": None,
+    })
 
     await service.authenticate_and_sync_student("202310001", "pass")
     attempts_second = len(mock_supabase.attempts)
 
     assert attempts_first == attempts_second
+    reconciled = next(attempt for attempt in mock_supabase.attempts
+                      if attempt["course_id"] == "c1000000-0000-0000-0000-000000000001")
+    assert reconciled["id"] == original_id
+    assert reconciled["attempt_sequence"] == original_sequence
+    assert reconciled["raw_numeric_grade"] == "95"
+    assert reconciled["performance_provenance"] == "OFFICIAL_VERIFIED"
+    assert reconciled["performance_verification_state"] == "VERIFIED"
+    assert reconciled["performance_source_reference"].endswith(
+        ":grading-policy:FAKE_UNIVERSITY_GRADING_POLICY_V1")
 
 
 @pytest.mark.anyio

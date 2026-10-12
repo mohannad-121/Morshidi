@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from decimal import Decimal
 from typing import Any, Literal
 
 from pydantic import (
@@ -12,6 +13,16 @@ from pydantic import (
     StrictInt,
     StrictStr,
     model_validator,
+)
+
+from app.university_sync.grading_policy import (
+    FAKE_UNIVERSITY_COURSE_GRADE_MAX,
+    FAKE_UNIVERSITY_COURSE_GRADE_MIN,
+    FAKE_UNIVERSITY_GPA_MAX,
+    FAKE_UNIVERSITY_GPA_MIN,
+    FAKE_UNIVERSITY_GPA_SCALE,
+    FAKE_UNIVERSITY_GRADING_POLICY_V1,
+    strict_decimal,
 )
 
 
@@ -107,8 +118,18 @@ class UniversityStudentPayload(BaseModel):
     admission_year: StrictInt = Field(alias="admissionYear")
     academic_advisor: StrictStr = Field(alias="academicAdvisor")
     academic_status: StrictStr = Field(alias="academicStatus")
-    gpa: StrictNumber
+    gpa: StrictNumber | None
+    gpa_scale: StrictNumber = Field(alias="gpaScale")
     earned_credits: StrictNumber = Field(alias="earnedCredits")
+
+    @model_validator(mode="after")
+    def validate_gpa_numbers(self) -> "UniversityStudentPayload":
+        scale = strict_decimal(self.gpa_scale, "student GPA scale")
+        if scale <= 0:
+            raise ValueError("student GPA scale must be positive")
+        if self.gpa is not None:
+            strict_decimal(self.gpa, "student GPA")
+        return self
 
 
 class UniversityStudentResponse(BaseModel):
@@ -225,6 +246,53 @@ class UniversitySemesterGradeCourse(BaseModel):
     status: Literal["passed", "failed", "withdrawn"]
 
 
+class UniversityNumericRange(BaseModel):
+    """Strict numeric bounds supplied by the university contract."""
+
+    model_config = ConfigDict(extra="forbid", populate_by_name=True)
+
+    numeric_min: StrictNumber = Field(alias="numericMin")
+    numeric_max: StrictNumber = Field(alias="numericMax")
+
+
+class UniversityGpaPolicy(UniversityNumericRange):
+    scale: StrictNumber
+
+
+class UniversityCourseGradePolicy(UniversityNumericRange):
+    pass
+
+
+class UniversityGradingPolicy(BaseModel):
+    """The one exact upstream policy version currently supported by Morshidi."""
+
+    model_config = ConfigDict(extra="forbid", populate_by_name=True)
+
+    version: Literal["FAKE_UNIVERSITY_GRADING_POLICY_V1"]
+    gpa: UniversityGpaPolicy
+    course_grade: UniversityCourseGradePolicy = Field(alias="courseGrade")
+
+    @model_validator(mode="after")
+    def validate_exact_v1_semantics(self) -> "UniversityGradingPolicy":
+        actual = (
+            strict_decimal(self.gpa.numeric_min, "gradingPolicy.gpa.numericMin"),
+            strict_decimal(self.gpa.numeric_max, "gradingPolicy.gpa.numericMax"),
+            strict_decimal(self.gpa.scale, "gradingPolicy.gpa.scale"),
+            strict_decimal(self.course_grade.numeric_min, "gradingPolicy.courseGrade.numericMin"),
+            strict_decimal(self.course_grade.numeric_max, "gradingPolicy.courseGrade.numericMax"),
+        )
+        expected = (
+            FAKE_UNIVERSITY_GPA_MIN,
+            FAKE_UNIVERSITY_GPA_MAX,
+            FAKE_UNIVERSITY_GPA_SCALE,
+            FAKE_UNIVERSITY_COURSE_GRADE_MIN,
+            FAKE_UNIVERSITY_COURSE_GRADE_MAX,
+        )
+        if self.version != FAKE_UNIVERSITY_GRADING_POLICY_V1 or actual != expected:
+            raise ValueError("grading policy does not match the exact supported V1 contract")
+        return self
+
+
 class UniversitySemesterGrades(BaseModel):
     """Strict semester object nested inside the real grades response."""
 
@@ -246,7 +314,53 @@ class UniversityGradesResponse(BaseModel):
 
     success: Literal[True]
     cumulative_gpa: StrictInt | StrictFloat = Field(alias="cumulativeGpa")
+    gpa_scale: StrictInt | StrictFloat = Field(alias="gpaScale")
+    grading_policy: UniversityGradingPolicy = Field(alias="gradingPolicy")
     semesters: list[UniversitySemesterGrades]
+
+    @model_validator(mode="after")
+    def validate_values_against_policy(self) -> "UniversityGradesResponse":
+        policy = self.grading_policy
+        gpa_min = strict_decimal(policy.gpa.numeric_min, "GPA minimum")
+        gpa_max = strict_decimal(policy.gpa.numeric_max, "GPA maximum")
+        grade_min = strict_decimal(policy.course_grade.numeric_min, "course-grade minimum")
+        grade_max = strict_decimal(policy.course_grade.numeric_max, "course-grade maximum")
+        scale = strict_decimal(self.gpa_scale, "grades GPA scale")
+        if scale != strict_decimal(policy.gpa.scale, "policy GPA scale"):
+            raise ValueError("grades GPA scale contradicts grading policy")
+        gpas = [("cumulative GPA", self.cumulative_gpa)]
+        for semester in self.semesters:
+            gpas.extend((("semester GPA", semester.semester_gpa),
+                         ("semester cumulative GPA", semester.cumulative_gpa)))
+            for course in semester.courses:
+                grade = strict_decimal(course.grade, "course numeric grade")
+                if not grade_min <= grade <= grade_max:
+                    raise ValueError("course numeric grade is outside grading-policy bounds")
+        for field, raw in gpas:
+            value = strict_decimal(raw, field)
+            if not gpa_min <= value <= gpa_max:
+                raise ValueError(f"{field} is outside grading-policy bounds")
+        return self
+
+
+class UniversityGradesSnapshot(BaseModel):
+    """Validated academic-grade snapshot retained after wire-contract parsing."""
+
+    model_config = ConfigDict(arbitrary_types_allowed=True)
+
+    cumulative_gpa: Decimal
+    gpa_scale: Decimal
+    grading_policy: UniversityGradingPolicy
+    records: list[UniversityGradeRecord]
+
+    def __iter__(self):
+        return iter(self.records)
+
+    def __len__(self) -> int:
+        return len(self.records)
+
+    def __getitem__(self, index: int) -> UniversityGradeRecord:
+        return self.records[index]
 
 
 class UniversityEnrollmentRecord(BaseModel):

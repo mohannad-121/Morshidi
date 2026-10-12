@@ -15,15 +15,17 @@ from app.rules.models import (AttemptOutcome, CanTakeCatalog, CourseCatalogStatu
 from app.student.models import (PerformanceProvenance, PerformanceVerificationState,
                                 StudentAcademicState, StudentCourseAttemptRecord)
 from app.student_intelligence.adaptive import (GradePolicy, WEIGHTS, build_adaptive_courses)
+from app.university_sync.grading_policy import grading_policy_source_reference
 
 PLAN = "10000000-0000-0000-0000-000000000005"
-INSTITUTION = "institution-fixture"
+INSTITUTION = "10000000-0000-0000-0000-000000000001"
 NOW = datetime(2026, 1, 1, tzinfo=timezone.utc)
 
 
 def _snapshot(grade: Decimal | None, *, owner: str = "student-a", verified: bool = True,
               all_codes: tuple[str, ...] = ("1501110", "1501221", "1505311"),
-              synthetic_scale: bool = True, fresh_until: datetime | None = NOW):
+              synthetic_scale: bool = True, fresh_until: datetime | None = NOW,
+              fused_skill_scores: dict[str, int] | None = None):
     group = ProgressRequirementGroup("group", PLAN, "MAJOR_REQUIRED", "Required", "Required",
                                      "major", RequirementType.REQUIRED, Decimal("132"), 1)
     progress_catalog = AcademicProgressCatalog(
@@ -49,14 +51,17 @@ def _snapshot(grade: Decimal | None, *, owner: str = "student-a", verified: bool
                                 else PerformanceProvenance.STUDENT_RECORD),
         performance_verification_state=(PerformanceVerificationState.VERIFIED if verified
                                         else PerformanceVerificationState.UNVERIFIED),
+        performance_source_reference=(grading_policy_source_reference(
+            INSTITUTION, "FAKE_UNIVERSITY_GRADING_POLICY_V1") if verified else None),
     ),) if attempts else ())
     progress = calculate_academic_progress(progress_catalog, attempts)
     recommendations = recommend_courses(progress_catalog, eligibility_catalog, attempts)
-    policy = (GradePolicy(INSTITUTION, PLAN, "MODELED_GRADE_SCALE_V1", "SYNTHETIC_ONLY",
+    policy = (GradePolicy(INSTITUTION, PLAN, "FAKE_UNIVERSITY_GRADING_POLICY_V1", "SYNTHETIC_ONLY",
                           Decimal(0), Decimal(100)) if synthetic_scale else None)
     return build_adaptive_courses(state, INSTITUTION, progress_catalog, eligibility_catalog,
                                   progress, recommendations, records, generated_at=NOW,
-                                  grade_policy=policy, source_fresh_until=fresh_until)
+                                  grade_policy=policy, source_fresh_until=fresh_until,
+                                  fused_skill_scores=fused_skill_scores)
 
 
 def test_verified_grades_change_student_difficulty_without_changing_general_model():
@@ -71,7 +76,7 @@ def test_verified_grades_change_student_difficulty_without_changing_general_mode
     assert strong.profile.earned_completed_credits == Decimal("3")
     assert strong.profile.cumulative_gpa == Decimal("3.5")
     assert strong.profile.gpa_provenance == "REPORTED_NOT_RECALCULATED"
-    assert strong.profile.grade_scale_version == "MODELED_GRADE_SCALE_V1"
+    assert strong.profile.grade_scale_version == "FAKE_UNIVERSITY_GRADING_POLICY_V1"
     assert strong.profile.grade_scale_provenance == "SYNTHETIC_ONLY"
 
 
@@ -120,3 +125,16 @@ def test_every_plan12_seed_course_receives_both_modeled_difficulties():
     extended = _snapshot(None, all_codes=(*codes, added_code))
     assert {item.course_code for item in extended.courses} == {*codes, added_code}
     assert next(item for item in extended.courses if item.course_code == added_code).skill_profile.provenance == "MODELED_FALLBACK"
+
+
+def test_completed_diagnostic_can_only_rerank_the_unchanged_eligible_set():
+    before = _snapshot(None, synthetic_scale=False)
+    after = _snapshot(None, synthetic_scale=False,
+                      fused_skill_scores={"PROGRAMMING": 25, "DATA_STRUCTURES": 35})
+    before_codes = {item.course_code for item in before.recommendations}
+    after_codes = {item.course_code for item in after.recommendations}
+    assert before_codes == after_codes
+    assert before.eligible_set_version == after.eligible_set_version
+    assert "1501110" not in after_codes
+    assert "1505311" not in after_codes
+    assert all(item.eligible for item in after.recommendations)

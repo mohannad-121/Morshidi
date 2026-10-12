@@ -50,8 +50,13 @@ from app.university_sync.models import (
     UniversityCourse,
     UniversityEnrollmentRecord,
     UniversityGradeRecord,
+    UniversityGradesSnapshot,
     UniversityLoginResponse,
     UniversityStudentProfile,
+)
+from app.university_sync.grading_policy import (
+    grading_policy_source_reference,
+    strict_decimal,
 )
 
 logger = logging.getLogger(__name__)
@@ -96,6 +101,27 @@ def _to_decimal(value: Any) -> Decimal | None:
         return Decimal(str(value))
     except (InvalidOperation, ValueError, TypeError):
         return None
+
+
+def _validate_snapshot_consistency(
+    profile: UniversityStudentProfile,
+    grades: UniversityGradesSnapshot,
+) -> None:
+    """Validate the two authoritative GPA projections before any write."""
+    if profile.gpa_scale is None:
+        raise UniversityProtocolError("University student profile omitted GPA scale")
+    profile_scale = strict_decimal(profile.gpa_scale, "profile GPA scale")
+    if profile_scale != grades.gpa_scale:
+        raise UniversityProtocolError("University profile and grades GPA scales conflict")
+    if profile.cumulative_gpa is not None:
+        profile_gpa = strict_decimal(profile.cumulative_gpa, "profile cumulative GPA")
+        policy = grades.grading_policy.gpa
+        minimum = strict_decimal(policy.numeric_min, "policy GPA minimum")
+        maximum = strict_decimal(policy.numeric_max, "policy GPA maximum")
+        if not minimum <= profile_gpa <= maximum:
+            raise UniversityProtocolError("University profile GPA is outside policy bounds")
+        if profile_gpa != grades.cumulative_gpa:
+            raise UniversityProtocolError("University profile and grades cumulative GPA values conflict")
 
 
 class UniversitySyncService:
@@ -183,7 +209,7 @@ class UniversitySyncService:
 
         # Phase 2: Concurrent Upstream Data Fetch (Fail-closed)
         try:
-            profile_data, courses_data, grades_data, enrollments_data, plan_data = await asyncio.gather(
+            profile_data, courses_data, grades_snapshot, enrollments_data, plan_data = await asyncio.gather(
                 self._contract_client.get_student_me(integration_token),
                 self._contract_client.get_student_courses(integration_token),
                 self._contract_client.get_student_grades(integration_token),
@@ -195,6 +221,13 @@ class UniversitySyncService:
         except Exception as err:
             logger.error("Failed to fetch upstream university data: %s", err)
             raise UniversityUnavailableError(f"Failed to fetch student data from university: {err}") from err
+
+        # Validate the complete grading contract and cross-endpoint GPA snapshot
+        # before identity, profile, attempt, or synchronization writes.
+        _validate_snapshot_consistency(profile_data, grades_snapshot)
+        grades_data = grades_snapshot.records
+        policy_source_reference = grading_policy_source_reference(
+            self._university_id, grades_snapshot.grading_policy.version)
 
         # Phase 3: Resolve Study Plan & Courses in Catalog (Fail-closed BEFORE any writes)
         resolved_study_plan_id = await self._resolve_study_plan(profile_data, plan_data)
@@ -219,6 +252,7 @@ class UniversitySyncService:
             grades=grades_data,
             enrollments=enrollments_data,
             course_map=course_map,
+            policy_source_reference=policy_source_reference,
         )
 
         # Phase 7: Update last_synced_at on Identity Record
@@ -375,9 +409,12 @@ class UniversitySyncService:
         """Upsert student_academic_profiles with authoritative upstream values."""
         gpa = _to_decimal(profile_data.cumulative_gpa)
         scale = _to_decimal(profile_data.gpa_scale)
-        # Check constraint: if gpa is not null, scale must be not null
-        if gpa is not None and scale is None:
-            scale = Decimal("4.000")
+        # GPA and course-grade scales are separate upstream contracts. A GPA
+        # without its explicit scale is unusable. The existing profile schema
+        # stores the pair atomically, so zero-history GPA null remains a null
+        # pair rather than being fabricated as zero or rejected by the DB.
+        if gpa is None or scale is None:
+            gpa = scale = None
         credits_earned = _to_decimal(profile_data.earned_credits)
 
         url = f"{self._supabase_url}/rest/v1/student_academic_profiles"
@@ -427,6 +464,7 @@ class UniversitySyncService:
         grades: list[UniversityGradeRecord],
         enrollments: list[UniversityEnrollmentRecord],
         course_map: dict[str, str],
+        policy_source_reference: str,
     ) -> None:
         """Synchronize attempts and active enrollments idempotently."""
         url = f"{self._supabase_url}/rest/v1/student_course_attempts"
@@ -465,20 +503,15 @@ class UniversitySyncService:
                 None,
             )
 
-            if match:
-                # Already recorded completed attempt; ensure outcome matches
-                continue
-
-            # Assign next attempt sequence
-            next_seq = max([int(a.get("attempt_sequence") or 0) for a in existing_list], default=0) + 1
-
-            payload = {
-                "profile_id": profile_id,
-                "course_id": cid,
+            reported_grade_text = (
+                grade.letter_grade
+                if grade.letter_grade is not None
+                else (str(grade.numeric_grade) if grade.numeric_grade is not None else None)
+            )
+            authoritative = {
                 "outcome": (grade.status or "PASSED").upper(),
-                "attempt_sequence": next_seq,
                 "term_label": term_clean or None,
-                "reported_grade_text": grade.letter_grade or str(grade.numeric_grade or ""),
+                "reported_grade_text": reported_grade_text,
                 "record_source": "university_integration",
                 "raw_numeric_grade": str(grade.numeric_grade) if grade.numeric_grade is not None else None,
                 "raw_letter_grade": grade.letter_grade,
@@ -488,7 +521,32 @@ class UniversitySyncService:
                 "attempt_credit_hours": str(grade.credit_hours) if grade.credit_hours is not None else None,
                 "performance_provenance": "OFFICIAL_VERIFIED",
                 "performance_verification_state": "VERIFIED",
-                "performance_source_reference": f"university:{self._university_id}",
+                "performance_source_reference": policy_source_reference,
+            }
+
+            if match:
+                # Reconcile the same authoritative attempt in place. Identity,
+                # sequence, and history position remain stable across corrections.
+                update = {**authoritative, "attempt_sequence": match.get("attempt_sequence")}
+                patch_resp = await self._client.patch(
+                    url,
+                    params={"id": f"eq.{match['id']}"},
+                    headers=self._headers(),
+                    json=update,
+                    timeout=10,
+                )
+                patch_resp.raise_for_status()
+                match.update(update)
+                continue
+
+            # Assign next attempt sequence
+            next_seq = max([int(a.get("attempt_sequence") or 0) for a in existing_list], default=0) + 1
+
+            payload = {
+                "profile_id": profile_id,
+                "course_id": cid,
+                "attempt_sequence": next_seq,
+                **authoritative,
             }
             ins_resp = await self._client.post(url, headers=self._headers(), json=payload, timeout=10)
             ins_resp.raise_for_status()
@@ -529,7 +587,7 @@ class UniversitySyncService:
                     "attempt_credit_hours": str(enrollment.credit_hours) if enrollment.credit_hours is not None else None,
                     "performance_provenance": "OFFICIAL_VERIFIED",
                     "performance_verification_state": "VERIFIED",
-                    "performance_source_reference": f"university:{self._university_id}",
+                    "performance_source_reference": policy_source_reference,
                 }
                 ins_resp = await self._client.post(url, headers=self._headers(), json=payload, timeout=10)
                 ins_resp.raise_for_status()

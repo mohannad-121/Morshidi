@@ -12,6 +12,7 @@ import type {
   AcademicProfileResponse,
   AcademicProgressResponse,
   DashboardError,
+  StudentIntelligenceProfileV2,
 } from "@/lib/api/student-types";
 import { Badge } from "@/components/ui/Badge";
 import { StatCard } from "@/components/ui/StatCard";
@@ -102,6 +103,7 @@ export default function StudentPage({ client: injectedClient }: StudentPageProps
   const auth = useAuth();
   const [profile, setProfile] = useState<AcademicProfileResponse | null>(null);
   const [progress, setProgress] = useState<AcademicProgressResponse | null>(null);
+  const [intelligence, setIntelligence] = useState<StudentIntelligenceProfileV2 | null>(null);
   const [dashboardError, setDashboardError] = useState<DashboardError | null>(null);
   const [isReloading, setIsReloading] = useState(false);
   const [refreshIndex, setRefreshIndex] = useState(0);
@@ -203,6 +205,16 @@ export default function StudentPage({ client: injectedClient }: StudentPageProps
     return () => {
       ignore = true;
     };
+  }, [auth.status, client, refreshIndex]);
+
+  useEffect(() => {
+    if (auth.status !== "authenticated" || !client) return;
+    let ignore = false;
+    void client.request("/api/v1/me/student-intelligence", { cache: "no-store" })
+      .then(parseResponse<StudentIntelligenceProfileV2>)
+      .then(value => { if (!ignore) setIntelligence(value); })
+      .catch(() => { if (!ignore) setIntelligence(null); });
+    return () => { ignore = true; };
   }, [auth.status, client, refreshIndex]);
 
   if (auth.isLoading) {
@@ -319,6 +331,12 @@ export default function StudentPage({ client: injectedClient }: StudentPageProps
       {/* Data Loaded */}
       {!loading && !activeError && profile && progress ? (
         <div className="space-y-8">
+          {intelligence ? <section className="rounded-3xl border border-amber-400/30 bg-stone-950 p-6 text-white shadow-lg">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+              <div><p className="text-xs font-bold text-amber-400">بصمتي الأكاديمية</p><h2 className="mt-2 text-xl font-black">{intelligence.diagnostic_recommended ? "ساعد مرشدي يتعرّف عليك بشكل أفضل" : `مرشدي يعرف أداءك من ${intelligence.verified_grade_count} علامة أكاديمية موثقة`}</h2><p className="mt-2 text-sm text-stone-300">تخصيص مفسّر لا يغيّر الأهلية أو المتطلبات الأكاديمية.</p></div>
+              <Link href={intelligence.diagnostic_recommended ? "/student/diagnostic" : "/student/intelligence"} className="inline-flex min-h-11 shrink-0 items-center justify-center rounded-xl bg-amber-400 px-5 py-3 font-bold text-stone-950 focus-visible:ring-2 focus-visible:ring-white">{intelligence.diagnostic_recommended ? "ابدأ الاختبار السريع" : "عرض بصمتي"}</Link>
+            </div>
+          </section> : null}
           {/* Quick Stats Grid */}
           <div className="dashboard-journey" aria-label="ملخص الرحلة الأكاديمية">
             <StatCard

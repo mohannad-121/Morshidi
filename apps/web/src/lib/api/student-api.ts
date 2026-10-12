@@ -33,6 +33,9 @@ import type {
   StudentDecisionHistoryDetail,
   SubmitIntentRequest,
   WithdrawIntentRequest,
+  StudentIntelligenceProfileV2,
+  DiagnosticStatus,
+  DiagnosticSession,
 } from "@/lib/api/student-types";
 
 async function parseJson<T>(response: Response): Promise<T> {
@@ -120,6 +123,39 @@ export class StudentApiService {
   async getAdaptiveCourseIntelligence(): Promise<AdaptiveCourseResponse> {
     const res = await this.client.request("/api/v1/me/adaptive-course-intelligence", { cache: "no-store" });
     return parseJson<AdaptiveCourseResponse>(res);
+  }
+
+  async getStudentIntelligence(): Promise<StudentIntelligenceProfileV2> {
+    const res = await this.client.request("/api/v1/me/student-intelligence", { cache: "no-store" });
+    return parseJson<StudentIntelligenceProfileV2>(res);
+  }
+
+  async getDiagnosticStatus(): Promise<DiagnosticStatus> {
+    const res = await this.client.request("/api/v1/me/diagnostic/status", { cache: "no-store" });
+    return parseJson<DiagnosticStatus>(res);
+  }
+
+  async startDiagnostic(): Promise<DiagnosticSession> {
+    const res = await this.client.request("/api/v1/me/diagnostic/start", { method: "POST" });
+    return parseJson<DiagnosticSession>(res);
+  }
+
+  async resumeDiagnostic(sessionId: string): Promise<DiagnosticSession> {
+    const res = await this.client.request(`/api/v1/me/diagnostic/${encodeURIComponent(sessionId)}/next`, { cache: "no-store" });
+    return parseJson<DiagnosticSession>(res);
+  }
+
+  async answerDiagnostic(sessionId: string, questionId: string, selectedOption: string): Promise<DiagnosticSession> {
+    const res = await this.client.request(`/api/v1/me/diagnostic/${encodeURIComponent(sessionId)}/answer`, {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ question_id: questionId, selected_option: selectedOption }),
+    });
+    return parseJson<DiagnosticSession>(res);
+  }
+
+  async abandonDiagnostic(sessionId: string): Promise<void> {
+    const res = await this.client.request(`/api/v1/me/diagnostic/${encodeURIComponent(sessionId)}/abandon`, { method: "POST" });
+    if (res.status !== 204 && !res.ok) throw new Error(`HTTP_${res.status}`);
   }
 
   async getRoadmap(): Promise<AcademicRoadmapResponse> {

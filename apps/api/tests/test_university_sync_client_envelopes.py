@@ -76,8 +76,8 @@ def _grade_semester(
         "termLabel": "First Semester",
         "registeredHours": 15,
         "passedHours": 15,
-        "semesterGpa": 3.5,
-        "cumulativeGpa": 3.4,
+        "semesterGpa": 93.6,
+        "cumulativeGpa": 93.6,
         "courses": [_grade_course()] if courses is None else courses,
     }
 
@@ -85,7 +85,13 @@ def _grade_semester(
 def _grades_response(*, semesters: object | None = None) -> dict[str, object]:
     return {
         "success": True,
-        "cumulativeGpa": 3.4,
+        "cumulativeGpa": 93.6,
+        "gpaScale": 100,
+        "gradingPolicy": {
+            "version": "FAKE_UNIVERSITY_GRADING_POLICY_V1",
+            "gpa": {"numericMin": 0, "numericMax": 100, "scale": 100},
+            "courseGrade": {"numericMin": 0, "numericMax": 100},
+        },
         "semesters": [_grade_semester()] if semesters is None else semesters,
     }
 
@@ -104,7 +110,8 @@ def _student_response() -> dict[str, object]:
             "admissionYear": 2023,
             "academicAdvisor": "Test Advisor",
             "academicStatus": "active",
-            "gpa": 3.4,
+            "gpa": 93.6,
+            "gpaScale": 100,
             "earnedCredits": 45,
         },
     }
@@ -200,8 +207,27 @@ async def test_student_me_unwraps_student_envelope() -> None:
 
     assert result.student_id == "0020310001"
     assert result.name == "Test Student"
-    assert result.cumulative_gpa == 3.4
+    assert result.cumulative_gpa == 93.6
     assert result.earned_credits == 45
+
+
+@pytest.mark.anyio
+async def test_student_me_propagates_explicit_percentage_gpa_scale() -> None:
+    response = _student_response()
+    response["student"]["gpa"] = 93.6
+    response["student"]["gpaScale"] = 100
+    result = await _call_with_response(response, lambda client: client.get_student_me("token"))
+    assert result.cumulative_gpa == 93.6
+    assert result.gpa_scale == 100
+
+
+@pytest.mark.anyio
+async def test_student_me_does_not_invent_scale_for_gpa_without_scale() -> None:
+    response = _student_response()
+    response["student"]["gpa"] = 93.6
+    response["student"].pop("gpaScale")
+    with pytest.raises(UniversityProtocolError, match="Malformed university student profile"):
+        await _call_with_response(response, lambda client: client.get_student_me("token"))
 
 
 @pytest.mark.anyio
@@ -307,11 +333,11 @@ async def test_courses_reject_duplicate_course_codes() -> None:
 @pytest.mark.anyio
 async def test_grades_unwraps_real_semesters_envelope() -> None:
     result = await _call_with_response(
-        {"success": True, "cumulativeGpa": 0, "semesters": []},
+        _grades_response(semesters=[]),
         lambda client: client.get_student_grades("token"),
     )
 
-    assert result == []
+    assert result.records == []
 
 
 @pytest.mark.anyio
@@ -387,7 +413,7 @@ async def test_real_semester_with_no_courses_maps_to_no_records() -> None:
         lambda client: client.get_student_grades("token"),
     )
 
-    assert result == []
+    assert result.records == []
 
 
 @pytest.mark.anyio
@@ -559,7 +585,6 @@ async def test_success_false_is_rejected() -> None:
         ({"success": True, "data": {"studentId": "202310001"}}, lambda client: client.get_student_me("token")),
         ({"success": True, "profile": {"studentId": "202310001"}}, lambda client: client.get_student_me("token")),
         ({"success": True, "data": [{"courseCode": "0200104"}]}, lambda client: client.get_student_courses("token")),
-        ({"success": True, "data": [{"courseCode": "0200104"}]}, lambda client: client.get_student_grades("token")),
         ({"success": True, "data": [{"courseCode": "0200104"}]}, lambda client: client.get_student_enrollments("token")),
         ({"success": True, "academicPlan": {"planId": "12"}}, lambda client: client.get_student_academic_plan("token")),
         ({"success": True, "data": {"planId": "12"}}, lambda client: client.get_student_academic_plan("token")),

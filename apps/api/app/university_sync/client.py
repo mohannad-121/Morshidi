@@ -30,11 +30,13 @@ from app.university_sync.models import (
     UniversityEnrollmentsResponse,
     UniversityGradeRecord,
     UniversityGradesResponse,
+    UniversityGradesSnapshot,
     UniversityLoginResponse,
     UniversitySemesterGrades,
     UniversityStudentProfile,
     UniversityStudentResponse,
 )
+from app.university_sync.grading_policy import strict_decimal
 
 logger = logging.getLogger(__name__)
 
@@ -201,11 +203,12 @@ class UniversityContractClient:
                     academic_status=student.academic_status,
                     academic_advisor=student.academic_advisor,
                     cumulative_gpa=student.gpa,
+                    gpa_scale=student.gpa_scale,
                     earned_credits=student.earned_credits,
                 )
             return UniversityStudentProfile.model_validate(payload)
         except (ValidationError, ValueError) as err:
-            raise UniversityProtocolError(f"Malformed university student profile: {err}") from err
+            raise UniversityProtocolError("Malformed university student profile contract") from err
 
     async def get_student_courses(self, token: str) -> list[UniversityCourse]:
         data = await self._get_authorized("/api/integrations/morshidi/v1/student/courses", token)
@@ -250,19 +253,25 @@ class UniversityContractClient:
                 )
         return flattened
 
-    async def get_student_grades(self, token: str) -> list[UniversityGradeRecord]:
+    async def get_student_grades(self, token: str) -> UniversityGradesSnapshot:
         data = await self._get_authorized("/api/integrations/morshidi/v1/student/grades", token)
-        payload = self._unwrap_envelope(
+        self._unwrap_envelope(
             data,
             payload_keys=("semesters", "grades", "data"),
         )
         try:
-            if "semesters" in data:
-                response = UniversityGradesResponse.model_validate(data)
-                return self._flatten_semester_grades(response.semesters)
-            return TypeAdapter(list[UniversityGradeRecord]).validate_python(payload)
+            # Official grade evidence is accepted only from the complete,
+            # policy-bearing authoritative response. Legacy list envelopes
+            # cannot establish policy provenance and therefore fail closed.
+            response = UniversityGradesResponse.model_validate(data)
+            return UniversityGradesSnapshot(
+                cumulative_gpa=strict_decimal(response.cumulative_gpa, "cumulative GPA"),
+                gpa_scale=strict_decimal(response.gpa_scale, "GPA scale"),
+                grading_policy=response.grading_policy,
+                records=self._flatten_semester_grades(response.semesters),
+            )
         except (ValidationError, ValueError) as err:
-            raise UniversityProtocolError(f"Malformed university grades: {err}") from err
+            raise UniversityProtocolError("Malformed university grades contract") from err
 
     @staticmethod
     def _flatten_semester_grades(

@@ -675,6 +675,49 @@ export interface CreditComparisonResponse {
     course_path?: StrategyDegreePathResponse | null }>;
 }
 
+export interface StudentSkillDimensionV2 {
+  skill_id: string; score: number | null; confidence: string; evidence_quality: string;
+  university_evidence_count: number; diagnostic_evidence_count: number;
+  contributing_courses: string[]; contributing_question_domains: string[];
+  source_types: string[]; reason_codes: string[];
+}
+
+export interface StudentIntelligenceProfileV2 {
+  student_id: string; institution_id: string; study_plan_id: string;
+  intelligence_model_version: string; taxonomy_version: string; fusion_policy_version: string;
+  generated_at: string; source_snapshot_version: string;
+  cumulative_gpa: number | null; gpa_scale: number | null; earned_credits: number;
+  verified_grade_count: number; completed_course_count: number; failed_course_count: number;
+  repeated_course_count: number; current_course_count: number; academic_progress_band: string;
+  performance_trend: string; evidence_quality: string; cold_start_status: string;
+  diagnostic_recommended: boolean; diagnostic_completed: boolean;
+  latest_assessment_version: string | null; latest_completed_at: string | null;
+  skills: StudentSkillDimensionV2[]; strengths: string[]; development_areas: string[];
+  preferences: Record<string, unknown>; limitations: string[];
+}
+
+export interface DiagnosticOption {
+  option_id: string; text_ar: string; text_en: string;
+}
+
+export interface DiagnosticQuestion {
+  question_id: string; assessment_version: string; domain: string;
+  prompt_ar: string; prompt_en: string; options: DiagnosticOption[];
+}
+
+export interface DiagnosticSession {
+  session_id: string; status: "IN_PROGRESS" | "COMPLETED" | "ABANDONED";
+  assessment_version: string; answered_count: number; maximum_questions: number;
+  question: DiagnosticQuestion | null; results?: Array<Record<string, unknown>> | null;
+  intelligence_profile?: StudentIntelligenceProfileV2 | null;
+}
+
+export interface DiagnosticStatus {
+  onboarding_status: "NOT_STARTED" | "IN_PROGRESS" | "COMPLETED";
+  diagnostic_completed: boolean; active_session_id: string | null;
+  latest_assessment_version: string | null; latest_completed_at: string | null;
+}
+
 export interface StudentPolicySearchResult {
   document_id: string; document_code: string; document_title: string; category: string;
   version_id: string; version_tag: string; status: string; source_url?: string | null;

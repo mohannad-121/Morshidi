@@ -120,6 +120,7 @@ def select_explanation_language(message: str) -> ExplanationLanguage:
 def build_explanation_input(
     message: str,
     result: StructuredAdvisorResult,
+    intelligence_summary: tuple[str, ...] = (),
 ) -> AdvisorExplanationInput:
     payload = _safe_value(result.authoritative_payload)
     payload_json = json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
@@ -143,6 +144,7 @@ def build_explanation_input(
         )
     elif result.intent is AdvisorIntent.SEMESTER_PLANNING:
         trace_values.append("modeled_limitations=ACADEMIC_STRUCTURE_ONLY")
+    trace_values.extend(f"student_intelligence={item}" for item in intelligence_summary)
     trace = tuple(trace_values)
     codes = set(result.trace.course_codes)
     for item in result.evidence:

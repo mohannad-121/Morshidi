@@ -38,7 +38,12 @@ from app.progress.models import AcademicProgress, AcademicProgressCatalog
 from app.rules.project_credits import is_plan12_project, passed_plan_credits
 from app.degree_path.credit_timeline import (AcademicTerm, CreditTimeline, CreditComparison, ComparisonMode,
                                              simulate_credit_timeline, compare_credit_timelines)
-from app.student_intelligence.adaptive import AdaptiveCourseResult, GradePolicy, build_adaptive_courses
+from app.student_intelligence.adaptive import (AdaptiveCourseResult, GradePolicy, GradePolicyRegistry,
+                                                build_adaptive_courses)
+from app.student_intelligence.diagnostic import ASSESSMENT_VERSION, DiagnosticDomain, DiagnosticDomainResult
+from app.student_intelligence.diagnostic_repository import SupabaseDiagnosticRepository
+from app.student_intelligence.profile_v2 import (StudentIntelligenceProfileV2,
+                                                 build_student_intelligence_profile_v2)
 from app.recommendations.engine import recommend_courses
 from app.recommendations.models import RecommendationResult
 from app.roadmap.engine import AcademicRoadmap, build_roadmap, overlay_from_degree_path
@@ -65,13 +70,19 @@ class StudentService:
         eligibility: EligibilityService,
         catalog_repository: AcademicCatalogRepository,
         academic_compute_limiter: AcademicComputeLimiter | None = None,
-        grade_policy: GradePolicy | None = None,
+        grade_policies: GradePolicyRegistry | None = None,
+        diagnostic_repository: SupabaseDiagnosticRepository | None = None,
     ) -> None:
         self._repository = repository
         self._eligibility = eligibility
         self._catalog_repository = catalog_repository
         self._academic_compute_limiter = academic_compute_limiter or AcademicComputeLimiter()
-        self._grade_policy = grade_policy
+        self._grade_policies = grade_policies or GradePolicyRegistry()
+        self._diagnostic_repository = diagnostic_repository
+
+    def _grade_policy_for(self, institution_id: str, study_plan_id: str) -> GradePolicy | None:
+        """Resolve only an explicitly configured policy for this exact tenant/plan scope."""
+        return self._grade_policies.resolve(institution_id, study_plan_id)
 
     async def get_profile(self, owner: str) -> StudentAcademicState:
         return await self._repository.load_student_academic_state(owner)
@@ -186,6 +197,27 @@ class StudentService:
             self._catalog_repository.load_plan_eligibility_catalog(state.study_plan_id),
             self.list_attempts(owner),
         )
+        diagnostic_results: tuple[DiagnosticDomainResult, ...] = ()
+        diagnostic_version = None
+        diagnostic_completed_at = None
+        if self._diagnostic_repository is not None:
+            session, rows = await self._diagnostic_repository.latest_completed(
+                owner, state.study_plan_id, ASSESSMENT_VERSION)
+            if session is not None:
+                from datetime import datetime
+                diagnostic_results = tuple(DiagnosticDomainResult(
+                    DiagnosticDomain(row["domain"]), int(row["score"]), row["confidence"],
+                    int(row["response_count"]), tuple(row["reason_codes"])) for row in rows)
+                diagnostic_version = session["assessment_version"]
+                diagnostic_completed_at = datetime.fromisoformat(
+                    session["completed_at"].replace("Z", "+00:00"))
+        grade_policy = self._grade_policy_for(institution_id, state.study_plan_id)
+        fused = build_student_intelligence_profile_v2(
+            state, institution_id, records, grade_policy,
+            diagnostic_results=diagnostic_results, diagnostic_version=diagnostic_version,
+            diagnostic_completed_at=diagnostic_completed_at)
+        fused_scores = {skill.skill_id: skill.score for skill in fused.skills if skill.score is not None}
+
         def calculate(check_budget):
             progress = calculate_academic_progress(
                 progress_catalog, state.attempts,
@@ -202,9 +234,38 @@ class StudentService:
             check_budget()
             return build_adaptive_courses(
                 state, institution_id, progress_catalog, eligibility_catalog,
-                progress, recommendations, records, grade_policy=self._grade_policy,
+                progress, recommendations, records, grade_policy=grade_policy,
+                fused_skill_scores=fused_scores,
             )
         return await self._academic_compute_limiter.run(calculate)
+
+    async def get_student_intelligence_v2(self, owner: str) -> StudentIntelligenceProfileV2:
+        """Compute current intelligence from a bounded, owner-scoped source snapshot."""
+        state, institution_id = await asyncio.gather(
+            self.get_profile(owner), self.resolve_student_university_id(owner),
+        )
+        records = await self.list_attempts(owner)
+        diagnostic_results: tuple[DiagnosticDomainResult, ...] = ()
+        diagnostic_version = None
+        diagnostic_completed_at = None
+        if self._diagnostic_repository is not None:
+            session, rows = await self._diagnostic_repository.latest_completed(
+                owner, state.study_plan_id, ASSESSMENT_VERSION)
+            if session is not None:
+                from datetime import datetime
+                diagnostic_results = tuple(DiagnosticDomainResult(
+                    DiagnosticDomain(row["domain"]), int(row["score"]), row["confidence"],
+                    int(row["response_count"]), tuple(row["reason_codes"])) for row in rows)
+                diagnostic_version = session["assessment_version"]
+                diagnostic_completed_at = datetime.fromisoformat(
+                    session["completed_at"].replace("Z", "+00:00"))
+        grade_policy = self._grade_policy_for(institution_id, state.study_plan_id)
+        return build_student_intelligence_profile_v2(
+            state, institution_id, records, grade_policy,
+            diagnostic_results=diagnostic_results, diagnostic_version=diagnostic_version,
+            diagnostic_completed_at=diagnostic_completed_at,
+            preferences={},
+        )
 
     async def get_credit_timeline(self, owner: str, *, regular_load: Decimal,
                                   summer_enabled: bool, summer_load: Decimal,
@@ -313,9 +374,10 @@ class StudentService:
 
         def calculate(check_budget):
             progress = calculate_academic_progress(progress_catalog, state.attempts)
+            grade_policy = self._grade_policy_for(institution_id, state.study_plan_id)
             adaptive = build_adaptive_courses(
                 state, institution_id, progress_catalog, eligibility_catalog, progress,
-                full_recommendations, records, grade_policy=self._grade_policy,
+                full_recommendations, records, grade_policy=grade_policy,
             )
             adaptive_scores = {item.course_code: item.recommendation_score
                                for item in adaptive.recommendations}

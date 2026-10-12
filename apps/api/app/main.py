@@ -79,6 +79,12 @@ from app.core.academic_compute import AcademicComputeLimiter
 from app.core.request_timing import RequestTimingMiddleware
 from app.services.eligibility import EligibilityConfigurationError, EligibilityService
 from app.services.student import StudentConfigurationError, StudentService
+from app.student_intelligence.diagnostic_repository import SupabaseDiagnosticRepository
+from app.student_intelligence.adaptive import (
+    FAKE_UNIVERSITY_GRADING_POLICY_V1,
+    GradePolicyRegistry,
+)
+from app.student_intelligence.diagnostic_service import DiagnosticService
 from app.services.advisor import (
     AdvisorConfigurationError,
     AdvisorProviderError,
@@ -183,6 +189,7 @@ async def lifespan(application: FastAPI):
     application.state.auth_http_client = client
     application.state.eligibility_service = None
     application.state.student_service = None
+    application.state.diagnostic_service = None
     application.state.advisor_service = None
     application.state.student_conversation_store = None
     application.state.mock_registration_student_service = None
@@ -224,12 +231,21 @@ async def lifespan(application: FastAPI):
             settings.supabase_secret_key.get_secret_value(),
             client,
         )
+        diagnostic_repository = SupabaseDiagnosticRepository(
+            settings.supabase_url,
+            settings.supabase_secret_key.get_secret_value(),
+            client,
+        )
         application.state.student_service = StudentService(
             student_repository,
             application.state.eligibility_service,
             repository,
             academic_compute_limiter,
+            GradePolicyRegistry((FAKE_UNIVERSITY_GRADING_POLICY_V1,)),
+            diagnostic_repository,
         )
+        application.state.diagnostic_service = DiagnosticService(
+            diagnostic_repository, application.state.student_service)
         advisor_provider, explanation_provider = build_advisor_providers(client)
         application.state.advisor_service = AdvisorService(
             student_repository,
@@ -237,6 +253,7 @@ async def lifespan(application: FastAPI):
             advisor_provider,
             explanation_provider,
             academic_compute_limiter,
+            application.state.student_service.get_student_intelligence_v2,
         )
         persistence = SupabaseMockRegistrationRepository(
             settings.supabase_url, settings.supabase_secret_key.get_secret_value(), client)

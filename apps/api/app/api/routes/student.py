@@ -19,6 +19,10 @@ from app.api.schemas.roadmap import AcademicRoadmapResponse
 from app.api.schemas.academic_report import ModeledAcademicReportResponse
 from app.api.schemas.recommendations import RecommendationResponse
 from app.api.schemas.adaptive_courses import AdaptiveCourseResponse
+from app.api.schemas.student_intelligence_v2 import (
+    DiagnosticAnswerRequest, DiagnosticSessionResponse, DiagnosticStatusResponse,
+    StudentIntelligenceProfileV2Response,
+)
 from app.api.schemas.semester_planner import (
     SemesterPlanRequest,
     SemesterPlannerResponse,
@@ -37,6 +41,9 @@ from app.explainability_graph import (
 from app.api.schemas.credit_timeline import (CreditTimelineRequest, CreditTimelineResponse,
                                              CreditComparisonRequest, CreditComparisonResponse)
 from app.services.student import StudentConfigurationError, StudentService
+from app.student_intelligence.diagnostic_service import (
+    DiagnosticConflict, DiagnosticNotFound, DiagnosticService,
+)
 from app.student.models import StudentAcademicState, StudentCourseAttemptRecord
 from app.progress.models import AcademicProgress
 from app.recommendations.models import RecommendationResult
@@ -55,6 +62,80 @@ def get_student_service(request: Request) -> StudentService:
 
 
 StudentServiceDependency = Annotated[StudentService, Depends(get_student_service)]
+
+
+def get_diagnostic_service(request: Request) -> DiagnosticService:
+    service = getattr(request.app.state, "diagnostic_service", None)
+    if service is None:
+        raise StudentConfigurationError("Diagnostic service is not configured")
+    return service
+
+
+DiagnosticServiceDependency = Annotated[DiagnosticService, Depends(get_diagnostic_service)]
+
+
+@router.get("/student-intelligence", response_model=StudentIntelligenceProfileV2Response)
+async def get_student_intelligence_v2(
+    user: AuthenticatedUser, service: StudentServiceDependency, response: Response,
+) -> StudentIntelligenceProfileV2Response:
+    response.headers["Cache-Control"] = "private, no-store"
+    return StudentIntelligenceProfileV2Response.model_validate(
+        await service.get_student_intelligence_v2(user.user_id), from_attributes=True)
+
+
+@router.get("/diagnostic/status", response_model=DiagnosticStatusResponse)
+async def get_diagnostic_status(
+    user: AuthenticatedUser, service: DiagnosticServiceDependency, response: Response,
+) -> DiagnosticStatusResponse:
+    response.headers["Cache-Control"] = "private, no-store"
+    return DiagnosticStatusResponse.model_validate(await service.status(user.user_id))
+
+
+@router.post("/diagnostic/start", response_model=DiagnosticSessionResponse)
+async def start_diagnostic(
+    user: AuthenticatedUser, service: DiagnosticServiceDependency, response: Response,
+) -> DiagnosticSessionResponse:
+    response.headers["Cache-Control"] = "private, no-store"
+    return DiagnosticSessionResponse.model_validate(await service.start(user.user_id))
+
+
+@router.get("/diagnostic/{session_id}/next", response_model=DiagnosticSessionResponse)
+async def next_diagnostic_question(
+    session_id: str, user: AuthenticatedUser, service: DiagnosticServiceDependency,
+    response: Response,
+) -> DiagnosticSessionResponse:
+    response.headers["Cache-Control"] = "private, no-store"
+    try:
+        return DiagnosticSessionResponse.model_validate(
+            await service.next_question(user.user_id, session_id))
+    except DiagnosticNotFound as exc:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Diagnostic session not found") from exc
+
+
+@router.post("/diagnostic/{session_id}/answer", response_model=DiagnosticSessionResponse)
+async def answer_diagnostic_question(
+    session_id: str, body: DiagnosticAnswerRequest, user: AuthenticatedUser,
+    service: DiagnosticServiceDependency, response: Response,
+) -> DiagnosticSessionResponse:
+    response.headers["Cache-Control"] = "private, no-store"
+    try:
+        return DiagnosticSessionResponse.model_validate(await service.answer(
+            user.user_id, session_id, body.question_id, body.selected_option))
+    except DiagnosticNotFound as exc:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Diagnostic session not found") from exc
+    except DiagnosticConflict as exc:
+        raise HTTPException(status.HTTP_409_CONFLICT, "Diagnostic answer was not accepted") from exc
+
+
+@router.post("/diagnostic/{session_id}/abandon", status_code=status.HTTP_204_NO_CONTENT)
+async def abandon_diagnostic(
+    session_id: str, user: AuthenticatedUser, service: DiagnosticServiceDependency,
+) -> Response:
+    try:
+        await service.abandon(user.user_id, session_id)
+    except DiagnosticNotFound as exc:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Diagnostic session not found") from exc
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
 @router.get("/course-identities", response_model=list[CourseDisplayIdentity])

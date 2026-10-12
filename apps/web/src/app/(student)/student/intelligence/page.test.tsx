@@ -1,70 +1,59 @@
 import { render, screen } from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
 import { beforeEach, expect, test, vi } from "vitest";
 import StudentIntelligencePage from "./page";
 
-const client = vi.hoisted(() => ({ request: vi.fn() }));
+const client = { request: vi.fn() };
 vi.mock("@/lib/api/use-authenticated-api", () => ({ useAuthenticatedApi: () => client }));
 
 const example = {
-  source_type: "SYNTHETIC", validation_status: "NOT_VALIDATED_FOR_REAL_STUDENTS",
-  strength_difficulty: { strengths: { status: "AVAILABLE", policy_version: "1.0",
-    signals: [{ rule_id: "STRENGTH-002", value: "RECOVERY_EVIDENCE", count: 1, course_codes: ["CS101"] }],
-    limitations: ["Not a trait"] }, difficulty: { status: "INSUFFICIENT_DATA", policy_version: "1.0",
-    signals: [], limitations: ["Not ability"] } }, risk: "NOT_EXPOSED_TO_STUDENTS",
-  limitation: "NO_ACADEMIC_DECISION_OVERRIDE",
-  workload: { status: "RANGE", low_hours_per_week: 6, high_hours_per_week: 9,
-    coverage: "HIGH", uncertainty: "NOT_CALIBRATED_FOR_REAL_STUDENTS",
-    source_version: "p11-workload-v1", assumptions: [], synthetic: true },
-  skills: { status: "AVAILABLE", taxonomy_version: "p11-taxonomy-v1", synthetic: true,
-    limitation: "NO_MASTERY_ASSESSMENT", items: [
-      { skill_id: "SYN-CODE", name_ar: "البرمجة", name_en: "Programming", state: "EVIDENCED",
-        source_courses: ["CS101"], evidence_dates: { CS101: "2026-09-01" },
-        mapping_provenance: ["SYNTHETIC_MAPPING"], limitation: "COURSE_EVIDENCE_NOT_SKILL_MASTERY" },
-    ] },
-  careers: [{ career_id: "SYN-SOFTWARE", title_ar: "مطوّر تجريبي", title_en: "Fictional developer",
-    status: "DESCRIPTIVE_ONLY", evidenced: ["SYN-CODE"], exposed: [], gaps: ["SYN-QUANT"], unresolved: [],
-    stale: false, source_at: "2026-09-01", source_version: "p11-career-v1", synthetic: true,
-    uncertainty: "NOT_VALIDATED_FOR_CAREER_FIT", limitation: "NO_EMPLOYMENT_PROBABILITY_OR_PROMISE" }],
-  internships: [{ partner_id: "SYN-PARTNER", title_ar: "تدريب تجريبي", title_en: "Fictional internship",
-    status: "GAP", expires_at: "2027-09-01", source_version: "p11-criteria-v1", synthetic: true,
-    limitation: "MODELED_READINESS_NOT_PLACEMENT_ELIGIBILITY", criteria: [
-      { criterion_id: "SYN-C1", requirement_ar: "دليل كمي", requirement_en: "Quantitative evidence", status: "GAP", evidence: null },
-    ] }],
+  student_id: "profile-1", institution_id: "institution-1", study_plan_id: "plan-12",
+  intelligence_model_version: "STUDENT_INTELLIGENCE_PROFILE_V2",
+  taxonomy_version: "MORSHIDI_SKILL_TAXONOMY_V2", fusion_policy_version: "EVIDENCE_FUSION_V1",
+  generated_at: "2026-10-11T12:00:00Z", source_snapshot_version: "abc",
+  cumulative_gpa: null, gpa_scale: null, earned_credits: 0, verified_grade_count: 0,
+  completed_course_count: 0, failed_course_count: 0, repeated_course_count: 0,
+  current_course_count: 0, academic_progress_band: "NEW", performance_trend: "INSUFFICIENT_EVIDENCE",
+  evidence_quality: "INSUFFICIENT", cold_start_status: "COLD_START_NO_PERFORMANCE_EVIDENCE",
+  diagnostic_recommended: true, diagnostic_completed: false, latest_assessment_version: null,
+  latest_completed_at: null, strengths: [], development_areas: [], preferences: {},
+  skills: [{ skill_id: "PROGRAMMING", score: 82, confidence: "MEDIUM",
+    evidence_quality: "MODELED_DIAGNOSTIC", university_evidence_count: 0,
+    diagnostic_evidence_count: 1, contributing_courses: [],
+    contributing_question_domains: ["PROGRAMMING_REASONING"],
+    source_types: ["COMPLETED_QUICK_DIAGNOSTIC"], reason_codes: ["DIAGNOSTIC_BASELINE_ONLY"] }],
+  limitations: ["Modeled intelligence is not an official university evaluation."],
 };
 
-beforeEach(() => { client.request.mockReset(); client.request.mockResolvedValue(new Response(JSON.stringify(example))); });
+beforeEach(() => {
+  client.request.mockReset();
+  client.request.mockResolvedValue(new Response(JSON.stringify(example)));
+});
 
-test("Arabic RTL view shows synthetic provenance, bounded range, skills and gaps", async () => {
+test("Arabic RTL cold-start view offers a non-blocking diagnostic and evidence labels", async () => {
   render(<StudentIntelligencePage />);
-  expect(screen.getByRole("status").textContent).toContain("تحميل");
-  await screen.findByText(/بيانات تجريبية اصطناعية/);
+  expect(screen.getByRole("status").textContent).toContain("بناء");
+  await screen.findByRole("heading", { name: "بصمتي الأكاديمية" });
   expect(document.querySelector("main[dir='rtl']")).toBeTruthy();
-  expect(screen.getByText(/6–9/)).toBeTruthy();
-  expect(screen.getByText(/البرمجة/)).toBeTruthy();
-  expect(screen.getByText(/SYN-QUANT/)).toBeTruthy();
-  expect(screen.getByText(/تعافٍ بعد تعثر سابق/)).toBeTruthy();
-  expect(screen.getByText(/لا تُعرض هنا إشارات خطر/)).toBeTruthy();
-  expect(client.request).toHaveBeenCalledWith("/api/v1/me/intelligence");
+  expect(screen.getByText("خلّينا نتعرّف عليك")).toBeTruthy();
+  expect(screen.getByRole("link", { name: "ابدأ الاختبار السريع" }).getAttribute("href")).toBe("/student/diagnostic");
+  expect(screen.getByText("البرمجة")).toBeTruthy();
+  expect(screen.getByText(/جامعة: 0 · تشخيص: 1/)).toBeTruthy();
+  expect(client.request).toHaveBeenCalledWith("/api/v1/me/student-intelligence", { cache: "no-store" });
 });
 
-test("English LTR view preserves uncertainty and no-placement caveat", async () => {
+test("established evidence removes the onboarding prompt", async () => {
+  client.request.mockResolvedValueOnce(new Response(JSON.stringify({
+    ...example, verified_grade_count: 8, evidence_quality: "AUTHORITATIVE",
+    cold_start_status: "ESTABLISHED_ACADEMIC_EVIDENCE", diagnostic_recommended: false,
+  })));
   render(<StudentIntelligencePage />);
-  await screen.findByText(/بيانات تجريبية اصطناعية/);
-  await userEvent.click(screen.getByRole("button", { name: "Switch language" }));
-  expect(document.querySelector("main[dir='ltr']")).toBeTruthy();
-  expect(screen.getByText(/Programming/)).toBeTruthy();
-  expect(screen.getByText(/employment nor placement eligibility/)).toBeTruthy();
+  await screen.findByRole("heading", { name: "بصمتي الأكاديمية" });
+  expect(screen.queryByText("خلّينا نتعرّف عليك")).toBeNull();
+  expect(screen.getByText(/8 علامة جامعية موثقة/)).toBeTruthy();
 });
 
-test("unavailable and error states are explicit", async () => {
-  client.request.mockResolvedValueOnce(new Response(JSON.stringify({ ...example, source_type: "UNAVAILABLE",
-    workload: { ...example.workload, status: "UNKNOWN" },
-    skills: { ...example.skills, status: "UNRESOLVED", items: [] }, careers: [], internships: [] })));
-  const { unmount } = render(<StudentIntelligencePage />);
-  expect((await screen.findAllByText(/لا تتوفر بيانات معتمدة/)).length).toBeGreaterThan(0);
-  unmount();
+test("error state is explicit", async () => {
   client.request.mockRejectedValueOnce(new Error("offline"));
   render(<StudentIntelligencePage />);
-  await screen.findByRole("alert");
+  expect(await screen.findByRole("alert")).toBeTruthy();
 });

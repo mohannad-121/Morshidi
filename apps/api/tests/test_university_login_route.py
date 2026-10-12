@@ -67,6 +67,27 @@ def _with_university_envelopes(handler):
                     return response
                 if isinstance(payload, dict) and payload.get("success") is True:
                     return response
+                if suffix == "/student/me" and isinstance(payload, dict):
+                    payload = dict(payload)
+                    payload.setdefault("gpaScale", 100)
+                if suffix == "/student/grades" and isinstance(payload, list):
+                    courses = [{
+                        "courseCode": item["courseCode"],
+                        "name": item.get("courseName", item["courseCode"]),
+                        "credits": item.get("creditHours", 3),
+                        "grade": item.get("numericGrade", 0),
+                        "letterGrade": item.get("letterGrade", "N/A"),
+                        "status": str(item.get("status", "PASSED")).lower(),
+                    } for item in payload]
+                    return httpx.Response(200, json={"success": True,
+                        "cumulativeGpa": 93.6, "gpaScale": 100,
+                        "gradingPolicy": {
+                            "version": "FAKE_UNIVERSITY_GRADING_POLICY_V1",
+                            "gpa": {"numericMin": 0, "numericMax": 100, "scale": 100},
+                            "courseGrade": {"numericMin": 0, "numericMax": 100}},
+                        "semesters": [{"term": "2023-1", "termLabel": "First Semester 2023",
+                            "registeredHours": len(courses) * 3, "passedHours": len(courses) * 3,
+                            "semesterGpa": 93.6, "cumulativeGpa": 93.6, "courses": courses}]})
                 return httpx.Response(200, json={"success": True, payload_key: payload})
         return response
 
@@ -243,6 +264,15 @@ class MockSupabaseAuthAndRestEnvironment:
                     self.attempts.append(rec)
                     inserted.append(rec)
                 return httpx.Response(201, json=inserted)
+            elif method == "PATCH":
+                target_id = request.url.params.get("id", "").replace("eq.", "")
+                payload = json.loads(request.content)
+                matched = []
+                for attempt in self.attempts:
+                    if attempt.get("id") == target_id:
+                        attempt.update(payload)
+                        matched.append(attempt)
+                return httpx.Response(200, json=matched)
             elif method == "DELETE":
                 target_id = request.url.params.get("id", "").replace("eq.", "")
                 self.attempts = [a for a in self.attempts if a.get("id") != target_id]
@@ -289,8 +319,9 @@ def default_fake_uni_handler(request: httpx.Request) -> httpx.Response:
                     "admissionYear": 2023,
                     "academicAdvisor": "Test Advisor",
                     "academicStatus": "active",
-                    "gpa": 3.45,
-                    "earnedCredits": 45,
+                    "gpa": 93.6,
+                    "gpaScale": 100,
+                    "earnedCredits": 96,
                 },
             },
         )
@@ -316,15 +347,21 @@ def default_fake_uni_handler(request: httpx.Request) -> httpx.Response:
             200,
             json={
                 "success": True,
-                "cumulativeGpa": 3.45,
+                "cumulativeGpa": 93.6,
+                "gpaScale": 100,
+                "gradingPolicy": {
+                    "version": "FAKE_UNIVERSITY_GRADING_POLICY_V1",
+                    "gpa": {"numericMin": 0, "numericMax": 100, "scale": 100},
+                    "courseGrade": {"numericMin": 0, "numericMax": 100},
+                },
                 "semesters": [
                     {
                         "term": "2023-1",
                         "termLabel": "First Semester 2023",
                         "registeredHours": 6,
                         "passedHours": 6,
-                        "semesterGpa": 3.45,
-                        "cumulativeGpa": 3.45,
+                        "semesterGpa": 93.6,
+                        "cumulativeGpa": 93.6,
                         "courses": [
                             {"courseCode": "0200104", "name": "Calculus 1", "credits": 3, "grade": 95, "letterGrade": "A", "status": "passed"},
                             {"courseCode": "1501110", "name": "Computer Science 1", "credits": 3, "grade": 88, "letterGrade": "B+", "status": "passed"},

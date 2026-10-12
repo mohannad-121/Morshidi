@@ -18,33 +18,27 @@ from app.rules.models import CanTakeCatalog, PrerequisiteLogicStatus
 from app.rules.project_credits import passed_plan_credits
 from app.student.models import (PerformanceProvenance, PerformanceVerificationState,
                                 StudentAcademicState, StudentCourseAttemptRecord)
+from app.student_intelligence.taxonomy import (COURSE_SKILL_MAPPING_VERSION, PLAN12_COURSE_SKILLS,
+                                                PLAN12_ID)
+from app.university_sync.grading_policy import (
+    FAKE_UNIVERSITY_COURSE_GRADE_MAX,
+    FAKE_UNIVERSITY_COURSE_GRADE_MIN,
+    FAKE_UNIVERSITY_GRADING_POLICY_V1 as FAKE_UNIVERSITY_GRADING_POLICY_VERSION,
+    parse_grading_policy_source_reference,
+)
 
 GENERAL_MODEL_VERSION = "GENERAL_DIFFICULTY_MODEL_V1"
 MASTERY_MODEL_VERSION = "STUDENT_MASTERY_MODEL_V1"
 PERSONAL_MODEL_VERSION = "PERSONAL_DIFFICULTY_MODEL_V1"
 RECOMMENDER_MODEL_VERSION = "COURSE_RECOMMENDER_V1"
-SKILL_PROFILE_VERSION = "PLAN12_COURSE_SKILLS_V1"
+SKILL_PROFILE_VERSION = COURSE_SKILL_MAPPING_VERSION
 FRESHNESS_POLICY_VERSION = "SOURCE_FRESHNESS_EXPLICIT_V1"
 
 # Exact Plan 12 codes inspected against the canonical seed. Unmapped courses
 # retain their own course-foundation tag; no inferred historical statistics.
 PLAN12_SKILLS: Mapping[str, tuple[str, ...]] = {
-    "1501110": ("PROGRAMMING",),
-    "1501112": ("PROGRAMMING",),
-    "1501111": ("PROGRAMMING",),
-    "1501113": ("PROGRAMMING",),
-    "1501221": ("PROGRAMMING", "DATA_STRUCTURES", "ALGORITHMS"),
-    "1501321": ("ALGORITHMS", "DATA_STRUCTURES"),
-    "1505101": ("PYTHON", "PROGRAMMING"),
-    "1505223": ("PYTHON", "AI_FOUNDATIONS"),
-    "1505201": ("AI_FOUNDATIONS",),
-    "1505311": ("MACHINE_LEARNING", "PYTHON", "STATISTICS"),
-    "1505320": ("MACHINE_LEARNING", "PYTHON"),
-    "1505415": ("MACHINE_LEARNING", "DEEP_LEARNING", "PYTHON"),
-    "1501222": ("DATABASES",),
-    "0300220": ("DISCRETE_MATH",),
-    "0300104": ("STATISTICS",),
-    "0301245": ("LINEAR_ALGEBRA",),
+    code: tuple(item.skill_id.value for item in definition.skills)
+    for code, definition in PLAN12_COURSE_SKILLS.items()
 }
 
 # Deliberate, normalized factors. Required/progress have more weight than ease.
@@ -65,15 +59,61 @@ class GradePolicy:
     numeric_max: Decimal
 
     def normalize(self, record: StudentCourseAttemptRecord) -> int | None:
+        reference = parse_grading_policy_source_reference(record.performance_source_reference)
         if (record.performance_provenance is not PerformanceProvenance.OFFICIAL_VERIFIED
                 or record.performance_verification_state is not PerformanceVerificationState.VERIFIED
-                or record.raw_numeric_grade is None):
+                or record.raw_numeric_grade is None
+                or reference is None
+                or reference.university_id != self.institution_id
+                or reference.version != self.version):
             return None
         value = record.raw_numeric_grade
         if (not value.is_finite() or self.numeric_max <= self.numeric_min
                 or not self.numeric_min <= value <= self.numeric_max):
             return None
         return round((value - self.numeric_min) * 100 / (self.numeric_max - self.numeric_min))
+
+
+@dataclass(frozen=True)
+class GradePolicyRegistry:
+    """Explicit governed policies keyed by the exact institution and study plan."""
+
+    policies: tuple[GradePolicy, ...] = ()
+
+    def __post_init__(self) -> None:
+        scopes: set[tuple[str, str]] = set()
+        for policy in self.policies:
+            scope = (policy.institution_id, policy.study_plan_id)
+            if scope in scopes:
+                raise ValueError(f"Duplicate grade policy scope: {scope!r}")
+            if (not policy.version.strip() or not policy.provenance.strip()
+                    or not policy.numeric_min.is_finite()
+                    or not policy.numeric_max.is_finite()
+                    or policy.numeric_max <= policy.numeric_min):
+                raise ValueError(f"Invalid grade policy contract: {scope!r}")
+            if (policy.version != FAKE_UNIVERSITY_GRADING_POLICY_VERSION
+                    or policy.numeric_min != FAKE_UNIVERSITY_COURSE_GRADE_MIN
+                    or policy.numeric_max != FAKE_UNIVERSITY_COURSE_GRADE_MAX):
+                raise ValueError(f"Unsupported grade policy contract: {scope!r}")
+            scopes.add(scope)
+
+    def resolve(self, institution_id: str, study_plan_id: str) -> GradePolicy | None:
+        return next((policy for policy in self.policies
+                     if policy.institution_id == institution_id
+                     and policy.study_plan_id == study_plan_id), None)
+
+
+FAKE_UNIVERSITY_GRADING_POLICY_V1 = GradePolicy(
+    institution_id="10000000-0000-0000-0000-000000000001",
+    study_plan_id=PLAN12_ID,
+    version=FAKE_UNIVERSITY_GRADING_POLICY_VERSION,
+    provenance="AUTHORITATIVE_FAKE_UNIVERSITY_GRADING_CONTRACT",
+    numeric_min=Decimal("0"),
+    numeric_max=Decimal("100"),
+)
+
+# Backward-compatible import name for the uncommitted V2 test tree.
+FAKE_UNIVERSITY_GRADE_POLICY_V1 = FAKE_UNIVERSITY_GRADING_POLICY_V1
 
 
 @dataclass(frozen=True)
@@ -183,7 +223,7 @@ def _level(score: int) -> str:
 
 
 def _skills(code: str, plan_id: str) -> CourseSkillProfile:
-    domain = PLAN12_SKILLS.get(code, ()) if plan_id == "10000000-0000-0000-0000-000000000005" else ()
+    domain = PLAN12_SKILLS.get(code, ()) if plan_id == PLAN12_ID else ()
     return CourseSkillProfile(code, (f"COURSE:{code}", *domain),
                               "MODELED_CURRICULUM_CODE_MAPPING" if domain else "MODELED_FALLBACK")
 
@@ -222,7 +262,8 @@ def _snapshot_version(state: StudentAcademicState, records: tuple[StudentCourseA
              str(state.reported_earned_credit_hours),
              *sorted(f"{item.course_code}:{item.outcome.value}" for item in state.attempts),
              *sorted(f"{row.attempt_id}:{row.updated_at}:{row.outcome.value}:{row.raw_numeric_grade}:"
-                     f"{row.performance_verification_state.value}" for row in records)]
+                     f"{row.performance_provenance.value}:{row.performance_verification_state.value}:"
+                     f"{row.performance_source_reference or ''}" for row in records)]
     return sha256("|".join(parts).encode()).hexdigest()
 
 
@@ -234,6 +275,7 @@ def build_adaptive_courses(state: StudentAcademicState, institution_id: str,
                            records: tuple[StudentCourseAttemptRecord, ...], *,
                            generated_at: datetime | None = None,
                            grade_policy: GradePolicy | None = None,
+                           fused_skill_scores: Mapping[str, int] | None = None,
                            source_fresh_until: datetime | None = None) -> AdaptiveCourseResult:
     if (not institution_id or state.study_plan_id != progress_catalog.study_plan.study_plan_id
             or state.study_plan_id != eligibility_catalog.study_plan_id
@@ -254,7 +296,7 @@ def build_adaptive_courses(state: StudentAcademicState, institution_id: str,
     codes = {course.course_code for course in progress_catalog.plan_courses}
     if len(codes) != len(progress_catalog.plan_courses) or codes - rules.keys():
         raise ValueError("Incomplete canonical course rules")
-    normalized: dict[str, list[int]] = {}
+    normalized: dict[str, list[tuple[tuple[object, ...], int]]] = {}
     seen: dict[str, int] = {}
     failed: set[str] = set()
     for record in records:
@@ -264,9 +306,15 @@ def build_adaptive_courses(state: StudentAcademicState, institution_id: str,
         if record.outcome.value == "FAILED":
             failed.add(record.course_code)
         grade = grade_policy.normalize(record) if grade_policy else None
-        if grade is not None and record.outcome.value == "PASSED":
-            normalized.setdefault(record.course_code, []).append(grade)
-    latest_grade = {code: values[-1] for code, values in normalized.items()}
+        if grade is not None:
+            chronological_key = (
+                record.attempted_on or record.created_at.date(), record.raw_academic_year or "",
+                record.raw_term or "", record.attempt_sequence or 0, record.updated_at,
+                record.attempt_id,
+            )
+            normalized.setdefault(record.course_code, []).append((chronological_key, grade))
+    latest_grade = {code: sorted(values, key=lambda item: item[0])[-1][1]
+                    for code, values in normalized.items()}
     completed = tuple(sorted(course.course_code for course in progress.courses
                              if course.state.value == "COMPLETED"))
     strong = tuple(sorted(code for code, grade in latest_grade.items() if grade >= 80))
@@ -284,6 +332,7 @@ def build_adaptive_courses(state: StudentAcademicState, institution_id: str,
         tuple(sorted(code for code, _ in values)),
     ) for skill, values in sorted(skill_grades.items()))
     mastery = {item.skill_id: item for item in skill_evidence}
+    fused_skill_scores = dict(fused_skill_scores or {})
     profile = AcademicIntelligenceProfile(
         state.profile_id, institution_id, state.study_plan_id, now,
         _snapshot_version(state, records, institution_id), state.reported_cumulative_gpa,
@@ -302,18 +351,26 @@ def build_adaptive_courses(state: StudentAcademicState, institution_id: str,
             course.course_code, course.credit_hours, eligibility_catalog)
         general_score = general.score
         relevant = tuple(sorted(skill for skill in profiles[course.course_code].skills
-                                if not skill.startswith("COURSE:") and skill in mastery))
-        values = [mastery[skill].mastery_score for skill in relevant if mastery[skill].mastery_score is not None]
+                                if not skill.startswith("COURSE:")
+                                and (skill in mastery or skill in fused_skill_scores)))
+        values = [fused_skill_scores.get(skill, mastery[skill].mastery_score if skill in mastery else None)
+                  for skill in relevant]
+        values = [value for value in values if value is not None]
         risk = tuple(sorted({"RELATED_FAILED_ATTEMPT" for option in options if option in failed}
                             | {"REPEATED_RELATED_COURSE" for option in options if option in repeated}))
         if values:
             adjustment = round((70 - sum(values) / len(values)) * 0.65)
             score = max(0, min(100, general_score + adjustment + len(risk) * 7))
+            evidence_count = sum(mastery[skill].evidence_count for skill in relevant if skill in mastery)
             confidence = "LOW" if freshness != "FRESH" else (
-                "HIGH" if sum(mastery[skill].evidence_count for skill in relevant) >= 3
+                "HIGH" if evidence_count >= 3
                 else "MEDIUM" if len(relevant) >= 2 else "LOW")
-            reasons = ("RELEVANT_VERIFIED_PERFORMANCE",)
-            provenance = "MODELED_VERIFIED_GRADE_AND_CURRICULUM_EVIDENCE"
+            reasons = (("RELEVANT_VERIFIED_PERFORMANCE",) if evidence_count else
+                       ("COMPLETED_DIAGNOSTIC_BASELINE",))
+            if fused_skill_scores:
+                reasons += ("STUDENT_INTELLIGENCE_V2_FUSION",)
+            provenance = ("MODELED_FUSED_STUDENT_INTELLIGENCE_V2" if fused_skill_scores else
+                          "MODELED_VERIFIED_GRADE_AND_CURRICULUM_EVIDENCE")
         else:
             score = max(0, min(100, general_score + len(risk) * 7))
             confidence = "LOW"
@@ -334,7 +391,8 @@ def build_adaptive_courses(state: StudentAcademicState, institution_id: str,
             raise ValueError("Adaptive rank received an ineligible or foreign course")
         difficulty = by_code[base.course_code]
         fit = (100 - difficulty.personalized.score
-               if "RELEVANT_VERIFIED_PERFORMANCE" in difficulty.personalized.reason_codes else 50)
+               if ({"RELEVANT_VERIFIED_PERFORMANCE", "COMPLETED_DIAGNOSTIC_BASELINE"}
+                   & set(difficulty.personalized.reason_codes)) else 50)
         progress_value = min(100, round(float(base.effective_credit_contribution) * 25)
                              + (25 if base.completes_requirement_group else 0))
         readiness = 100 if not difficulty.personalized.risk_factors else 60
@@ -350,7 +408,8 @@ def build_adaptive_courses(state: StudentAcademicState, institution_id: str,
             difficulty.personalized, fit, progress_value, readiness, workload_risk,
             difficulty.personalized.confidence,
             tuple(skill for skill in difficulty.personalized.contributing_skills
-                  if mastery[skill].mastery_score is not None and mastery[skill].mastery_score >= 80),
+                  if ((fused_skill_scores.get(skill) if skill in fused_skill_scores else
+                       mastery[skill].mastery_score if skill in mastery else None) or 0) >= 80),
             difficulty.personalized.risk_factors,
             tuple(reason.value for reason in base.reason_codes),
             tuple((key, factors[key]) for key in WEIGHTS),
