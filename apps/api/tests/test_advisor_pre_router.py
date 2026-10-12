@@ -8,8 +8,11 @@ from app.advisor.models import AdvisorIntent
 from app.advisor.pre_router import (
     extract_context_courses,
     extract_course_codes,
+    is_personalized_course_fit_query,
+    is_student_intelligence_query,
     normalize_academic_text,
     pre_route_academic_intent,
+    requests_full_eligible_list,
 )
 
 
@@ -225,4 +228,47 @@ def test_generic_course_information_pronoun_with_context() -> None:
     assert routed.clarification_hint == "GENERAL_COURSE_INFORMATION"
     all_mentions = routed.course_mentions + routed.course_codes_mentioned
     assert "1505311" in all_mentions or any("تعلم الآلة" in m for m in all_mentions)
+
+
+@pytest.mark.parametrize("message", (
+    "أنا بشو قوي؟",
+    "شو نقاط قوتي الأكاديمية؟",
+    "بناء على علاماتي، شو أفضل مهاراتي؟",
+    "على شو بنيت تقييمك إلي؟",
+    "شو نقاط ضعفي؟",
+    "شو لازم أطور؟",
+))
+def test_student_intelligence_arabic_variants_route_before_progress(message: str) -> None:
+    assert is_student_intelligence_query(message)
+    routed = pre_route_academic_intent(message)
+    assert routed is not None
+    assert routed.intent == AdvisorIntent.ACADEMIC_STATUS.value
+    assert routed.clarification_hint == "STUDENT_INTELLIGENCE"
+
+
+@pytest.mark.parametrize("message", (
+    "شو المواد الأنسب إلي من المواد اللي بقدر أنزلها؟",
+    "رتبلي المواد المسموحة حسب الأنسب إلي",
+    "أي المواد رح تكون أسهل علي بناءً على مستواي؟",
+))
+def test_personalized_eligible_course_variants_are_detected(message: str) -> None:
+    assert is_personalized_course_fit_query(message)
+    routed = pre_route_academic_intent(message)
+    assert routed is not None
+    assert routed.intent == AdvisorIntent.COURSE_RECOMMENDATIONS.value
+
+
+@pytest.mark.parametrize("message", (
+    "اعرضلي القائمة الكاملة للمواد المؤهلة",
+    "بدي جميع المواد المسموح تسجيلها",
+    "Show me all eligible courses",
+))
+def test_explicit_full_eligible_list_request_is_detected(message: str) -> None:
+    assert requests_full_eligible_list(message)
+
+
+def test_personalized_prompt_does_not_imply_full_list_request() -> None:
+    assert not requests_full_eligible_list(
+        "شو المواد اللي بقدر أسجلها الفصل الجاي؟\n"
+        "ومن بين المواد المسموحة أيها أنسب إلي بناءً على أدائي وعلاماتي السابقة؟")
 

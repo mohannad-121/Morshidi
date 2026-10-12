@@ -254,6 +254,7 @@ async def lifespan(application: FastAPI):
             explanation_provider,
             academic_compute_limiter,
             application.state.student_service.get_student_intelligence_v2,
+            application.state.student_service.get_adaptive_course_intelligence,
         )
         persistence = SupabaseMockRegistrationRepository(
             settings.supabase_url, settings.supabase_secret_key.get_secret_value(), client)

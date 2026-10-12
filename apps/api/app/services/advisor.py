@@ -32,10 +32,26 @@ from app.advisor.models import (
     StructuredAdvisorResult,
 )
 from app.student_intelligence.profile_v2 import StudentIntelligenceProfileV2
+from app.student_intelligence.adaptive import AdaptiveCourseResult
+from app.advisor.student_intelligence_context import (
+    project_course_fit,
+    project_student_intelligence,
+    render_personalized_recommendations_en,
+    render_personalized_recommendations_ar,
+    render_student_intelligence_en,
+    render_student_intelligence_ar,
+)
 from app.advisor.orchestrator import AdvisorContext, orchestrate_advisor_request
-from app.advisor.pre_router import pre_route_academic_intent
+from app.advisor.pre_router import (
+    is_personalized_course_fit_query,
+    is_student_intelligence_query,
+    normalize_academic_text,
+    pre_route_academic_intent,
+    requests_full_eligible_list,
+)
 from app.advisor.provider import AdvisorLLMProvider, ProviderFailure, RawAdvisorInterpretation
 from app.degree_path.models import DegreePathCapacityError, DegreePathComputationTimeout
+from app.recommendations.models import RecommendationResult
 from app.core.academic_compute import AcademicComputeLimiter
 from app.services.student import DEGREE_PATH_BUDGET_SECONDS
 from app.catalog.repository import AcademicCatalogRepository
@@ -122,6 +138,7 @@ class AdvisorService:
         explanation_provider: AdvisorExplanationProvider | None = None,
         academic_compute_limiter: AcademicComputeLimiter | None = None,
         intelligence_loader: Callable[[str], Awaitable[StudentIntelligenceProfileV2]] | None = None,
+        adaptive_loader: Callable[[str], Awaitable[AdaptiveCourseResult]] | None = None,
     ) -> None:
         self._student_repository = student_repository
         self._catalog_repository = catalog_repository
@@ -129,6 +146,7 @@ class AdvisorService:
         self._explanation_provider = explanation_provider
         self._academic_compute_limiter = academic_compute_limiter or AcademicComputeLimiter()
         self._intelligence_loader = intelligence_loader
+        self._adaptive_loader = adaptive_loader
 
     async def advise(self, owner_user_id: str, message: str) -> StructuredAdvisorResult:
         """Interpret once, load server-owned context in batches, and orchestrate."""
@@ -333,6 +351,79 @@ class AdvisorService:
                 structured, general_response, ExplanationStatus.GENERATED,
                 ExplanationLanguage.ARABIC if any("\u0600" <= character <= "\u06ff" for character in message) else ExplanationLanguage.ENGLISH,
             )
+
+        # Student self-understanding is a modeled explanation over a bounded V2
+        # projection. AcademicProgress remains the deterministic structured
+        # carrier, but it must not replace the skill answer the user requested.
+        if (is_student_intelligence_query(message)
+                and not is_personalized_course_fit_query(message)):
+            if self._intelligence_loader is None:
+                text = ("لا تتوفر لدي أدلة مهارية كافية الآن. يمكنك فتح صفحة ذكاء الطالب أو إجراء التشخيص السريع."
+                        if any("\u0600" <= char <= "\u06ff" for char in message) else
+                        "Student Intelligence evidence is not available yet; complete the quick diagnostic if appropriate.")
+            else:
+                try:
+                    bounded = project_student_intelligence(
+                        await self._intelligence_loader(owner_user_id))
+                    normalized = normalize_academic_text(message)
+                    asks_for_development = bool(re.search(
+                        r"(?:ضعف|اطور|احسن|weak|improve|development)", normalized))
+                    text = (render_student_intelligence_ar(
+                        bounded, asks_for_development=asks_for_development)
+                        if any("\u0600" <= char <= "\u06ff" for char in message)
+                        else render_student_intelligence_en(
+                            bounded, asks_for_development=asks_for_development))
+                except Exception:
+                    logger.warning("student intelligence answer unavailable")
+                    text = "لا تتوفر لدي أدلة مهارية كافية الآن، لذلك لن أفترض نقاط قوة أو ضعف غير مثبتة."
+            return AdvisorServiceResult(
+                structured, text, ExplanationStatus.NOT_REQUIRED,
+                ExplanationLanguage.ARABIC if any("\u0600" <= char <= "\u06ff" for char in message)
+                else ExplanationLanguage.ENGLISH,
+            )
+
+        # A compound eligibility/recommendation + personal-fit question must
+        # preserve the exact Phase 7 set, then annotate/rank only that set.
+        if (structured.intent is AdvisorIntent.COURSE_RECOMMENDATIONS
+                and is_personalized_course_fit_query(message)):
+            payload = structured.authoritative_payload
+            if self._adaptive_loader is not None and isinstance(payload, RecommendationResult):
+                try:
+                    adaptive = await self._adaptive_loader(owner_user_id)
+                    fits = project_course_fit(adaptive, payload)
+                    arabic = any("\u0600" <= char <= "\u06ff" for char in message)
+                    include_full_list = requests_full_eligible_list(message)
+                    text = (render_personalized_recommendations_ar(
+                        payload, fits, include_full_eligible_list=include_full_list) if arabic
+                            else render_personalized_recommendations_en(
+                                payload, fits, include_full_eligible_list=include_full_list))
+                    if is_student_intelligence_query(message) and self._intelligence_loader is not None:
+                        bounded = project_student_intelligence(
+                            await self._intelligence_loader(owner_user_id))
+                        normalized = normalize_academic_text(message)
+                        development = bool(re.search(
+                            r"(?:ضعف|اطور|احسن|weak|improve|development)", normalized))
+                        self_understanding = (render_student_intelligence_ar(
+                            bounded, asks_for_development=development) if arabic else
+                            render_student_intelligence_en(
+                                bounded, asks_for_development=development))
+                        text = self_understanding + "\n\n" + text
+                    return AdvisorServiceResult(
+                        structured, text, ExplanationStatus.NOT_REQUIRED,
+                        ExplanationLanguage.ARABIC if any("\u0600" <= char <= "\u06ff" for char in message)
+                        else ExplanationLanguage.ENGLISH,
+                    )
+                except Exception:
+                    logger.warning("personalized eligible-course ranking unavailable")
+            # Fail closed to the unchanged deterministic list and state that
+            # personalization is unavailable; never manufacture fit.
+            template = deterministic_explanation(message, structured)
+            baseline = template.text if template is not None else ""
+            note = "\n\nتعذر تحميل أدلة الملاءمة الشخصية الآن؛ القائمة أعلاه تبقى قائمة الأهلية الأكاديمية فقط."
+            return AdvisorServiceResult(
+                structured, baseline + note, ExplanationStatus.NOT_REQUIRED,
+                ExplanationLanguage.ARABIC,
+            )
         template = deterministic_explanation(message, structured)
         if template is not None:
             return AdvisorServiceResult(
@@ -355,12 +446,14 @@ class AdvisorService:
                 AdvisorIntent.ACADEMIC_STATUS}):
             try:
                 profile = await self._intelligence_loader(owner_user_id)
+                bounded = project_student_intelligence(profile)
                 intelligence_summary = tuple(
                     f"{skill.skill_id}:score={skill.score}:confidence={skill.confidence}:"
                     f"university_evidence={skill.university_evidence_count}:"
-                    f"diagnostic_evidence={skill.diagnostic_evidence_count}"
-                    for skill in profile.skills if skill.score is not None
-                )[:8] + (f"limitations={' | '.join(profile.limitations)}",)
+                    f"diagnostic_evidence={skill.diagnostic_evidence_count}:"
+                    f"classification={skill.classification}:limitation={skill.evidence_limitation}"
+                    for skill in bounded.skills
+                ) + (f"limitations={' | '.join(bounded.limitations)}",)
             except Exception:
                 logger.warning("student intelligence context unavailable")
         explanation_input = build_explanation_input(message, structured, intelligence_summary)

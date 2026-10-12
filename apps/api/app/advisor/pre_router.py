@@ -22,6 +22,52 @@ def normalize_academic_text(value: str) -> str:
     return normalized
 
 
+def is_student_intelligence_query(message: str) -> bool:
+    """Recognize self-understanding questions without relying on exact phrases."""
+    normalized = normalize_academic_text(message)
+    strength_or_growth = re.search(
+        r"(?:اقو[ىي]|افضل).{0,20}(?:مهارات|قدرات)|(?:نقاط\s+)?(?:قوتي|ضعفي)|"
+        r"(?:بشو|في\s+ماذا).{0,12}(?:انا\s+)?قوي|(?:شو|ايش|ماذا).{0,18}(?:اطور|احسن)|"
+        r"(?:حلل|تحليل|قيم|تقييم).{0,24}(?:ادائي|مستواي|مهاراتي|سجلي)|"
+        r"(?:strongest|best)\s+(?:skills?|abilities)|strengths?|weaknesses?|"
+        r"what\s+should\s+i\s+improve|analy[sz]e.{0,20}(?:strengths?|performance)",
+        normalized,
+    )
+    evidence_basis = re.search(
+        r"(?:علي|على)\s+شو\s+بنيت|(?:شو|ايش|ما).{0,15}(?:الدليل|الادله|الادلة|ادلتك)|"
+        r"(?:كيف|ليش).{0,18}(?:قيمتني|تقييمك)|what\s+evidence|basis\s+for\s+(?:your\s+)?assessment",
+        normalized,
+    )
+    return bool(strength_or_growth or evidence_basis)
+
+
+def is_personalized_course_fit_query(message: str) -> bool:
+    """Recognize requests to personalize/rank an otherwise legal course set."""
+    normalized = normalize_academic_text(message)
+    if not re.search(r"(?:مواد|المواد|مساقات|المساقات|ماده|مساق|فصل|courses?|classes?|semester)", normalized):
+        return False
+    return bool(re.search(
+        r"(?:انسب|مناسب|بتناسب).{0,28}(?:الي|لي|ني)|(?:رتب|ترتيب).{0,30}(?:المواد|المساقات)|"
+        r"(?:اسهل|اقل\s+صعوبه).{0,20}(?:علي|الي|لي)|"
+        r"(?:بناء|حسب).{0,28}(?:ادائي|علاماتي|مستواي|قدراتي|مهاراتي)|"
+        r"(?:best\s+fit|most\s+suitable|rank).{0,35}(?:eligible|allowed|courses?)|"
+        r"courses?.{0,35}(?:based\s+on\s+my|for\s+me)|(?:ضعف|قوت).{0,35}(?:الفصل\s+الجاي|الفصل\s+القادم)",
+        normalized,
+    ))
+
+
+def requests_full_eligible_list(message: str) -> bool:
+    """Return whether the student explicitly requested the complete eligible set."""
+    normalized = normalize_academic_text(message)
+    return bool(re.search(
+        r"(?:كل|جميع).{0,18}(?:المواد|المساقات).{0,18}(?:المسموح|المؤهل)|"
+        r"(?:القائم[ةه]).{0,12}(?:الكامل[ةه]|كامل[ةه])|"
+        r"(?:اعرض|اظهر|احكي).{0,18}(?:كل|جميع).{0,12}(?:المواد|المساقات)|"
+        r"(?:full|complete)\s+(?:eligible[- ]course\s+)?list|all\s+eligible\s+courses?",
+        normalized,
+    ))
+
+
 def extract_course_codes(text: str) -> tuple[str, ...]:
     """Find 6 to 8 digit course codes in text."""
     matches = re.findall(r"(?<!\d)\d{6,8}(?!\d)", text)
@@ -202,6 +248,23 @@ def pre_route_academic_intent(
     # Guard 2: Definition inquiries (e.g. "شو يعني prerequisite؟") are general academic info, not course inquiries
     if re.search(r"(?:شو\s+يعني|ما\s+معنى|معنى|ماذا\s+يعني|what\s+does\s+.+mean|meaning\s+of)", normalized):
         return None
+
+    # Course fit takes precedence for a compound strengths + suitable-courses
+    # request so the deterministic eligible set remains the structured carrier.
+    if is_personalized_course_fit_query(raw_message):
+        return RawAdvisorInterpretation(
+            intent=AdvisorIntent.COURSE_RECOMMENDATIONS.value,
+            clarification_hint="PERSONALIZED_ELIGIBLE_COURSE_FIT",
+        )
+
+    # Student self-understanding is distinct from GPA/progress. The existing
+    # ACADEMIC_STATUS route remains the structured academic carrier while the
+    # service composes the bounded V2 intelligence explanation.
+    if is_student_intelligence_query(raw_message):
+        return RawAdvisorInterpretation(
+            intent=AdvisorIntent.ACADEMIC_STATUS.value,
+            clarification_hint="STUDENT_INTELLIGENCE",
+        )
 
     # 1. Course Comparison: "قارنلي بين X و Y" / "مقارنة بين X و Y"
     comparison_match = re.search(
