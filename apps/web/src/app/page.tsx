@@ -36,7 +36,7 @@ function AcademicCore() {
       <div className={styles.coreGlow} aria-hidden="true" />
       <div className={styles.corePlane} aria-hidden="true" />
       <svg className={styles.routeMap} viewBox="0 0 640 640" aria-hidden="true">
-        <defs><linearGradient id="routeGold" x1="0" x2="1"><stop offset="0" stopColor="#75611e" stopOpacity="0" /><stop offset=".5" stopColor="#f2d778" stopOpacity=".9" /><stop offset="1" stopColor="#75611e" stopOpacity="0" /></linearGradient></defs>
+        <defs><linearGradient id="routeGold" x1="0" x2="1"><stop offset="0" stopColor="#8a6510" stopOpacity="0" /><stop offset=".42" stopColor="#d6a928" stopOpacity=".88" /><stop offset=".55" stopColor="#f2d675" /><stop offset="1" stopColor="#8a6510" stopOpacity="0" /></linearGradient></defs>
         <path className={styles.routePath} d="M56 424C164 424 138 220 280 248S438 446 586 296" />
         <path className={styles.routePathSoft} d="M76 502C220 528 272 404 314 340S434 128 574 160" />
       </svg>
@@ -97,7 +97,7 @@ export default function Home() {
         <div className={styles.container}>
           <div className={styles.sectionIndex} data-reveal><span>01</span><i /> ماهو مرشدي؟</div>
           <div className={styles.manifestoGrid}>
-            <div data-reveal><p className={styles.kicker}>منصة قرار، لا مجرد شاشة معلومات</p><h2>طبقة ذكاء بينك وبين تعقيد خطتك الدراسية.</h2></div>
+            <div data-reveal><p className={styles.kicker}>منصة قرار، لا مجرد شاشة معلومات</p><h2><span className={styles.goldText}>طبقة ذكاء</span> بينك وبين تعقيد خطتك الدراسية.</h2></div>
             <div className={styles.manifestoCopy} data-reveal>
               <p>صُمّم مرشدي ليجمع ما يتفرّق عادة بين السجل الأكاديمي، والخطة، والمتطلبات السابقة، واللوائح؛ ثم يعيد تقديمه كسياق واحد مفهوم.</p>
               <p>النتيجة ليست إجابة عامة، بل رؤية شخصية لمسارك أنت — قابلة للفهم، والمراجعة، والبناء عليها.</p>
@@ -112,7 +112,7 @@ export default function Home() {
       <section className={`${styles.section} ${styles.helpSection}`}>
         <div className={styles.container}>
           <div className={styles.sectionIndex} data-reveal><span>02</span><i /> كيف يساعدك؟</div>
-          <div className={styles.sectionHeading} data-reveal><p className={styles.kicker}>من الضبابية إلى قرار يمكن الدفاع عنه</p><h2>كل سؤال كبير، نفكّكه إلى خطوة واضحة.</h2></div>
+          <div className={styles.sectionHeading} data-reveal><p className={styles.kicker}>من الضبابية إلى قرار يمكن الدفاع عنه</p><h2>كل سؤال كبير، نفكّكه إلى <span className={styles.goldText}>خطوة واضحة.</span></h2></div>
           <div className={styles.capabilityRail}>
             {capabilities.map(({ icon: Icon, eyebrow, title, description }, index) => (
               <article className={styles.capability} data-reveal key={title}>
@@ -129,7 +129,7 @@ export default function Home() {
           <div className={styles.sectionIndex} data-reveal><span>03</span><i /> جوهر الذكاء</div>
           <div className={styles.intelligenceGrid}>
             <div className={styles.intelligenceIntro} data-reveal>
-              <p className={styles.kicker}>أربع قدرات. رؤية أكاديمية واحدة.</p><h2>لا يعرض مرشدي البيانات فقط. بل يكشف العلاقة بينها.</h2>
+              <p className={styles.kicker}>أربع قدرات. رؤية أكاديمية واحدة.</p><h2>لا يعرض مرشدي البيانات فقط. بل يكشف <span className={styles.goldText}>العلاقة بينها.</span></h2>
               <div className={styles.intelligenceGlyph} aria-hidden="true"><span><CircleGauge /></span><i /><i /><i /></div>
             </div>
             <div className={styles.featureList}>
@@ -144,7 +144,7 @@ export default function Home() {
       <section id="the-path" className={`${styles.section} ${styles.journeySection}`}>
         <div className={styles.container}>
           <div className={styles.sectionIndex} data-reveal><span>04</span><i /> رحلة الطالب</div>
-          <div className={styles.journeyHeading} data-reveal><p className={styles.kicker}>من أول تسجيل دخول إلى قرار الفصل</p><h2>مسار واحد متصل. بلا قفزات غامضة.</h2></div>
+          <div className={styles.journeyHeading} data-reveal><p className={styles.kicker}>من أول تسجيل دخول إلى قرار الفصل</p><h2><span className={styles.goldText}>مسار واحد متصل.</span> بلا قفزات غامضة.</h2></div>
           <ol className={styles.journeyTrack}>
             {journey.map(([number, title, description]) => (
               <li data-reveal key={number}><span className={styles.journeyNumber}>{number}</span><div className={styles.journeyDot} aria-hidden="true" /><h3>{title}</h3><p>{description}</p></li>
@@ -157,7 +157,7 @@ export default function Home() {
         <div className={styles.container}>
           <div className={styles.trustPanel}>
             <div className={styles.trustCopy} data-reveal>
-              <p className={styles.kicker}>هندسة ثقة من البداية</p><h2>الذكاء الاصطناعي يشرح. القواعد الأكاديمية تقرّر.</h2>
+              <p className={styles.kicker}>هندسة ثقة من البداية</p><h2>الذكاء الاصطناعي يشرح. <span className={styles.goldText}>القواعد الأكاديمية تقرّر.</span></h2>
               <p>لأن مستقبلك الدراسي لا يحتمل التخمين، يفصل مرشدي بين التفسير الذكي وبين القرار الأكاديمي. الأهلية، والمتطلبات، والتقدّم تُحسم بمحرك قواعد حتمي؛ ثم تُشرح لك بلغة واضحة.</p>
               <ul><li><Check aria-hidden="true" /> كل نتيجة مرتبطة بسبب قابل للمراجعة</li><li><Check aria-hidden="true" /> لا استبدال لسياسات الجامعة أو المرشد الأكاديمي</li><li><Check aria-hidden="true" /> سجلك الرسمي يظل المرجع النهائي</li></ul>
             </div>
@@ -177,7 +177,7 @@ export default function Home() {
           <div className={styles.sectionIndex} data-reveal><span>05</span><i /> رؤيتك الشخصية</div>
           <div className={styles.insightsGrid}>
             <div className={styles.insightsCopy} data-reveal>
-              <p className={styles.kicker}>ما الذي يحتاج انتباهك الآن؟</p><h2>رؤية تختصر عليك أسابيع من الأسئلة.</h2><p>بدلاً من تصفّح الخطة مادةً مادة، تحصل على قراءة مركّزة لما تغيّر، وما أصبح متاحاً، وأي قرار يستحق أن تبدأ به.</p>
+              <p className={styles.kicker}>ما الذي يحتاج انتباهك الآن؟</p><h2>رؤية تختصر عليك <span className={styles.goldText}>أسابيع من الأسئلة.</span></h2><p>بدلاً من تصفّح الخطة مادةً مادة، تحصل على قراءة مركّزة لما تغيّر، وما أصبح متاحاً، وأي قرار يستحق أن تبدأ به.</p>
               <Link className={styles.inlineLink} href={primaryHref}>اكتشف رؤيتك الأكاديمية <ArrowLeft aria-hidden="true" /></Link>
             </div>
             <div className={styles.insightConsole} data-reveal aria-label="مثال توضيحي لرؤية أكاديمية شخصية">
@@ -193,7 +193,7 @@ export default function Home() {
       <section className={styles.finalCta}>
         <div className={styles.finalGlow} aria-hidden="true" />
         <div className={styles.container}><div className={styles.finalInner} data-reveal>
-          <div className={styles.finalMark}><GraduationCap aria-hidden="true" /></div><p className={styles.kicker}>الوضوح يبدأ من سجلك</p><h2>خطتك ليست مجرد مواد.<br />إنها الطريق إلى ما بعد الجامعة.</h2><p>دع مرشدي يريك الطريق كاملاً، ويشرح لك كل خطوة فيه.</p>
+          <div className={styles.finalMark}><GraduationCap aria-hidden="true" /></div><p className={styles.kicker}>الوضوح يبدأ من سجلك</p><h2>خطتك ليست مجرد مواد.<br />إنها <span className={styles.goldText}>الطريق</span> إلى ما بعد الجامعة.</h2><p>دع مرشدي يريك الطريق كاملاً، ويشرح لك كل خطوة فيه.</p>
           <Link className={styles.primaryButton} href={primaryHref}><span>{primaryLabel}</span><ArrowLeft aria-hidden="true" /></Link>
         </div></div>
       </section>
