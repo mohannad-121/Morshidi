@@ -69,10 +69,16 @@ from app.university_sync.models import (
     UniversityCourse,
     UniversityEnrollmentRecord,
     UniversityGradeRecord,
+    UniversityGradesSnapshot,
+    UniversityGradingPolicy,
     UniversityLoginResponse,
     UniversityStudentProfile,
 )
-from app.university_sync.service import UniversitySyncResult, UniversitySyncService
+from app.university_sync.service import (
+    UniversitySyncResult,
+    UniversitySyncService,
+    _validate_snapshot_consistency,
+)
 
 TEST_UNIVERSITY_ID = "10000000-0000-0000-0000-000000000001"
 TEST_PLAN_ID = "10000000-0000-0000-0000-000000000005"
@@ -118,7 +124,7 @@ def _with_university_envelopes(handler):
                         })
                     return httpx.Response(200, json={
                         "success": True,
-                        "cumulativeGpa": 93.6,
+                        "cumulativeGpa": 93.6 if courses else None,
                         "gpaScale": 100,
                         "gradingPolicy": {
                             "version": "FAKE_UNIVERSITY_GRADING_POLICY_V1",
@@ -298,6 +304,79 @@ class MockSupabaseEnvironment:
 @pytest.fixture
 def mock_supabase() -> MockSupabaseEnvironment:
     return MockSupabaseEnvironment()
+
+
+def _grading_policy() -> UniversityGradingPolicy:
+    return UniversityGradingPolicy.model_validate({
+        "version": "FAKE_UNIVERSITY_GRADING_POLICY_V1",
+        "gpa": {"numericMin": 0, "numericMax": 100, "scale": 100},
+        "courseGrade": {"numericMin": 0, "numericMax": 100},
+    })
+
+
+def _cold_start_university_handler(request: httpx.Request) -> httpx.Response:
+    path = request.url.path
+    current_codes = ["0300103", "1501112", "1501110", "0200104", "1509999"]
+    if path.endswith("/login"):
+        return httpx.Response(200, json={"token": "cold-token", "studentId": "202610099"})
+    if path.endswith("/student/me"):
+        return httpx.Response(200, json={
+            "success": True,
+            "student": {
+                "studentId": "202610099", "name": "Cold Start Student",
+                "email": "cold@example.edu", "faculty": "Information Technology",
+                "major": "Artificial Intelligence", "degree": "Bachelor",
+                "studyType": "Regular", "admissionYear": 2026,
+                "academicAdvisor": "Test Advisor", "academicStatus": "active",
+                "gpa": None, "gpaScale": 100, "earnedCredits": 0,
+            },
+        })
+    if path.endswith("/student/courses"):
+        return httpx.Response(200, json={
+            "success": True,
+            "courses": {
+                "completed": [],
+                "current": [
+                    {"courseCode": code, "name": code, "credits": 3, "status": "enrolled"}
+                    for code in current_codes
+                ],
+                "remaining": [],
+            },
+        })
+    if path.endswith("/student/grades"):
+        return httpx.Response(200, json={
+            "success": True, "cumulativeGpa": None, "gpaScale": 100,
+            "gradingPolicy": {
+                "version": "FAKE_UNIVERSITY_GRADING_POLICY_V1",
+                "gpa": {"numericMin": 0, "numericMax": 100, "scale": 100},
+                "courseGrade": {"numericMin": 0, "numericMax": 100},
+            },
+            "semesters": [],
+        })
+    if path.endswith("/student/enrollments"):
+        return httpx.Response(200, json={
+            "success": True, "term": "2026-1", "termLabel": "First Semester 2026",
+            "enrollments": [
+                {
+                    "courseCode": code, "courseName": code, "sectionId": f"SEC-{index}",
+                    "sectionNumber": index, "credits": 3, "days": "Sun/Tue",
+                    "daysArray": ["Sun", "Tue"], "startTime": "10:00",
+                    "endTime": "11:30", "room": f"ROOM-{index}",
+                    "instructor": "Test Instructor",
+                }
+                for index, code in enumerate(current_codes, start=1)
+            ],
+        })
+    if path.endswith("/student/academic-plan"):
+        return httpx.Response(200, json={
+            "success": True,
+            "plan": {
+                "planId": "12", "major": "Artificial Intelligence",
+                "totalRequiredCredits": 132, "earnedCredits": 0,
+                "remainingCredits": 132, "courses": [],
+            },
+        })
+    return httpx.Response(404)
 
 
 @pytest.fixture
@@ -663,6 +742,73 @@ async def test_zero_history_null_gpa_does_not_become_zero_or_break_atomic_pair(
 
 
 @pytest.mark.anyio
+async def test_cold_start_full_sync_creates_only_current_enrollments(
+    mock_supabase: MockSupabaseEnvironment,
+) -> None:
+    mock_supabase.courses.append({
+        "id": "c1000000-0000-0000-0000-000000000005",
+        "course_code": "1509999",
+        "university_id": TEST_UNIVERSITY_ID,
+    })
+    university_client = httpx.AsyncClient(
+        transport=httpx.MockTransport(_cold_start_university_handler)
+    )
+    supabase_client = httpx.AsyncClient(
+        transport=httpx.MockTransport(mock_supabase.handle_request)
+    )
+    service = UniversitySyncService(
+        UniversityContractClient(university_client, client_secret="test-client-secret"),
+        supabase_url="https://test.supabase.co",
+        service_key="key",
+        internal_auth_secret=TEST_SECRET,
+        university_id=TEST_UNIVERSITY_ID,
+        client=supabase_client,
+    )
+
+    result = await service.authenticate_and_sync_student("202610099", "pass")
+
+    assert result.university_student_id == "202610099"
+    assert result.grades_count == 0
+    assert result.enrollments_count == 5
+    assert mock_supabase.profiles[0]["reported_cumulative_gpa"] is None
+    assert mock_supabase.profiles[0]["reported_gpa_scale"] is None
+    assert len(mock_supabase.attempts) == 5
+    assert {attempt["outcome"] for attempt in mock_supabase.attempts} == {"IN_PROGRESS"}
+    assert not any(
+        attempt["outcome"] in {"PASSED", "FAILED"}
+        for attempt in mock_supabase.attempts
+    )
+
+
+@pytest.mark.parametrize(
+    ("profile_gpa", "grades_gpa", "profile_scale"),
+    [
+        (93.6, None, 100),
+        (None, Decimal("93.6"), 100),
+        (93.6, Decimal("92.5"), 100),
+        (93.6, Decimal("93.6"), 4),
+    ],
+)
+def test_cross_endpoint_gpa_mismatches_fail_closed(
+    profile_gpa: float | None,
+    grades_gpa: Decimal | None,
+    profile_scale: int,
+) -> None:
+    profile = UniversityStudentProfile.model_validate({
+        "studentId": "student", "cumulativeGpa": profile_gpa, "gpaScale": profile_scale,
+    })
+    grades = UniversityGradesSnapshot(
+        cumulative_gpa=grades_gpa,
+        gpa_scale=Decimal("100"),
+        grading_policy=_grading_policy(),
+        records=[],
+    )
+
+    with pytest.raises(UniversityProtocolError):
+        _validate_snapshot_consistency(profile, grades)
+
+
+@pytest.mark.anyio
 async def test_13_14_15_grade_records_mapped_scoped_and_leading_zero(test_service: tuple[UniversitySyncService, httpx.AsyncClient], mock_supabase: MockSupabaseEnvironment) -> None:
     service, _ = test_service
     await service.authenticate_and_sync_student("202310001", "pass")
@@ -730,7 +876,10 @@ async def test_17_18_19_in_progress_enrollments_synced_and_stale_removed_and_his
         if path.endswith("/login"):
             return httpx.Response(200, json={"token": "t", "studentId": "202310001"})
         elif path.endswith("/student/me"):
-            return httpx.Response(200, json={"studentId": "202310001", "studyPlan": "12"})
+            return httpx.Response(200, json={
+                "studentId": "202310001", "studyPlan": "12",
+                "cumulativeGpa": 93.6,
+            })
         elif path.endswith("/student/courses"):
             return httpx.Response(200, json=[])
         elif path.endswith("/student/grades"):
@@ -780,7 +929,10 @@ async def test_20_unresolved_course_fails_closed(mock_supabase: MockSupabaseEnvi
         if request.url.path.endswith("/login"):
             return httpx.Response(200, json={"token": "t", "studentId": "202310001"})
         elif request.url.path.endswith("/student/me"):
-            return httpx.Response(200, json={"studentId": "202310001", "studyPlan": "12"})
+            return httpx.Response(200, json={
+                "studentId": "202310001", "studyPlan": "12",
+                "cumulativeGpa": 93.6,
+            })
         elif request.url.path.endswith("/student/grades"):
             # Unknown course UNKNOWN999
             return httpx.Response(200, json=[{"courseCode": "UNKNOWN999", "status": "PASSED"}])

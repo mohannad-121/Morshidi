@@ -265,7 +265,11 @@ class UniversityContractClient:
             # cannot establish policy provenance and therefore fail closed.
             response = UniversityGradesResponse.model_validate(data)
             return UniversityGradesSnapshot(
-                cumulative_gpa=strict_decimal(response.cumulative_gpa, "cumulative GPA"),
+                cumulative_gpa=(
+                    strict_decimal(response.cumulative_gpa, "cumulative GPA")
+                    if response.cumulative_gpa is not None
+                    else None
+                ),
                 gpa_scale=strict_decimal(response.gpa_scale, "GPA scale"),
                 grading_policy=response.grading_policy,
                 records=self._flatten_semester_grades(response.semesters),

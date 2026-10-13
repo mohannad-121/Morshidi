@@ -80,7 +80,7 @@ def _with_university_envelopes(handler):
                         "status": str(item.get("status", "PASSED")).lower(),
                     } for item in payload]
                     return httpx.Response(200, json={"success": True,
-                        "cumulativeGpa": 93.6, "gpaScale": 100,
+                        "cumulativeGpa": 93.6 if courses else None, "gpaScale": 100,
                         "gradingPolicy": {
                             "version": "FAKE_UNIVERSITY_GRADING_POLICY_V1",
                             "gpa": {"numericMin": 0, "numericMax": 100, "scale": 100},
@@ -423,6 +423,69 @@ def default_fake_uni_handler(request: httpx.Request) -> httpx.Response:
     return httpx.Response(404, text=f"Unhandled fake uni path: {path}")
 
 
+def cold_start_fake_uni_handler(request: httpx.Request) -> httpx.Response:
+    path = request.url.path
+    codes = ["0200104", "1501110", "0300103", "1501112", "1509999"]
+    if path.endswith("/student/me"):
+        return httpx.Response(200, json={
+            "success": True,
+            "student": {
+                "studentId": "202610099", "name": "Cold Start Student",
+                "email": "cold@example.edu", "faculty": "Information Technology",
+                "major": "Artificial Intelligence", "degree": "Bachelor",
+                "studyType": "Regular", "admissionYear": 2026,
+                "academicAdvisor": "Test Advisor", "academicStatus": "active",
+                "gpa": None, "gpaScale": 100, "earnedCredits": 0,
+            },
+        })
+    if path.endswith("/student/courses"):
+        return httpx.Response(200, json={
+            "success": True,
+            "courses": {
+                "completed": [],
+                "current": [
+                    {"courseCode": code, "name": code, "credits": 3, "status": "enrolled"}
+                    for code in codes
+                ],
+                "remaining": [],
+            },
+        })
+    if path.endswith("/student/grades"):
+        return httpx.Response(200, json={
+            "success": True, "cumulativeGpa": None, "gpaScale": 100,
+            "gradingPolicy": {
+                "version": "FAKE_UNIVERSITY_GRADING_POLICY_V1",
+                "gpa": {"numericMin": 0, "numericMax": 100, "scale": 100},
+                "courseGrade": {"numericMin": 0, "numericMax": 100},
+            },
+            "semesters": [],
+        })
+    if path.endswith("/student/enrollments"):
+        return httpx.Response(200, json={
+            "success": True, "term": "2026-1", "termLabel": "First Semester 2026",
+            "enrollments": [
+                {
+                    "courseCode": code, "courseName": code, "sectionId": f"SEC-{index}",
+                    "sectionNumber": index, "credits": 3, "days": "Sun/Tue",
+                    "daysArray": ["Sun", "Tue"], "startTime": "10:00",
+                    "endTime": "11:30", "room": f"ROOM-{index}",
+                    "instructor": "Test Instructor",
+                }
+                for index, code in enumerate(codes, start=1)
+            ],
+        })
+    if path.endswith("/student/academic-plan"):
+        return httpx.Response(200, json={
+            "success": True,
+            "plan": {
+                "planId": "12", "major": "Artificial Intelligence",
+                "totalRequiredCredits": 132, "earnedCredits": 0,
+                "remainingCredits": 132, "courses": [],
+            },
+        })
+    return default_fake_uni_handler(request)
+
+
 @pytest.fixture
 def mock_env():
     env = MockSupabaseAuthAndRestEnvironment()
@@ -484,6 +547,63 @@ def test_01_valid_university_login_returns_200(test_setup):
     assert "session" in data
     assert "user" in data
     assert "sync" in data
+
+
+def test_cold_start_university_login_returns_200_and_only_in_progress_attempts(mock_env):
+    mock_env.courses.extend([
+        {"id": "c1000000-0000-0000-0000-000000000004", "course_code": "1501112", "university_id": TEST_UNIVERSITY_ID},
+        {"id": "c1000000-0000-0000-0000-000000000005", "course_code": "1509999", "university_id": TEST_UNIVERSITY_ID},
+    ])
+    university_client = httpx.AsyncClient(
+        transport=httpx.MockTransport(cold_start_fake_uni_handler)
+    )
+    supabase_client = httpx.AsyncClient(
+        transport=httpx.MockTransport(mock_env.handle_request)
+    )
+    contract_client = UniversityContractClient(
+        university_client, client_secret="test-client-secret"
+    )
+    identity_repo = SupabaseUniversityIdentityRepository(
+        "https://test.supabase.co", TEST_SERVICE_KEY, client=supabase_client
+    )
+    admin_auth = SupabaseAdminAuthClient(
+        "https://test.supabase.co", TEST_SERVICE_KEY, client=supabase_client
+    )
+    sync_service = UniversitySyncService(
+        contract_client=contract_client,
+        supabase_url="https://test.supabase.co",
+        service_key=TEST_SERVICE_KEY,
+        internal_auth_secret=TEST_SECRET,
+        university_id=TEST_UNIVERSITY_ID,
+        client=supabase_client,
+        identity_repo=identity_repo,
+        admin_auth=admin_auth,
+    )
+    app.dependency_overrides[get_university_sync_service] = lambda: sync_service
+    app.dependency_overrides[get_supabase_admin_auth] = lambda: admin_auth
+    app.dependency_overrides[get_login_rate_limiter] = lambda: InMemoryLoginRateLimiter(
+        max_attempts=10, window_seconds=60
+    )
+
+    try:
+        response = TestClient(app).post(
+            "/api/v1/auth/university-login",
+            json={"student_id": "202610099", "password": "ValidPassword123!"},
+        )
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 200
+    assert response.json()["sync"] == {
+        "synced_at": response.json()["sync"]["synced_at"],
+        "courses_synced": 0,
+        "attempts_synced": 0,
+        "enrollments_synced": 5,
+    }
+    assert mock_env.profiles[0]["reported_cumulative_gpa"] is None
+    assert mock_env.profiles[0]["reported_gpa_scale"] is None
+    assert len(mock_env.attempts) == 5
+    assert {attempt["outcome"] for attempt in mock_env.attempts} == {"IN_PROGRESS"}
 
 
 def test_02_university_sync_service_called_exactly_once(test_setup):
@@ -680,7 +800,10 @@ def test_15_unmapped_course_returns_safe_503_academic_sync_unavailable(mock_env)
         if path.endswith("/login"):
             return httpx.Response(200, json={"token": "t", "studentId": "202310001"})
         elif path.endswith("/student/me"):
-            return httpx.Response(200, json={"studentId": "202310001", "studyPlan": "12"})
+            return httpx.Response(200, json={
+                "studentId": "202310001", "studyPlan": "12",
+                "cumulativeGpa": 93.6,
+            })
         elif path.endswith("/student/grades"):
             return httpx.Response(200, json=[{"courseCode": "UNKNOWN_COURSE_XYZ", "status": "PASSED"}])
         elif path.endswith("/student/academic-plan"):

@@ -341,6 +341,34 @@ async def test_grades_unwraps_real_semesters_envelope() -> None:
 
 
 @pytest.mark.anyio
+async def test_cold_start_grades_preserve_absent_cumulative_gpa() -> None:
+    response = _grades_response(semesters=[])
+    response["cumulativeGpa"] = None
+
+    result = await _call_with_response(
+        response,
+        lambda client: client.get_student_grades("token"),
+    )
+
+    assert result.cumulative_gpa is None
+    assert str(result.gpa_scale) == "100"
+    assert result.records == []
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize("invalid_scale", [None, 4, 0, "100"])
+async def test_cold_start_grades_still_require_exact_numeric_gpa_scale(
+    invalid_scale: object,
+) -> None:
+    response = _grades_response(semesters=[])
+    response["cumulativeGpa"] = None
+    response["gpaScale"] = invalid_scale
+
+    with pytest.raises(UniversityProtocolError, match="Malformed university grades"):
+        await _call_with_response(response, lambda client: client.get_student_grades("token"))
+
+
+@pytest.mark.anyio
 async def test_real_nested_grade_maps_only_existing_record_fields() -> None:
     result = await _call_with_response(
         _grades_response(),

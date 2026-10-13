@@ -113,15 +113,19 @@ def _validate_snapshot_consistency(
     profile_scale = strict_decimal(profile.gpa_scale, "profile GPA scale")
     if profile_scale != grades.gpa_scale:
         raise UniversityProtocolError("University profile and grades GPA scales conflict")
-    if profile.cumulative_gpa is not None:
-        profile_gpa = strict_decimal(profile.cumulative_gpa, "profile cumulative GPA")
-        policy = grades.grading_policy.gpa
-        minimum = strict_decimal(policy.numeric_min, "policy GPA minimum")
-        maximum = strict_decimal(policy.numeric_max, "policy GPA maximum")
-        if not minimum <= profile_gpa <= maximum:
-            raise UniversityProtocolError("University profile GPA is outside policy bounds")
-        if profile_gpa != grades.cumulative_gpa:
-            raise UniversityProtocolError("University profile and grades cumulative GPA values conflict")
+    if (profile.cumulative_gpa is None) != (grades.cumulative_gpa is None):
+        raise UniversityProtocolError("University profile and grades cumulative GPA values conflict")
+    if profile.cumulative_gpa is None:
+        return
+
+    profile_gpa = strict_decimal(profile.cumulative_gpa, "profile cumulative GPA")
+    policy = grades.grading_policy.gpa
+    minimum = strict_decimal(policy.numeric_min, "policy GPA minimum")
+    maximum = strict_decimal(policy.numeric_max, "policy GPA maximum")
+    if not minimum <= profile_gpa <= maximum:
+        raise UniversityProtocolError("University profile GPA is outside policy bounds")
+    if profile_gpa != grades.cumulative_gpa:
+        raise UniversityProtocolError("University profile and grades cumulative GPA values conflict")
 
 
 class UniversitySyncService:

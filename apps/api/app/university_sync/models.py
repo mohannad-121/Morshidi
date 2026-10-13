@@ -313,7 +313,7 @@ class UniversityGradesResponse(BaseModel):
     model_config = ConfigDict(extra="forbid", populate_by_name=True)
 
     success: Literal[True]
-    cumulative_gpa: StrictInt | StrictFloat = Field(alias="cumulativeGpa")
+    cumulative_gpa: StrictInt | StrictFloat | None = Field(alias="cumulativeGpa")
     gpa_scale: StrictInt | StrictFloat = Field(alias="gpaScale")
     grading_policy: UniversityGradingPolicy = Field(alias="gradingPolicy")
     semesters: list[UniversitySemesterGrades]
@@ -328,7 +328,11 @@ class UniversityGradesResponse(BaseModel):
         scale = strict_decimal(self.gpa_scale, "grades GPA scale")
         if scale != strict_decimal(policy.gpa.scale, "policy GPA scale"):
             raise ValueError("grades GPA scale contradicts grading policy")
-        gpas = [("cumulative GPA", self.cumulative_gpa)]
+        # A student with no completed grade history has no cumulative GPA yet.
+        # Preserve that absence; semester GPA fields remain strictly numeric.
+        gpas = []
+        if self.cumulative_gpa is not None:
+            gpas.append(("cumulative GPA", self.cumulative_gpa))
         for semester in self.semesters:
             gpas.extend((("semester GPA", semester.semester_gpa),
                          ("semester cumulative GPA", semester.cumulative_gpa)))
@@ -348,7 +352,7 @@ class UniversityGradesSnapshot(BaseModel):
 
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
-    cumulative_gpa: Decimal
+    cumulative_gpa: Decimal | None
     gpa_scale: Decimal
     grading_policy: UniversityGradingPolicy
     records: list[UniversityGradeRecord]
