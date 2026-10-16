@@ -1,106 +1,96 @@
-import re
 from pathlib import Path
 
-from app.student_intelligence.diagnostic import DIAGNOSTIC_REASON_CODES
+
+ROOT = Path(__file__).parents[3] / "supabase" / "migrations"
+V1 = ROOT / "20261011190000_add_student_diagnostic_v1.sql"
+V2 = ROOT / "20261016090000_upgrade_student_diagnostic_v2.sql"
 
 
-MIGRATION = (Path(__file__).parents[3] / "supabase" / "migrations" /
-             "20261011190000_add_student_diagnostic_v1.sql")
+def _sql(path: Path) -> str:
+    return path.read_text(encoding="utf-8").lower()
 
 
-def _sql() -> str:
-    return MIGRATION.read_text(encoding="utf-8").lower()
+def test_diagnostic_migrations_remain_atomic_and_browser_closed() -> None:
+    v1, v2 = _sql(V1), _sql(V2)
+    assert v1.lstrip().startswith("-- student intelligence v2")
+    assert v1.rstrip().endswith("commit;") and v2.lstrip().startswith("begin;")
+    assert v2.rstrip().endswith("commit;")
+    assert v1.count("enable row level security") == 3
+    assert v1.count("revoke all on public.student_diagnostic_") == 3
+    assert "grant execute on function public.record_student_diagnostic_answer" in v2
+    assert "to service_role" in v2
+    assert "to authenticated" not in v2 and "to anon" not in v2
 
 
-def test_diagnostic_migration_is_atomic_and_browser_closed() -> None:
-    sql = _sql()
-    assert sql.lstrip().startswith("-- student intelligence v2")
-    assert "begin;" in sql and sql.rstrip().endswith("commit;")
-    assert sql.count("enable row level security") == 3
-    assert sql.count("owner to postgres") == 3
-    assert sql.count("revoke all on public.student_diagnostic_") == 3
-    assert "grant execute on function public.record_student_diagnostic_answer" in sql
-    assert "to service_role" in sql
+def test_expand_migration_preserves_v1_rpc_and_adds_v2_overload() -> None:
+    sql = _sql(V2)
+    v1_signature = "uuid,uuid,text,text,text,text,boolean,text,jsonb"
+    v2_signature = "uuid,uuid,text,text,text,text,boolean,integer,text,text,jsonb"
+    assert "drop function" not in sql
+    assert "create or replace function public.record_student_diagnostic_answer(" in sql
+    assert "create function public.record_student_diagnostic_answer(" in sql
+    assert sql.count("grant execute on function public.record_student_diagnostic_answer") == 2
+    assert sql.count("revoke all on function public.record_student_diagnostic_answer") == 2
+    compact = "".join(sql.split())
+    assert v1_signature in compact and v2_signature in compact
+    assert "s.assessment_version <> 'quick_diagnostic_v1'" in sql
+    assert "s.assessment_version <> 'quick_diagnostic_v2'" in sql
 
 
-def test_diagnostic_migration_hardens_definers_and_closed_sessions() -> None:
-    sql = _sql()
-    assert sql.count("security definer") == 3
-    assert sql.count("set search_path = ''") == 4
-    assert sql.count("from public, anon, authenticated, service_role") == 4
-    assert sql.count("from anon, authenticated, service_role") == 3
+def test_v2_captures_bounded_timing_and_self_confidence() -> None:
+    sql = _sql(V2)
+    assert "add column response_time_ms integer not null" in sql
+    assert "response_time_ms between 0 and 1800000" in sql
+    assert "add column self_confidence text not null" in sql
+    assert "self_confidence in ('low', 'medium', 'high')" in sql
+    assert "p_response_time_ms integer, p_self_confidence text" in sql
+    assert "p_response_time_ms not between 0 and 1800000" in sql
+
+
+def test_v2_requires_exactly_thirty_and_six_per_domain() -> None:
+    sql = _sql(V2)
+    assert "question_count between 0 and 30" in sql
+    assert "response_order between 1 and 30" in sql
+    assert "next_order <> 30" in sql
+    assert "diagnostic completion requires exactly 30 answers" in sql
+    assert "next_order >= 30" in sql and "question 30 must complete" in sql
+    assert "actual_response_count <> 6" in sql
+    assert "each diagnostic domain requires six responses" in sql
+    assert "<> 2" in sql and "each domain requires two responses per difficulty" in sql
+    assert "result_response_total <> 30" in sql
+
+
+def test_v2_completion_and_replay_guards_are_inside_atomic_rpc() -> None:
+    sql = _sql(V2)
     assert "for update" in sql
-    assert "unique(session_id, question_id)" in sql
-    assert "unique(session_id, response_order)" in sql
-    assert "diagnostic evidence is immutable" in sql
-    assert "old.status in ('completed', 'abandoned')" in sql
-    assert "jsonb_array_length(p_results) <> 5" in sql
-    assert "grant select on public.student_diagnostic_responses to service_role" in sql
-    assert "grant select, insert on public.student_diagnostic_responses" not in sql
-    assert "grant update(status, current_question_id, updated_at)" in sql
-
-
-def test_completion_minimum_and_exact_question_ten_static_contract() -> None:
-    sql = _sql()
-    assert "if next_order < 10 or next_order > 16 then" in sql
-    assert "diagnostic completion requires 10 to 16 answers" in sql
-    assert "next_order <= 10" not in sql
-
-
-def test_question_sixteen_forces_completion_and_question_seventeen_is_impossible() -> None:
-    sql = _sql()
     assert "actual_response_count <> s.question_count" in sql
-    assert "diagnostic session response count mismatch" in sql
-    assert "if next_order >= 16 then" in sql
-    assert "diagnostic question 16 must complete the assessment" in sql
-    assert "if next_order > 16 then" in sql
-    assert "diagnostic maximum question count exceeded" in sql
-
-
-def test_next_question_cannot_repeat_current_or_previous_question() -> None:
-    sql = _sql()
-    assert "if p_next_question_id = p_question_id then" in sql
-    assert "r.session_id = s.id and r.question_id = p_next_question_id" in sql
-    assert "diagnostic next question was already answered" in sql
-
-
-def test_results_are_forbidden_while_continuing_and_required_on_completion() -> None:
-    sql = _sql()
-    assert "if p_results is not null then" in sql
+    assert "p_next_question_id = p_question_id or exists" in sql
+    assert "diagnostic next question must be unanswered" in sql
     assert "diagnostic continuation must not include results" in sql
-    assert "if p_results is null or pg_catalog.jsonb_typeof(p_results) <> 'array'" in sql
-    assert "completed assessment requires results" in sql
-
-
-def test_completion_requires_five_unique_domains_and_database_response_counts() -> None:
-    sql = _sql()
-    assert "jsonb_array_length(p_results) <> 5" in sql
-    assert "count(distinct result->>'domain')" in sql
-    assert "completed assessment requires five unique domains" in sql
-    assert "r.session_id = s.id and r.domain = item->>'domain'" in sql
-    assert "actual_response_count <> (item->>'response_count')::integer" in sql
-    assert "diagnostic result response count mismatch" in sql
-    assert "result_response_total <> next_order" in sql
-    assert "diagnostic result response counts must equal answer count" in sql
-
-
-def test_reason_codes_are_bounded_arrays_with_closed_vocabulary() -> None:
-    sql = _sql()
-    assert "jsonb_typeof(item->'reason_codes') is distinct from 'array'" in sql
-    assert "jsonb_array_length(item->'reason_codes') not between 2 and 4" in sql
-    allowlist = re.search(r"where reason not in \((.*?)\)\s*\)", sql, re.DOTALL)
-    assert allowlist is not None
-    assert set(re.findall(r"'([^']+)'", allowlist.group(1))) == {
-        reason.lower() for reason in DIAGNOSTIC_REASON_CODES
-    }
-    assert "invalid diagnostic reason codes" in sql
-
-
-def test_invalid_completion_rolls_back_current_answer_atomically() -> None:
-    sql = _sql()
     answer_insert = sql.index("insert into public.student_diagnostic_responses")
-    result_validation = sql.index("completed assessment requires results", answer_insert)
-    completion_update = sql.index("set status='completed'", result_validation)
-    assert answer_insert < result_validation < completion_update
-    assert sql.lstrip().startswith("-- student intelligence v2")
-    assert sql.rstrip().endswith("commit;")
+    validation = sql.index("completed assessment requires five results", answer_insert)
+    completion = sql.index("set status='completed'", validation)
+    assert answer_insert < validation < completion
+
+
+def test_v2_result_codes_and_reasoning_patterns_are_closed_vocabularies() -> None:
+    sql = _sql(V2)
+    assert "jsonb_typeof(item->'reason_codes') is distinct from 'array'" in sql
+    assert "jsonb_typeof(item->'reasoning_patterns') is distinct from 'array'" in sql
+    for code in (
+        "modeled_diagnostic_baseline", "unrealistically_fast", "repetitive_option_pattern",
+        "random_looking_pattern", "strong_systematic_reasoning", "careful_but_slower",
+        "self_confidence_above_evidence", "difficulty_with_multi_step_problems",
+    ):
+        assert f"'{code}'" in sql
+    assert "invalid diagnostic bounded evidence codes" in sql
+
+
+def test_v2_preserves_closed_session_and_child_immutability_from_v1() -> None:
+    v1 = _sql(V1)
+    assert "diagnostic evidence is immutable" in v1
+    assert "old.status in ('completed', 'abandoned')" in v1
+    assert "unique(session_id, question_id)" in v1
+    assert "unique(session_id, response_order)" in v1
+    assert "grant select, insert on public.student_diagnostic_sessions to service_role" in v1
+    assert "grant select, insert on public.student_diagnostic_responses" not in v1

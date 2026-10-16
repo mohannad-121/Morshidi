@@ -49,17 +49,34 @@ class SupabaseDiagnosticRepository:
 
     async def load_responses(self, session_id: str) -> list[dict[str, Any]]:
         response = await self._request("GET", "/rest/v1/student_diagnostic_responses", params={
-            "select": "question_id,selected_option,is_correct,response_order", "session_id": f"eq.{session_id}",
+            "select": "question_id,selected_option,is_correct,response_time_ms,self_confidence,response_order",
+            "session_id": f"eq.{session_id}",
             "order": "response_order.asc"})
         return response.json()
 
-    async def record_answer(self, *, session_id: str, owner: str, question_id: str,
-                            selected_option: str, domain: str, difficulty: str, is_correct: bool,
-                            next_question_id: str | None, results: list[dict[str, Any]] | None) -> dict[str, Any]:
+    async def record_answer_v1(self, *, session_id: str, owner: str, question_id: str,
+                               selected_option: str, domain: str, difficulty: str,
+                               is_correct: bool, next_question_id: str | None,
+                               results: list[dict[str, Any]] | None) -> dict[str, Any]:
         response = await self._request("POST", "/rest/v1/rpc/record_student_diagnostic_answer", json={
             "p_session_id": session_id, "p_owner_user_id": owner, "p_question_id": question_id,
             "p_selected_option": selected_option, "p_domain": domain, "p_difficulty": difficulty,
-            "p_is_correct": is_correct, "p_next_question_id": next_question_id, "p_results": results})
+            "p_is_correct": is_correct, "p_next_question_id": next_question_id,
+            "p_results": results})
+        payload = response.json()
+        return payload[0] if isinstance(payload, list) else payload
+
+    async def record_answer_v2(self, *, session_id: str, owner: str, question_id: str,
+                               selected_option: str, domain: str, difficulty: str, is_correct: bool,
+                               response_time_ms: int, self_confidence: str,
+                               next_question_id: str | None,
+                               results: list[dict[str, Any]] | None) -> dict[str, Any]:
+        response = await self._request("POST", "/rest/v1/rpc/record_student_diagnostic_answer", json={
+            "p_session_id": session_id, "p_owner_user_id": owner, "p_question_id": question_id,
+            "p_selected_option": selected_option, "p_domain": domain, "p_difficulty": difficulty,
+            "p_is_correct": is_correct, "p_response_time_ms": response_time_ms,
+            "p_self_confidence": self_confidence,
+            "p_next_question_id": next_question_id, "p_results": results})
         payload = response.json()
         return payload[0] if isinstance(payload, list) else payload
 
@@ -81,6 +98,6 @@ class SupabaseDiagnosticRepository:
             return None, []
         session = rows[0]
         result = await self._request("GET", "/rest/v1/student_diagnostic_skill_results", params={
-            "select": "domain,score,confidence,response_count,reason_codes,scoring_policy_version",
+            "select": "domain,score,confidence,response_count,reason_codes,reasoning_patterns,scoring_policy_version",
             "session_id": f"eq.{session['id']}", "order": "domain.asc"})
         return session, result.json()

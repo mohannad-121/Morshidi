@@ -26,6 +26,7 @@ from app.student_intelligence.adaptive import (
 from app.university_sync.grading_policy import grading_policy_source_reference
 from app.student_intelligence.diagnostic import (
     ASSESSMENT_VERSION,
+    QUESTION_BANK,
     QUESTIONS_BY_ID,
     AnswerEvidence,
     DiagnosticDomain,
@@ -34,6 +35,7 @@ from app.student_intelligence.diagnostic import (
 from app.student_intelligence.diagnostic_repository import SupabaseDiagnosticRepository
 from app.student_intelligence.diagnostic_service import DiagnosticConflict, DiagnosticService
 from app.student_intelligence.profile_v2 import build_student_intelligence_profile_v2
+from app.student_intelligence import diagnostic_v1
 
 
 URL = os.getenv("MORSHIDI_LOCAL_SUPABASE_URL")
@@ -47,8 +49,7 @@ pytestmark = pytest.mark.skipif(
 
 ADMIN = {"apikey": SERVER_KEY or "", "Authorization": f"Bearer {SERVER_KEY or ''}"}
 DOMAINS = tuple(domain.value for domain in DiagnosticDomain)
-BASE_SEQUENCE = ("P01", "L01", "M01", "S01", "T01", "P02", "L02", "M02", "S02", "T02")
-LONG_SEQUENCE = BASE_SEQUENCE + ("P03", "L03", "M03", "S03", "T03", "P04")
+FULL_SEQUENCE = tuple(question.question_id for question in QUESTION_BANK)
 
 
 @dataclass
@@ -137,7 +138,7 @@ def _session_payload(fx: LocalFixtures, *, owner=0, profile=0, institution=None,
                      version: str | None = None, question="P01") -> dict:
     return {"owner_user_id": fx.users[owner], "profile_id": fx.profiles[profile],
             "institution_id": institution or fx.university_a, "study_plan_id": plan or fx.plan_a,
-            "assessment_version": version or f"RUNTIME-{uuid.uuid4()}", "status": "IN_PROGRESS",
+            "assessment_version": version or ASSESSMENT_VERSION, "status": "IN_PROGRESS",
             "current_question_id": question}
 
 
@@ -153,16 +154,31 @@ def _rpc(client: httpx.Client, session: dict, question_id: str, *, next_question
             "p_owner_user_id": owner or session["owner_user_id"], "p_question_id": question_id,
             "p_selected_option": option, "p_domain": question.domain.value,
             "p_difficulty": question.difficulty, "p_is_correct": option == question.correct_option,
+            "p_response_time_ms": 30000, "p_self_confidence": "MEDIUM",
+            "p_next_question_id": next_question, "p_results": results})
+
+
+def _rpc_v1(client: httpx.Client, session: dict, question_id: str, *,
+            next_question: str | None, results=None, owner: str | None = None,
+            option="A", ok=True):
+    question = diagnostic_v1.QUESTIONS_BY_ID[question_id]
+    return _request(client, "POST", "/rest/v1/rpc/record_student_diagnostic_answer",
+        headers=ADMIN, ok=ok, json={"p_session_id": session["id"],
+            "p_owner_user_id": owner or session["owner_user_id"], "p_question_id": question_id,
+            "p_selected_option": option, "p_domain": question.domain.value,
+            "p_difficulty": question.difficulty, "p_is_correct": option == question.correct_option,
             "p_next_question_id": next_question, "p_results": results})
 
 
 def _valid_results(sequence: tuple[str, ...], option="A") -> list[dict]:
-    answers = tuple(AnswerEvidence(qid, option, option == QUESTIONS_BY_ID[qid].correct_option)
+    answers = tuple(AnswerEvidence(qid, option, option == QUESTIONS_BY_ID[qid].correct_option,
+                                   30000, "MEDIUM")
                     for qid in sequence)
     return [{"domain": result.domain.value, "score": result.score,
              "confidence": result.confidence, "response_count": result.response_count,
              "reason_codes": list(result.reason_codes),
-             "scoring_policy_version": "DIAGNOSTIC_SCORING_V1"}
+             "reasoning_patterns": list(result.reasoning_patterns),
+             "scoring_policy_version": "DIAGNOSTIC_SCORING_V2"}
             for result in (score_domain(domain, answers) for domain in DiagnosticDomain)]
 
 
@@ -183,6 +199,8 @@ def test_scope_trigger_and_browser_roles_are_closed(local_fixtures: LocalFixture
     fx = local_fixtures
     with httpx.Client() as client:
         valid = _create_session(client, fx)
+        valid_v1 = _create_session(
+            client, fx, version=diagnostic_v1.ASSESSMENT_VERSION)
         invalid = (
             _session_payload(fx, profile=1),
             _session_payload(fx, profile=2),
@@ -195,8 +213,11 @@ def test_scope_trigger_and_browser_roles_are_closed(local_fixtures: LocalFixture
                             headers={**ADMIN, "Prefer": "return=representation"}, json=payload,
                             ok=False).status_code >= 400
 
-        for token in fx.tokens[:3]:
-            headers = {"apikey": ANON_KEY or "", "Authorization": f"Bearer {token}"}
+        role_headers = [{"apikey": ANON_KEY or ""}] + [
+            {"apikey": ANON_KEY or "", "Authorization": f"Bearer {token}"}
+            for token in fx.tokens[:3]
+        ]
+        for headers in role_headers:
             for table in ("student_diagnostic_sessions", "student_diagnostic_responses",
                           "student_diagnostic_skill_results"):
                 assert _request(client, "GET", f"/rest/v1/{table}", headers=headers,
@@ -207,42 +228,60 @@ def test_scope_trigger_and_browser_roles_are_closed(local_fixtures: LocalFixture
                                     json={} if method != "DELETE" else None, ok=False).status_code in (401, 403)
             assert _request(client, "POST", "/rest/v1/rpc/record_student_diagnostic_answer",
                             headers=headers, json={}, ok=False).status_code in (401, 403, 404)
+            v2_body = {
+                "p_session_id": valid["id"], "p_owner_user_id": valid["owner_user_id"],
+                "p_question_id": "P01", "p_selected_option": "A",
+                "p_domain": QUESTIONS_BY_ID["P01"].domain.value,
+                "p_difficulty": QUESTIONS_BY_ID["P01"].difficulty,
+                "p_is_correct": QUESTIONS_BY_ID["P01"].correct_option == "A",
+                "p_response_time_ms": 30000, "p_self_confidence": "MEDIUM",
+                "p_next_question_id": "P02", "p_results": None,
+            }
+            v1_item = diagnostic_v1.QUESTIONS_BY_ID["P01"]
+            v1_body = {
+                "p_session_id": valid_v1["id"],
+                "p_owner_user_id": valid_v1["owner_user_id"],
+                "p_question_id": "P01", "p_selected_option": "A",
+                "p_domain": v1_item.domain.value, "p_difficulty": v1_item.difficulty,
+                "p_is_correct": v1_item.correct_option == "A",
+                "p_next_question_id": "L01", "p_results": None,
+            }
+            for body in (v1_body, v2_body):
+                assert _request(
+                    client, "POST", "/rest/v1/rpc/record_student_diagnostic_answer",
+                    headers=headers, json=body, ok=False).status_code in (401, 403, 404)
         abandoned = _request(client, "PATCH", "/rest/v1/student_diagnostic_sessions",
                              headers={**ADMIN, "Prefer": "return=representation"},
                              params={"id": f"eq.{valid['id']}"},
                              json={"status": "ABANDONED", "current_question_id": None})
         assert abandoned.json()[0]["status"] == "ABANDONED"
+        _request(client, "PATCH", "/rest/v1/student_diagnostic_sessions",
+                 headers=ADMIN, params={"id": f"eq.{valid_v1['id']}"},
+                 json={"status": "ABANDONED", "current_question_id": None})
 
 
 def test_question_boundaries_replays_forgery_and_atomic_rollback(local_fixtures: LocalFixtures) -> None:
     fx = local_fixtures
     with httpx.Client() as client:
-        nine = _create_session(client, fx, question=BASE_SEQUENCE[0])
-        _advance(client, nine, BASE_SEQUENCE[:9])
-        before = _state(client, nine["id"])
-        rejected = _rpc(client, nine, BASE_SEQUENCE[8], next_question=None,
-                        results=_valid_results(BASE_SEQUENCE[:9]), ok=False)
-        assert rejected.status_code >= 400 and _state(client, nine["id"]) == before
+        partial = _create_session(client, fx, question=FULL_SEQUENCE[0])
+        _advance(client, partial, FULL_SEQUENCE[:29])
+        before = _state(client, partial["id"])
+        rejected = _rpc(client, partial, FULL_SEQUENCE[28], next_question=None,
+                        results=_valid_results(FULL_SEQUENCE[:29]), ok=False)
+        assert rejected.status_code >= 400 and _state(client, partial["id"]) == before
+        _request(client, "PATCH", "/rest/v1/student_diagnostic_sessions", headers=ADMIN,
+                 params={"id": f"eq.{partial['id']}"},
+                 json={"status": "ABANDONED", "current_question_id": None})
 
-        ten = _create_session(client, fx, question=BASE_SEQUENCE[0])
-        _advance(client, ten, BASE_SEQUENCE)
-        completed = _rpc(client, ten, BASE_SEQUENCE[-1], next_question=None,
-                         results=_valid_results(BASE_SEQUENCE))
+        full = _create_session(client, fx, question=FULL_SEQUENCE[0])
+        _advance(client, full, FULL_SEQUENCE)
+        completed = _rpc(client, full, FULL_SEQUENCE[-1], next_question=None,
+                         results=_valid_results(FULL_SEQUENCE))
         assert completed.json()["status"] == "COMPLETED"
-        state, responses, results = _state(client, ten["id"])
-        assert state["question_count"] == 10 and len(responses) == 10 and len(results) == 5
-
-        sixteen = _create_session(client, fx, question=LONG_SEQUENCE[0])
-        _advance(client, sixteen, LONG_SEQUENCE)
-        at_fifteen = _state(client, sixteen["id"])
-        assert at_fifteen[0]["question_count"] == 15
-        forced = _rpc(client, sixteen, LONG_SEQUENCE[-1], next_question="P05", ok=False)
-        assert forced.status_code >= 400 and _state(client, sixteen["id"]) == at_fifteen
-        _rpc(client, sixteen, LONG_SEQUENCE[-1], next_question=None,
-             results=_valid_results(LONG_SEQUENCE))
-        assert _state(client, sixteen["id"])[0]["question_count"] == 16
-        assert _rpc(client, sixteen, LONG_SEQUENCE[-1], next_question=None,
-                    results=_valid_results(LONG_SEQUENCE), ok=False).status_code >= 400
+        state, responses, results = _state(client, full["id"])
+        assert state["question_count"] == 30 and len(responses) == 30 and len(results) == 5
+        assert _rpc(client, full, FULL_SEQUENCE[-1], next_question=None,
+                    results=_valid_results(FULL_SEQUENCE), ok=False).status_code >= 400
 
         replay = _create_session(client, fx, question="P01")
         _rpc(client, replay, "P01", next_question="L01")
@@ -250,9 +289,12 @@ def test_question_boundaries_replays_forgery_and_atomic_rollback(local_fixtures:
         for current, nxt in (("P01", "M01"), ("L01", "P01"), ("L01", "L01")):
             assert _rpc(client, replay, current, next_question=nxt, ok=False).status_code >= 400
             assert _state(client, replay["id"]) == snapshot
+        _request(client, "PATCH", "/rest/v1/student_diagnostic_sessions", headers=ADMIN,
+                 params={"id": f"eq.{replay['id']}"},
+                 json={"status": "ABANDONED", "current_question_id": None})
 
         mutations = []
-        valid_results = _valid_results(BASE_SEQUENCE)
+        valid_results = _valid_results(FULL_SEQUENCE)
         mutations.append(valid_results[:4])
         mutations.append(valid_results + [deepcopy(valid_results[0])])
         duplicate = deepcopy(valid_results); duplicate[1]["domain"] = duplicate[0]["domain"]; mutations.append(duplicate)
@@ -270,12 +312,15 @@ def test_question_boundaries_replays_forgery_and_atomic_rollback(local_fixtures:
             mutations.append(item)
 
         for malformed in mutations:
-            session = _create_session(client, fx, question=BASE_SEQUENCE[0])
-            _advance(client, session, BASE_SEQUENCE)
+            session = _create_session(client, fx, question=FULL_SEQUENCE[0])
+            _advance(client, session, FULL_SEQUENCE)
             before = _state(client, session["id"])
-            assert _rpc(client, session, BASE_SEQUENCE[-1], next_question=None,
+            assert _rpc(client, session, FULL_SEQUENCE[-1], next_question=None,
                         results=malformed, ok=False).status_code >= 400
             assert _state(client, session["id"]) == before
+            _request(client, "PATCH", "/rest/v1/student_diagnostic_sessions", headers=ADMIN,
+                     params={"id": f"eq.{session['id']}"},
+                     json={"status": "ABANDONED", "current_question_id": None})
 
 
 def _services(client: httpx.AsyncClient, policies: GradePolicyRegistry | None = None):
@@ -287,14 +332,59 @@ def _services(client: httpx.AsyncClient, policies: GradePolicyRegistry | None = 
     return students, DiagnosticService(diagnostics_repo, students), diagnostics_repo
 
 
+def test_v1_v2_rpc_overloads_and_active_v1_rollout_compatibility(
+    local_fixtures: LocalFixtures,
+) -> None:
+    fx = local_fixtures
+
+    async def scenario() -> None:
+        async with httpx.AsyncClient(timeout=20) as client:
+            _, service, repo = _services(client)
+            with httpx.Client(timeout=20) as raw:
+                v1_session = _create_session(
+                    raw, fx, owner=0, profile=0,
+                    version=diagnostic_v1.ASSESSMENT_VERSION, question="P01")
+                v2_session = _create_session(
+                    raw, fx, owner=0, profile=0,
+                    version=ASSESSMENT_VERSION, question="P01")
+                assert _rpc(raw, v1_session, "P01", next_question="P02", ok=False).status_code >= 400
+                assert _rpc_v1(raw, v2_session, "P01", next_question="L01", ok=False).status_code >= 400
+                _request(raw, "PATCH", "/rest/v1/student_diagnostic_sessions", headers=ADMIN,
+                         params={"id": f"eq.{v2_session['id']}"},
+                         json={"status": "ABANDONED", "current_question_id": None})
+
+            resumed = await service.start(fx.users[0], ASSESSMENT_VERSION)
+            assert resumed["session_id"] == v1_session["id"]
+            assert resumed["assessment_version"] == diagnostic_v1.ASSESSMENT_VERSION
+            assert resumed["maximum_questions"] == diagnostic_v1.MAX_QUESTIONS
+            while resumed["status"] == "IN_PROGRESS":
+                question = resumed["question"]
+                assert question is not None and "domain" in question
+                item = diagnostic_v1.QUESTIONS_BY_ID[question["question_id"]]
+                resumed = await service.answer(
+                    fx.users[0], resumed["session_id"], item.question_id,
+                    item.correct_option, None, None)
+            assert 10 <= resumed["answered_count"] <= 16
+            stored_session, stored_results = await repo.latest_completed(
+                fx.users[0], fx.plan_a, diagnostic_v1.ASSESSMENT_VERSION)
+            assert stored_session is not None and len(stored_results) == 5
+            legacy_rows = await repo.load_responses(v1_session["id"])
+            assert legacy_rows
+            assert all(row["response_time_ms"] == 0 for row in legacy_rows)
+            assert all(row["self_confidence"] == "MEDIUM" for row in legacy_rows)
+            assert all(not row.get("reasoning_patterns") for row in stored_results)
+
+    asyncio.run(scenario())
+
+
 async def _complete(service: DiagnosticService, owner: str) -> dict:
-    payload = await service.start(owner)
+    payload = await service.start(owner, ASSESSMENT_VERSION)
     while payload["status"] == "IN_PROGRESS":
         question = payload["question"]
         assert question is not None
         bank_item = QUESTIONS_BY_ID[question["question_id"]]
         payload = await service.answer(owner, payload["session_id"], bank_item.question_id,
-                                       bank_item.correct_option)
+                                       bank_item.correct_option, 30000, "MEDIUM")
     return payload
 
 
@@ -305,59 +395,62 @@ def test_real_service_happy_path_concurrency_and_intelligence(local_fixtures: Lo
         async with httpx.AsyncClient(timeout=20) as client:
             students, diagnostics, repo = _services(client)
 
-            cold = await students.get_student_intelligence_v2(fx.users[0])
+            cold = await students.get_student_intelligence_v2(fx.users[1])
             assert cold.cold_start_status == "COLD_START_NO_PERFORMANCE_EVIDENCE"
             assert cold.diagnostic_recommended is True and cold.skills == ()
 
-            completed = await _complete(diagnostics, fx.users[0])
+            completed = await _complete(diagnostics, fx.users[1])
             assert completed["status"] == "COMPLETED"
-            assert 10 <= completed["answered_count"] <= 16
-            assert completed["answered_count"] == 12
+            assert completed["answered_count"] == 30
             assert completed["question"] is None and len(completed["results"]) == 5
             serialized = str(completed)
             assert all(hidden not in serialized for hidden in ("correct_option", "is_correct", "difficulty_weight"))
-            modeled = await students.get_student_intelligence_v2(fx.users[0])
+            modeled = await students.get_student_intelligence_v2(fx.users[1])
             assert modeled.diagnostic_completed is True
             assert modeled.diagnostic_recommended is False
             assert modeled.skills and all(row.score is not None for row in modeled.skills)
 
-            starts = await asyncio.gather(diagnostics.start(fx.users[1]), diagnostics.start(fx.users[1]))
+            starts = await asyncio.gather(
+                diagnostics.start(fx.users[0], ASSESSMENT_VERSION),
+                diagnostics.start(fx.users[0], ASSESSMENT_VERSION),
+            )
             assert starts[0]["session_id"] == starts[1]["session_id"]
-            active = await repo.load_active(fx.users[1], fx.plan_a, ASSESSMENT_VERSION)
+            active = await repo.load_active(fx.users[0], fx.plan_a, ASSESSMENT_VERSION)
             assert active is not None
             first = str(active["current_question_id"])
             answer = QUESTIONS_BY_ID[first].correct_option
             outcomes = await asyncio.gather(
-                diagnostics.answer(fx.users[1], active["id"], first, answer),
-                diagnostics.answer(fx.users[1], active["id"], first, answer),
+                diagnostics.answer(fx.users[0], active["id"], first, answer, 30000, "MEDIUM"),
+                diagnostics.answer(fx.users[0], active["id"], first, answer, 30000, "MEDIUM"),
                 return_exceptions=True,
             )
             assert sum(isinstance(item, DiagnosticConflict) for item in outcomes) == 1
-            advanced = await repo.load_session(fx.users[1], active["id"])
+            advanced = await repo.load_session(fx.users[0], active["id"])
             assert advanced is not None and advanced["question_count"] == 1
             assert len(await repo.load_responses(active["id"])) == 1
-            await diagnostics.abandon(fx.users[1], active["id"])
+            await diagnostics.abandon(fx.users[0], active["id"])
 
-            final = await diagnostics.start(fx.users[1])
-            while final["answered_count"] < 11:
+            final = await diagnostics.start(fx.users[0], ASSESSMENT_VERSION)
+            while final["answered_count"] < 29:
                 question = final["question"]
                 bank_item = QUESTIONS_BY_ID[question["question_id"]]
-                final = await diagnostics.answer(fx.users[1], final["session_id"],
-                                                 bank_item.question_id, bank_item.correct_option)
+                final = await diagnostics.answer(fx.users[0], final["session_id"],
+                                                 bank_item.question_id, bank_item.correct_option,
+                                                 30000, "MEDIUM")
             final_question = final["question"]
             bank_item = QUESTIONS_BY_ID[final_question["question_id"]]
             outcomes = await asyncio.gather(
-                diagnostics.answer(fx.users[1], final["session_id"], bank_item.question_id,
-                                   bank_item.correct_option),
-                diagnostics.answer(fx.users[1], final["session_id"], bank_item.question_id,
-                                   bank_item.correct_option),
+                diagnostics.answer(fx.users[0], final["session_id"], bank_item.question_id,
+                                   bank_item.correct_option, 30000, "MEDIUM"),
+                diagnostics.answer(fx.users[0], final["session_id"], bank_item.question_id,
+                                   bank_item.correct_option, 30000, "MEDIUM"),
                 return_exceptions=True,
             )
             assert sum(isinstance(item, DiagnosticConflict) for item in outcomes) == 1
-            closed = await repo.load_session(fx.users[1], final["session_id"])
-            assert closed is not None and closed["status"] == "COMPLETED" and closed["question_count"] == 12
-            _, result_rows = await repo.latest_completed(fx.users[1], fx.plan_a, ASSESSMENT_VERSION)
-            assert len(result_rows) == 5 and len(await repo.load_responses(final["session_id"])) == 12
+            closed = await repo.load_session(fx.users[0], final["session_id"])
+            assert closed is not None and closed["status"] == "COMPLETED" and closed["question_count"] == 30
+            _, result_rows = await repo.latest_completed(fx.users[0], fx.plan_a, ASSESSMENT_VERSION)
+            assert len(result_rows) == 5 and len(await repo.load_responses(final["session_id"])) == 30
 
     asyncio.run(scenario())
 
@@ -482,9 +575,13 @@ def test_actual_fastapi_routes_are_owner_scoped_and_hide_answer_keys(local_fixtu
     with TestClient(app) as client:
         intelligence = client.get("/api/v1/me/student-intelligence", headers=auth[0])
         assert intelligence.status_code == 200
-        status = client.get("/api/v1/me/diagnostic/status", headers=auth[0])
+        status = client.get(
+            "/api/v1/me/diagnostic/status?assessment_version=QUICK_DIAGNOSTIC_V2",
+            headers=auth[0])
         assert status.status_code == 200
-        started = client.post("/api/v1/me/diagnostic/start", headers=auth[0])
+        started = client.post(
+            "/api/v1/me/diagnostic/start?assessment_version=QUICK_DIAGNOSTIC_V2",
+            headers=auth[0])
         assert started.status_code == 200
         body = started.json(); session_id = body["session_id"]
         assert body["question"] is not None
@@ -494,18 +591,22 @@ def test_actual_fastapi_routes_are_owner_scoped_and_hide_answer_keys(local_fixtu
             assert client.get(f"/api/v1/me/diagnostic/{session_id}/next", headers=foreign).status_code == 404
             assert client.post(f"/api/v1/me/diagnostic/{session_id}/answer", headers=foreign,
                                json={"question_id": body["question"]["question_id"],
-                                     "selected_option": "A"}).status_code == 404
+                                     "selected_option": "A", "response_time_ms": 30000,
+                                     "self_confidence": "MEDIUM"}).status_code == 404
             assert client.post(f"/api/v1/me/diagnostic/{session_id}/abandon", headers=foreign).status_code == 404
         random_id = str(uuid.uuid4())
         assert client.get(f"/api/v1/me/diagnostic/{random_id}/next", headers=auth[0]).status_code == 404
         assert client.get(f"/api/v1/me/diagnostic/{completed_id}/next", headers=auth[0]).status_code == 200
         assert client.post(f"/api/v1/me/diagnostic/{completed_id}/answer", headers=auth[0],
-                           json={"question_id": "P01", "selected_option": "A"}).status_code == 409
+                           json={"question_id": "P01", "selected_option": "A",
+                                 "response_time_ms": 30000,
+                                 "self_confidence": "MEDIUM"}).status_code == 409
         for foreign in auth[1:]:
             assert client.get(f"/api/v1/me/diagnostic/{completed_id}/next", headers=foreign).status_code == 404
         answered = client.post(f"/api/v1/me/diagnostic/{session_id}/answer", headers=auth[0],
                                json={"question_id": body["question"]["question_id"],
-                                     "selected_option": "A"})
+                                     "selected_option": "A", "response_time_ms": 30000,
+                                     "self_confidence": "MEDIUM"})
         assert answered.status_code == 200
         assert client.post(f"/api/v1/me/diagnostic/{session_id}/abandon", headers=auth[0]).status_code == 204
         assert client.get(f"/api/v1/me/diagnostic/{session_id}/next", headers=auth[0]).status_code == 200
@@ -513,4 +614,5 @@ def test_actual_fastapi_routes_are_owner_scoped_and_hide_answer_keys(local_fixtu
             assert client.get(f"/api/v1/me/diagnostic/{session_id}/next", headers=foreign).status_code == 404
         assert client.post(f"/api/v1/me/diagnostic/{session_id}/answer", headers=auth[0],
                            json={"question_id": answered.json()["question"]["question_id"],
-                                 "selected_option": "A"}).status_code == 409
+                                 "selected_option": "A", "response_time_ms": 30000,
+                                 "self_confidence": "MEDIUM"}).status_code == 409

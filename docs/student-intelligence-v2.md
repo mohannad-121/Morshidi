@@ -24,9 +24,10 @@ For each skill, diagnostic evidence is used alone when no official evidence exis
 - Grade policy: `FAKE_UNIVERSITY_GRADING_POLICY_V1`
 - Fusion: `EVIDENCE_FUSION_V1`
 - Cold start: `COLD_START_POLICY_V1`
-- Assessment: `QUICK_DIAGNOSTIC_V1`
-- Selection: `DIAGNOSTIC_SELECTION_V1`
-- Scoring: `DIAGNOSTIC_SCORING_V1`
+- Transitional assessment: `QUICK_DIAGNOSTIC_V1`
+- Current assessment: `QUICK_DIAGNOSTIC_V2`
+- Transitional selection/scoring: `DIAGNOSTIC_SELECTION_V1` / `DIAGNOSTIC_SCORING_V1`
+- Current selection/scoring: `DIAGNOSTIC_SELECTION_V2` / `DIAGNOSTIC_SCORING_V2`
 
 ## Taxonomy and grade policy
 
@@ -38,13 +39,25 @@ Fake University publishes the authoritative `FAKE_UNIVERSITY_GRADING_POLICY_V1` 
 
 ## Diagnostic policy
 
-The Arabic-first bank contains 25 original multiple-choice items: five each for programming reasoning, logical problem solving, quantitative math, statistics/data reasoning, and theory/comprehension/memory. Selection is reproducible: two balanced base items per domain, a typical target of 12, and up to 16 when estimates remain ambiguous. The browser submits only the currently issued question ID and option ID. It never receives correctness, difficulty weights, or the answer key.
+`QUICK_DIAGNOSTIC_V2` is an Arabic-first fixed 30-question academic-reasoning diagnostic: exactly six items in each of programming reasoning, logical problem solving, quantitative/mathematical reasoning, statistics/data reasoning, and theory/conceptual understanding. Every domain contains exactly two easy, two medium, and two hard items. Each server-only item records skill, subskill, correct answer, distractor rationales, cognitive operation, evidence weight, expected solving behavior, and estimated time. The browser receives only the current ID, Arabic/English prompt, and options; it never receives domain, difficulty, correctness, distractor meaning, weights, or answer keys.
 
-Difficulty-weighted correctness produces a whole-number domain score. Two responses can only be low confidence; three are at most medium; high confidence requires at least four consistent responses. This is an auditable heuristic baseline, not a validated psychometric instrument and not an official academic result.
+The browser submits the currently issued question/option plus bounded response time and the student's LOW/MEDIUM/HIGH self-confidence. The atomic RPC requires exactly 30 unique issued answers, six per domain, and two per difficulty/domain. Self-confidence is evidence about calibration, never correctness and never model confidence.
+
+### Exact deterministic scoring formula
+
+For an answered item `i`, `w_i = difficulty_weight × evidence_weight`, where difficulty weights are EASY `1.0`, MEDIUM `1.5`, and HARD `2.0`. `base = 100 × Σ(correct_i × w_i) / Σ(w_i)`. Timing reliability is `max(0.70, 1 - 0.05 × implausibly_fast_item_count)`. Split-half consistency is `max(0.75, 1 - 0.25 × |accuracy_first_three - accuracy_last_three|)`. The published whole-number score is `round(50 + (base - 50) × timing_reliability × consistency)`, bounded to 0–100. Weak-quality evidence is therefore shrunk toward neutral rather than automatically punished.
+
+Model confidence is LOW if coverage is incomplete or global anti-gaming flags show unrealistically fast/repetitive behavior; HIGH requires complete difficulty coverage, no fast items, no quality flags, and bounded split-half consistency; otherwise it is MEDIUM. Anti-gaming flags cover incomplete sessions, unrealistically fast completion, repetitive option selection, contradictory cross-domain performance, and random-looking answer transitions. They lower evidence confidence, never academic eligibility or official standing. Bounded reasoning-pattern codes describe only behavior visible in this diagnostic (for example careful-but-slower or confidence above observed evidence); they are not personality or intelligence labels.
 
 ## Persistence and privacy
 
 Migration `20261011190000_add_student_diagnostic_v1.sql` adds owner/profile/institution/plan-scoped sessions, responses, and completed domain results. Scope is derived server-side. RLS is enabled, browser roles have no table mutation privileges, and only the service role may execute the atomic answer RPC. The RPC locks the session, accepts only the currently issued question, rejects duplicate answers, and makes completed/abandoned sessions immutable. Only the latest completed valid assessment version participates in fusion.
+
+### Expand/deploy/contract rollout
+
+Migration `20261016090000_upgrade_student_diagnostic_v2.sql` is an expand-only transition. It retains the service-role-only nine-argument V1 answer RPC and adds the eleven-argument V2 overload. Unversioned status/start requests retain V1 semantics for the deployed frontend; the V2 frontend explicitly requests `QUICK_DIAGNOSTIC_V2`. The backend always selects scoring and RPC behavior from the stored session version. Missing timing/confidence is accepted only for V1, while values supplied for V1 are ignored rather than reinterpreted as genuine evidence. An active V1 session is resumed without conversion and may complete under its original bank, adaptive selection, scoring, and provenance.
+
+A later, separately reviewed contract migration may remove the V1 RPC overload and the V1 HTTP transition path only after production shows zero `QUICK_DIAGNOSTIC_V1` sessions with `status = 'IN_PROGRESS'` and telemetry confirms normal V2 adoption. This release must not perform that cleanup.
 
 ## Cold start and invalidation
 

@@ -144,6 +144,7 @@ def build_explanation_input(
         "sources=" + ",".join(item.value for item in result.trace.authoritative_sources_used),
         "decisions=" + ",".join(item.code for item in result.trace.decision_references),
         "options=" + ",".join(str(item) for item in result.trace.option_references),
+        "response_facets=" + ",".join(result.response_facets),
     ]
     if result.intent is AdvisorIntent.DEGREE_PATH_MODELING:
         trace_values.append(

@@ -33,6 +33,7 @@ def _interpretation(**overrides: object) -> dict[str, object]:
         "max_semesters_ahead": None,
         "max_paths": None,
         "clarification_hint": None,
+        "requested_facets": [],
     }
     value.update(overrides)
     return value
@@ -81,7 +82,7 @@ async def test_http_contract_is_structured_secret_safe_and_single_call() -> None
     assert body["text"]["format"]["type"] == "json_schema"
     assert body["text"]["format"]["strict"] is True
     assert body["text"]["format"]["schema"]["additionalProperties"] is False
-    assert "authorization" not in body and "student" not in json.dumps(body).casefold()
+    assert "authorization" not in body and "student" not in body["input"].casefold()
     assert request.extensions["timeout"]["read"] == 20.0
 
 

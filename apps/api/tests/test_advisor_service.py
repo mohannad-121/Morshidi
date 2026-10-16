@@ -123,6 +123,21 @@ class FakeCatalogRepository:
         return self.resolution_catalog
 
 
+@pytest.mark.anyio
+async def test_multi_part_request_keeps_bounded_response_facets() -> None:
+    service, _, _, _ = _service(RawAdvisorInterpretation(
+        "COURSE_RECOMMENDATIONS",
+        requested_facets=("PERSONAL_FIT", "WORKLOAD", "EVIDENCE_EXPLANATION"),
+    ))
+    result = await service.advise(
+        OWNER, "Please build a course shortlist and cover fit, evidence, and load"
+    )
+    assert result.intent is AdvisorIntent.COURSE_RECOMMENDATIONS
+    assert set(result.response_facets) >= {
+        "PERSONAL_FIT", "WORKLOAD", "EVIDENCE_EXPLANATION"
+    }
+
+
 def _service(
     raw: object,
     attempts: tuple[StudentCourseAttempt, ...] = (),

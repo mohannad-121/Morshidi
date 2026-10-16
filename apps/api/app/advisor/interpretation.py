@@ -351,6 +351,14 @@ def _validate_raw_shape(
 ) -> AdvisorInterpretationResult | None:
     if raw.intent is not None and not isinstance(raw.intent, str):
         return _schema_failure()
+    allowed_facets = frozenset({
+        "STUDENT_INTELLIGENCE", "EVIDENCE_EXPLANATION", "PERSONAL_FIT", "WORKLOAD",
+        "WHAT_IF", "PREREQUISITE_IMPACT", "NEXT_ACTION", "COMPARISON",
+    })
+    if (not isinstance(raw.requested_facets, tuple)
+            or any(not isinstance(item, str) or item not in allowed_facets
+                   for item in raw.requested_facets)):
+        return _schema_failure()
     for value in (raw.course_mentions, raw.course_codes_mentioned):
         if not isinstance(value, tuple) or any(
             not isinstance(item, str) or not item.strip() for item in value

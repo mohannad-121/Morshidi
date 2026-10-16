@@ -38,6 +38,7 @@ class BoundedSkillSummary:
     diagnostic_evidence_count: int
     evidence_limitation: str
     classification: str
+    reasoning_patterns: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -86,6 +87,7 @@ def project_student_intelligence(
          else "مدعوم بعدة أدلة جامعية مستقلة"),
         ("STRENGTH" if skill.skill_id in strength_ids else
          "DEVELOPMENT" if skill.skill_id in development_ids else "OBSERVED"),
+        tuple(getattr(skill, "reasoning_patterns", ())),
     ) for skill in ranked)
     return BoundedStudentIntelligenceContext(
         skills, profile.evidence_quality, profile.cold_start_status,

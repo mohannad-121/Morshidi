@@ -198,7 +198,8 @@ def test_bounded_context_contains_only_explanation_safe_v2_fields() -> None:
     assert len(payload["skills"]) >= 3
     assert set(payload["skills"][0]) == {
         "skill_id", "label_ar", "score", "confidence", "university_evidence_count",
-        "diagnostic_evidence_count", "evidence_limitation", "classification",
+            "diagnostic_evidence_count", "evidence_limitation", "classification",
+            "reasoning_patterns",
     }
     serialized = repr(payload).casefold()
     for forbidden in ("raw_grade", "raw_numeric_grade", "answer_key", "diagnostic_answer",

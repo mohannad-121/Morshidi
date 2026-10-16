@@ -33,6 +33,7 @@ class SkillDimensionV2:
     contributing_question_domains: tuple[str, ...]
     source_types: tuple[str, ...]
     reason_codes: tuple[str, ...]
+    reasoning_patterns: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -75,8 +76,8 @@ DIAGNOSTIC_SKILL_BRIDGE: Mapping[DiagnosticDomain, tuple[SkillId, ...]] = {
                                                 SkillId.DISCRETE_MATH),
     DiagnosticDomain.QUANTITATIVE_MATH: (SkillId.QUANTITATIVE_MATH, SkillId.LINEAR_ALGEBRA),
     DiagnosticDomain.STATISTICS_DATA_REASONING: (SkillId.STATISTICS, SkillId.DATA_ANALYSIS),
-    DiagnosticDomain.THEORY_COMPREHENSION_MEMORY: (SkillId.THEORY_COMPREHENSION,
-                                                    SkillId.MEMORIZATION),
+    DiagnosticDomain.THEORY_CONCEPTUAL_UNDERSTANDING: (SkillId.THEORY_COMPREHENSION,
+                                                       SkillId.MEMORIZATION),
 }
 
 
@@ -183,7 +184,8 @@ def build_student_intelligence_profile_v2(
         dimensions.append(SkillDimensionV2(
             skill.value, score, confidence, quality, len(university_rows), len(diagnostic_rows),
             tuple(sorted(code for code, _, _ in university_rows)),
-            tuple(sorted({row.domain.value for row in diagnostic_rows})), sources, tuple(reasons)))
+            tuple(sorted({row.domain.value for row in diagnostic_rows})), sources, tuple(reasons),
+            tuple(sorted({pattern for row in diagnostic_rows for pattern in row.reasoning_patterns}))))
 
     covered = sum(bool(rows) for rows in university.values())
     if verified_count == 0:

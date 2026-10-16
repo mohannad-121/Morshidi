@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 import logging
 import asyncio
 import re
@@ -125,6 +125,32 @@ def _academic_guard_intent(message: str) -> AdvisorIntent | None:
     if re.search(r"(?:you|your|you've|انت|عندك|لديك|يمكنك).{0,50}(?:gpa|معدل|credit|ساع[ةه]|eligible|مؤهل|تخرج|graduat|course|ماد[ةه])|(?:eligible|مؤهل).{0,35}(?:graduat|تخرج|register|تسجيل)", normalized):
         return AdvisorIntent.CLARIFICATION_REQUIRED
     return None
+
+
+def _response_facets(
+    message: str, interpretation: RawAdvisorInterpretation,
+) -> tuple[str, ...]:
+    """Create a closed, non-authoritative response plan for multi-part questions.
+
+    Semantic provider facets are primary. Deterministic matches only preserve
+    obvious clauses for fast-path requests; facets never execute or replace an
+    academic decision engine.
+    """
+    facets = list(interpretation.requested_facets)
+    normalized = normalize_academic_text(message)
+    tests = (
+        ("STUDENT_INTELLIGENCE", is_student_intelligence_query(message)),
+        ("PERSONAL_FIT", is_personalized_course_fit_query(message)),
+        ("EVIDENCE_EXPLANATION", bool(re.search(
+            r"(?:ليش|لماذا|كيف\s+عرفت|قديش\s+واثق|why|how\s+did\s+you\s+know|confidence)", normalized))),
+        ("WORKLOAD", bool(re.search(r"(?:حمل|عبء|مريح|ضغط|workload|lighter|heavy)", normalized))),
+        ("WHAT_IF", bool(re.search(r"(?:^|\s)(?:لو|اذا|إذا|what\s+if|if\s+i)(?:\s|$)", normalized))),
+        ("PREREQUISITE_IMPACT", bool(re.search(r"(?:متطلب|بتفتح|يتأثر|prerequisit|unlock|affect)", normalized))),
+        ("NEXT_ACTION", bool(re.search(r"(?:شو\s+اعمل|شو\s+أعمل|اهم\s+اشي|أهم\s+شيء|next\s+step|what\s+should\s+i\s+do)", normalized))),
+        ("COMPARISON", bool(re.search(r"(?:قارن|مقارن|افضل|أفضل|compare|versus|\bvs\b)", normalized))),
+    )
+    facets.extend(name for name, present in tests if present)
+    return tuple(dict.fromkeys(facets))
 
 
 class AdvisorService:
@@ -252,10 +278,13 @@ class AdvisorService:
             raise AdvisorProviderError(interpretation.failure)
         request = interpretation.normalized_request
         assert request is not None
+        response_facets = _response_facets(message, provider_output)
+        request = replace(request, response_facets=response_facets)
 
         if request.intent is AdvisorIntent.GENERAL_CHAT:
             assert provider_output.general_response is not None
-            result = orchestrate_advisor_request(request, AdvisorContext())
+            result = replace(orchestrate_advisor_request(request, AdvisorContext()),
+                             response_facets=response_facets)
             logger.info("advisor_timing route=GENERAL_CHAT routing_ms=%s total_ms=%.1f", routing_ms, (perf_counter() - started) * 1000)
             return result, provider_output.general_response.strip()
 
@@ -265,12 +294,14 @@ class AdvisorService:
             AdvisorIntent.OUT_OF_SCOPE,
             AdvisorIntent.OPTION_COMPARISON,
         ):
-            return orchestrate_advisor_request(request, AdvisorContext()), None
+            return replace(orchestrate_advisor_request(request, AdvisorContext()),
+                           response_facets=response_facets), None
         if (
             request.course_resolution is not None
             and request.course_resolution.status is EntityResolutionStatus.NOT_FOUND
         ):
-            return orchestrate_advisor_request(request, AdvisorContext()), None
+            return replace(orchestrate_advisor_request(request, AdvisorContext()),
+                           response_facets=response_facets), None
 
         if state is None:
             phase_started = perf_counter()
@@ -334,7 +365,7 @@ class AdvisorService:
             result = orchestrate_advisor_request(request, context)
         deterministic_ms = (perf_counter() - phase_started) * 1000
         logger.info("advisor_timing route=%s routing_ms=%s student_context_ms=%.1f catalog_ms=%.1f deterministic_ms=%.1f total_structured_ms=%.1f", "ACADEMIC_DEEP" if request.intent in (AdvisorIntent.COURSE_RECOMMENDATIONS, AdvisorIntent.SEMESTER_PLANNING, AdvisorIntent.DEGREE_PATH_MODELING) else "ACADEMIC_DIRECT", routing_ms, student_context_ms, catalog_ms, deterministic_ms, (perf_counter() - started) * 1000)
-        return result, None
+        return replace(result, response_facets=response_facets), None
 
     async def advise_with_explanation(
         self,
@@ -452,6 +483,7 @@ class AdvisorService:
                     f"university_evidence={skill.university_evidence_count}:"
                     f"diagnostic_evidence={skill.diagnostic_evidence_count}:"
                     f"classification={skill.classification}:limitation={skill.evidence_limitation}"
+                    f":reasoning_patterns={','.join(skill.reasoning_patterns)}"
                     for skill in bounded.skills
                 ) + (f"limitations={' | '.join(bounded.limitations)}",)
             except Exception:

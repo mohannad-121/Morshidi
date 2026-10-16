@@ -37,6 +37,8 @@ def orchestrate_advisor_request(
     ...
 ```
 
+The production service adds a language-understanding layer before this pure core. A provider may semantically identify one primary authoritative intent and a closed set of non-authoritative response facets (`STUDENT_INTELLIGENCE`, `EVIDENCE_EXPLANATION`, `PERSONAL_FIT`, `WORKLOAD`, `WHAT_IF`, `PREREQUISITE_IMPACT`, `NEXT_ACTION`, `COMPARISON`). High-confidence deterministic fast routes remain available. The facets preserve clauses in Arabic, Jordanian/Levantine, English, mixed-language, follow-up, comparison, and hypothetical questions; they never execute an academic decision or change the primary deterministic result. The service passes only the primary engine result, minimized evidence/trace, bounded Student Intelligence summary, limitations, and response facets to the explanation layer.
+
 The entrypoint is synchronous, pure relative to its inputs, deterministic, and read-only. Ordinary user-flow outcomes return structured results. `AdvisorContractError` is reserved for malformed or contradictory contract state.
 
 ## `AdvisorContext`

@@ -98,27 +98,52 @@ def test_taxonomy_has_no_runtime_course_name_inference() -> None:
 
 
 def test_question_bank_is_balanced_and_never_projects_answer_keys() -> None:
-    assert len(QUESTION_BANK) == 25
+    assert len(QUESTION_BANK) == 30
     assert {domain: sum(q.domain is domain for q in QUESTION_BANK) for domain in DiagnosticDomain} == {
-        domain: 5 for domain in DiagnosticDomain}
+        domain: 6 for domain in DiagnosticDomain}
+    assert {difficulty: sum(q.difficulty == difficulty for q in QUESTION_BANK)
+            for difficulty in ("EASY", "MEDIUM", "HARD")} == {
+                "EASY": 10, "MEDIUM": 10, "HARD": 10}
     for question in QUESTION_BANK:
+        assert sum(q.domain is question.domain and q.difficulty == question.difficulty
+                   for q in QUESTION_BANK) == 2
+        assert question.skill and question.subskill and question.cognitive_operation
+        assert question.expected_solving_behavior and question.estimated_time_seconds > 0
+        assert set(question.distractor_reasoning) == {
+            option.option_id for option in question.options
+            if option.option_id != question.correct_option}
         payload = public_question(question)
         assert "correct_option" not in payload
         assert "difficulty" not in payload
+        assert "domain" not in payload
+        assert "subskill" not in payload and "distractor_reasoning" not in payload
         assert all("correct" not in option for option in payload["options"])
 
 
-def test_diagnostic_selection_is_reproducible_and_typically_twelve_items() -> None:
+def test_diagnostic_selection_is_reproducible_and_requires_all_thirty_items() -> None:
     responses: tuple[AnswerEvidence, ...] = ()
     issued: list[str] = []
     while (question := select_next_question(responses)) is not None:
         issued.append(question.question_id)
-        responses += (AnswerEvidence(question.question_id, question.correct_option, True),)
-    assert len(issued) == 12
-    assert issued == ["P01", "L01", "M01", "S01", "T01", "P02", "L02", "M02", "S02", "T02", "P03", "L03"]
+        responses += (AnswerEvidence(question.question_id, question.correct_option, True,
+                                     question.estimated_time_seconds * 1000, "HIGH"),)
+    assert len(issued) == 30
+    assert issued == [question.question_id for question in QUESTION_BANK]
     assert len(set(issued)) == len(issued)
-    assert all(score_domain(domain, responses).confidence != "HIGH" or
-               score_domain(domain, responses).response_count >= 4 for domain in DiagnosticDomain)
+    assert all(score_domain(domain, responses).score == 100 for domain in DiagnosticDomain)
+    assert all(score_domain(domain, responses).confidence == "HIGH" for domain in DiagnosticDomain)
+
+
+def test_diagnostic_quality_checks_reduce_confidence_without_punitive_failure() -> None:
+    responses = tuple(AnswerEvidence(question.question_id, "A",
+                                     question.correct_option == "A", 200, "HIGH")
+                      for question in QUESTION_BANK)
+    result = score_domain(DiagnosticDomain.PROGRAMMING_REASONING, responses)
+    assert result.response_count == 6
+    assert result.confidence == "LOW"
+    assert "UNREALISTICALLY_FAST" in result.reason_codes
+    assert "REPETITIVE_OPTION_PATTERN" in result.reason_codes
+    assert 0 <= result.score <= 100
 
 
 def test_latest_verified_attempt_drives_mastery_but_failure_and_repeat_remain_visible() -> None:
@@ -149,6 +174,29 @@ def test_cold_start_recommends_but_does_not_require_diagnostic() -> None:
     assert profile.diagnostic_recommended is True
     assert profile.skills == ()
     assert profile.earned_credits == 0
+
+
+def test_modeled_202610099_after_v2_diagnostic_has_no_fabricated_official_evidence() -> None:
+    state = replace(_state(), reported_cumulative_gpa=None, reported_gpa_scale=None,
+                    reported_earned_credit_hours=None, attempts=())
+    answers = tuple(AnswerEvidence(
+        question.question_id, question.correct_option, True, 30_000, "MEDIUM"
+    ) for question in QUESTION_BANK)
+    diagnostic = tuple(score_domain(domain, answers) for domain in DiagnosticDomain)
+    profile = build_student_intelligence_profile_v2(
+        state, INSTITUTION, (), FAKE_UNIVERSITY_GRADE_POLICY_V1,
+        diagnostic_results=diagnostic, diagnostic_version="QUICK_DIAGNOSTIC_V2",
+        diagnostic_completed_at=NOW, generated_at=NOW)
+    assert profile.cold_start_status == "COLD_START_NO_PERFORMANCE_EVIDENCE"
+    assert profile.verified_grade_count == 0
+    assert profile.completed_course_count == 0
+    assert profile.diagnostic_completed is True
+    assert profile.diagnostic_recommended is False
+    assert profile.skills
+    assert all(skill.university_evidence_count == 0 for skill in profile.skills)
+    assert all(skill.diagnostic_evidence_count > 0 for skill in profile.skills)
+    assert all(skill.source_types == ("COMPLETED_QUICK_DIAGNOSTIC",)
+               for skill in profile.skills)
 
 
 def test_official_numeric_grade_without_configured_scale_creates_no_mastery() -> None:

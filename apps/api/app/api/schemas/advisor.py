@@ -292,6 +292,7 @@ class AdvisorResponse(BaseModel):
     explanation: str | None
     explanation_status: ExplanationStatus
     explanation_language: ExplanationLanguage | None
+    response_facets: list[str] = Field(default_factory=list)
 
     @classmethod
     def from_domain(
@@ -357,6 +358,7 @@ class AdvisorResponse(BaseModel):
             explanation=explanation,
             explanation_status=explanation_status,
             explanation_language=explanation_language,
+            response_facets=list(domain.response_facets),
         )
 
 

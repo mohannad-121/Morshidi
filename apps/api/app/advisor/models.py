@@ -457,9 +457,17 @@ class NormalizedAdvisorRequest:
     option_references: tuple[int, ...] = ()
     clarification_request: ClarificationRequest | None = None
     out_of_scope_reason: OutOfScopeReason | None = None
+    response_facets: tuple[str, ...] = ()
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "user_message", _required_text(self.user_message, "user_message"))
+        allowed_facets = frozenset({
+            "STUDENT_INTELLIGENCE", "EVIDENCE_EXPLANATION", "PERSONAL_FIT", "WORKLOAD",
+            "WHAT_IF", "PREREQUISITE_IMPACT", "NEXT_ACTION", "COMPARISON",
+        })
+        if any(facet not in allowed_facets for facet in self.response_facets):
+            raise AdvisorContractError("unsupported response facet")
+        object.__setattr__(self, "response_facets", tuple(dict.fromkeys(self.response_facets)))
         options = tuple(sorted(set(self.option_references)))
         if any(isinstance(value, bool) or not isinstance(value, int) or value < 1 for value in options):
             raise AdvisorContractError("option_references must contain positive integers")
@@ -514,12 +522,20 @@ class StructuredAdvisorResult:
     clarification: ClarificationRequest | None = None
     out_of_scope_reason: OutOfScopeReason | None = None
     authoritative_payload: AdvisorPayload | None = None
+    response_facets: tuple[str, ...] = ()
 
     def __post_init__(self) -> None:
         if self.trace.advisor_intent is not self.intent:
             raise AdvisorContractError("trace intent must match result intent")
         if self.trace.answer_authority is not self.authority:
             raise AdvisorContractError("trace authority must match result authority")
+        allowed_facets = frozenset({
+            "STUDENT_INTELLIGENCE", "EVIDENCE_EXPLANATION", "PERSONAL_FIT", "WORKLOAD",
+            "WHAT_IF", "PREREQUISITE_IMPACT", "NEXT_ACTION", "COMPARISON",
+        })
+        if any(facet not in allowed_facets for facet in self.response_facets):
+            raise AdvisorContractError("unsupported response facet")
+        object.__setattr__(self, "response_facets", tuple(dict.fromkeys(self.response_facets)))
 
         evidence = tuple(
             sorted(

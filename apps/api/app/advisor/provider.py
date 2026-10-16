@@ -15,8 +15,11 @@ from typing import Protocol, runtime_checkable
 
 
 ADVISOR_INTERPRETATION_SYSTEM_INSTRUCTION = """
-Route the user's message. Answer only when it is GENERAL_CHAT.
-Classify exactly one of these intents: GENERAL_CHAT, ACADEMIC_STATUS, COURSE_ELIGIBILITY,
+Act as the language-understanding and academic-intent-decomposition layer.
+Understand Modern Standard Arabic, Jordanian/Levantine Arabic, English, mixed
+Arabic/English, short follow-ups, pronouns, comparisons, hypotheticals, and
+incomplete questions. Answer only when it is GENERAL_CHAT.
+Choose one primary authoritative intent from: GENERAL_CHAT, ACADEMIC_STATUS, COURSE_ELIGIBILITY,
 COURSE_RECOMMENDATIONS, REMAINING_REQUIREMENTS, SEMESTER_PLANNING,
 DEGREE_PATH_MODELING, OPTION_COMPARISON, COURSE_INFORMATION, COURSE_COMPARISON,
 GENERAL_ACADEMIC_INFORMATION, CLARIFICATION_REQUIRED, or OUT_OF_SCOPE.
@@ -31,7 +34,12 @@ two named courses are being compared.
 Extract only these structured fields: intent, general_response, course_mentions,
 course_codes_mentioned, option_references, max_credit_hours_per_semester,
 max_courses_per_semester, max_semesters_ahead, max_paths, and
-clarification_hint. Use CLARIFICATION_REQUIRED when no single intent is safe.
+clarification_hint, and requested_facets. Use CLARIFICATION_REQUIRED when no
+primary intent is safe. requested_facets may contain only STUDENT_INTELLIGENCE,
+EVIDENCE_EXPLANATION, PERSONAL_FIT, WORKLOAD, WHAT_IF, PREREQUISITE_IMPACT,
+NEXT_ACTION, or COMPARISON. Decompose a multi-part request into the primary
+deterministic engine plus these response facets; do not drop a clause. Resolve
+pronouns only from the bounded conversation context and otherwise clarify.
 
 Never decide eligibility or prerequisite satisfaction. Never recommend
 courses. Never generate semester plans or degree paths. Never assert passed
@@ -83,6 +91,7 @@ class RawAdvisorInterpretation:
     max_semesters_ahead: int | None = None
     max_paths: int | None = None
     clarification_hint: str | None = None
+    requested_facets: tuple[str, ...] = ()
 
 
 class ProviderFailureType(str, Enum):

@@ -41,6 +41,7 @@ _INTERPRETATION_FIELDS = {
     "max_semesters_ahead",
     "max_paths",
     "clarification_hint",
+    "requested_facets",
 }
 
 
@@ -63,6 +64,10 @@ INTERPRETATION_JSON_SCHEMA: dict[str, Any] = {
         "max_semesters_ahead": _nullable({"type": "integer"}),
         "max_paths": _nullable({"type": "integer"}),
         "clarification_hint": _nullable({"type": "string"}),
+        "requested_facets": {"type": "array", "uniqueItems": True, "items": {
+            "type": "string", "enum": ["STUDENT_INTELLIGENCE", "EVIDENCE_EXPLANATION",
+                "PERSONAL_FIT", "WORKLOAD", "WHAT_IF", "PREREQUISITE_IMPACT",
+                "NEXT_ACTION", "COMPARISON"]}},
     },
     "required": sorted(_INTERPRETATION_FIELDS),
     "additionalProperties": False,
@@ -120,6 +125,7 @@ class OpenAIAdvisorProvider:
                 max_semesters_ahead=data["max_semesters_ahead"],
                 max_paths=data["max_paths"],
                 clarification_hint=data["clarification_hint"],
+                requested_facets=tuple(data["requested_facets"]),
             )
         except (KeyError, TypeError, ValueError, json.JSONDecodeError):
             return ProviderFailure(

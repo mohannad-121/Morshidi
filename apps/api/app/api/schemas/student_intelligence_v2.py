@@ -18,6 +18,7 @@ class SkillDimensionV2Response(BaseModel):
     contributing_question_domains: list[str]
     source_types: list[str]
     reason_codes: list[str]
+    reasoning_patterns: list[str] = Field(default_factory=list)
 
 
 class StudentIntelligenceProfileV2Response(BaseModel):
@@ -61,7 +62,7 @@ class DiagnosticOptionResponse(BaseModel):
 class DiagnosticQuestionResponse(BaseModel):
     question_id: str
     assessment_version: str
-    domain: str
+    domain: str | None = None  # V1 transition only; omitted from V2 responses.
     prompt_ar: str
     prompt_en: str
     options: list[DiagnosticOptionResponse]
@@ -90,3 +91,5 @@ class DiagnosticAnswerRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
     question_id: str = Field(min_length=3, max_length=32)
     selected_option: str = Field(pattern="^[A-D]$")
+    response_time_ms: int | None = Field(default=None, ge=0, le=1_800_000)
+    self_confidence: str | None = Field(default=None, pattern="^(LOW|MEDIUM|HIGH)$")

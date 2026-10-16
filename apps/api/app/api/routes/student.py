@@ -3,7 +3,7 @@
 import asyncio
 from contextlib import suppress
 from threading import Event
-from typing import Annotated
+from typing import Annotated, Literal
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response, status
@@ -86,20 +86,28 @@ async def get_student_intelligence_v2(
 @router.get("/diagnostic/status", response_model=DiagnosticStatusResponse)
 async def get_diagnostic_status(
     user: AuthenticatedUser, service: DiagnosticServiceDependency, response: Response,
+    assessment_version: Literal["QUICK_DIAGNOSTIC_V1", "QUICK_DIAGNOSTIC_V2"] =
+        Query("QUICK_DIAGNOSTIC_V1"),
 ) -> DiagnosticStatusResponse:
     response.headers["Cache-Control"] = "private, no-store"
-    return DiagnosticStatusResponse.model_validate(await service.status(user.user_id))
+    return DiagnosticStatusResponse.model_validate(
+        await service.status(user.user_id, assessment_version))
 
 
-@router.post("/diagnostic/start", response_model=DiagnosticSessionResponse)
+@router.post("/diagnostic/start", response_model=DiagnosticSessionResponse,
+             response_model_exclude_none=True)
 async def start_diagnostic(
     user: AuthenticatedUser, service: DiagnosticServiceDependency, response: Response,
+    assessment_version: Literal["QUICK_DIAGNOSTIC_V1", "QUICK_DIAGNOSTIC_V2"] =
+        Query("QUICK_DIAGNOSTIC_V1"),
 ) -> DiagnosticSessionResponse:
     response.headers["Cache-Control"] = "private, no-store"
-    return DiagnosticSessionResponse.model_validate(await service.start(user.user_id))
+    return DiagnosticSessionResponse.model_validate(
+        await service.start(user.user_id, assessment_version))
 
 
-@router.get("/diagnostic/{session_id}/next", response_model=DiagnosticSessionResponse)
+@router.get("/diagnostic/{session_id}/next", response_model=DiagnosticSessionResponse,
+            response_model_exclude_none=True)
 async def next_diagnostic_question(
     session_id: str, user: AuthenticatedUser, service: DiagnosticServiceDependency,
     response: Response,
@@ -112,7 +120,8 @@ async def next_diagnostic_question(
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Diagnostic session not found") from exc
 
 
-@router.post("/diagnostic/{session_id}/answer", response_model=DiagnosticSessionResponse)
+@router.post("/diagnostic/{session_id}/answer", response_model=DiagnosticSessionResponse,
+             response_model_exclude_none=True)
 async def answer_diagnostic_question(
     session_id: str, body: DiagnosticAnswerRequest, user: AuthenticatedUser,
     service: DiagnosticServiceDependency, response: Response,
@@ -120,7 +129,8 @@ async def answer_diagnostic_question(
     response.headers["Cache-Control"] = "private, no-store"
     try:
         return DiagnosticSessionResponse.model_validate(await service.answer(
-            user.user_id, session_id, body.question_id, body.selected_option))
+            user.user_id, session_id, body.question_id, body.selected_option,
+            body.response_time_ms, body.self_confidence))
     except DiagnosticNotFound as exc:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Diagnostic session not found") from exc
     except DiagnosticConflict as exc:
