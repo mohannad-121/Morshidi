@@ -8,6 +8,8 @@ from pydantic import BaseModel, ConfigDict, Field
 
 
 class SkillDimensionV2Response(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
     skill_id: str
     score: int | None = Field(default=None, ge=0, le=100)
     confidence: str
@@ -22,6 +24,8 @@ class SkillDimensionV2Response(BaseModel):
 
 
 class StudentIntelligenceProfileV2Response(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
     student_id: str
     institution_id: str
     study_plan_id: str
