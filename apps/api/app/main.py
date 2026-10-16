@@ -1,4 +1,5 @@
 from contextlib import asynccontextmanager
+from uuid import NAMESPACE_URL, UUID, uuid5
 
 import httpx
 from fastapi import FastAPI, HTTPException, Request
@@ -50,7 +51,15 @@ from app.advisor_copilot import (
     AdvisorCopilotService,
     AdvisorCopilotServiceError,
 )
-from app.advisor_copilot.adapters import AdvisorMockRegistrationReader
+from app.advisor_copilot.adapters import AdvisorMockRegistrationReader, WhatIfAdapter
+from app.advisor_copilot.models import (
+    PlanningConstraintBundleInput,
+    RunWhatIfRequest,
+    WhatIfOperationId,
+)
+from app.advisor.interpretation import resolve_course_references
+from app.advisor.models import EntityResolutionStatus
+from app.advisor_persistence.models import AdvisorAccessContext
 from app.advisor_copilot.errors import HTTP_STATUS as ADVISOR_COPILOT_HTTP_STATUS
 from app.advisor_persistence.repository import SupabaseAdvisorAssignmentRepository
 from app.advisor_service.authorization import AdvisorAuthorizationService
@@ -246,6 +255,56 @@ async def lifespan(application: FastAPI):
         )
         application.state.diagnostic_service = DiagnosticService(
             diagnostic_repository, application.state.student_service)
+        persistence = SupabaseMockRegistrationRepository(
+            settings.supabase_url, settings.supabase_secret_key.get_secret_value(), client)
+        context_loader = SupabaseAcademicContextLoader(
+            settings.supabase_url, settings.supabase_secret_key.get_secret_value(), client,
+            student_repository, repository)
+        what_if_adapter = WhatIfAdapter(
+            student_repository, repository, context_loader, academic_compute_limiter
+        )
+
+        async def run_student_what_if(owner: str, arguments: dict) -> dict:
+            student_user_id = UUID(owner)
+            university_id = UUID(
+                await application.state.student_service.resolve_student_university_id(owner)
+            )
+            target_code = None
+            reference = arguments.get("course_reference")
+            if reference:
+                state = await student_repository.load_student_academic_state(owner)
+                catalog = await repository.load_advisor_course_catalog(state.study_plan_id)
+                resolution = resolve_course_references((str(reference),), catalog)
+                if (
+                    resolution.status is not EntityResolutionStatus.RESOLVED
+                    or resolution.resolved_course is None
+                ):
+                    raise ValueError("What-If course reference could not be resolved uniquely")
+                target_code = resolution.resolved_course.course_code
+            operation = WhatIfOperationId[f"TWIN_OP_{arguments['operation']}"]
+            constraints = None
+            if operation is WhatIfOperationId.TWIN_OP_SET_PLANNING_CONSTRAINTS:
+                constraints = PlanningConstraintBundleInput(
+                    max_credit_hours=arguments.get("max_credit_hours"),
+                    max_courses=arguments.get("max_courses"),
+                )
+            request = RunWhatIfRequest(
+                target_student_user_id=student_user_id,
+                operation_id=operation,
+                target_course_code=target_code,
+                constraints=constraints,
+            )
+            access = AdvisorAccessContext(
+                advisor_user_id=uuid5(NAMESPACE_URL, f"morshidi-self-service:{owner}"),
+                student_user_id=student_user_id,
+                university_id=university_id,
+                assignment_id=uuid5(NAMESPACE_URL, f"morshidi-self-service-scope:{owner}"),
+                authority_source="AUTHENTICATED_STUDENT_SELF_SERVICE",
+                authority_version="1.0",
+            )
+            result = await what_if_adapter.execute(access, request)
+            return result.model_dump(mode="json")
+
         advisor_provider, explanation_provider = build_advisor_providers(client)
         application.state.advisor_service = AdvisorService(
             student_repository,
@@ -255,12 +314,8 @@ async def lifespan(application: FastAPI):
             academic_compute_limiter,
             application.state.student_service.get_student_intelligence_v2,
             application.state.student_service.get_adaptive_course_intelligence,
+            run_student_what_if,
         )
-        persistence = SupabaseMockRegistrationRepository(
-            settings.supabase_url, settings.supabase_secret_key.get_secret_value(), client)
-        context_loader = SupabaseAcademicContextLoader(
-            settings.supabase_url, settings.supabase_secret_key.get_secret_value(), client,
-            student_repository, repository)
         application.state.mock_registration_student_service = MockRegistrationStudentService(
             persistence, context_loader)
         advisor_assignment_repo = SupabaseAdvisorAssignmentRepository(

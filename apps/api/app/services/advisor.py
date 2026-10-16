@@ -31,6 +31,12 @@ from app.advisor.models import (
     EntityResolutionStatus,
     StructuredAdvisorResult,
 )
+from app.advisor.conversation_agent import (
+    ConversationalAdvisorProvider,
+    run_conversation_agent,
+)
+from app.advisor.tool_executor import AdvisorToolExecutor
+from app.advisor.tool_registry import advisor_tool_definitions
 from app.student_intelligence.profile_v2 import StudentIntelligenceProfileV2
 from app.student_intelligence.adaptive import AdaptiveCourseResult
 from app.advisor.student_intelligence_context import (
@@ -49,7 +55,12 @@ from app.advisor.pre_router import (
     pre_route_academic_intent,
     requests_full_eligible_list,
 )
-from app.advisor.provider import AdvisorLLMProvider, ProviderFailure, RawAdvisorInterpretation
+from app.advisor.provider import (
+    AdvisorLLMProvider,
+    ProviderFailure,
+    ProviderFailureType,
+    RawAdvisorInterpretation,
+)
 from app.degree_path.models import DegreePathCapacityError, DegreePathComputationTimeout
 from app.recommendations.models import RecommendationResult
 from app.core.academic_compute import AcademicComputeLimiter
@@ -80,6 +91,16 @@ class AdvisorServiceResult:
 
 
 logger = logging.getLogger(__name__)
+
+
+class _FixedInterpretationProvider:
+    """Compatibility adapter used only to reuse deterministic orchestration."""
+
+    def __init__(self, interpretation: RawAdvisorInterpretation) -> None:
+        self._interpretation = interpretation
+
+    def interpret(self, request):  # type: ignore[no-untyped-def]
+        return self._interpretation
 
 
 def _academic_guard_intent(message: str) -> AdvisorIntent | None:
@@ -165,6 +186,7 @@ class AdvisorService:
         academic_compute_limiter: AcademicComputeLimiter | None = None,
         intelligence_loader: Callable[[str], Awaitable[StudentIntelligenceProfileV2]] | None = None,
         adaptive_loader: Callable[[str], Awaitable[AdaptiveCourseResult]] | None = None,
+        what_if_runner: Callable[[str, dict], Awaitable[dict]] | None = None,
     ) -> None:
         self._student_repository = student_repository
         self._catalog_repository = catalog_repository
@@ -173,6 +195,7 @@ class AdvisorService:
         self._academic_compute_limiter = academic_compute_limiter or AcademicComputeLimiter()
         self._intelligence_loader = intelligence_loader
         self._adaptive_loader = adaptive_loader
+        self._what_if_runner = what_if_runner
 
     async def advise(self, owner_user_id: str, message: str) -> StructuredAdvisorResult:
         """Interpret once, load server-owned context in batches, and orchestrate."""
@@ -183,6 +206,11 @@ class AdvisorService:
     async def _advise_interpreted(
         self, owner_user_id: str, message: str, conversation_context: str = "",
     ) -> tuple[StructuredAdvisorResult, str | None]:
+        if isinstance(self._provider, ConversationalAdvisorProvider):
+            return await self._advise_conversational(
+                owner_user_id, message, conversation_context
+            )
+
         started = perf_counter()
         routing_ms = 0.0
         student_context_ms = 0.0
@@ -366,6 +394,100 @@ class AdvisorService:
         deterministic_ms = (perf_counter() - phase_started) * 1000
         logger.info("advisor_timing route=%s routing_ms=%s student_context_ms=%.1f catalog_ms=%.1f deterministic_ms=%.1f total_structured_ms=%.1f", "ACADEMIC_DEEP" if request.intent in (AdvisorIntent.COURSE_RECOMMENDATIONS, AdvisorIntent.SEMESTER_PLANNING, AdvisorIntent.DEGREE_PATH_MODELING) else "ACADEMIC_DIRECT", routing_ms, student_context_ms, catalog_ms, deterministic_ms, (perf_counter() - started) * 1000)
         return replace(result, response_facets=response_facets), None
+
+    async def _advise_conversational(
+        self,
+        owner_user_id: str,
+        message: str,
+        conversation_context: str,
+    ) -> tuple[StructuredAdvisorResult, str | None]:
+        """Let the model converse or select typed deterministic tools."""
+
+        async def run_legacy(
+            interpretation: RawAdvisorInterpretation, synthetic_message: str
+        ) -> StructuredAdvisorResult:
+            service = AdvisorService(
+                self._student_repository,
+                self._catalog_repository,
+                _FixedInterpretationProvider(interpretation),
+                None,
+                self._academic_compute_limiter,
+                self._intelligence_loader,
+                self._adaptive_loader,
+                self._what_if_runner,
+            )
+            structured, _ = await service._advise_interpreted(
+                owner_user_id, synthetic_message
+            )
+            return structured
+
+        executor = AdvisorToolExecutor(
+            owner_user_id=owner_user_id,
+            run_legacy=run_legacy,
+            load_state=self._student_repository.load_student_academic_state,
+            load_intelligence=self._intelligence_loader,
+            load_adaptive=self._adaptive_loader,
+            run_what_if=self._what_if_runner,
+        )
+        result = await run_conversation_agent(
+            self._provider,
+            message=message,
+            conversation_context=conversation_context,
+            tools=advisor_tool_definitions(include_what_if=self._what_if_runner is not None),
+            execute_tool=executor.execute,
+        )
+        if isinstance(result, ProviderFailure):
+            fallback = pre_route_academic_intent(message, conversation_context)
+            if fallback is not None:
+                structured = await run_legacy(fallback, message)
+                return structured, None
+            friendly = (
+                "عذراً، تعذر عليّ إكمال الرد الآن. جرّب مرة ثانية بعد قليل."
+                if any("\u0600" <= char <= "\u06ff" for char in message)
+                else "Sorry, I could not complete that response right now. Please try again shortly."
+            )
+            general = RawAdvisorInterpretation(
+                intent=AdvisorIntent.GENERAL_CHAT.value,
+                general_response=friendly,
+            )
+            return await run_legacy(general, message), friendly
+
+        logger.info(
+            "advisor_conversation tools_called=%s limitations=%s",
+            ",".join(result.tools_called) or "NONE",
+            ",".join(result.limitations) or "NONE",
+        )
+
+        if not result.tools_called:
+            guarded_intent = _academic_guard_intent(message)
+            if guarded_intent is not None:
+                fallback = pre_route_academic_intent(message, conversation_context)
+                if fallback is not None:
+                    return await run_legacy(fallback, message), None
+                return await run_legacy(
+                    RawAdvisorInterpretation(guarded_intent.value), message
+                ), None
+            general = RawAdvisorInterpretation(
+                intent=AdvisorIntent.GENERAL_CHAT.value,
+                general_response=result.answer,
+            )
+            return await run_legacy(general, message), result.answer
+
+        structured_results = tuple(
+            item for item in result.structured_results
+            if isinstance(item, StructuredAdvisorResult)
+        )
+        if structured_results:
+            return structured_results[-1], result.answer
+
+        # Student Intelligence and current-enrollment tools intentionally expose
+        # bounded projections rather than legacy advisor payloads. Preserve the
+        # existing public response shape with a deterministic academic snapshot.
+        fallback = await run_legacy(
+            RawAdvisorInterpretation(AdvisorIntent.ACADEMIC_STATUS.value),
+            "my academic progress",
+        )
+        return fallback, result.answer
 
     async def advise_with_explanation(
         self,

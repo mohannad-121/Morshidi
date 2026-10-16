@@ -15,6 +15,7 @@ from app.advisor.explanation import (
 )
 from app.advisor.models import AdvisorIntent, AnswerAuthority
 from app.providers.advisor_openai import OPENAI_RESPONSES_URL, OpenAIAdvisorProvider
+from app.advisor.conversation_agent import ConversationTurn
 from app.advisor.provider import AdvisorInterpretationInput, ProviderFailure, RawAdvisorInterpretation
 from app.advisor.provider import UnconfiguredAdvisorLLMProvider
 from app.core.config import Settings
@@ -48,6 +49,68 @@ def _response(content: object, *, status: str = "completed") -> httpx.Response:
             "output": [{"type": "message", "content": [{"type": "output_text", "text": text}]}],
         },
     )
+
+
+@pytest.mark.anyio
+async def test_conversation_direct_answer_uses_plain_text_without_interpretation_schema() -> None:
+    captured: dict[str, object] = {}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        captured.update(json.loads(request.content))
+        return _response("أنا بخير، كيف أقدر أساعدك؟")
+
+    async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+        result = await OpenAIAdvisorProvider("provider-secret", "test-model", client).converse(
+            input_items=[{"role": "user", "content": [{"type": "input_text", "text": "كيفك؟"}]}],
+            tools=(),
+        )
+
+    assert isinstance(result, ConversationTurn)
+    assert result.text == "أنا بخير، كيف أقدر أساعدك؟"
+    assert result.tool_calls == ()
+    assert captured["tool_choice"] == "auto"
+    assert "text" not in captured
+    assert "provider-secret" not in json.dumps(captured)
+
+
+@pytest.mark.anyio
+async def test_conversation_parses_multiple_function_calls_and_preserves_output_items() -> None:
+    output = [
+        {"type": "reasoning", "id": "rs_1", "summary": []},
+        {"type": "function_call", "id": "fc_1", "call_id": "call_1", "name": "get_student_intelligence", "arguments": "{}"},
+        {"type": "function_call", "id": "fc_2", "call_id": "call_2", "name": "get_course_recommendations", "arguments": "{}"},
+    ]
+
+    def handler(_: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, json={"status": "completed", "output": output})
+
+    async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+        result = await OpenAIAdvisorProvider("provider-secret", "test-model", client).converse(
+            input_items=[{"role": "user", "content": []}], tools=()
+        )
+
+    assert isinstance(result, ConversationTurn)
+    assert [call.name for call in result.tool_calls] == [
+        "get_student_intelligence", "get_course_recommendations"
+    ]
+    assert result.output_items == tuple(output)
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize("payload", [
+    {"status": "incomplete", "output": []},
+    {"status": "completed", "output": [{"type": "message", "content": [{"type": "refusal", "refusal": "no"}]}]},
+    {"status": "completed", "output": [{"type": "function_call", "call_id": "call", "name": "x", "arguments": None}]},
+])
+async def test_conversation_incomplete_refusal_and_malformed_calls_are_typed(payload: object) -> None:
+    def handler(_: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, json=payload)
+
+    async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+        result = await OpenAIAdvisorProvider("provider-secret", "test-model", client).converse(
+            input_items=[], tools=()
+        )
+    assert isinstance(result, ProviderFailure)
 
 
 @pytest.mark.anyio

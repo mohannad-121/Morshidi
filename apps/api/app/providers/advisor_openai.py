@@ -7,6 +7,13 @@ from typing import Any
 
 import httpx
 
+from app.advisor.conversation_agent import (
+    MORSHIDI_CONVERSATION_SYSTEM_INSTRUCTION,
+    ConversationToolCall,
+    ConversationTurn,
+    ConversationTurnResponse,
+)
+
 from app.advisor.explanation import (
     ADVISOR_EXPLANATION_SYSTEM_INSTRUCTION,
     AdvisorExplanationInput,
@@ -133,6 +140,34 @@ class OpenAIAdvisorProvider:
                 "advisor.interpretation.malformed_output",
             )
 
+    async def converse(
+        self,
+        *,
+        input_items: list[dict[str, Any]],
+        tools: tuple[dict[str, Any], ...],
+    ) -> ConversationTurnResponse:
+        """Return ordinary text or one/more Responses API function calls."""
+
+        body = {
+            "model": self._model,
+            "instructions": MORSHIDI_CONVERSATION_SYSTEM_INSTRUCTION,
+            "input": input_items,
+            "tools": list(tools),
+            "tool_choice": "auto",
+            "parallel_tool_calls": True,
+            "store": False,
+        }
+        response = await self._request(body)
+        if isinstance(response, ProviderFailure):
+            return response
+        try:
+            return _extract_conversation_turn(response)
+        except (TypeError, ValueError, KeyError):
+            return ProviderFailure(
+                ProviderFailureType.UNSUPPORTED_PROVIDER_RESPONSE,
+                "advisor.conversation.unsupported_response",
+            )
+
     async def explain(self, request: AdvisorExplanationInput) -> ExplanationResponse:
         response = await self._post(
             instructions=ADVISOR_EXPLANATION_SYSTEM_INSTRUCTION,
@@ -185,6 +220,18 @@ class OpenAIAdvisorProvider:
                 }
             },
         }
+        payload = await self._request(body)
+        if isinstance(payload, ProviderFailure):
+            return payload
+        try:
+            return _extract_output_text(payload)
+        except (TypeError, ValueError, KeyError):
+            return ProviderFailure(
+                ProviderFailureType.MALFORMED_STRUCTURED_OUTPUT,
+                "advisor.provider.malformed_output",
+            )
+
+    async def _request(self, body: dict[str, Any]) -> dict[str, Any] | ProviderFailure:
         try:
             response = await self._client.post(
                 OPENAI_RESPONSES_URL,
@@ -211,12 +258,17 @@ class OpenAIAdvisorProvider:
             )
         try:
             payload = response.json()
-            return _extract_output_text(payload)
-        except (TypeError, ValueError, KeyError):
+        except ValueError:
             return ProviderFailure(
-                ProviderFailureType.MALFORMED_STRUCTURED_OUTPUT,
-                "advisor.provider.malformed_output",
+                ProviderFailureType.UNSUPPORTED_PROVIDER_RESPONSE,
+                "advisor.provider.malformed_response",
             )
+        if not isinstance(payload, dict):
+            return ProviderFailure(
+                ProviderFailureType.UNSUPPORTED_PROVIDER_RESPONSE,
+                "advisor.provider.malformed_response",
+            )
+        return payload
 
 
 def _extract_output_text(payload: object) -> str:
@@ -231,3 +283,49 @@ def _extract_output_text(payload: object) -> str:
                 if isinstance(text, str) and text:
                     return text
     raise ValueError("response has no structured output text")
+
+
+def _extract_conversation_turn(payload: object) -> ConversationTurn:
+    if not isinstance(payload, dict):
+        raise ValueError("response must be an object")
+    status = payload.get("status")
+    if status != "completed":
+        raise ValueError("response is incomplete")
+    raw_output = payload.get("output")
+    if not isinstance(raw_output, list):
+        raise ValueError("response output must be a list")
+
+    output_items: list[dict[str, Any]] = []
+    calls: list[ConversationToolCall] = []
+    text_parts: list[str] = []
+    refused = False
+    for item in raw_output:
+        if not isinstance(item, dict):
+            continue
+        output_items.append(item)
+        if item.get("type") == "function_call":
+            call_id = item.get("call_id")
+            name = item.get("name")
+            arguments = item.get("arguments")
+            if not all(isinstance(value, str) and value for value in (call_id, name, arguments)):
+                raise ValueError("malformed function call")
+            calls.append(ConversationToolCall(call_id, name, arguments))
+        elif item.get("type") == "message":
+            content = item.get("content", [])
+            if not isinstance(content, list):
+                continue
+            for part in content:
+                if not isinstance(part, dict):
+                    continue
+                if part.get("type") == "output_text" and isinstance(part.get("text"), str):
+                    if part["text"].strip():
+                        text_parts.append(part["text"].strip())
+                elif part.get("type") == "refusal":
+                    refused = True
+    if calls:
+        return ConversationTurn(tuple(output_items), tuple(calls), None)
+    if text_parts:
+        return ConversationTurn(tuple(output_items), (), "\n".join(text_parts))
+    if refused:
+        raise ValueError("provider refused")
+    raise ValueError("response has no message or function call")

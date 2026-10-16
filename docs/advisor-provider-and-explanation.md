@@ -1,103 +1,45 @@
-# Advisor Provider and Grounded Explanation
+# Conversational Advisor Provider and Grounded Tools
 
-Phase 10.6 adds one production LLM integration while retaining the system rule: **AI
-explains; deterministic rules decide**. Phase 5–9 outputs and the Phase 10.3
-structured result remain authoritative. Generated prose is additive and can be
-discarded without losing any academic meaning.
+## Production boundary
 
-## Provider and configuration
+Morshidi uses the server-side OpenAI Responses API as a conversational orchestration layer. The configured model may answer harmless general questions directly or request one or more allowlisted read-only tools. It never receives an API key in application input, and browser code never calls OpenAI directly.
 
-The selected provider is the OpenAI Responses API. It has native strict JSON Schema
-output and works through the project's existing `httpx.AsyncClient`, so no provider
-SDK or additional dependency is needed. The replaceable `AdvisorLLMProvider` and
-`AdvisorExplanationProvider` protocols isolate provider-specific transport.
+The architectural rule remains: **AI explains; deterministic rules decide.** OpenAI understands language, resolves conversational references, chooses tools, combines results, and writes the final response. Existing Morshidi engines remain authoritative for eligibility, prerequisites, progress, recommendations, semester plans, degree paths, Student Intelligence evidence, and What-If simulation.
 
-Server configuration uses `ADVISOR_LLM_API_KEY` and `ADVISOR_LLM_MODEL`. There is no
-client-controlled provider, model, prompt, or base URL. Both values must be nonblank
-before the concrete adapter is wired. Otherwise interpretation uses the explicit
-unconfigured provider and fails safely; explanation is unavailable. Credentials are
-used only in the provider transport authorization header and are never added to
-inputs, results, traces, responses, or logs.
+## Bounded tool loop
 
-## Interpretation adapter
+`advisor/conversation_agent.py` implements at most five provider rounds:
 
-Interpretation sends only the trimmed user message, the accepted Phase 10.4
-instruction, and a strict schema to `/v1/responses` with storage disabled. The
-schema contains only intent, course mentions/codes, option references, explicit
-planner constraints, and a clarification hint. It forbids additional fields.
-Provider output is still untrusted and passes through all Phase 10.4 normalization,
-resolution, and validation before orchestration. Interpretation timeout or
-unavailability remains request-blocking with HTTP 503; malformed/unsupported
-structured output remains HTTP 502. No intent is guessed.
+1. send the current message, bounded recent context, system instruction, and tool definitions;
+2. accept either ordinary output text or any number of `function_call` output items;
+3. execute independent read-only calls concurrently;
+4. append the original response output items and matching `function_call_output` items;
+5. ask the model for a final answer or another bounded tool round.
 
-## Explanation contract and authority
+The original output items are retained between stateless `store: false` requests so Responses API reasoning/function-call items remain linked. No raw chain-of-thought is extracted or persisted. Safe internal metadata is limited to called tool names, authoritative/modeled sources represented by deterministic results, and limitations.
 
-Explanation occurs only after authoritative orchestration. Its immutable input
-contains the original message, normalized intent, answer authority, a recursively
-serialized answer payload, minimized evidence/trace facts, deterministic language,
-and an allowed-course-code set. It contains no user ID, auth token, provider secret,
-repository, raw database row, unrelated history, full catalog, or chain-of-thought.
-The immutable output contains only `text` and `language`; provider metadata and
-confidence percentages are excluded.
+## Tool registry and identity
 
-The explanation prompt says that it is explaining an authoritative structured
-result and must not change, recompute, or invent facts. It preserves canonical
-codes/names, ordering, reason/status meanings, and review distinctions. Semester
-plans are described as academic-structure-only. Degree paths disclose hypothetical
-PASS transitions, bounded search, status and blockers; they are not promises or
-registration decisions.
+`advisor/tool_registry.py` publishes strict JSON Schemas for student academic summary/progress, bounded Student Intelligence V2, course eligibility/eligible courses/recommendations/information/comparison, remaining requirements, semester plans, degree paths, current enrollments, and ephemeral What-If when its existing context loader is configured.
 
-## Language and review behavior
+The schemas never contain `student_id`, `owner_user_id`, or `institution_id`. `advisor/tool_executor.py` receives the authenticated owner from `AdvisorService`, validates every model argument with Pydantic, rejects unknown fields/tools, and then calls existing services and engines. The What-If adapter receives an internally constructed self-service authorization context and has no persistence operation.
 
-Language is selected before the provider call: a message containing Arabic script
-uses Arabic, including mixed messages; otherwise it uses English. Arabic is thus the
-default for local mixed-language use, while canonical English names and identifiers
-remain unchanged.
+Student Intelligence is projected through the bounded V2 advisor contract. It contains scores, confidence, evidence counts, reasoning patterns, and limitations, but never diagnostic answers, answer keys, question payloads, or scoring internals.
 
-`REVIEW_REQUIRED` prose must say that Morshidi cannot make a deterministic decision
-and official academic review is necessary. It must retain `unresolved` versus
-`source_conflict` and cannot declare the student eligible or not eligible.
-`INSUFFICIENT_CONTEXT` clarification, ambiguous candidates, not-found catalog
-matches, and out-of-scope responses use deterministic localized templates, avoiding
-an unnecessary second provider call. General information may use the provider but
-cannot make student-specific claims or invent university rules.
+## Conversation and general knowledge
 
-## Grounding and degraded mode
+The instruction supports Jordanian/Levantine Arabic, Modern Standard Arabic, English, mixed language, misspellings, follow-ups, pronouns, and multi-part requests. Bounded owner-scoped context is supplied only for reference resolution and user-stated preferences; it is explicitly marked untrusted and cannot replace current academic facts.
 
-After generation, deterministic guards reject:
+General conversation and educational concepts require one provider call and no academic load. Student-specific claims require tools. Multiple clauses may produce multiple tool calls in one round. Internal reason/evidence codes must be translated into natural language rather than copied to the student.
 
-- course-code-like tokens outside authoritative facts, safe evidence, or the user's
-  quoted message;
-- contextual GPA, credit, or semester numbers absent from supplied input;
-- obvious eligibility contradictions and any eligibility claim under
-  `REVIEW_REQUIRED`;
-- loss of the `unresolved`/`source_conflict` review distinction;
-- guaranteed/definite graduation, global-optimality, or fastest-path claims.
+## Compatibility and fallback
 
-These checks are deliberately narrow defense-in-depth, not another AI verifier. A
-failed, malformed, timed-out, language-mismatched, or guard-rejected explanation
-does not destroy the academic result. The API returns the unchanged structured
-result, `explanation: null`, and `UNAVAILABLE` or `REJECTED_BY_GUARD`.
+`RawAdvisorInterpretation`, `AdvisorIntent`, the strict interpretation schema, and the deterministic pre-router remain for legacy providers, compatibility tests, and safe deterministic fallback. They are not a prerequisite for configured OpenAI conversation. A normal message therefore cannot fail merely because one large intent object was malformed.
 
-## Calls, logging, testing, and limits
+If OpenAI times out or is unavailable, an obvious deterministic request may use the existing pre-router and engine. Open-ended requests return a friendly temporary message without invented facts. The existing public `AdvisorResponse` contract is preserved; one deterministic result remains its primary structured payload while the natural answer may combine several tool results.
 
-A normal generated answer makes exactly one interpretation call and at most one
-post-orchestration explanation call. There are no retries or hidden calls. Template
-paths make one call. Safe warnings identify interpretation/explanation failure or a
-guard rejection without logging prompts, academic state, credentials, or raw
-provider responses. Provider request IDs and usage are intentionally ignored and
-never enter academic trace.
+## Provider response handling
 
-Tests use mocked providers and `httpx.MockTransport`; no paid/live call is made.
-They cover schema transport, timeout/error/refusal handling, configuration and
-wiring, both languages, review distinctions, result-family grounding, hallucinated
-codes/numbers, contradictions, prompt injection, degradation, exact call count,
-API/OpenAPI shape, and secret exclusion.
+The adapter recognizes multiple Responses API output items, including messages, output text, reasoning items carried forward opaquely, and multiple function calls. It treats incomplete responses, refusals, malformed calls, empty completed responses, timeout, rate limits, 4xx, and 5xx as typed safe failures. Provider payloads, request IDs, usage, credentials, prompts, and hidden reasoning never enter student responses or logs.
 
-Current limitations are intentionally conservative: language selection detects any
-Arabic script rather than doing linguistic classification, numeric checking targets
-academic numeric contexts, and contradiction checks catch narrow explicit phrases
-rather than attempting semantic verification. The service remains stateless with no
-conversation persistence, vector store, frontend, database migration, or RLS
-change. A later phase may add user experience around this stable API contract; Phase
-10.6 does not start that work.
+The older strict JSON interpretation and explanation methods remain intact for compatibility. The conversational final answer is ordinary text and is not forced through the old interpretation schema.

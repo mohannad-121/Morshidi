@@ -8,6 +8,8 @@ from decimal import Decimal
 import httpx
 import pytest
 
+from app.advisor.conversation_agent import ConversationToolCall, ConversationTurn
+
 from app.advisor import (
     AdvisorIntent,
     AnswerAuthority,
@@ -41,6 +43,19 @@ class FakeProvider:
         if isinstance(self.response, Exception):
             raise self.response
         return self.response
+
+
+class FakeConversationalProvider:
+    def __init__(self, turns: list[ConversationTurn | ProviderFailure]) -> None:
+        self.turns = list(turns)
+        self.requests: list[tuple[list[dict], tuple[dict, ...]]] = []
+
+    async def converse(self, *, input_items, tools):  # type: ignore[no-untyped-def]
+        self.requests.append((list(input_items), tools))
+        return self.turns.pop(0)
+
+    def interpret(self, request):  # type: ignore[no-untyped-def]
+        raise AssertionError("configured conversational path must not require interpretation JSON")
 
 
 @pytest.mark.anyio
@@ -605,3 +620,65 @@ async def test_pre_router_precedence_over_provider_clarification() -> None:
     res3 = await service.advise_with_explanation(OWNER, "كم ساعة ضايل علي؟")
     assert res3.structured_result.intent is AdvisorIntent.REMAINING_REQUIREMENTS
     assert provider.calls == []
+
+
+@pytest.mark.anyio
+async def test_conversational_provider_answers_general_chat_without_classifier_or_academic_reads() -> None:
+    provider = FakeConversationalProvider([
+        ConversationTurn((), text="أنا تمام، كيف أقدر أساعدك؟")
+    ])
+    students = FakeStudentRepository()
+    catalogs = FakeCatalogRepository()
+    service = AdvisorService(students, catalogs, provider)
+
+    result = await service.advise_with_explanation(OWNER, "كيفك؟")
+
+    assert result.structured_result.intent is AdvisorIntent.GENERAL_CHAT
+    assert result.explanation == "أنا تمام، كيف أقدر أساعدك؟"
+    assert len(provider.requests) == 1
+    assert students.loads == []
+    assert catalogs.progress_loads == catalogs.eligibility_loads == []
+
+
+@pytest.mark.anyio
+async def test_exact_sho_btaaraf_anni_uses_student_tool_not_classifier() -> None:
+    call_item = {
+        "type": "function_call",
+        "call_id": "self_1",
+        "name": "get_student_intelligence",
+        "arguments": "{}",
+    }
+    provider = FakeConversationalProvider([
+        ConversationTurn(
+            (call_item,),
+            (ConversationToolCall("self_1", "get_student_intelligence", "{}"),),
+        ),
+        ConversationTurn((), text="حالياً معرفتي عنك محدودة بالأدلة المتاحة، وما رح أفترض معلومات مش موجودة."),
+    ])
+    students = FakeStudentRepository()
+    catalogs = FakeCatalogRepository()
+    service = AdvisorService(students, catalogs, provider)
+
+    result = await service.advise_with_explanation(OWNER, "شو بتعرف عني؟")
+
+    assert result.explanation == "حالياً معرفتي عنك محدودة بالأدلة المتاحة، وما رح أفترض معلومات مش موجودة."
+    assert len(provider.requests) == 2
+    assert provider.requests[1][0][-1]["call_id"] == "self_1"
+    assert provider.requests[1][0][-1]["type"] == "function_call_output"
+    assert students.loads == [OWNER]
+
+
+@pytest.mark.anyio
+async def test_conversational_provider_failure_uses_obvious_deterministic_fast_path() -> None:
+    provider = FakeConversationalProvider([
+        ProviderFailure(ProviderFailureType.TIMEOUT, "advisor.provider.timeout")
+    ])
+    students = FakeStudentRepository()
+    catalogs = FakeCatalogRepository()
+    service = AdvisorService(students, catalogs, provider)
+
+    result = await service.advise_with_explanation(OWNER, "كم معدلي؟")
+
+    assert result.structured_result.intent is AdvisorIntent.ACADEMIC_STATUS
+    assert result.explanation is not None
+    assert students.loads == [OWNER]

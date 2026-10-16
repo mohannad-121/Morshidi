@@ -224,9 +224,15 @@ Canonical resolution of `0300103` can return `catalog_status="referenced_only"`;
 
 ## Non-goals
 
-This phase does not implement an LLM/provider adapter, prompts, tool/function calling, explanation text, HTTP API, authentication, UI, conversation state, persistence, database/RLS change, embeddings, RAG, or new academic logic.
+This pure module still does not implement provider transport, prompts, HTTP, authentication, conversation persistence, database access, or new academic logic. Those responsibilities stay in higher layers.
 
-## Next-phase boundary
+## Conversational caller boundary
 
-The exact next phase is **10.4 — LLM Provider Boundary & Structured Interpretation**. It may consume these deterministic contracts but must not weaken the source hierarchy, read-only behavior, traceability, or “AI explains — rules decide” boundary.
+A higher-level bounded conversational agent exposes selected orchestration routes as strict read-only tools. OpenAI may select and combine those tools, but it receives already-computed outputs and cannot alter engine decisions. The older one-intent normalized request remains a compatibility and individual-tool contract rather than a mandatory gate for every chat turn.
+
+The student-facing API preserves one primary `StructuredAdvisorResult` for backward compatibility. Multi-tool natural-language answers may synthesize several read-only results; each tool remains independently deterministic and owner-scoped. This boundary adds no new academic logic here and does not weaken the source hierarchy, read-only behavior, traceability, or “AI explains — rules decide” rule.
+
+## Current integration status
+
+The Responses API conversational layer now consumes these contracts through the read-only tool boundary described in `advisor-provider-and-explanation.md`. The deterministic source hierarchy remains unchanged.
 
