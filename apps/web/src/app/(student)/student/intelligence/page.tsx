@@ -46,13 +46,13 @@ export default function StudentIntelligencePage() {
       <h2 id="evidence-heading" className="sr-only">مصادر الأدلة</h2>
       <article className="rounded-3xl border border-emerald-200 bg-emerald-50 p-6">
         <p className="text-xs font-black text-emerald-800">أدلة الجامعة الرسمية</p>
-        <p className="mt-2 text-3xl font-black text-stone-950">{profile.verified_grade_count}</p>
-        <p className="mt-1 text-sm text-stone-700">علامة جامعية موثقة</p>
+        <p className="metric-value mt-2 text-3xl font-black">{profile.verified_grade_count}</p>
+        <p className="mt-1 text-sm text-muted">علامة جامعية موثقة</p>
       </article>
       <article className="rounded-3xl border border-amber-200 bg-amber-50 p-6">
         <p className="text-xs font-black text-amber-800">أدلة التشخيص</p>
-        <p className="mt-2 text-3xl font-black text-stone-950">{profile.diagnostic_completed ? 30 : 0}</p>
-        <p className="mt-1 text-sm text-stone-700">إجابة مكتملة · المصدر: خط أساس تشخيصي</p>
+        <p className="metric-value-accent mt-2 text-3xl font-black">{profile.diagnostic_completed ? 30 : 0}</p>
+        <p className="mt-1 text-sm text-muted">إجابة مكتملة · المصدر: خط أساس تشخيصي</p>
       </article>
     </section>
 
@@ -61,9 +61,9 @@ export default function StudentIntelligencePage() {
     </aside>}
 
     {profile.diagnostic_recommended && <section className="rounded-3xl border border-amber-300 bg-amber-50 p-6">
-      <h2 className="text-xl font-black text-stone-950">خلّينا نتعرّف عليك</h2>
-      <p className="mt-2 max-w-3xl leading-7 text-stone-700">لسا ما عندنا سجل جامعي كافي حتى نفهم أسلوبك الأكاديمي. اختبار سريع يساعد مرشدي يعطيك توصيات أنسب.</p>
-      <div className="mt-4 flex flex-wrap gap-3 text-sm font-semibold text-stone-700"><span>حوالي 7 دقائق</span><span>10–16 سؤال</span><span>لا يؤثر على معدلك أو سجلك الجامعي</span></div>
+      <h2 className="text-xl font-black text-foreground">خلّينا نتعرّف عليك</h2>
+      <p className="mt-2 max-w-3xl leading-7 text-muted">لسا ما عندنا سجل جامعي كافي حتى نفهم أسلوبك الأكاديمي. اختبار سريع يساعد مرشدي يعطيك توصيات أنسب.</p>
+      <div className="metric-value-muted mt-4 flex flex-wrap gap-3 text-sm font-semibold"><span>حوالي 7 دقائق</span><span>10–16 سؤال</span><span>لا يؤثر على معدلك أو سجلك الجامعي</span></div>
       <Link href="/student/diagnostic" className="mt-5 inline-flex min-h-11 items-center rounded-xl bg-stone-950 px-5 py-3 font-bold text-amber-300 focus-visible:ring-2 focus-visible:ring-amber-500">ابدأ الاختبار السريع</Link>
     </section>}
 
@@ -72,16 +72,16 @@ export default function StudentIntelligencePage() {
       {profile.diagnostic_completed && <Link href="/student/diagnostic" className="font-semibold text-amber-800 underline underline-offset-4">عرض/إعادة التشخيص</Link>}</div>
       {profile.skills.length === 0 ? <p className="mt-4 rounded-2xl border p-5">لا تتوفر أدلة قدرة كافية بعد. تبقى القرارات الأكاديمية الأساسية متاحة كالمعتاد.</p> :
       <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">{profile.skills.map(skill => <article key={skill.skill_id} className="rounded-2xl border border-border bg-surface p-5 shadow-xs">
-        <div className="flex items-start justify-between gap-3"><h3 className="font-bold">{labels[skill.skill_id] ?? skill.skill_id}</h3><strong className="text-2xl text-amber-700">{skill.score ?? "—"}</strong></div>
+        <div className="flex items-start justify-between gap-3"><h3 className="font-bold">{labels[skill.skill_id] ?? skill.skill_id}</h3><strong className="metric-value-accent text-2xl">{skill.score ?? "—"}</strong></div>
         <div className="mt-4 h-2 overflow-hidden rounded-full bg-stone-200" role="meter" aria-label={`درجة ${skill.score ?? "غير متوفرة"} من 100`} aria-valuemin={0} aria-valuemax={100} aria-valuenow={skill.score ?? undefined}><div className="h-full rounded-full bg-amber-500" style={{ width: `${skill.score ?? 0}%` }} /></div>
         <dl className="mt-4 grid grid-cols-2 gap-2 text-xs"><div><dt className="text-muted">الثقة</dt><dd className="font-bold">{skill.confidence}</dd></div><div><dt className="text-muted">جودة الدليل</dt><dd className="font-bold">{skill.evidence_quality}</dd></div></dl>
         <p className="mt-3 text-xs leading-6 text-muted">جامعة: {skill.university_evidence_count} · تشخيص: {skill.diagnostic_evidence_count}</p>
-        {skill.reasoning_patterns && skill.reasoning_patterns.length > 0 && <p className="mt-2 text-xs leading-6 text-stone-600">نمط الحل الظاهر: {skill.reasoning_patterns.join(" · ")}</p>}
+        {skill.reasoning_patterns && skill.reasoning_patterns.length > 0 && <p className="mt-2 text-xs leading-6 text-muted">نمط الحل الظاهر: {skill.reasoning_patterns.join(" · ")}</p>}
       </article>)}</div>}
     </section>
 
     <section className="grid gap-4 md:grid-cols-2"><article className="rounded-2xl border p-5"><h2 className="font-black">نقاط القوة المدعومة</h2><p className="mt-2 text-sm leading-7">{profile.strengths.map(x => labels[x] ?? x).join("، ") || "لا توجد أدلة كافية لعرضها بعد."}</p></article>
       <article className="rounded-2xl border p-5"><h2 className="font-black">مجالات التطوير</h2><p className="mt-2 text-sm leading-7">{profile.development_areas.map(x => labels[x] ?? x).join("، ") || "لا توجد إشارة مدعومة حالياً."}</p></article></section>
-    <aside className="rounded-2xl bg-stone-100 p-5 text-sm leading-7 text-stone-700"><h2 className="font-black text-stone-950">حدود النموذج</h2><ul className="mt-2 list-disc space-y-1 pe-5">{profile.limitations.map(item => <li key={item}>{item}</li>)}</ul></aside>
+    <aside className="rounded-2xl bg-stone-100 p-5 text-sm leading-7 text-muted"><h2 className="font-black text-foreground">حدود النموذج</h2><ul className="mt-2 list-disc space-y-1 pe-5">{profile.limitations.map(item => <li key={item}>{item}</li>)}</ul></aside>
   </main>;
 }

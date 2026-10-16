@@ -87,8 +87,8 @@ export function PolicyAnswerPanel() {
       </div>
       <p className="mt-3 text-[11px] text-muted">هذا شرح للنصوص الموثقة، وليس قراراً جامعياً رسمياً أو حكماً على أهليتك الشخصية.</p>
     </div> : null}
-    {state === "abstained" ? <div role="status" className="mt-4 rounded-xl border border-border bg-surface-muted p-4 text-sm text-[#544D42]">لا توجد أدلة كافية في اللوائح الموثقة للإجابة عن هذا السؤال.</div> : null}
-    {state === "handoff" && result?.handoff ? <div role="status" className="mt-4 rounded-xl border border-border bg-surface-muted p-4 text-sm text-[#544D42]">
+    {state === "abstained" ? <div role="status" className="mt-4 rounded-xl border border-border bg-surface-muted p-4 text-sm text-muted">لا توجد أدلة كافية في اللوائح الموثقة للإجابة عن هذا السؤال.</div> : null}
+    {state === "handoff" && result?.handoff ? <div role="status" className="mt-4 rounded-xl border border-border bg-surface-muted p-4 text-sm text-muted">
       <p>يتطلب هذا السؤال حساباً من محرك مرشدي الأكاديمي. لم تُصدر خدمة اللوائح إجابة أو قراراً بشأن حالتك.</p>
       {handoffPage ? <Link href={handoffPage.href} className="mt-2 inline-block font-semibold text-accent underline">{handoffPage.label}</Link> : null}
     </div> : null}

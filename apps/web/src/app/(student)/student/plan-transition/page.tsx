@@ -56,7 +56,7 @@ export default function PlanTransitionPage() {
     catch (cause) { setError(cause instanceof Error ? cause.message : "TARGET_PLAN_UNAVAILABLE"); }
     finally { setBusy(false); }
   }
-  return <main dir={lang === "ar" ? "rtl" : "ltr"} className="mx-auto max-w-4xl space-y-5 p-6 text-stone-900">
+  return <main dir={lang === "ar" ? "rtl" : "ltr"} className="mx-auto max-w-4xl space-y-5 p-6 text-foreground">
     <button type="button" onClick={() => setLang(lang === "ar" ? "en" : "ar")}
       aria-label="Switch language" className="rounded border px-3 py-2">{lang === "ar" ? "English" : "العربية"}</button>
     <h1 className="text-2xl font-bold">{t.title}</h1>

@@ -16,7 +16,7 @@ const statusLabels: Record<NonNullable<QueryResponse["result"]>["status"], strin
   NOT_APPLICABLE: "المؤشر غير منطبق",
 };
 
-const fieldClass = "min-h-12 w-full rounded-xl border border-amber-300 bg-surface px-3 text-sm text-stone-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-700";
+const fieldClass = "min-h-12 w-full rounded-xl border border-amber-300 bg-surface px-3 text-sm text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-700";
 
 export default function InstitutionalAIQueryPage() {
   const client = useAuthenticatedApi();
@@ -78,11 +78,11 @@ export default function InstitutionalAIQueryPage() {
     }
   }
 
-  return <main dir="rtl" className="mx-auto w-full max-w-4xl space-y-7 px-4 py-8 text-stone-900 sm:px-6">
+  return <main dir="rtl" className="mx-auto w-full max-w-4xl space-y-7 px-4 py-8 text-foreground sm:px-6">
     <header className="space-y-2">
       <p className="text-sm font-semibold text-amber-800">الاستعلامات المؤسسية · WC-039</p>
       <h1 className="text-3xl font-bold">اسأل عن مؤشر مؤسسي معتمد</h1>
-      <p className="text-sm leading-7 text-stone-700">يختار مرشدي مؤشراً واحداً فقط من قائمة محددة. القيمة تُحسب بالخدمة الحتمية، ولا يُنفَّذ أي استعلام SQL من السؤال.</p>
+      <p className="text-sm leading-7 text-muted">يختار مرشدي مؤشراً واحداً فقط من قائمة محددة. القيمة تُحسب بالخدمة الحتمية، ولا يُنفَّذ أي استعلام SQL من السؤال.</p>
     </header>
 
     {accessError ? <p role="alert" className="rounded-xl border border-red-300 bg-red-50 p-4 text-sm">{accessError}</p> : null}
@@ -113,7 +113,7 @@ export default function InstitutionalAIQueryPage() {
         <textarea id="institutional-question" required minLength={8} maxLength={300} rows={3} value={question}
           onChange={(event) => { setQuestion(event.target.value); clearResult(); }}
           placeholder="كم الطلب المعلن على هذه المادة؟" className={`${fieldClass} py-3`} />
-        <p className="text-xs text-stone-600">{question.length} / 300 حرف · لا تطلب سجلات طلاب فردية.</p>
+        <p className="metric-value-muted text-xs">{question.length} / 300 حرف · لا تطلب سجلات طلاب فردية.</p>
         <button type="submit" disabled={submitting || !universityId}
           className="button-primary min-h-12 rounded-xl bg-amber-800 px-6 py-3 font-semibold text-white hover:bg-amber-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-800 disabled:opacity-60">
           {submitting ? "جارٍ تحليل السؤال…" : "تحليل السؤال"}
@@ -127,7 +127,7 @@ export default function InstitutionalAIQueryPage() {
         <h2 className="text-lg font-bold">لم تتم الإجابة</h2>
         <p className="mt-2">لم يتمكن مرشدي من ربط السؤال بمؤشر مؤسسي معتمد.</p>
         <p className="mt-2 text-sm">هذا النوع من البيانات غير متاح عبر الاستعلامات المؤسسية المجمعة إذا كان يتعلق بأفراد.</p>
-        <p className="mt-2 text-xs text-stone-600">السبب: {result.abstention_reason}</p>
+        <p className="mt-2 text-xs text-muted">السبب: {result.abstention_reason}</p>
       </section> : null}
       {result?.status === "ANSWERED" && result.interpretation && result.result && result.provenance ? <>
         <section className="rounded-2xl border border-amber-200 p-5">

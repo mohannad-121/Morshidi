@@ -26,7 +26,7 @@ function detailErrorMessage(error: unknown): string {
 function isSafeUrl(value: string) { try { const url = new URL(value); return url.protocol === "http:" || url.protocol === "https:"; } catch { return false; } }
 function shortHash(value: string) { return value.length > 18 ? `${value.slice(0, 10)}…${value.slice(-6)}` : value; }
 function Metadata({ label, value, mono = false }: { label: string; value: string | number; mono?: boolean }) {
-  return <div className="min-w-0 rounded-lg bg-surface/70 px-2.5 py-2 text-[11px] text-muted"><dt className="font-semibold text-[#544D42]">{label}</dt><dd className={`mt-0.5 break-words text-foreground ${mono ? "font-mono" : ""}`}>{value}</dd></div>;
+  return <div className="min-w-0 rounded-lg bg-surface/70 px-2.5 py-2 text-[11px] text-muted"><dt className="font-semibold text-muted">{label}</dt><dd className={`mt-0.5 break-words text-foreground ${mono ? "font-mono" : ""}`}>{value}</dd></div>;
 }
 function PassageMetadata({ passage }: { passage: StudentPolicyPassage }) {
   return <><dl className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3">
@@ -44,7 +44,7 @@ function Provenance({ detail }: { detail: StudentPolicyDocumentDetail }) {
     {version.effective_start_date ? <Metadata label="بداية السريان" value={version.effective_start_date} /> : null}{version.effective_end_date ? <Metadata label="نهاية السريان" value={version.effective_end_date} /> : null}
     {version.verified_at ? <Metadata label="وقت التحقق" value={version.verified_at} /> : null}{version.verified_by ? <Metadata label="تم التحقق بواسطة" value={version.verified_by} /> : null}
     {version.content_sha256 ? <Metadata label="بصمة المحتوى" value={shortHash(version.content_sha256)} mono /> : null}
-    {version.source_url ? <div className="min-w-0 rounded-lg bg-surface/70 px-2.5 py-2 text-[11px] text-muted"><dt className="font-semibold text-[#544D42]">المصدر</dt><dd className="mt-0.5 break-all">{isSafeUrl(version.source_url) ? <a href={version.source_url} target="_blank" rel="noopener noreferrer" className="text-accent underline underline-offset-2">مصدر خارجي ↗</a> : version.source_url}</dd></div> : null}
+    {version.source_url ? <div className="min-w-0 rounded-lg bg-surface/70 px-2.5 py-2 text-[11px] text-muted"><dt className="font-semibold text-muted">المصدر</dt><dd className="mt-0.5 break-all">{isSafeUrl(version.source_url) ? <a href={version.source_url} target="_blank" rel="noopener noreferrer" className="text-accent underline underline-offset-2">مصدر خارجي ↗</a> : version.source_url}</dd></div> : null}
   </dl></section>;
 }
 

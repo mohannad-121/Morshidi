@@ -75,12 +75,12 @@ function Field({ id, label, value, onChange, type = "text", min, max, hint }: {
   type?: string; min?: string; max?: string; hint?: string;
 }) {
   return <div className="space-y-1.5">
-    <label htmlFor={id} className="block text-sm font-semibold text-stone-900">{label}</label>
+    <label htmlFor={id} className="block text-sm font-semibold text-foreground">{label}</label>
     <input id={id} name={id} type={type} min={min} max={max} step={type === "number" ? "any" : undefined}
       required value={value} onChange={(event) => onChange(event.target.value)}
       aria-describedby={hint ? `${id}-hint` : undefined}
-      className="min-h-11 w-full rounded-xl border border-amber-300 bg-surface px-3 text-sm text-stone-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-700" />
-    {hint && <p id={`${id}-hint`} className="text-xs text-stone-600">{hint}</p>}
+      className="min-h-11 w-full rounded-xl border border-amber-300 bg-surface px-3 text-sm text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-700" />
+    {hint && <p id={`${id}-hint`} className="text-xs text-muted">{hint}</p>}
   </div>;
 }
 
@@ -149,9 +149,9 @@ export default function InstitutionalChangeImpactPage() {
 
   return <main dir="rtl" className="mx-auto w-full max-w-5xl space-y-6 px-4 py-8 sm:px-6">
     <header className="space-y-2">
-      <h1 className="text-2xl font-bold text-stone-900">تحليل أثر تغيير مقترح</h1>
+      <h1 className="text-2xl font-bold text-foreground">تحليل أثر تغيير مقترح</h1>
       <p className="text-sm font-semibold text-amber-900">تحليل مقترح — لا يطبق أي تغيير</p>
-      <p className="text-sm text-stone-700">لم يتم تعديل أي سجل أكاديمي. النتائج للمراجعة البشرية ولا تُعد تغييرًا منشورًا.</p>
+      <p className="text-sm text-muted">لم يتم تعديل أي سجل أكاديمي. النتائج للمراجعة البشرية ولا تُعد تغييرًا منشورًا.</p>
     </header>
     {accessError && <p role="alert" className="rounded-xl border border-red-300 bg-red-50 p-4 text-sm">{accessError}</p>}
     {!universities && !accessError && <p role="status">جارٍ التحقق من صلاحية المحلل…</p>}
@@ -243,7 +243,7 @@ export default function InstitutionalChangeImpactPage() {
       <div><h3 className="font-semibold">المواد المتأثرة بنيويًا</h3>
         {result.structurally_affected_courses.length ? <ul className="list-inside list-disc">
           {result.structurally_affected_courses.map((code) => <li key={code}><CourseIdentity courseCode={code} identities={identities} /></li>)}
-        </ul> : <p className="text-sm text-stone-600">لا توجد مواد محددة.</p>}</div>
+        </ul> : <p className="text-sm text-muted">لا توجد مواد محددة.</p>}</div>
       <div><h3 className="font-semibold">مجموعات المتطلبات</h3>
         <p className="text-sm">{result.affected_requirement_groups.join("، ") || "لا توجد مجموعات محددة."}</p></div>
       <div><h3 className="font-semibold">النتائج الحتمية التي قد تتأثر</h3>

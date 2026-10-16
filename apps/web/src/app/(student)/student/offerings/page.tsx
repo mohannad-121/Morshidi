@@ -60,7 +60,7 @@ export default function OfferingsPage() {
     finally { setBusy(false); }
   }
 
-  return <main dir={language === "ar" ? "rtl" : "ltr"} className="mx-auto max-w-4xl space-y-5 p-6 text-stone-900">
+  return <main dir={language === "ar" ? "rtl" : "ltr"} className="mx-auto max-w-4xl space-y-5 p-6 text-foreground">
     <button type="button" onClick={() => setLanguage(language === "ar" ? "en" : "ar")}
       className="rounded border px-3 py-2 focus-visible:outline-2" aria-label="Switch language">
       {language === "ar" ? "English" : "العربية"}

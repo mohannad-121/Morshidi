@@ -2,6 +2,7 @@ import { render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import { Badge } from './Badge';
 import { Button, Card } from './DesignSystem';
+import { StatCard } from './StatCard';
 
 describe('luxury design-system primitives', () => {
   it('exposes reusable button variants without changing native button behavior', () => {
@@ -43,5 +44,11 @@ describe('luxury design-system primitives', () => {
     expect(screen.getByText('Success').classList.contains('badge-success')).toBe(true);
     expect(screen.getByText('Danger').classList.contains('badge-danger')).toBe(true);
     expect(screen.getByText('Info').classList.contains('badge-info')).toBe(true);
+  });
+
+  it('keeps zero and other dashboard metrics on the high-contrast metric token', () => {
+    render(<StatCard title="Official evidence" value={0} />);
+
+    expect(screen.getByText('0').closest('.metric-value')).not.toBeNull();
   });
 });

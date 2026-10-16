@@ -95,7 +95,7 @@ export default function PrivacyPage() {
   const activeConsent = summary?.consents.find(item => item.status === "GRANTED"
     && item.scopes.includes(`study:${activeStudy?.study_id}`));
   const joined = summary?.participation.some(item => item.study_id === activeStudy?.study_id && item.status === "ACTIVE");
-  return <main dir={lang === "ar" ? "rtl" : "ltr"} className="mx-auto max-w-3xl space-y-5 p-6 text-stone-900">
+  return <main dir={lang === "ar" ? "rtl" : "ltr"} className="mx-auto max-w-3xl space-y-5 p-6 text-foreground">
     <button type="button" onClick={() => setLang(lang === "ar" ? "en" : "ar")}
       aria-label="Switch language" className="rounded border px-3 py-2">{t.language}</button>
     <h1 className="text-2xl font-bold">{t.title}</h1>

@@ -35,7 +35,7 @@ export default function CohortsPage() {
     catch { setError(true); }
     finally { setBusy(false); }
   }
-  return <main dir={ar ? "rtl" : "ltr"} className="mx-auto max-w-4xl space-y-5 p-6 text-stone-900">
+  return <main dir={ar ? "rtl" : "ltr"} className="mx-auto max-w-4xl space-y-5 p-6 text-foreground">
     <button type="button" onClick={() => setLanguage(ar ? "en" : "ar")}
       aria-label="Switch language" className="rounded border px-3 py-2 focus-visible:outline-2">{ar ? "English" : "العربية"}</button>
     <h1 className="text-2xl font-bold">{ar ? "استكشاف المجموعات التجريبية" : "Synthetic cohort explorer"}</h1>

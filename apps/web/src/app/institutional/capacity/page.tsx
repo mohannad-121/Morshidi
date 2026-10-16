@@ -62,7 +62,7 @@ export default function CapacityPage() {
     finally { setBusy(false); }
   }
 
-  return <main dir={ar ? "rtl" : "ltr"} className="mx-auto max-w-4xl space-y-5 p-6 text-stone-900">
+  return <main dir={ar ? "rtl" : "ltr"} className="mx-auto max-w-4xl space-y-5 p-6 text-foreground">
     <button type="button" onClick={() => setLanguage(ar ? "en" : "ar")}
       className="rounded border px-3 py-2 focus-visible:outline-2" aria-label="Switch language">
       {ar ? "English" : "العربية"}</button>

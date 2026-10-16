@@ -62,7 +62,9 @@ test("completed cold-start diagnostic is separated from official evidence", asyn
   expect(screen.getByText("أدلة الجامعة الرسمية")).toBeTruthy();
   expect(screen.getByText("أدلة التشخيص")).toBeTruthy();
   expect(screen.getByText(/هذا تقييم أولي وسيتحدّث تلقائياً/)).toBeTruthy();
-  expect(screen.getByText("30")).toBeTruthy();
+  expect(screen.getByText("0").classList.contains("metric-value")).toBe(true);
+  expect(screen.getByText("30").classList.contains("metric-value-accent")).toBe(true);
+  expect(screen.getByText("82").classList.contains("metric-value-accent")).toBe(true);
   expect(screen.getByText(/إجابة مكتملة/)).toBeTruthy();
 });
 

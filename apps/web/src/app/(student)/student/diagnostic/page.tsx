@@ -134,8 +134,8 @@ export default function DiagnosticPage() {
         <h1 id="legacy-diagnostic-heading" className="mt-3 text-3xl font-black leading-tight">لديك تشخيص قديم غير مكتمل</h1>
         <p className="mt-5 max-w-2xl leading-8 text-stone-300">بدأت نسخة سابقة من التشخيص. يمكنك إكمالها، أو إغلاقها والبدء بالتشخيص الجديد المكوّن من 30 سؤالاً.</p>
         <div className="mt-7 grid gap-3 sm:grid-cols-2">
-          <button type="button" disabled={busy || legacyAbandoned} onClick={() => { setError(null); setLegacyChoice("CONTINUE"); }} className="inline-flex min-h-12 items-center justify-center rounded-xl border border-amber-300/60 px-5 py-3 font-black text-amber-200 transition hover:bg-amber-300/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300 disabled:cursor-not-allowed disabled:opacity-40 motion-reduce:transition-none">إكمال التشخيص القديم</button>
-          <button type="button" disabled={busy} onClick={() => void startNewDiagnostic()} className="inline-flex min-h-12 items-center justify-center rounded-xl bg-amber-300 px-5 py-3 font-black text-stone-950 transition hover:bg-amber-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white disabled:cursor-not-allowed disabled:opacity-40 motion-reduce:transition-none">{busy ? "جارٍ بدء التشخيص الجديد…" : "ابدأ التشخيص الجديد — 30 سؤال"}</button>
+          <button type="button" disabled={busy || legacyAbandoned} onClick={() => { setError(null); setLegacyChoice("CONTINUE"); }} className="inline-flex min-h-12 items-center justify-center rounded-xl border border-amber-300/60 px-5 py-3 font-black text-amber-200 transition hover:bg-amber-300/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300 disabled:cursor-not-allowed disabled:opacity-60 motion-reduce:transition-none">إكمال التشخيص القديم</button>
+          <button type="button" disabled={busy} onClick={() => void startNewDiagnostic()} className="inline-flex min-h-12 items-center justify-center rounded-xl bg-amber-300 px-5 py-3 font-black text-stone-950 transition hover:bg-amber-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white disabled:cursor-not-allowed disabled:opacity-60 motion-reduce:transition-none">{busy ? "جارٍ بدء التشخيص الجديد…" : "ابدأ التشخيص الجديد — 30 سؤال"}</button>
         </div>
         {error ? <p role="alert" className="mt-5 rounded-xl border border-red-400/30 bg-red-400/10 p-4 text-sm leading-6 text-red-200">{error}</p> : null}
       </section>
@@ -151,7 +151,7 @@ export default function DiagnosticPage() {
     <header className="flex flex-wrap items-center justify-between gap-4">
       <div>
         <p className="text-xs font-black tracking-wide text-amber-700">التشخيص الأكاديمي السريع</p>
-        <h1 className="mt-1 text-xl font-black text-stone-950">السؤال {questionNumber} من {session.maximum_questions}</h1>
+        <h1 className="metric-value mt-1 text-xl font-black">السؤال {questionNumber} من {session.maximum_questions}</h1>
       </div>
       <Link href="/student" className="inline-flex min-h-11 items-center rounded-xl border border-stone-300 px-4 py-2 text-sm font-bold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500">إكماله لاحقاً</Link>
     </header>
@@ -186,7 +186,7 @@ export default function DiagnosticPage() {
         </fieldset> : null}
 
         <div aria-live="polite" className="mt-4 min-h-6 text-sm text-red-300">{error}</div>
-        <button type="button" disabled={!ready || busy} onClick={() => void submitAnswer()} className="mt-3 inline-flex min-h-12 w-full items-center justify-center rounded-xl bg-amber-300 px-6 py-3 font-black text-stone-950 transition hover:bg-amber-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white disabled:cursor-not-allowed disabled:opacity-40 motion-reduce:transition-none sm:w-auto">{busy ? "جارٍ الحفظ…" : questionNumber === session.maximum_questions ? "إنهاء التشخيص" : "السؤال التالي"}</button>
+        <button type="button" disabled={!ready || busy} onClick={() => void submitAnswer()} className="mt-3 inline-flex min-h-12 w-full items-center justify-center rounded-xl bg-amber-300 px-6 py-3 font-black text-stone-950 transition hover:bg-amber-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white disabled:cursor-not-allowed disabled:opacity-60 motion-reduce:transition-none sm:w-auto">{busy ? "جارٍ الحفظ…" : questionNumber === session.maximum_questions ? "إنهاء التشخيص" : "السؤال التالي"}</button>
         <p className="mt-5 text-xs leading-6 text-stone-400">{isV2
           ? "نسجّل زمن الاستجابة بهدوء لتحسين جودة الدليل، من دون مؤقت ضاغط. التشخيص لا يغيّر معدلك أو أهليتك أو متطلبات خطتك."
           : "تُحفظ إجابات هذه النسخة القديمة وفق قواعدها الأصلية، من دون إضافة دليل توقيت أو ثقة من النسخة الجديدة."}</p>
