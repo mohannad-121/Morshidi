@@ -544,6 +544,7 @@ export interface AdvisorResponse {
   explanation: string | null;
   explanation_status: string;
   explanation_language: string | null;
+  response_facets?: string[];
 }
 
 export type DashboardError =
@@ -679,7 +680,7 @@ export interface StudentSkillDimensionV2 {
   skill_id: string; score: number | null; confidence: string; evidence_quality: string;
   university_evidence_count: number; diagnostic_evidence_count: number;
   contributing_courses: string[]; contributing_question_domains: string[];
-  source_types: string[]; reason_codes: string[];
+  source_types: string[]; reason_codes: string[]; reasoning_patterns?: string[];
 }
 
 export interface StudentIntelligenceProfileV2 {
@@ -701,7 +702,7 @@ export interface DiagnosticOption {
 }
 
 export interface DiagnosticQuestion {
-  question_id: string; assessment_version: string; domain: string;
+  question_id: string; assessment_version: string;
   prompt_ar: string; prompt_en: string; options: DiagnosticOption[];
 }
 

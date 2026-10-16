@@ -52,6 +52,20 @@ test("established evidence removes the onboarding prompt", async () => {
   expect(screen.getByText(/8 علامة جامعية موثقة/)).toBeTruthy();
 });
 
+test("completed cold-start diagnostic is separated from official evidence", async () => {
+  client.request.mockResolvedValueOnce(new Response(JSON.stringify({
+    ...example, diagnostic_recommended: false, diagnostic_completed: true,
+    latest_assessment_version: "QUICK_DIAGNOSTIC_V2",
+  })));
+  render(<StudentIntelligencePage />);
+  await screen.findByRole("heading", { name: "بصمتي الأكاديمية" });
+  expect(screen.getByText("أدلة الجامعة الرسمية")).toBeTruthy();
+  expect(screen.getByText("أدلة التشخيص")).toBeTruthy();
+  expect(screen.getByText(/هذا تقييم أولي وسيتحدّث تلقائياً/)).toBeTruthy();
+  expect(screen.getByText("30")).toBeTruthy();
+  expect(screen.getByText(/إجابة مكتملة/)).toBeTruthy();
+});
+
 test("error state is explicit", async () => {
   client.request.mockRejectedValueOnce(new Error("offline"));
   render(<StudentIntelligencePage />);

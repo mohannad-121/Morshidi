@@ -42,6 +42,24 @@ export default function StudentIntelligencePage() {
       </div>
     </header>
 
+    <section aria-labelledby="evidence-heading" className="grid gap-4 md:grid-cols-2">
+      <h2 id="evidence-heading" className="sr-only">مصادر الأدلة</h2>
+      <article className="rounded-3xl border border-emerald-200 bg-emerald-50 p-6">
+        <p className="text-xs font-black text-emerald-800">أدلة الجامعة الرسمية</p>
+        <p className="mt-2 text-3xl font-black text-stone-950">{profile.verified_grade_count}</p>
+        <p className="mt-1 text-sm text-stone-700">علامة جامعية موثقة</p>
+      </article>
+      <article className="rounded-3xl border border-amber-200 bg-amber-50 p-6">
+        <p className="text-xs font-black text-amber-800">أدلة التشخيص</p>
+        <p className="mt-2 text-3xl font-black text-stone-950">{profile.diagnostic_completed ? 30 : 0}</p>
+        <p className="mt-1 text-sm text-stone-700">إجابة مكتملة · المصدر: خط أساس تشخيصي</p>
+      </article>
+    </section>
+
+    {profile.diagnostic_completed && <aside className="rounded-2xl border border-sky-200 bg-sky-50 p-5 text-sm leading-7 text-sky-950">
+      هذا تقييم أولي وسيتحدّث تلقائياً مع وصول نتائج جامعية موثقة. الأدلة الرسمية تزداد أولوية تدريجياً ولا يستبدلها التشخيص.
+    </aside>}
+
     {profile.diagnostic_recommended && <section className="rounded-3xl border border-amber-300 bg-amber-50 p-6">
       <h2 className="text-xl font-black text-stone-950">خلّينا نتعرّف عليك</h2>
       <p className="mt-2 max-w-3xl leading-7 text-stone-700">لسا ما عندنا سجل جامعي كافي حتى نفهم أسلوبك الأكاديمي. اختبار سريع يساعد مرشدي يعطيك توصيات أنسب.</p>
@@ -58,6 +76,7 @@ export default function StudentIntelligencePage() {
         <div className="mt-4 h-2 overflow-hidden rounded-full bg-stone-200" role="meter" aria-label={`درجة ${skill.score ?? "غير متوفرة"} من 100`} aria-valuemin={0} aria-valuemax={100} aria-valuenow={skill.score ?? undefined}><div className="h-full rounded-full bg-amber-500" style={{ width: `${skill.score ?? 0}%` }} /></div>
         <dl className="mt-4 grid grid-cols-2 gap-2 text-xs"><div><dt className="text-muted">الثقة</dt><dd className="font-bold">{skill.confidence}</dd></div><div><dt className="text-muted">جودة الدليل</dt><dd className="font-bold">{skill.evidence_quality}</dd></div></dl>
         <p className="mt-3 text-xs leading-6 text-muted">جامعة: {skill.university_evidence_count} · تشخيص: {skill.diagnostic_evidence_count}</p>
+        {skill.reasoning_patterns && skill.reasoning_patterns.length > 0 && <p className="mt-2 text-xs leading-6 text-stone-600">نمط الحل الظاهر: {skill.reasoning_patterns.join(" · ")}</p>}
       </article>)}</div>}
     </section>
 

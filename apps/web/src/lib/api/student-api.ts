@@ -131,12 +131,18 @@ export class StudentApiService {
   }
 
   async getDiagnosticStatus(): Promise<DiagnosticStatus> {
-    const res = await this.client.request("/api/v1/me/diagnostic/status", { cache: "no-store" });
+    const res = await this.client.request(
+      "/api/v1/me/diagnostic/status?assessment_version=QUICK_DIAGNOSTIC_V2",
+      { cache: "no-store" },
+    );
     return parseJson<DiagnosticStatus>(res);
   }
 
   async startDiagnostic(): Promise<DiagnosticSession> {
-    const res = await this.client.request("/api/v1/me/diagnostic/start", { method: "POST" });
+    const res = await this.client.request(
+      "/api/v1/me/diagnostic/start?assessment_version=QUICK_DIAGNOSTIC_V2",
+      { method: "POST" },
+    );
     return parseJson<DiagnosticSession>(res);
   }
 
@@ -145,10 +151,12 @@ export class StudentApiService {
     return parseJson<DiagnosticSession>(res);
   }
 
-  async answerDiagnostic(sessionId: string, questionId: string, selectedOption: string): Promise<DiagnosticSession> {
+  async answerDiagnostic(sessionId: string, questionId: string, selectedOption: string,
+    responseTimeMs: number, selfConfidence: "LOW" | "MEDIUM" | "HIGH"): Promise<DiagnosticSession> {
     const res = await this.client.request(`/api/v1/me/diagnostic/${encodeURIComponent(sessionId)}/answer`, {
       method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ question_id: questionId, selected_option: selectedOption }),
+      body: JSON.stringify({ question_id: questionId, selected_option: selectedOption,
+        response_time_ms: responseTimeMs, self_confidence: selfConfidence }),
     });
     return parseJson<DiagnosticSession>(res);
   }
