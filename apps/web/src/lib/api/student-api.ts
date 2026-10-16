@@ -152,11 +152,13 @@ export class StudentApiService {
   }
 
   async answerDiagnostic(sessionId: string, questionId: string, selectedOption: string,
-    responseTimeMs: number, selfConfidence: "LOW" | "MEDIUM" | "HIGH"): Promise<DiagnosticSession> {
+    responseTimeMs?: number, selfConfidence?: "LOW" | "MEDIUM" | "HIGH"): Promise<DiagnosticSession> {
+    const evidence = responseTimeMs !== undefined && selfConfidence !== undefined
+      ? { response_time_ms: responseTimeMs, self_confidence: selfConfidence }
+      : {};
     const res = await this.client.request(`/api/v1/me/diagnostic/${encodeURIComponent(sessionId)}/answer`, {
       method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ question_id: questionId, selected_option: selectedOption,
-        response_time_ms: responseTimeMs, self_confidence: selfConfidence }),
+      body: JSON.stringify({ question_id: questionId, selected_option: selectedOption, ...evidence }),
     });
     return parseJson<DiagnosticSession>(res);
   }
