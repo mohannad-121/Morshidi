@@ -199,6 +199,10 @@ class UniversityContractClient:
                     faculty=student.faculty,
                     major=student.major,
                     degree=student.degree,
+                    plan_key=student.plan_key,
+                    plan_number=student.plan_number,
+                    faculty_code=student.faculty_code,
+                    major_code=student.major_code,
                     admission_year=student.admission_year,
                     academic_status=student.academic_status,
                     academic_advisor=student.academic_advisor,
@@ -332,7 +336,12 @@ class UniversityContractClient:
                 plan = response.plan
                 return UniversityAcademicPlan(
                     plan_id=plan.plan_id,
+                    plan_key=plan.plan_key,
+                    plan_number=plan.plan_number,
+                    faculty=plan.faculty,
+                    faculty_code=plan.faculty_code,
                     major=plan.major,
+                    major_code=plan.major_code,
                     total_credit_hours=plan.total_required_credits,
                     courses=[course.model_dump(by_alias=True) for course in plan.courses],
                 )

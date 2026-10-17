@@ -12,6 +12,7 @@ class UniversityErrorCode(str, Enum):
     UNIVERSITY_PROTOCOL_ERROR = "UNIVERSITY_PROTOCOL_ERROR"
     UNIVERSITY_IDENTITY_CONFLICT = "UNIVERSITY_IDENTITY_CONFLICT"
     UNIVERSITY_PLAN_NOT_MAPPED = "UNIVERSITY_PLAN_NOT_MAPPED"
+    UNIVERSITY_PLAN_AMBIGUOUS = "UNIVERSITY_PLAN_AMBIGUOUS"
     UNIVERSITY_COURSE_NOT_MAPPED = "UNIVERSITY_COURSE_NOT_MAPPED"
     UNIVERSITY_SYNC_FAILED = "UNIVERSITY_SYNC_FAILED"
     INTERNAL_IDENTITY_PROVISION_FAILED = "INTERNAL_IDENTITY_PROVISION_FAILED"
@@ -58,6 +59,11 @@ class UniversityIdentityConflictError(UniversitySyncError):
 class UniversityPlanNotMappedError(UniversitySyncError):
     def __init__(self, message: str = "University study plan could not be mapped to catalog") -> None:
         super().__init__(UniversityErrorCode.UNIVERSITY_PLAN_NOT_MAPPED, message)
+
+
+class UniversityPlanAmbiguousError(UniversitySyncError):
+    def __init__(self, message: str = "University study plan identity matched multiple catalog plans") -> None:
+        super().__init__(UniversityErrorCode.UNIVERSITY_PLAN_AMBIGUOUS, message)
 
 
 class UniversityCourseNotMappedError(UniversitySyncError):

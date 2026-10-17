@@ -77,6 +77,10 @@ class UniversityStudentProfile(BaseModel):
     major: str | None = None
     degree: str | None = None
     study_plan: str | None = Field(default=None, alias="studyPlan")
+    plan_key: str | None = Field(default=None, alias="planKey")
+    plan_number: str | None = Field(default=None, alias="planNumber")
+    faculty_code: str | None = Field(default=None, alias="facultyCode")
+    major_code: str | None = Field(default=None, alias="majorCode")
     admission_year: int | str | None = Field(default=None, alias="admissionYear")
     academic_status: str | None = Field(default=None, alias="academicStatus")
     academic_advisor: str | None = Field(default=None, alias="academicAdvisor")
@@ -121,6 +125,10 @@ class UniversityStudentPayload(BaseModel):
     gpa: StrictNumber | None
     gpa_scale: StrictNumber = Field(alias="gpaScale")
     earned_credits: StrictNumber = Field(alias="earnedCredits")
+    plan_key: StrictStr | None = Field(default=None, alias="planKey")
+    plan_number: StrictStr | None = Field(default=None, alias="planNumber")
+    faculty_code: StrictStr | None = Field(default=None, alias="facultyCode")
+    major_code: StrictStr | None = Field(default=None, alias="majorCode")
 
     @model_validator(mode="after")
     def validate_gpa_numbers(self) -> "UniversityStudentPayload":
@@ -429,6 +437,11 @@ class UniversityAcademicPlan(BaseModel):
     model_config = ConfigDict(extra="ignore", populate_by_name=True)
 
     plan_id: str | None = Field(default=None, alias="planId")
+    plan_key: str | None = Field(default=None, alias="planKey")
+    plan_number: str | None = Field(default=None, alias="planNumber")
+    faculty: str | None = None
+    faculty_code: str | None = Field(default=None, alias="facultyCode")
+    major_code: str | None = Field(default=None, alias="majorCode")
     title: str | None = None
     major: str | None = None
     degree: str | None = None
@@ -448,6 +461,9 @@ class UniversityAcademicPlan(BaseModel):
             pid = inner.get("plan_id") or inner.get("planId") or inner.get("plan_number") or inner.get("id")
             if pid is not None:
                 inner["plan_id"] = str(pid)
+            plan_number = inner.get("plan_number") or inner.get("planNumber")
+            if plan_number is not None:
+                inner["plan_number"] = str(plan_number)
             if "total_credits" in inner and "total_credit_hours" not in inner:
                 inner["total_credit_hours"] = inner["total_credits"]
             elif "totalCredits" in inner and "total_credit_hours" not in inner:
@@ -476,7 +492,12 @@ class UniversityAcademicPlanPayload(BaseModel):
     model_config = ConfigDict(extra="forbid", populate_by_name=True)
 
     plan_id: StrictStr = Field(alias="planId")
+    plan_key: StrictStr | None = Field(default=None, alias="planKey")
+    plan_number: StrictStr | None = Field(default=None, alias="planNumber")
+    faculty: StrictStr | None = None
+    faculty_code: StrictStr | None = Field(default=None, alias="facultyCode")
     major: StrictStr
+    major_code: StrictStr | None = Field(default=None, alias="majorCode")
     total_required_credits: StrictNumber = Field(alias="totalRequiredCredits")
     earned_credits: StrictNumber = Field(alias="earnedCredits")
     remaining_credits: StrictNumber = Field(alias="remainingCredits")

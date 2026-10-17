@@ -110,6 +110,8 @@ def _with_university_envelopes(handler):
                 if suffix == "/student/me" and isinstance(payload, dict):
                     payload = dict(payload)
                     payload.setdefault("gpaScale", 100)
+                    payload.setdefault("faculty", "Information Technology")
+                    payload.setdefault("major", "Artificial Intelligence")
                 if suffix == "/student/grades" and isinstance(payload, list):
                     courses = []
                     for item in payload:
@@ -157,7 +159,13 @@ class MockSupabaseEnvironment:
             {
                 "id": TEST_PLAN_ID,
                 "plan_number": "12",
-                "majors": {"faculties": {"university_id": TEST_UNIVERSITY_ID}},
+                "majors": {
+                    "code": "AI", "name_ar": "الذكاء الاصطناعي", "name_en": "Artificial Intelligence",
+                    "faculties": {
+                        "code": "IT", "name_ar": "كلية تكنولوجيا المعلومات",
+                        "name_en": "Information Technology", "university_id": TEST_UNIVERSITY_ID,
+                    },
+                },
             }
         ]
         self.courses: list[dict[str, Any]] = [

@@ -19,6 +19,7 @@ from app.advisor.student_intelligence_context import (
 from app.advisor.tool_registry import TOOL_ARGUMENT_MODELS
 from app.student.models import StudentAcademicState
 from app.student_intelligence.adaptive import AdaptiveCourseResult
+from app.student_intelligence.curriculum_mapping import UnsupportedCurriculumIntelligenceError
 from app.student_intelligence.profile_v2 import StudentIntelligenceProfileV2
 from app.recommendations.models import RecommendationResult
 
@@ -67,11 +68,21 @@ class AdvisorToolExecutor:
         if name == "get_student_intelligence":
             if self._load_intelligence is None:
                 return ExecutedTool(name, _tool_error("EVIDENCE_UNAVAILABLE"))
-            bounded = project_student_intelligence(
-                await self._load_intelligence(self._owner_user_id)
-            )
-            payload = asdict(bounded) if is_dataclass(bounded) else bounded
-            return ExecutedTool(name, {"ok": True, "result": _json_safe(payload)})
+            try:
+                bounded = project_student_intelligence(
+                    await self._load_intelligence(self._owner_user_id)
+                )
+                payload = asdict(bounded) if is_dataclass(bounded) else bounded
+                return ExecutedTool(name, {"ok": True, "result": _json_safe(payload)})
+            except UnsupportedCurriculumIntelligenceError:
+                return ExecutedTool(
+                    name,
+                    {
+                        "ok": False,
+                        "error": "STUDENT_INTELLIGENCE_UNSUPPORTED_CURRICULUM",
+                        "message": "Discipline-specific Student Intelligence is not available for this curriculum.",
+                    },
+                )
 
         if name == "get_current_enrollments":
             state = await self._load_state(self._owner_user_id)

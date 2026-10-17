@@ -9,6 +9,7 @@ from app.core.auth import CurrentUser, get_current_user
 from app.main import app
 from app.student_intelligence.diagnostic_service import DiagnosticConflict
 from app.student_intelligence.profile_v2 import SkillDimensionV2, StudentIntelligenceProfileV2
+from app.student_intelligence.curriculum_mapping import UnsupportedCurriculumIntelligenceError
 
 OWNER = "11111111-1111-1111-1111-111111111111"
 SESSION = "22222222-2222-2222-2222-222222222222"
@@ -46,6 +47,11 @@ class StudentFake:
     async def get_student_intelligence_v2(self, owner: str):
         self.owners.append(owner)
         return _internal_profile()
+
+
+class UnsupportedCurriculumStudentFake:
+    async def get_student_intelligence_v2(self, owner: str):
+        raise UnsupportedCurriculumIntelligenceError("unsupported curriculum")
 
 
 class DiagnosticFake:
@@ -126,6 +132,23 @@ def test_v2_profile_is_owner_derived_and_private() -> None:
         assert response.headers["cache-control"] == "private, no-store"
         assert students.owners == [OWNER]
         assert response.json()["skills"][0]["skill_id"] == "PROGRAMMING"
+    finally:
+        app.dependency_overrides.clear()
+
+
+def test_v2_profile_returns_safe_conflict_for_unsupported_curriculum() -> None:
+    app.dependency_overrides[get_current_user] = lambda: CurrentUser(OWNER)
+    app.dependency_overrides[get_student_service] = lambda: UnsupportedCurriculumStudentFake()
+    try:
+        with TestClient(app) as client:
+            response = client.get("/api/v1/me/student-intelligence")
+        assert response.status_code == 409
+        assert response.headers["cache-control"] == "private, no-store"
+        assert response.json() == {
+            "kind": "error",
+            "error_code": "STUDENT_INTELLIGENCE_UNSUPPORTED_CURRICULUM",
+            "detail": "Discipline-specific Student Intelligence is not available for this curriculum",
+        }
     finally:
         app.dependency_overrides.clear()
 

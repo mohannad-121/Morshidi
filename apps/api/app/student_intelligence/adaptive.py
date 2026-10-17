@@ -18,8 +18,8 @@ from app.rules.models import CanTakeCatalog, PrerequisiteLogicStatus
 from app.rules.project_credits import passed_plan_credits
 from app.student.models import (PerformanceProvenance, PerformanceVerificationState,
                                 StudentAcademicState, StudentCourseAttemptRecord)
-from app.student_intelligence.taxonomy import (COURSE_SKILL_MAPPING_VERSION, PLAN12_COURSE_SKILLS,
-                                                PLAN12_ID)
+from app.student_intelligence.taxonomy import COURSE_SKILL_MAPPING_VERSION, PLAN12_ID
+from app.student_intelligence.curriculum_mapping import DEFAULT_CURRICULUM_SKILL_MAPPINGS
 from app.university_sync.grading_policy import (
     FAKE_UNIVERSITY_COURSE_GRADE_MAX,
     FAKE_UNIVERSITY_COURSE_GRADE_MIN,
@@ -33,13 +33,6 @@ PERSONAL_MODEL_VERSION = "PERSONAL_DIFFICULTY_MODEL_V1"
 RECOMMENDER_MODEL_VERSION = "COURSE_RECOMMENDER_V1"
 SKILL_PROFILE_VERSION = COURSE_SKILL_MAPPING_VERSION
 FRESHNESS_POLICY_VERSION = "SOURCE_FRESHNESS_EXPLICIT_V1"
-
-# Exact Plan 12 codes inspected against the canonical seed. Unmapped courses
-# retain their own course-foundation tag; no inferred historical statistics.
-PLAN12_SKILLS: Mapping[str, tuple[str, ...]] = {
-    code: tuple(item.skill_id.value for item in definition.skills)
-    for code, definition in PLAN12_COURSE_SKILLS.items()
-}
 
 # Deliberate, normalized factors. Required/progress have more weight than ease.
 WEIGHTS: Mapping[str, int] = {
@@ -57,6 +50,9 @@ class GradePolicy:
     provenance: str
     numeric_min: Decimal
     numeric_max: Decimal
+
+    def applies_to(self, study_plan_id: str) -> bool:
+        return self.study_plan_id == "*" or self.study_plan_id == study_plan_id
 
     def normalize(self, record: StudentCourseAttemptRecord) -> int | None:
         reference = parse_grading_policy_source_reference(record.performance_source_reference)
@@ -98,14 +94,26 @@ class GradePolicyRegistry:
             scopes.add(scope)
 
     def resolve(self, institution_id: str, study_plan_id: str) -> GradePolicy | None:
-        return next((policy for policy in self.policies
-                     if policy.institution_id == institution_id
-                     and policy.study_plan_id == study_plan_id), None)
+        exact = next((policy for policy in self.policies
+                      if policy.institution_id == institution_id
+                      and policy.study_plan_id == study_plan_id), None)
+        return exact or next((policy for policy in self.policies
+                              if policy.institution_id == institution_id
+                              and policy.study_plan_id == "*"), None)
 
 
 FAKE_UNIVERSITY_GRADING_POLICY_V1 = GradePolicy(
     institution_id="10000000-0000-0000-0000-000000000001",
     study_plan_id=PLAN12_ID,
+    version=FAKE_UNIVERSITY_GRADING_POLICY_VERSION,
+    provenance="AUTHORITATIVE_FAKE_UNIVERSITY_GRADING_CONTRACT",
+    numeric_min=Decimal("0"),
+    numeric_max=Decimal("100"),
+)
+
+FAKE_UNIVERSITY_INSTITUTION_GRADING_POLICY_V1 = GradePolicy(
+    institution_id="10000000-0000-0000-0000-000000000001",
+    study_plan_id="*",
     version=FAKE_UNIVERSITY_GRADING_POLICY_VERSION,
     provenance="AUTHORITATIVE_FAKE_UNIVERSITY_GRADING_CONTRACT",
     numeric_min=Decimal("0"),
@@ -223,7 +231,9 @@ def _level(score: int) -> str:
 
 
 def _skills(code: str, plan_id: str) -> CourseSkillProfile:
-    domain = PLAN12_SKILLS.get(code, ()) if plan_id == PLAN12_ID else ()
+    mapping = DEFAULT_CURRICULUM_SKILL_MAPPINGS.resolve(plan_id)
+    definition = mapping.courses.get(code) if mapping else None
+    domain = tuple(item.skill_id.value for item in definition.skills) if definition else ()
     return CourseSkillProfile(code, (f"COURSE:{code}", *domain),
                               "MODELED_CURRICULUM_CODE_MAPPING" if domain else "MODELED_FALLBACK")
 
@@ -282,7 +292,7 @@ def build_adaptive_courses(state: StudentAcademicState, institution_id: str,
             or state.study_plan_id != progress.study_plan_id
             or state.study_plan_id != recommendations.study_plan_id
             or (grade_policy is not None and (grade_policy.institution_id != institution_id
-                                              or grade_policy.study_plan_id != state.study_plan_id))):
+                                              or not grade_policy.applies_to(state.study_plan_id)))):
         raise ValueError("Adaptive intelligence scope mismatch")
     now = generated_at or datetime.now(timezone.utc)
     if now.tzinfo is None or now.utcoffset() is None:

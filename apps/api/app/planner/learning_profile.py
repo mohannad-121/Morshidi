@@ -1,8 +1,9 @@
-"""Versioned, deterministic Plan 12 workload estimates; never LLM classified."""
+"""Versioned, deterministic curriculum-scoped workload estimates; never LLM classified."""
 
 from dataclasses import dataclass
 
-from app.student_intelligence.taxonomy import PLAN12_COURSE_SKILLS, PLAN12_ID, SkillId
+from app.student_intelligence.curriculum_mapping import DEFAULT_CURRICULUM_SKILL_MAPPINGS
+from app.student_intelligence.taxonomy import SkillId
 
 MODEL_VERSION = "MODELED_COURSE_LOAD_PROFILE_V1"
 MAX_MEMORIZATION_HEAVY = 2
@@ -22,9 +23,10 @@ class CourseLearningProfile:
 
 
 def resolve_learning_profile(code: str, *, plan_id: str) -> CourseLearningProfile:
-    if plan_id != PLAN12_ID or code not in PLAN12_COURSE_SKILLS:
+    mapping = DEFAULT_CURRICULUM_SKILL_MAPPINGS.resolve(plan_id)
+    if mapping is None or code not in mapping.courses:
         return CourseLearningProfile(code, None, "UNKNOWN", "MODELED_FALLBACK")
-    skills = {item.skill_id: item.weight for item in PLAN12_COURSE_SKILLS[code].skills}
+    skills = {item.skill_id: item.weight for item in mapping.courses[code].skills}
     if skills.get(SkillId.MEMORIZATION, 0) >= .7:
         return CourseLearningProfile(code, 80, "MEMORIZATION", "CURATED_PLAN12_CODE_MAPPING")
     if skills.get(SkillId.PRACTICAL_LAB, 0) >= .7 or skills.get(SkillId.PROJECT_WORK, 0) >= .8:

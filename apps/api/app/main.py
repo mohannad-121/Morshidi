@@ -90,10 +90,11 @@ from app.services.eligibility import EligibilityConfigurationError, EligibilityS
 from app.services.student import StudentConfigurationError, StudentService
 from app.student_intelligence.diagnostic_repository import SupabaseDiagnosticRepository
 from app.student_intelligence.adaptive import (
-    FAKE_UNIVERSITY_GRADING_POLICY_V1,
+    FAKE_UNIVERSITY_INSTITUTION_GRADING_POLICY_V1,
     GradePolicyRegistry,
 )
 from app.student_intelligence.diagnostic_service import DiagnosticService
+from app.student_intelligence.curriculum_mapping import UnsupportedCurriculumIntelligenceError
 from app.services.advisor import (
     AdvisorConfigurationError,
     AdvisorProviderError,
@@ -250,7 +251,7 @@ async def lifespan(application: FastAPI):
             application.state.eligibility_service,
             repository,
             academic_compute_limiter,
-            GradePolicyRegistry((FAKE_UNIVERSITY_GRADING_POLICY_V1,)),
+            GradePolicyRegistry((FAKE_UNIVERSITY_INSTITUTION_GRADING_POLICY_V1,)),
             diagnostic_repository,
         )
         application.state.diagnostic_service = DiagnosticService(
@@ -648,6 +649,19 @@ async def handle_student_unavailable(_: Request, __: Exception) -> JSONResponse:
 @app.exception_handler(StudentProfileValidationError)
 async def handle_student_validation(_: Request, __: StudentProfileValidationError) -> JSONResponse:
     return _catalog_error_response("STUDENT_PROFILE_INVALID", "Student profile facts are invalid", 422)
+
+
+@app.exception_handler(UnsupportedCurriculumIntelligenceError)
+async def handle_unsupported_curriculum_intelligence(
+    _: Request, __: UnsupportedCurriculumIntelligenceError,
+) -> JSONResponse:
+    response = _catalog_error_response(
+        "STUDENT_INTELLIGENCE_UNSUPPORTED_CURRICULUM",
+        "Discipline-specific Student Intelligence is not available for this curriculum",
+        409,
+    )
+    response.headers["Cache-Control"] = "private, no-store"
+    return response
 
 
 @app.exception_handler(AdvisorConfigurationError)

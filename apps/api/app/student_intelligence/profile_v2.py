@@ -13,8 +13,12 @@ from app.student.models import (PerformanceProvenance, PerformanceVerificationSt
                                 StudentAcademicState, StudentCourseAttemptRecord)
 from app.student_intelligence.adaptive import GradePolicy
 from app.student_intelligence.diagnostic import DiagnosticDomain, DiagnosticDomainResult
-from app.student_intelligence.taxonomy import (PLAN12_COURSE_SKILLS, TAXONOMY_VERSION,
-                                                SkillId)
+from app.student_intelligence.taxonomy import TAXONOMY_VERSION, SkillId
+from app.student_intelligence.curriculum_mapping import (
+    DEFAULT_CURRICULUM_SKILL_MAPPINGS,
+    CurriculumSkillMappingRegistry,
+    UnsupportedCurriculumIntelligenceError,
+)
 
 INTELLIGENCE_MODEL_VERSION = "STUDENT_INTELLIGENCE_PROFILE_V2"
 FUSION_POLICY_VERSION = "EVIDENCE_FUSION_V1"
@@ -111,9 +115,15 @@ def build_student_intelligence_profile_v2(
     diagnostic_completed_at: datetime | None = None,
     preferences: Mapping[str, object] | None = None,
     generated_at: datetime | None = None,
+    mapping_registry: CurriculumSkillMappingRegistry = DEFAULT_CURRICULUM_SKILL_MAPPINGS,
 ) -> StudentIntelligenceProfileV2:
+    curriculum_mapping = mapping_registry.resolve(state.study_plan_id)
+    if curriculum_mapping is None:
+        raise UnsupportedCurriculumIntelligenceError(
+            "Discipline-specific Student Intelligence is unavailable for this curriculum"
+        )
     if grade_policy and (grade_policy.institution_id != institution_id
-                         or grade_policy.study_plan_id != state.study_plan_id):
+                         or not grade_policy.applies_to(state.study_plan_id)):
         raise ValueError("Grade policy scope mismatch")
     for record in records:
         if record.profile_id != state.profile_id:
@@ -133,7 +143,7 @@ def build_student_intelligence_profile_v2(
     chronological_scores: list[tuple[tuple[object, ...], int]] = []
     for code, record in latest.items():
         normalized = grade_policy.normalize(record) if grade_policy else None
-        definition = PLAN12_COURSE_SKILLS.get(code)
+        definition = curriculum_mapping.courses.get(code)
         if normalized is None or definition is None:
             continue
         chronological_scores.append((_order(record), normalized))

@@ -36,6 +36,7 @@ from app.university_sync.errors import (
     UniversityCourseNotMappedError,
     UniversityIdentityConflictError,
     UniversityPlanNotMappedError,
+    UniversityPlanAmbiguousError,
     UniversityProtocolError,
     UniversitySyncError,
     UniversitySyncFailedError,
@@ -142,6 +143,7 @@ class UniversitySyncService:
         client: httpx.AsyncClient | None = None,
         identity_repo: SupabaseUniversityIdentityRepository | None = None,
         admin_auth: SupabaseAdminAuthClient | None = None,
+        plan_key_institution: str = "ZU",
     ) -> None:
         self._contract_client = contract_client
         self._supabase_url = (supabase_url or settings.supabase_url or "").rstrip("/")
@@ -158,6 +160,7 @@ class UniversitySyncService:
             )
         )
         self._university_id = university_id or settings.uni_university_id or "10000000-0000-0000-0000-000000000001"
+        self._plan_key_institution = plan_key_institution.strip().upper()
         self._client = client or httpx.AsyncClient()
         self._owns_client = client is None
 
@@ -286,40 +289,107 @@ class UniversitySyncService:
         profile_data: UniversityStudentProfile,
         plan_data: UniversityAcademicPlan,
     ) -> str:
-        """Resolve authoritative upstream plan number to Morshidi public.study_plans.id."""
-        candidate_num = None
-        if plan_data.plan_id:
-            try:
-                UUID(plan_data.plan_id)
-                # If plan_id is already a UUID, check if it matches study_plans.id directly
-                candidate_num = plan_data.plan_id
-            except ValueError:
-                match = re.search(r"\d+", plan_data.plan_id)
-                candidate_num = match.group(0) if match else plan_data.plan_id
-        elif profile_data.study_plan:
-            match = re.search(r"\d+", profile_data.study_plan)
-            candidate_num = match.group(0) if match else profile_data.study_plan
-        else:
-            candidate_num = "12"
+        """Resolve one exact university/faculty/major/plan identity, or fail closed."""
+        plan_key_values = {value.strip() for value in (plan_data.plan_key, profile_data.plan_key) if value and value.strip()}
+        if len(plan_key_values) > 1:
+            raise UniversityProtocolError("University profile and academic plan keys conflict")
+        plan_key = next(iter(plan_key_values), None)
+        key_parts: tuple[str, str, str, str] | None = None
+        if plan_key:
+            match = re.fullmatch(r"([A-Z0-9]+):([A-Z0-9]+):([A-Z0-9]+):P([0-9]+)", plan_key)
+            if not match:
+                raise UniversityProtocolError("University academic plan key is malformed")
+            key_parts = match.groups()
+            if key_parts[0] != self._plan_key_institution:
+                raise UniversityProtocolError("University academic plan key belongs to another institution")
 
-        # Query study_plans for this university
+        number_values: set[str] = set()
+        for raw in (plan_data.plan_number, profile_data.plan_number, plan_data.plan_id, profile_data.study_plan):
+            if not raw:
+                continue
+            match = re.search(r"\d+", str(raw))
+            if match:
+                number_values.add(match.group(0))
+        if key_parts:
+            number_values.add(key_parts[3])
+        if len(number_values) != 1:
+            raise UniversityProtocolError("University plan number is missing or inconsistent")
+        candidate_num = next(iter(number_values))
+
+        faculty_codes = {value.strip().upper() for value in (plan_data.faculty_code, profile_data.faculty_code) if value and value.strip()}
+        major_codes = {value.strip().upper() for value in (plan_data.major_code, profile_data.major_code) if value and value.strip()}
+        if key_parts:
+            faculty_codes.add(key_parts[1])
+            major_codes.add(key_parts[2])
+        if len(faculty_codes) > 1 or len(major_codes) > 1:
+            raise UniversityProtocolError("University plan code identity is inconsistent")
+        faculty_code = next(iter(faculty_codes), None)
+        major_code = next(iter(major_codes), None)
+        faculty_names = {value.strip() for value in (plan_data.faculty, profile_data.faculty) if value and value.strip()}
+        major_names = {value.strip() for value in (plan_data.major, profile_data.major) if value and value.strip()}
+        if faculty_code is None and not faculty_names:
+            raise UniversityProtocolError("University plan omitted faculty identity")
+        if major_code is None and not major_names:
+            raise UniversityProtocolError("University plan omitted major identity")
+
         url = f"{self._supabase_url}/rest/v1/study_plans"
         params = {
-            "select": "id,plan_number,majors!inner(faculties!inner(university_id))",
+            "select": "id,plan_number,majors!inner(id,code,name_ar,name_en,faculties!inner(id,code,name_ar,name_en,university_id))",
             "majors.faculties.university_id": f"eq.{self._university_id}",
+            "plan_number": f"eq.{candidate_num}",
         }
         resp = await self._client.get(url, params=params, headers=self._headers(), timeout=10)
         resp.raise_for_status()
         plans = resp.json()
 
+        matches: list[str] = []
         for plan in plans:
-            p_id = str(plan.get("id"))
-            p_num = str(plan.get("plan_number"))
-            if candidate_num in (p_id, p_num):
-                return p_id
+            if str(plan.get("plan_number")) != candidate_num:
+                continue
+            major = plan.get("majors")
+            if isinstance(major, list):
+                major = major[0] if len(major) == 1 else None
+            if not isinstance(major, Mapping):
+                continue
+            faculty = major.get("faculties")
+            if isinstance(faculty, list):
+                faculty = faculty[0] if len(faculty) == 1 else None
+            if not isinstance(faculty, Mapping):
+                continue
+            if str(faculty.get("university_id")) != self._university_id:
+                continue
+            row_faculty_code = str(faculty.get("code") or "").upper()
+            row_major_code = str(major.get("code") or "").upper()
+            if faculty_code and row_faculty_code and row_faculty_code != faculty_code:
+                continue
+            if major_code and row_major_code and row_major_code != major_code:
+                continue
+            if faculty_code and not row_faculty_code and not faculty_names.intersection({
+                str(faculty.get("name_ar") or "").strip(), str(faculty.get("name_en") or "").strip()
+            }):
+                continue
+            if major_code and not row_major_code and not major_names.intersection({
+                str(major.get("name_ar") or "").strip(), str(major.get("name_en") or "").strip()
+            }):
+                continue
+            if not faculty_code and not faculty_names.intersection({
+                str(faculty.get("name_ar") or "").strip(), str(faculty.get("name_en") or "").strip()
+            }):
+                continue
+            if not major_code and not major_names.intersection({
+                str(major.get("name_ar") or "").strip(), str(major.get("name_en") or "").strip()
+            }):
+                continue
+            matches.append(str(plan.get("id")))
 
+        if len(matches) == 1:
+            return matches[0]
+        if len(matches) > 1:
+            raise UniversityPlanAmbiguousError(
+                f"Multiple study plans matched major/faculty identity for plan number '{candidate_num}'"
+            )
         raise UniversityPlanNotMappedError(
-            f"No matching study plan found for identifier '{candidate_num}' in university {self._university_id}"
+            f"No exact faculty/major mapping found for plan number '{candidate_num}' in university {self._university_id}"
         )
 
     async def _resolve_course_catalog(
@@ -432,6 +502,7 @@ class UniversitySyncService:
         existing_rows = existing_resp.json()
 
         payload = {
+            "study_plan_id": study_plan_id,
             "reported_cumulative_gpa": str(gpa) if gpa is not None else None,
             "reported_gpa_scale": str(scale) if scale is not None else None,
             "reported_earned_credit_hours": str(credits_earned) if credits_earned is not None else None,
@@ -451,7 +522,6 @@ class UniversitySyncService:
 
         # Insert new profile
         payload["owner_user_id"] = owner_user_id
-        payload["study_plan_id"] = study_plan_id
         create_resp = await self._client.post(
             url,
             headers={**self._headers(), "Prefer": "return=representation"},
