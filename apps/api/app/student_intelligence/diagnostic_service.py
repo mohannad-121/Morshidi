@@ -7,9 +7,10 @@ from datetime import datetime
 from app.services.student import StudentService
 from app.student_intelligence import diagnostic_v1
 from app.student_intelligence.diagnostic import (
-    ASSESSMENT_VERSION, MAX_RESPONSE_TIME_MS, QUESTIONS_BY_ID, SCORING_POLICY_VERSION,
-    TARGET_QUESTIONS, AnswerEvidence, DiagnosticDomain, DiagnosticDomainResult,
-    public_question, score_domain, select_next_question,
+    ASSESSMENT_VERSION, MAX_RESPONSE_TIME_MS, SCORING_POLICY_VERSION,
+    TARGET_QUESTIONS, AnswerEvidence, DiagnosticDomainResult,
+    coerce_diagnostic_domain, get_diagnostic_domains, get_diagnostic_question_by_id,
+    public_question, score_diagnostic_domain, select_next_question,
 )
 from app.student_intelligence.diagnostic_repository import (DiagnosticRepositoryError,
                                                             SupabaseDiagnosticRepository)
@@ -52,9 +53,11 @@ class DiagnosticService:
             active = await self._repository.load_active(owner, state.study_plan_id, requested_version)
         if active is None:
             institution = await self._students.resolve_student_university_id(owner)
-            first = (select_next_question(()) if requested_version == ASSESSMENT_VERSION
+            first = (select_next_question((), study_plan_id=state.study_plan_id)
+                     if requested_version == ASSESSMENT_VERSION
                      else diagnostic_v1.select_next_question(()))
-            assert first is not None
+            if first is None:
+                raise DiagnosticConflict("STUDENT_INTELLIGENCE_UNSUPPORTED_CURRICULUM")
             try:
                 active = await self._repository.create_session(
                     owner, state.profile_id, institution, state.study_plan_id,
@@ -84,7 +87,9 @@ class DiagnosticService:
             raise DiagnosticConflict("Unsupported diagnostic assessment version")
         if response_time_ms is None or self_confidence is None:
             raise DiagnosticConflict("V2 diagnostic evidence is required")
-        question = QUESTIONS_BY_ID.get(question_id)
+        question = get_diagnostic_question_by_id(
+            question_id, study_plan_id=session.get("study_plan_id")
+        )
         if question is None or selected_option not in {option.option_id for option in question.options}:
             raise DiagnosticConflict("Invalid diagnostic answer")
         if not 0 <= response_time_ms <= MAX_RESPONSE_TIME_MS or self_confidence not in {
@@ -98,18 +103,26 @@ class DiagnosticService:
                                   selected_option == question.correct_option,
                                   response_time_ms, self_confidence)
         all_answers = prior + (answered,)
-        next_item = select_next_question(all_answers)
+        next_item = select_next_question(all_answers, study_plan_id=session.get("study_plan_id"))
         results = None
         if next_item is None:
-            scored = [score_domain(domain, all_answers) for domain in DiagnosticDomain]
-            results = [{"domain": row.domain.value, "score": row.score, "confidence": row.confidence,
+            domains = get_diagnostic_domains(session.get("study_plan_id") or question_id)
+            scored = [
+                score_diagnostic_domain(
+                    domain, all_answers, study_plan_id=session.get("study_plan_id")
+                )
+                for domain in domains
+            ]
+            results = [{"domain": row.domain.value if hasattr(row.domain, "value") else str(row.domain),
+                        "score": row.score, "confidence": row.confidence,
                         "response_count": row.response_count, "reason_codes": list(row.reason_codes),
                         "reasoning_patterns": list(row.reasoning_patterns),
                         "scoring_policy_version": SCORING_POLICY_VERSION} for row in scored]
         try:
+            domain_val = question.domain.value if hasattr(question.domain, "value") else str(question.domain)
             updated = await self._repository.record_answer_v2(
                 session_id=session_id, owner=owner, question_id=question_id,
-                selected_option=selected_option, domain=question.domain.value,
+                selected_option=selected_option, domain=domain_val,
                 difficulty=question.difficulty, is_correct=answered.is_correct,
                 response_time_ms=response_time_ms, self_confidence=self_confidence,
                 next_question_id=next_item.question_id if next_item else None, results=results)
@@ -179,7 +192,8 @@ class DiagnosticService:
         session, rows = await self._repository.latest_completed(owner, study_plan_id, ASSESSMENT_VERSION)
         if session is None:
             return (), None, None
-        results = tuple(DiagnosticDomainResult(DiagnosticDomain(row["domain"]), int(row["score"]),
+        results = tuple(DiagnosticDomainResult(coerce_diagnostic_domain(
+                                                   row["domain"], study_plan_id=study_plan_id), int(row["score"]),
                                                row["confidence"], int(row["response_count"]),
                                                tuple(row["reason_codes"]),
                                                tuple(row.get("reasoning_patterns") or ())) for row in rows)
@@ -199,7 +213,10 @@ class DiagnosticService:
                 diagnostic_v1.QUESTIONS_BY_ID[str(qid)]) if qid else None
             maximum_questions = diagnostic_v1.MAX_QUESTIONS
         elif session["assessment_version"] == ASSESSMENT_VERSION:
-            question = public_question(QUESTIONS_BY_ID[str(qid)]) if qid else None
+            q = get_diagnostic_question_by_id(
+                str(qid), study_plan_id=session.get("study_plan_id")
+            ) if qid else None
+            question = public_question(q) if q else None
             maximum_questions = TARGET_QUESTIONS
         else:
             raise DiagnosticConflict("Unsupported diagnostic assessment version")

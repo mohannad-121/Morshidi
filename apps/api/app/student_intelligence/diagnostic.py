@@ -367,10 +367,80 @@ def score_domain(domain: DiagnosticDomain, responses: Iterable[AnswerEvidence]) 
                                   tuple(dict.fromkeys(reasons)), tuple(patterns))
 
 
-def select_next_question(responses: tuple[AnswerEvidence, ...]) -> DiagnosticQuestion | None:
+def select_next_question(
+    responses: tuple[AnswerEvidence, ...],
+    *,
+    study_plan_id: str | None = None,
+) -> DiagnosticQuestion | None:
     """Return the next fixed item; all 30 items are required exactly once."""
+    from app.student_intelligence.curriculum_diagnostic_registry import DEFAULT_CURRICULUM_DIAGNOSTICS
+    from app.student_intelligence.taxonomy import PLAN12_ID
+    definition = (
+        DEFAULT_CURRICULUM_DIAGNOSTICS.resolve(study_plan_id)
+        if study_plan_id is not None
+        else (DEFAULT_CURRICULUM_DIAGNOSTICS.owner_of_question(responses[0].question_id)
+              if responses else DEFAULT_CURRICULUM_DIAGNOSTICS.resolve(PLAN12_ID))
+    )
+    if definition is None:
+        return None
     answered = {row.question_id for row in responses}
-    return next((question for question in QUESTION_BANK if question.question_id not in answered), None)
+    return next((question for question in definition.question_bank if question.question_id not in answered), None)
+
+
+def get_diagnostic_question_by_id(
+    question_id: str,
+    *,
+    study_plan_id: str | None = None,
+) -> DiagnosticQuestion | None:
+    from app.student_intelligence.curriculum_diagnostic_registry import DEFAULT_CURRICULUM_DIAGNOSTICS
+    if study_plan_id is not None:
+        return DEFAULT_CURRICULUM_DIAGNOSTICS.resolve_question(study_plan_id, question_id)
+    owner = DEFAULT_CURRICULUM_DIAGNOSTICS.owner_of_question(question_id)
+    return owner.questions_by_id.get(question_id) if owner else None
+
+
+def coerce_diagnostic_domain(value: object, *, study_plan_id: str | None = None) -> object:
+    if isinstance(value, DiagnosticDomain):
+        return value
+    try:
+        return DiagnosticDomain(str(value))
+    except ValueError:
+        pass
+    from app.student_intelligence.curriculum_diagnostic_registry import DEFAULT_CURRICULUM_DIAGNOSTICS
+    if study_plan_id is not None:
+        definition = DEFAULT_CURRICULUM_DIAGNOSTICS.resolve(study_plan_id)
+        if definition:
+            return next((domain for domain in definition.domains
+                         if getattr(domain, "value", str(domain)) == str(value)), str(value))
+    for definition in DEFAULT_CURRICULUM_DIAGNOSTICS.definitions:
+        for domain in definition.domains:
+            if getattr(domain, "value", str(domain)) == str(value):
+                return domain
+    return str(value)
+
+
+def get_diagnostic_domains(target: str | None = None) -> tuple[object, ...]:
+    from app.student_intelligence.curriculum_diagnostic_registry import DEFAULT_CURRICULUM_DIAGNOSTICS
+    definition = DEFAULT_CURRICULUM_DIAGNOSTICS.resolve(target) if target else None
+    if definition is None and target:
+        definition = DEFAULT_CURRICULUM_DIAGNOSTICS.owner_of_question(target)
+    return definition.domains if definition else ()
+
+
+def score_diagnostic_domain(
+    domain: object,
+    responses: Iterable[AnswerEvidence],
+    *,
+    study_plan_id: str | None = None,
+) -> DiagnosticDomainResult:
+    from app.student_intelligence.curriculum_diagnostic_registry import DEFAULT_CURRICULUM_DIAGNOSTICS
+    all_rows = tuple(responses)
+    definition = DEFAULT_CURRICULUM_DIAGNOSTICS.resolve(study_plan_id) if study_plan_id else None
+    if definition is None and all_rows:
+        definition = DEFAULT_CURRICULUM_DIAGNOSTICS.owner_of_question(all_rows[0].question_id)
+    if definition is None:
+        raise ValueError("Unsupported curriculum diagnostic domain")
+    return definition.scorer(domain, all_rows)
 
 
 def public_question(question: DiagnosticQuestion) -> dict[str, object]:

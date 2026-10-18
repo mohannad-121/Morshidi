@@ -12,8 +12,14 @@ from app.rules.models import AttemptOutcome
 from app.student.models import (PerformanceProvenance, PerformanceVerificationState,
                                 StudentAcademicState, StudentCourseAttemptRecord)
 from app.student_intelligence.adaptive import GradePolicy
-from app.student_intelligence.diagnostic import DiagnosticDomain, DiagnosticDomainResult
-from app.student_intelligence.taxonomy import TAXONOMY_VERSION, SkillId
+from app.student_intelligence.diagnostic import DiagnosticDomainResult
+from app.student_intelligence.curriculum_diagnostic_registry import (
+    AI_BRIDGE,
+    DEFAULT_CURRICULUM_DIAGNOSTICS,
+    NURSING_BRIDGE,
+    SE_BRIDGE,
+)
+from app.student_intelligence.taxonomy import TAXONOMY_VERSION
 from app.student_intelligence.curriculum_mapping import (
     DEFAULT_CURRICULUM_SKILL_MAPPINGS,
     CurriculumSkillMappingRegistry,
@@ -73,21 +79,21 @@ class StudentIntelligenceProfileV2:
     limitations: tuple[str, ...]
 
 
-DIAGNOSTIC_SKILL_BRIDGE: Mapping[DiagnosticDomain, tuple[SkillId, ...]] = {
-    DiagnosticDomain.PROGRAMMING_REASONING: (SkillId.PROGRAMMING, SkillId.PYTHON,
-                                               SkillId.OBJECT_ORIENTED_PROGRAMMING),
-    DiagnosticDomain.LOGICAL_PROBLEM_SOLVING: (SkillId.LOGICAL_REASONING, SkillId.ALGORITHMS,
-                                                SkillId.DISCRETE_MATH),
-    DiagnosticDomain.QUANTITATIVE_MATH: (SkillId.QUANTITATIVE_MATH, SkillId.LINEAR_ALGEBRA),
-    DiagnosticDomain.STATISTICS_DATA_REASONING: (SkillId.STATISTICS, SkillId.DATA_ANALYSIS),
-    DiagnosticDomain.THEORY_CONCEPTUAL_UNDERSTANDING: (SkillId.THEORY_COMPREHENSION,
-                                                       SkillId.MEMORIZATION),
+DIAGNOSTIC_SKILL_BRIDGE = AI_BRIDGE
+NURSING_DIAGNOSTIC_SKILL_BRIDGE = NURSING_BRIDGE
+SE_DIAGNOSTIC_SKILL_BRIDGE = SE_BRIDGE
+CURRICULUM_DIAGNOSTIC_BRIDGES: Mapping[str, Mapping[object, tuple[object, ...]]] = {
+    definition.study_plan_id: definition.skill_bridge
+    for definition in DEFAULT_CURRICULUM_DIAGNOSTICS.definitions
 }
-
 
 def _order(record: StudentCourseAttemptRecord) -> tuple[object, ...]:
     return (record.attempted_on or record.created_at.date(), record.raw_academic_year or "",
             record.raw_term or "", record.attempt_sequence or 0, record.updated_at, record.attempt_id)
+
+
+def _skill_value(skill: object) -> str:
+    return str(getattr(skill, "value", skill))
 
 
 def _snapshot(state: StudentAcademicState, institution_id: str,
@@ -139,7 +145,7 @@ def build_student_intelligence_profile_v2(
         if grade_policy and grade_policy.normalize(record) is not None:
             verified_count += 1
     latest = {code: rows[-1] for code, rows in histories.items()}
-    university: dict[SkillId, list[tuple[str, int, float]]] = {}
+    university: dict[object, list[tuple[str, int, float]]] = {}
     chronological_scores: list[tuple[tuple[object, ...], int]] = []
     for code, record in latest.items():
         normalized = grade_policy.normalize(record) if grade_policy else None
@@ -150,12 +156,18 @@ def build_student_intelligence_profile_v2(
         for weighted in definition.skills:
             university.setdefault(weighted.skill_id, []).append((code, normalized, weighted.weight))
 
-    diagnostic: dict[SkillId, list[DiagnosticDomainResult]] = {}
+    bridge = CURRICULUM_DIAGNOSTIC_BRIDGES[state.study_plan_id]
+    diagnostic: dict[object, list[DiagnosticDomainResult]] = {}
     for result in diagnostic_results:
-        for skill in DIAGNOSTIC_SKILL_BRIDGE[result.domain]:
+        target_skills = (
+            bridge.get(result.domain)
+            or bridge.get(getattr(result.domain, "value", str(result.domain)))
+            or ()
+        )
+        for skill in target_skills:
             diagnostic.setdefault(skill, []).append(result)
 
-    all_skills = sorted(set(university) | set(diagnostic), key=lambda item: item.value)
+    all_skills = sorted(set(university) | set(diagnostic), key=_skill_value)
     dimensions: list[SkillDimensionV2] = []
     for skill in all_skills:
         university_rows = university.get(skill, [])
@@ -192,9 +204,9 @@ def build_student_intelligence_profile_v2(
         else:
             confidence, quality = "LOW", "INSUFFICIENT"
         dimensions.append(SkillDimensionV2(
-            skill.value, score, confidence, quality, len(university_rows), len(diagnostic_rows),
+            _skill_value(skill), score, confidence, quality, len(university_rows), len(diagnostic_rows),
             tuple(sorted(code for code, _, _ in university_rows)),
-            tuple(sorted({row.domain.value for row in diagnostic_rows})), sources, tuple(reasons),
+            tuple(sorted({row.domain.value if hasattr(row.domain, "value") else str(row.domain) for row in diagnostic_rows})), sources, tuple(reasons),
             tuple(sorted({pattern for row in diagnostic_rows for pattern in row.reasoning_patterns}))))
 
     covered = sum(bool(rows) for rows in university.values())

@@ -6,6 +6,7 @@ import pytest
 from app.student_intelligence import diagnostic_v1
 from app.student_intelligence.diagnostic import ASSESSMENT_VERSION, QUESTIONS_BY_ID
 from app.student_intelligence.diagnostic_service import DiagnosticConflict, DiagnosticService
+from app.student_intelligence.taxonomy import PLAN12_ID
 
 
 OWNER = "11111111-1111-1111-1111-111111111111"
@@ -15,7 +16,7 @@ SESSION = "22222222-2222-2222-2222-222222222222"
 class StudentFake:
     async def get_profile(self, owner: str):
         assert owner == OWNER
-        return SimpleNamespace(profile_id="profile", study_plan_id="plan")
+        return SimpleNamespace(profile_id="profile", study_plan_id=PLAN12_ID)
 
     async def resolve_student_university_id(self, owner: str) -> str:
         assert owner == OWNER
@@ -29,7 +30,7 @@ class StudentFake:
 class RepositoryFake:
     def __init__(self, version: str, question_id: str = "P01") -> None:
         self.session = {
-            "id": SESSION, "owner_user_id": OWNER, "study_plan_id": "plan",
+            "id": SESSION, "owner_user_id": OWNER, "study_plan_id": PLAN12_ID,
             "assessment_version": version, "status": "IN_PROGRESS",
             "current_question_id": question_id, "question_count": 0,
         }
@@ -53,7 +54,7 @@ class RepositoryFake:
                 "current_question_id": kwargs["next_question_id"]}
 
     async def load_active(self, owner: str, study_plan_id: str, version: str):
-        if owner == OWNER and study_plan_id == "plan" and version == self.session["assessment_version"]:
+        if owner == OWNER and study_plan_id == PLAN12_ID and version == self.session["assessment_version"]:
             return self.session
         return None
 

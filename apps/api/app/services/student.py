@@ -40,7 +40,12 @@ from app.degree_path.credit_timeline import (AcademicTerm, CreditTimeline, Credi
                                              simulate_credit_timeline, compare_credit_timelines)
 from app.student_intelligence.adaptive import (AdaptiveCourseResult, GradePolicy, GradePolicyRegistry,
                                                 build_adaptive_courses)
-from app.student_intelligence.diagnostic import ASSESSMENT_VERSION, DiagnosticDomain, DiagnosticDomainResult
+from app.student_intelligence.diagnostic import (
+    ASSESSMENT_VERSION,
+    DiagnosticDomain,
+    DiagnosticDomainResult,
+    coerce_diagnostic_domain,
+)
 from app.student_intelligence.diagnostic_repository import SupabaseDiagnosticRepository
 from app.student_intelligence.profile_v2 import (StudentIntelligenceProfileV2,
                                                  build_student_intelligence_profile_v2)
@@ -206,7 +211,8 @@ class StudentService:
             if session is not None:
                 from datetime import datetime
                 diagnostic_results = tuple(DiagnosticDomainResult(
-                    DiagnosticDomain(row["domain"]), int(row["score"]), row["confidence"],
+                    coerce_diagnostic_domain(row["domain"], study_plan_id=state.study_plan_id),
+                    int(row["score"]), row["confidence"],
                     int(row["response_count"]), tuple(row["reason_codes"])) for row in rows)
                 diagnostic_version = session["assessment_version"]
                 diagnostic_completed_at = datetime.fromisoformat(
@@ -254,7 +260,8 @@ class StudentService:
             if session is not None:
                 from datetime import datetime
                 diagnostic_results = tuple(DiagnosticDomainResult(
-                    DiagnosticDomain(row["domain"]), int(row["score"]), row["confidence"],
+                    coerce_diagnostic_domain(row["domain"], study_plan_id=state.study_plan_id),
+                    int(row["score"]), row["confidence"],
                     int(row["response_count"]), tuple(row["reason_codes"])) for row in rows)
                 diagnostic_version = session["assessment_version"]
                 diagnostic_completed_at = datetime.fromisoformat(

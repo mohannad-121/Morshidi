@@ -9,10 +9,17 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Mapping
 
+from app.student_intelligence.multi_major import MULTI_MAJOR_DEFINITIONS
 from app.student_intelligence.taxonomy import (
     COURSE_SKILL_MAPPING_VERSION,
+    NURSING_COURSE_SKILL_MAPPING_VERSION,
+    NURSING_PLAN12_COURSE_SKILLS,
+    NURSING_PLAN12_ID,
     PLAN12_COURSE_SKILLS,
     PLAN12_ID,
+    SE_COURSE_SKILL_MAPPING_VERSION,
+    SE_PLAN12_COURSE_SKILLS,
+    SE_PLAN12_ID,
     CourseSkillDefinition,
 )
 
@@ -47,5 +54,31 @@ AI_PLAN12_SKILL_MAPPING = CurriculumSkillMapping(
     courses=PLAN12_COURSE_SKILLS,
 )
 
-DEFAULT_CURRICULUM_SKILL_MAPPINGS = CurriculumSkillMappingRegistry((AI_PLAN12_SKILL_MAPPING,))
+NURSING_PLAN12_SKILL_MAPPING = CurriculumSkillMapping(
+    study_plan_id=NURSING_PLAN12_ID,
+    version=NURSING_COURSE_SKILL_MAPPING_VERSION,
+    courses=NURSING_PLAN12_COURSE_SKILLS,
+)
+
+SE_PLAN12_SKILL_MAPPING = CurriculumSkillMapping(
+    study_plan_id=SE_PLAN12_ID,
+    version=SE_COURSE_SKILL_MAPPING_VERSION,
+    courses=SE_PLAN12_COURSE_SKILLS,
+)
+
+MULTI_MAJOR_SKILL_MAPPINGS = tuple(
+    CurriculumSkillMapping(
+        study_plan_id=definition.study_plan_id,
+        version=definition.mapping_version,
+        courses=definition.course_skills,
+    )
+    for definition in MULTI_MAJOR_DEFINITIONS
+)
+
+DEFAULT_CURRICULUM_SKILL_MAPPINGS = CurriculumSkillMappingRegistry((
+    AI_PLAN12_SKILL_MAPPING,
+    NURSING_PLAN12_SKILL_MAPPING,
+    SE_PLAN12_SKILL_MAPPING,
+    *MULTI_MAJOR_SKILL_MAPPINGS,
+))
 
