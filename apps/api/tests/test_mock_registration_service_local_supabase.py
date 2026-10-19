@@ -4,7 +4,10 @@ from __future__ import annotations
 
 import os
 import asyncio
+import hashlib
+import json
 from dataclasses import replace
+from unittest.mock import patch
 from uuid import uuid4
 
 import httpx
@@ -17,6 +20,7 @@ from app.decision_trace_persistence.repository import SupabaseDecisionTraceRepos
 from app.decision_trace_persistence.processor import DecisionTraceOutboxProcessor
 from app.decision_trace_persistence.historical_replay import P6HistoricalReplayService
 from app.mock_registration_persistence.repository import SupabaseMockRegistrationRepository
+from app.mock_registration.replay_artifact import create_p6_replay_artifact, verify_p6_replay_artifact
 
 URL = os.getenv("MORSHIDI_LOCAL_SUPABASE_URL")
 SERVER_KEY = os.getenv("MORSHIDI_LOCAL_SUPABASE_SERVER_KEY")
@@ -91,6 +95,57 @@ def test_p6_5_real_authenticated_service_api_and_aggregate_pipeline():
         replay = client.post("/api/v1/me/mock-registration/revisions",
                              headers=student_auth, json=body)
         assert replay.status_code == 201 and replay.json()["idempotent_replay"] is True
+
+        def alternate_artifact(version, *, mutation=False):
+            def create(intent, context, result):
+                original = create_p6_replay_artifact(intent, context, result)
+                payload = json.loads(original.canonical_payload)
+                if version is None:
+                    payload.pop("engine_version")
+                else:
+                    payload["engine_version"] = version
+                if mutation:
+                    payload["test_mutation"] = "immutable-content-changed"
+                canonical = json.dumps(payload, ensure_ascii=False, sort_keys=True,
+                                       separators=(",", ":"), allow_nan=False)
+                return replace(original, engine_version=version or "",
+                               canonical_payload=canonical,
+                               canonical_sha256=hashlib.sha256(canonical.encode("utf-8")).hexdigest())
+            return create
+
+        def submit_with_artifact(request_body, version, *, mutation=False):
+            with patch("app.mock_registration_service.student_service.create_p6_replay_artifact",
+                       alternate_artifact(version, mutation=mutation)):
+                return client.post("/api/v1/me/mock-registration/revisions",
+                                   headers=student_auth, json=request_body)
+
+        def new_period():
+            with httpx.Client(timeout=30) as raw:
+                response = raw.post(f"{URL}/rest/v1/mock_registration_target_periods",
+                    headers=_server_headers(), json={"university_id": university_id,
+                        "provider_namespace": "synthetic-p65", "period_key": uuid4().hex,
+                        "period_class": "SYNTHETIC_SANDBOX_PERIOD",
+                        "verified_provider_source": False, "source_version": "synthetic-p65:v1"})
+                assert response.status_code == 201, response.text
+                return dict(body, target_period_id=response.json()[0]["id"])
+
+        # A–J: real-RPC V1/V2 insert, identical retry, immutable-content and
+        # cross-version conflict, and unsupported/missing engine rejection.
+        v1_body = new_period()
+        v1_created = submit_with_artifact(v1_body, "1.0")
+        assert v1_created.status_code == 201, v1_created.text
+        v1_retry = submit_with_artifact(v1_body, "1.0")
+        assert v1_retry.status_code == 201 and v1_retry.json()["idempotent_replay"] is True
+        for request_body, version, mutation in (
+            (v1_body, "1.0", True), (v1_body, "2.0", False),
+            (body, "2.0", True), (body, "1.0", False),
+        ):
+            conflict = submit_with_artifact(request_body, version, mutation=mutation)
+            assert conflict.status_code == 409, conflict.text
+        for version in ("3.0", None):
+            unsupported = submit_with_artifact(new_period(), version)
+            assert unsupported.status_code == 409, unsupported.text
+
         with httpx.Client(timeout=30) as raw:
             revisions = raw.get(f"{URL}/rest/v1/mock_registration_intent_revisions",
                 headers=_server_headers(), params={"select": "id", "owner_user_id": f"eq.{student_id}",
@@ -102,6 +157,17 @@ def test_p6_5_real_authenticated_service_api_and_aggregate_pipeline():
                     "revision_id": f"eq.{revision_id}"}).json()
             assert len(artifact_rows) == 1
             assert artifact_rows[0]["replay_contract_version"] == "P6_REPLAY_ARTIFACT_V1"
+            assert artifact_rows[0]["engine_version"] == "2.0"
+            v1_revision = raw.get(f"{URL}/rest/v1/mock_registration_intent_revisions",
+                headers=_server_headers(), params={"select": "id",
+                    "target_period_id": f"eq.{v1_body['target_period_id']}"}).json()
+            assert len(v1_revision) == 1
+            v1_rows = raw.get(f"{URL}/rest/v1/p6_submit_replay_artifacts",
+                headers=_server_headers(), params={"select": "engine_version,canonical_payload,canonical_sha256",
+                    "revision_id": f"eq.{v1_revision[0]['id']}"}).json()
+            assert len(v1_rows) == 1 and v1_rows[0]["engine_version"] == "1.0"
+            v1_record = v1_rows[0]
+            assert hashlib.sha256(v1_record["canonical_payload"].encode("utf-8")).hexdigest() == v1_record["canonical_sha256"]
             for key in (ANON_KEY, student_token):
                 blocked = raw.get(f"{URL}/rest/v1/p6_submit_replay_artifacts",
                     headers={"apikey": ANON_KEY, "Authorization": f"Bearer {key}"},
@@ -156,7 +222,7 @@ def test_p6_5_real_authenticated_service_api_and_aggregate_pipeline():
                 missing = await probe(None)
                 assert missing.status == "UNAVAILABLE"
                 assert missing.reason_code == "REPLAY_ARTIFACT_MISSING"
-                unavailable_engine = await probe(replace(artifact, engine_version="2.0"))
+                unavailable_engine = await probe(replace(artifact, engine_version="3.0"))
                 assert unavailable_engine.status == "UNAVAILABLE"
                 assert unavailable_engine.reason_code == "ENGINE_VERSION_UNAVAILABLE"
                 tampered = await probe(replace(artifact, canonical_payload=artifact.canonical_payload + " "))
@@ -169,7 +235,7 @@ def test_p6_5_real_authenticated_service_api_and_aggregate_pipeline():
                 await revisions_repo.close()
 
         exact = asyncio.run(verify_historical())
-        assert exact.status == "MATCHED" and exact.matched
+        assert exact.status == "MATCHED" and exact.matched, exact.reason_code
         assert exact.historical_validation_status == exact.replayed_validation_status
         assert exact.historical_reason_codes == exact.replayed_reason_codes
         assert exact.historical_content_fingerprint == exact.replayed_content_fingerprint

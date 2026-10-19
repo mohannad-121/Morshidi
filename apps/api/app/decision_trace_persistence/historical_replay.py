@@ -73,7 +73,6 @@ class P6HistoricalReplayService:
             entry.ledger_entry_id != str(revision.revision_id)
             or entry.student_user_id != str(revision.owner_user_id)
             or entry.university_id != str(revision.university_id)
-            or entry.source_engine_version != revision.p6_contract_version
             or entry.policy_version != revision.phase6_policy_version
             or entry.outcome_reference != (
                 f"P6_NON_BINDING_INTENT:{revision.revision_id}:"

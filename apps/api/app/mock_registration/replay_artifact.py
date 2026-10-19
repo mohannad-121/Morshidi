@@ -37,7 +37,8 @@ from .validation import validate_registration_intent
 
 REPLAY_CONTRACT_VERSION = "P6_REPLAY_ARTIFACT_V1"
 REPLAY_ENGINE_ID = "P6_MOCK_REGISTRATION_VALIDATION"
-REPLAY_ENGINE_VERSION = "1.0"
+REPLAY_ENGINE_VERSION = "2.0"
+INTENT_CONTRACT_VERSION = "1.0"
 _INTENT = TypeAdapter(RegistrationIntent)
 _PERIOD = TypeAdapter(TargetPeriod)
 _OUTPUT = TypeAdapter(ValidatedIntent)
@@ -50,6 +51,16 @@ _PINNED_V1_SOURCES = {
     Path(__file__).parents[1] / "rules" / "evaluator.py": "54a330d16cc12a66bfb05d149e2ebcd30ea38d7e6e5cc5c747c2f99ea907f32f",
     Path(__file__).parents[1] / "rules" / "models.py": "ade6a482199d972db57aec6d919614132c9d31505bace243d47a3829246c09da",
     Path(__file__).parents[1] / "progress" / "models.py": "e207a51d267abe6158cbba46aaeb377d88acbdb7da3d6f49ba97c9b66c52b9a3",
+}
+_PINNED_V2_SOURCES = {
+    Path(__file__).with_name("validation.py"): "d4e73cc51dcf3b1cdce70ce1924cae89d9cb9680ccf7125823aa9a116e2b66cc",
+    Path(__file__).with_name("fingerprint.py"): "7c4e43c6b2db9197f0d45bc42e4bddf5cd7022707b22659a96079f74df0cfa90",
+    Path(__file__).with_name("canonicalization.py"): "92c769d693372d7996a5fbcec6e4dd913c9c260ef49daaf5263c24322756bbff",
+    Path(__file__).with_name("models.py"): "0e42a6cce44610e07a0a029972ef174076b94440b0e7f4e8cde29166e521e177",
+    Path(__file__).with_name("registries.py"): "c7c30b1dc2f1650fe07ec0346b40630173d1dd8efa98283fdd3023f104e04796",
+    Path(__file__).parents[1] / "rules" / "evaluator.py": "61921c5e963499c78bf2cbcb967a301476f69cd21291de73a9c3e616826557fe",
+    Path(__file__).parents[1] / "rules" / "models.py": "af80eee1d8c1403da2c2b83792f83114ec878d20b194c9973be94b3e6414141d",
+    Path(__file__).parents[1] / "progress" / "models.py": "ccd6131a640b92517f3c9e011b276a0747038ffcaa24765033ee4393f58e1efc",
 }
 
 
@@ -93,8 +104,8 @@ def _hash(payload: str) -> str:
 def create_p6_replay_artifact(
     intent: RegistrationIntent, context: MockRegistrationContext, result: ValidatedIntent,
 ) -> P6ReplayArtifactV1:
-    _require_pinned_v1_engine()
-    if intent.contract_version != REPLAY_ENGINE_VERSION or result.intent != intent:
+    _require_pinned_v2_engine()
+    if intent.contract_version != INTENT_CONTRACT_VERSION or result.intent != intent:
         raise P6ReplayArtifactError("REPLAY_INPUT_MISMATCH")
     if result.status not in (ValidationStatus.VALID, ValidationStatus.REVIEW_REQUIRED):
         raise P6ReplayArtifactError("REPLAY_INPUT_MISMATCH")
@@ -266,6 +277,12 @@ def _replay_v1(intent: RegistrationIntent, context: MockRegistrationContext) -> 
     return validate_registration_intent(intent, context)
 
 
+def _replay_v2(intent: RegistrationIntent, context: MockRegistrationContext) -> ValidatedIntent:
+    """Replay the accepted post-foundation validator without rewriting historical V1 identity."""
+    _require_pinned_v2_engine()
+    return validate_registration_intent(intent, context)
+
+
 def _require_pinned_v1_engine() -> None:
     """A changed validator/dependency cannot silently impersonate historical 1.0."""
     try:
@@ -277,7 +294,18 @@ def _require_pinned_v1_engine() -> None:
         raise P6ReplayArtifactError("ENGINE_VERSION_UNAVAILABLE") from exc
 
 
-P6_REPLAY_ENGINE_REGISTRY = {REPLAY_ENGINE_VERSION: _replay_v1}
+def _require_pinned_v2_engine() -> None:
+    """Pin the current validator as a distinct engine version; historical V1 stays immutable."""
+    try:
+        for path, expected in _PINNED_V2_SOURCES.items():
+            normalized = path.read_bytes().replace(b"\r\n", b"\n")
+            if hashlib.sha256(normalized).hexdigest() != expected:
+                raise P6ReplayArtifactError("ENGINE_VERSION_UNAVAILABLE")
+    except OSError as exc:
+        raise P6ReplayArtifactError("ENGINE_VERSION_UNAVAILABLE") from exc
+
+
+P6_REPLAY_ENGINE_REGISTRY = {"1.0": _replay_v1, REPLAY_ENGINE_VERSION: _replay_v2}
 
 
 def execute_p6_replay(

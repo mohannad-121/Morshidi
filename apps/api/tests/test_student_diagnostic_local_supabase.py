@@ -102,6 +102,18 @@ def local_fixtures() -> LocalFixtures:
             universities = []
             plans = []
             for label in ("A", "B"):
+                if label == "A":
+                    # Intelligence is intentionally unavailable for arbitrary
+                    # synthetic plans; use the governed canonical Plan 12 for
+                    # positive service/API assertions while retaining B for
+                    # cross-institution scope checks.
+                    canonical = _request(client, "GET", "/rest/v1/study_plans",
+                        headers=ADMIN, params={"select": "id,majors(faculties(university_id))",
+                                               "id": f"eq.{PLAN12}"}).json()
+                    assert len(canonical) == 1
+                    universities.append(canonical[0]["majors"]["faculties"]["university_id"])
+                    plans.append(canonical[0]["id"])
+                    continue
                 university = _post_row(client, "universities", {
                     "name_ar": f"جامعة اختبار {label} {suffix}", "name_en": f"Local Test {label} {suffix}",
                     "country": "LOCAL_ONLY"})

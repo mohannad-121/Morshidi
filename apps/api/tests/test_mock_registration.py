@@ -625,7 +625,7 @@ def test_p6_replay_artifact_canonical_hash_retry_and_tamper():
     with pytest.raises(P6ReplayArtifactError, match="REPLAY_ARTIFACT_INTEGRITY_FAILURE"):
         verify_p6_replay_artifact(replace(artifact, canonical_payload=artifact.canonical_payload + " "))
     with pytest.raises(P6ReplayArtifactError, match="ENGINE_VERSION_UNAVAILABLE"):
-        verify_p6_replay_artifact(replace(artifact, engine_version="2.0"))
+        verify_p6_replay_artifact(replace(artifact, engine_version="3.0"))
     with pytest.raises(P6ReplayArtifactError):
         reconstruct_p6_inputs({"intent": {}, "context": {}}, persisted_intent_id=intent.intent_id)
 
@@ -654,3 +654,44 @@ def test_p6_replay_rejects_malformed_historical_output_even_with_valid_hash():
             persisted_reasons=tuple(code.value for code in result.reason_codes),
             persisted_fingerprint=result.content_fingerprint,
             persisted_course_codes=result.canonical_course_codes)
+
+
+def test_p6_historical_v1_artifact_acceptance_and_fail_closed_source_drift():
+    intent, _, result, v2_art = _replay_fixture()
+    payload = json.loads(v2_art.canonical_payload)
+    payload["engine_version"] = "1.0"
+    v1_payload = json.dumps(payload, ensure_ascii=False, sort_keys=True,
+                            separators=(",", ":"), allow_nan=False)
+    v1_art = P6ReplayArtifactV1(
+        v2_art.replay_contract_version, v2_art.engine_id, "1.0",
+        v1_payload, hashlib.sha256(v1_payload.encode("utf-8")).hexdigest(),
+        v2_art.source_versions,
+    )
+
+    # A. Database/schema integrity of V1 artifact: PASS
+    verified_payload = verify_p6_replay_artifact(v1_art)
+    assert verified_payload["engine_version"] == "1.0"
+    assert verified_payload["contract"] == "P6_REPLAY_ARTIFACT_V1"
+
+    # B. Historical source pin execution: expected deterministic fail-closed UNAVAILABLE
+    # Replay execution refuses to run modified source as 1.0 (NO FALSE SUCCESS).
+    with pytest.raises(P6ReplayArtifactError, match="ENGINE_VERSION_UNAVAILABLE"):
+        execute_p6_replay(
+            v1_art, persisted_intent_id=intent.intent_id,
+            persisted_status=result.status,
+            persisted_reasons=tuple(code.value for code in result.reason_codes),
+            persisted_fingerprint=result.content_fingerprint,
+            persisted_course_codes=result.canonical_course_codes,
+        )
+
+    # C. Artifact tampering: REJECTED
+    with pytest.raises(P6ReplayArtifactError, match="REPLAY_ARTIFACT_INTEGRITY_FAILURE"):
+        verify_p6_replay_artifact(replace(v1_art, canonical_payload=v1_art.canonical_payload + " "))
+
+    # D. Version substitution: REJECTED
+    with pytest.raises(P6ReplayArtifactError, match="REPLAY_ARTIFACT_INTEGRITY_FAILURE"):
+        verify_p6_replay_artifact(replace(v1_art, engine_version="2.0"))
+
+    # E. Hash mutation: REJECTED
+    with pytest.raises(P6ReplayArtifactError, match="REPLAY_ARTIFACT_INTEGRITY_FAILURE"):
+        verify_p6_replay_artifact(replace(v1_art, canonical_sha256="0" * 64))

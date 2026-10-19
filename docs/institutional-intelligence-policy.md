@@ -171,7 +171,12 @@ Institutional Intelligence V1 defines a finite, stable registry of 13 signals (`
 
 ---
 
-## 12. Rejection of Black-Box Scores
+## 12. Rejection of Black-Box Scores (P7 V1)
+
+> Production V2 note (2026-10-19): the approved production specification now requires
+> a deterministic `BOTTLENECK_SCORE`. V2 permits only the transparent weighted model
+> documented in `institutional-intelligence-production.md`, with every raw factor and
+> reason code returned. The prohibition below continues to apply to opaque scores.
 
 Morshidi firmly rejects composite scoring:
 - NO "Institutional Health Score"

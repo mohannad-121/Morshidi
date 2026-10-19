@@ -211,7 +211,8 @@ def map_verified_mock_registration_submit(
         university_id=str(revision.university_id),
         student_user_id=str(revision.owner_user_id),
         source_engine=_SOURCE_ENGINE,
-        source_engine_version=revision.p6_contract_version,
+        source_engine_version=(artifact.engine_version if artifact is not None
+                               else revision.p6_contract_version),
         policy_version=revision.phase6_policy_version,
         source_versions=_source_versions(revision),
         input_state_reference=revision.progress_state_reference,

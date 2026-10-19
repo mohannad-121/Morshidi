@@ -38,7 +38,9 @@ def _university_handler(student_id: str, *, valid_policy: bool = True):
         if path.endswith("/student/me"):
             return httpx.Response(200, json={"success": True, "student": {
                 "studentId": student_id, "name": "Local Contract Student",
-                "email": f"{student_id}@local.test", "faculty": "IT", "major": "AI",
+                "email": f"{student_id}@local.test",
+                "faculty": "Faculty of Information Technology",
+                "major": "Artificial Intelligence",
                 "degree": "Bachelor", "studyType": "Regular", "admissionYear": 2023,
                 "academicAdvisor": "Local Advisor", "academicStatus": "active",
                 "gpa": 93.6, "gpaScale": 100, "earnedCredits": 96,
@@ -66,7 +68,8 @@ def _university_handler(student_id: str, *, valid_policy: bool = True):
                                              "termLabel": "First Semester 2026", "enrollments": []})
         if path.endswith("/student/academic-plan"):
             return httpx.Response(200, json={"success": True, "plan": {
-                "planId": "12", "major": "AI", "totalRequiredCredits": 132,
+                "planId": "12", "faculty": "Faculty of Information Technology",
+                "major": "Artificial Intelligence", "totalRequiredCredits": 132,
                 "earnedCredits": 96, "remainingCredits": 36, "courses": []}})
         return httpx.Response(404)
     return handler

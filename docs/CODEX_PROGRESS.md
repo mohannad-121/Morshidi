@@ -1,5 +1,147 @@
 # Morshidi — Codex Progress Record
 
+## Institutional Intelligence / V1 & V2 Replay Compatibility Resolution & Release Validation (2026-10-19, release authorized)
+
+**Objective/checkpoint:** Resolve the V1 historical replay compatibility question, verify V1/V2 contracts, confirm fail-closed source drift protection without weakening historical immutability, execute the complete local Supabase audit and institutional gates, and validate production release readiness. Starting SHA `3d0c2ec8a9ffb1cf582fd65dce20af795fab26b1`, branch `main`.
+
+**V1 source drift investigation & identification:**
+The application-level V1 exact replay execution pin rejects three changed source files:
+1. `apps/api/app/rules/evaluator.py`: expected V1 `54a330d16cc12a66bfb05d149e2ebcd30ea38d7e6e5cc5c747c2f99ea907f32f`, current V2 `61921c5e963499c78bf2cbcb967a301476f69cd21291de73a9c3e616826557fe`. Legitimate change: added Plan 12 graduation project credit checks (`is_plan12_project`), `AcademicRuleTrace`, bilingual name fields, and `GRADUATION_PROJECT_MIN_EARNED_CREDITS` / `GRADUATION_PROJECT_CREDIT_EVIDENCE_UNKNOWN` reasons. Replay-engine relevant: YES (`evaluate_can_take` changes validation outcome for project courses).
+2. `apps/api/app/rules/models.py`: expected V1 `ade6a482199d972db57aec6d919614132c9d31505bace243d47a3829246c09da`, current V2 `af80eee1d8c1403da2c2b83792f83114ec878d20b194c9973be94b3e6414141d`. Legitimate change: added graduation project decision reasons, `AcademicRuleTrace` dataclass, `credit_hours` and `target_name_en` fields to `PlanCourseRule`. Replay-engine relevant: YES (structural dependencies of evaluator).
+3. `apps/api/app/progress/models.py`: expected V1 `e207a51d267abe6158cbba46aaeb377d88acbdb7da3d6f49ba97c9b66c52b9a3`, current V2 `ccd6131a640b92517f3c9e011b276a0747038ffcaa24765033ee4393f58e1efc`. Legitimate change: added optional `course_name_ar` and `course_name_en` fields to `ProgressPlanCourse` and `CourseProgress`.
+
+**V1 guarantee determination & classification:**
+- Guarantee: V1 exact execution strictly requires execution against the exact historical source code snapshot ("A changed validator/dependency cannot silently impersonate historical 1.0"). Database artifact integrity and ledger correlation pass independently, while exact execution deterministically fails closed with `status="UNAVAILABLE"`, `reason_code="ENGINE_VERSION_UNAVAILABLE"`.
+- Classification: **EXPECTED_EXACT_REPLAY_PROTECTION**. The rejection is an intentional, fail-closed architectural protection against silent behavioral drift. It is NOT a defect and NOT stale metadata.
+- Preservation of V1 integrity: Source pins are never disabled or relaxed; current modified files are not accepted as 1.0; no false success is reported. Added explicit test `test_p6_historical_v1_artifact_acceptance_and_fail_closed_source_drift` to `apps/api/tests/test_mock_registration.py`.
+
+**Local release verification evidence:**
+- Clean local migration chain: `npx supabase db reset --local` applied all 25 migrations cleanly. `CLEAN_MIGRATION_CHAIN = PASS`.
+- PostgreSQL RPC security: `persist_mock_registration_revision_with_replay` verified in `pg_proc` as `prosecdef=true`, `search_path=""`, `PUBLIC=false`, `anon=false`, `authenticated=false`, `service_role=true`. `REPLAY_RPC_SECURITY = PASS`.
+- Local Supabase audit: 30 test files, **99 passed, 0 failed, 2 warnings in 190.24s**. `LOCAL_SUPABASE_AUDIT = 99/99 PASS`.
+- Institutional real-local database gates: `test_institutional_analytics_local_supabase.py` gave **3 passed, 0 failed, 2 warnings in 18.64s**. `INSTITUTIONAL_REAL_LOCAL_GATES = PASS`.
+- Focused institutional and replay suite: **239 passed, 0 failed, 2 warnings in 12.96s**.
+- Full backend regression suite: **2,309 passed, 15 failed, 99 skipped in 110.19s**. The 15 failures exactly match the documented legacy baseline (4 advisor explanation, 11 CORS). `NEW_REGRESSIONS_INTRODUCED = 0`.
+- Web regression suite: **39 test files / 247 passed, 0 failed in 52.35s**. `WEB_REGRESSION = 247/247 PASS`.
+- Web TypeScript check: `tsc --noEmit` -> **PASS**.
+- Web production build: Next.js build -> **PASS**, 38 routes generated.
+- `git diff --check`: **PASS**.
+- Production mutations: **0**.
+
+## Institutional Intelligence V2 Replay Migration Continuation (2026-10-19, in progress)
+
+**Objective/checkpoint:** Continue the blocked Institutional Intelligence release at the exact P6 replay DB incompatibility; no production action until local gates pass. Starting SHA `3d0c2ec8a9ffb1cf582fd65dce20af795fab26b1`, branch `main`, with prior unstaged institutional files preserved. Historical migration `20260929123909_p6_exact_replay_artifact.sql` remains unmodified.
+
+**Contract and implementation:** Current application emits replay engine `2.0` in the unchanged `P6_REPLAY_ARTIFACT_V1` canonical envelope, SHA-256 over UTF-8 canonical JSON; historical `1.0` remains a separate explicit registry entry and DB-supported engine. Created additive `supabase/migrations/20261019194923_p6_exact_replay_v2_support.sql` using `supabase migration new`. It widens only the artifact engine check to `('1.0','2.0')`, derives engine version from the verified payload in the existing service-only RPC, preserves all prior identity/hash/idempotency checks, and reasserts service-only EXECUTE and empty search_path. Corrected a discovered application identity mismatch: the P8 ledger now labels replay-bearing decisions with the artifact engine version while the P6 contract stays `1.0`; historical replay still checks artifact-to-ledger identity.
+
+**Local results so far:** `npx supabase db reset --local` applied all 25 migrations cleanly (missing configured seed warning only). The exact real Auth → FastAPI → P6 persistence → outbox → decision ledger → historical replay integration initially reached creation/idempotent success but reported `REPLAY_IDENTITY_MISMATCH`; after the ledger-label correction, `pytest apps/api/tests/test_mock_registration_service_local_supabase.py -q -x` gave **1 passed, 0 failed, 2 warnings in 6.81s**, including V2 artifact immutability, browser-role denial, exact historical replay after academic-state drift, and no artifact on withdrawal. Tests used process-only localhost credentials. Production mutations, staging, commits, pushes and deployments: **0**.
+
+**A–J and security proof:** Expanded the real-local P6 test to cover V1/V2 first insert and identical retry, same-version changed immutable artifact, both cross-version replay directions, unsupported and absent engine; the complete real test passes (**1 passed in 9.68s**). Direct PostgreSQL ACL inspection returned `prosecdef=true`, `search_path=""`, EXECUTE `PUBLIC=false`, `anon=false`, `authenticated=false`, `service_role=true`. A second clean `supabase db reset --local` again applied all 25 migrations. The combined local audit then yielded **95 passed, 4 failed, 2 warnings in 169.13s**. The four failures were stale fixtures (three diagnostic tests using an unmapped synthetic plan for positive Student Intelligence calls; one university-sync mock with a faculty/major that cannot identify canonical Plan 12), not V2 failures. Updated only those test fixtures to the canonical Plan 12 identity while retaining a synthetic foreign university for isolation; isolated diagnostic/university-grading real-local rerun is **8 passed, 0 failed, 2 warnings in 15.13s**. Full combined-audit rerun remains pending.
+
+**Remaining before release:** Add and execute the explicit V1/V2 A–J idempotency/immutability matrix and direct PostgreSQL privilege proof; rerun the complete local Supabase audit and institutional gates; classify/fix remaining fixture failures; run focused/full backend and web suites, typecheck, build, lint/diff checks. V1 Python exact-execution remains guarded by historical source hashes; its current availability must be evaluated separately from DB artifact verification. **Exact next starting point:** implement the real-local A–J matrix using canonical persisted requests, then rerun all local gates. Release is not yet authorized by the conditional gate.
+
+## Institutional Intelligence Real Local Database Gate (2026-10-19, release blocked before migration)
+
+**Objective/checkpoint:** Continue from the code-complete Institutional Intelligence checkpoint; stop only the Fake University local Supabase stack, start and clean-reset Morshidi local Supabase, validate the production analytics repository and security boundaries against real PostgreSQL/PostgREST/RLS, then release only if every gate passes. Starting SHA/branch: `3d0c2ec8a9ffb1cf582fd65dce20af795fab26b1` / `main`, with the previously recorded unstaged Institutional Intelligence implementation preserved.
+
+**Local infrastructure isolation:** Docker Engine 29.8.0 was healthy. Containers/listeners on ports 54321/54322 were proven to belong to local project `morshidi-uni-review`. `npx supabase stop` was executed only from `D:\imporant\morshidi-uni-review`, returned `backup=true`, preserved its volumes/database, and freed both ports. No Docker volume was deleted and Docker Desktop remained running. Morshidi local project `Morshidi` was then started on `http://127.0.0.1:54321` / PostgreSQL `127.0.0.1:54322`. Although repository link metadata contains production ref `lzwttbjnuhdllesfuzzs`, every database command used explicit local semantics; neither production project was contacted or mutated.
+
+**Clean migration chain:** `npx supabase db reset --local` applied all 24 tracked migrations successfully, from `0001_academic_catalog.sql` through `20261016090000_upgrade_student_diagnostic_v2.sql`. The configured but absent `supabase/seed.sql` produced a warning only. The database was clean-reset again after each failure audit and currently contains zero Auth users, zero student profiles, the original 68 catalog memberships, zero test institutional memberships, and zero advisor assignments. `CLEAN_MORSHIDI_MIGRATION_CHAIN = PASS`.
+
+**New real integration test:** Added and verified `apps/api/tests/test_institutional_analytics_local_supabase.py` (26,394 bytes). It creates an isolated local university and a separate foreign university through service-role PostgREST, exactly 1,155 scoped plan memberships plus a foreign same-code course, real Auth users, analyst/advisor memberships, an explicit advisor assignment, profiles, and attempts. It tests actual paginated repository reads, cross-institution exclusion, program attribution, admin/advisor/unassigned/student/anon access, direct RLS denial, sparse suppression, aggregate privacy, distinct-student demand union, authoritative local capacity facts, all three simulations, grounded copilot selections, and cleanup. All fixtures are removed and the pre-test database is restored.
+
+**Real institutional result:** `pytest apps/api/tests/test_institutional_analytics_local_supabase.py -q -s -rs` -> **3 passed, 0 failed, 2 warnings in 14.99s**. `REAL_POSTGRES_ANALYTICS = PASS`; `POSTGREST_PAGINATION = PASS`; `RLS = PASS`; `TENANT_ISOLATION = PASS`; `ADVISOR_SCOPE = PASS`; `PRIVACY = PASS`; `DETERMINISTIC_METRICS = PASS`; `WHAT_IF = PASS`; `COPILOT_REAL_DATA = PASS`. Repository-inclusive timings from 12 repetitions each: overview P50 179.65 ms / P95 190.70 ms; program P50 64.93 ms / P95 68.47 ms; demand P50 185.02 ms / P95 214.81 ms; bottleneck P50 183.47 ms / P95 192.83 ms.
+
+**Broader opt-in local suite audit:** Running all `*local_supabase.py` modules together after setting only process-local localhost credentials produced **91 passed, 8 failed, 2 warnings in 141.87s**. Two failures were test-order assumptions in the first version of the new institutional fixture and were fixed by moving it to a dedicated synthetic institution. Other failures exposed older independent fixtures that use arbitrary diagnostic plan IDs unsupported by the canonical 17-plan Student Intelligence registry, an old university-sync mock missing faculty identity, and two real replay persistence failures. These results were not hidden or counted as passing.
+
+**Release-blocking replay contract mismatch:** On a new clean reset, `test_mock_registration_service_local_supabase.py` independently reproduces **1 failed, 2 warnings in 2.57s**: creating a real mock-registration revision returns HTTP 409 `PERSISTENCE_CONFLICT`. The application now emits replay engine V2, while tracked migration `20260929123909_p6_exact_replay_artifact.sql` hard-codes engine version `1.0` in payload validation (line 65), inserted artifact state (line 102), and idempotent integrity comparison (line 111). Correct V2 persistence therefore requires an additive migration that versions/replaces the RPC without weakening existing immutable V1 artifacts. This is an actual integration defect, not a test-only mismatch.
+
+**Stop condition and release status:** The continuation instruction requires stopping and reporting before adding a newly discovered migration. No migration was added. No file was staged, committed, pushed, or deployed; no remote/production operation occurred; `PRODUCTION_MUTATIONS = 0`. `DATABASE_MIGRATION_REQUIRED = YES`. `FINAL_STATUS = INSTITUTIONAL_INTELLIGENCE_RELEASE_BLOCKED`.
+
+**Exact next starting point:** With explicit follow-up direction to proceed past the migration stop gate, design an additive RPC/migration that accepts and persists replay engine V2 while retaining exact V1 verification for existing artifacts; add real local V1/V2 insert, idempotency, tamper, RLS, and outbox tests; clean-reset and rerun the full local Supabase matrix plus focused/full backend and web regressions. Only if those gates pass may the already-authorized commit/push/deployment sequence resume. Do not begin the Real University Pilot.
+
+## Institutional Intelligence Production Phase: Implementation Complete, Release Blocked (2026-10-19)
+
+**Objective:** Audit the existing Institutional Intelligence implementation against the production-phase requirements, preserve accepted deterministic/privacy boundaries, reproduce the three historical in-scope failures, and establish the smallest coherent implementation slice for university/program/course aggregate intelligence across all 17 canonical curricula.
+
+**Starting SHA/branch and worktree:** `3d0c2ec8a9ffb1cf582fd65dce20af795fab26b1` / `main`. The only pre-existing modification was this progress record containing the completed registration production-acceptance entry; it is preserved. No files were staged, committed, pushed, or deployed.
+
+**CURRENT_INSTITUTIONAL_ARCHITECTURE:** The repository already contains (1) a pure P7 institutional signal engine in `app/institutional_intelligence`, (2) an authorized course-at-a-time service in `app/institutional_intelligence_service`, (3) aggregate declared-intent demand from P6 mock registration, (4) deterministic capacity/offering adapters, (5) an institutional natural-language query interpreter that selects allowlisted metrics, and (6) four legacy institutional web surfaces for capacity, cohorts, change impact, and AI query. Existing authority is an active `INSTITUTIONAL_ANALYST` membership; advisor authority is modeled separately as `ACADEMIC_ADVISOR` plus explicit advisor-student assignments.
+
+**REUSABLE_COMPONENTS:** Verified catalog and prerequisite graph models; student academic profiles and attempts; eligibility/progress/degree-path engines; authoritative Fake University offering snapshot contract; registration context; P6 privacy suppression and tenant membership; existing FastAPI auth boundary; existing RTL/Tailwind web design system; deterministic institutional AI interpreter/tool allowlist.
+
+**OBSOLETE_COMPONENTS:** The P7 contract is limited to one course/one plan/one period, primarily measures declared mock-registration intent, uses only the analyst role, and deliberately excludes overview/program/progress/advisor-caseload/simulation capabilities. Legacy institutional pages are independent feature demonstrations rather than one production dashboard. Some policy text prohibits any bottleneck score, while the new approved production specification requires a transparent deterministic score; the new implementation will retain raw factors and reason codes so the score is never opaque.
+
+**MISSING_COMPONENTS:** Batched university/program/course repository, authoritative current-registration rollups, deterministic demand projection components, capacity rollup/status thresholds, progress bands/blocker aggregates, review queue, advisor caseload buckets, non-mutating institutional simulations, unified overview/filter API, all-17 acceptance matrix, and production dashboard navigation/pages.
+
+**MULTI_PLAN_GAPS:** Existing evaluation requires a single `study_plan_id`; it does not roll shared courses across plan keys or attribute demand by program/faculty. Composite curriculum identity must be introduced at the aggregate boundary; Plan Number 12 alone will never be used as identity. Empty/sparse programs need typed insufficient-data/suppression states.
+
+**Baseline test evidence:** `apps/api/.venv311/Scripts/python.exe -m pytest apps/api/tests/test_institutional_intelligence.py apps/api/tests/test_institutional_intelligence_service_api.py apps/api/tests/test_institutional_ai_query.py apps/api/tests/test_institutional_ai_query_api.py apps/api/tests/test_institutional_policy.py apps/api/tests/test_institutional_policy_ingestion.py -q -rs` -> **178 passed, 3 failed, 2 warnings in 12.65s**. The same three historical service tests fail before institutional evaluation in `create_p6_replay_artifact`: the immutable P6 V1 source hash rejects the current validator/dependency source as `ENGINE_VERSION_UNAVAILABLE`. This is an in-scope integration defect and will be resolved by validating and updating the version pin, never by disabling integrity verification.
+
+**Security/data decision:** No DB-to-DB access and no production mutation. Aggregate analytics will use synchronized Morshidi academic state and the existing read-only Fake University offering contract. Default responses will be aggregate-only; raw diagnostic answers and student names/emails are out of contract. No migration is assumed until repository/role analysis proves one necessary.
+
+**Implemented production slice:** Added a typed, batched aggregate repository and pure deterministic analytics engine under `apps/api/app/institutional_analytics`; authenticated aggregate routes under `/api/v1/institutional/analytics`; university/program/course demand and capacity rollups; transparent bottleneck scoring; progress distribution; review queue; advisor caseload buckets; non-mutating section-capacity simulation; and an allowlisted institutional copilot whose model may select a tool but never supplies or changes governed values. Composite curriculum identity is `ZU:{faculty}:{major}:P{plan_number}`. Projected demand is a distinct union of current registration, verified eligible-not-registered students, latest valid mock-registration intent, and one-step verified degree-path need, excluding completed/current courses. Capacity states are deterministic: under-utilized `<50%`, healthy `50–84%`, near capacity `85–100%`, and over demand when projected demand exceeds capacity. The bottleneck score is transparent and bounded at 100: required-course factor 25, downstream dependencies up to 25, unmet-demand share up to 30, and affected-student share up to 20.
+
+**P6 replay compatibility repair:** Preserved the immutable historical replay-engine V1 pin and introduced replay engine V2 with current normalized source hashes. New artifacts use V2 while the intent contract remains V1. Unknown-engine fail-closed tests now use V3. Integrity verification was not disabled or relaxed.
+
+**Frontend:** Added a unified Arabic RTL institutional shell and responsive, accessible pages for overview, programs, courses, bottlenecks, capacity intelligence, progress, review queue, what-if simulation, and copilot. Visual bars have textual/table equivalents; focus states, reduced-motion behavior, and touch targets are preserved. Existing design tokens and Lucide icons are reused.
+
+**Security/privacy:** Access is limited to `INSTITUTIONAL_ANALYST` university scope or `ACADEMIC_ADVISOR` explicit assignment scope. The service authorizes before aggregate reads, emits no names/emails/raw student records, applies sparse program suppression, sets private/no-store responses, and uses the existing read-only HTTP Fake University offering boundary. `DIRECT_DB_TO_FAKE_UNIVERSITY = NO`. No database migration was added. Simulations are pure and non-mutating. Unsafe PII/SQL copilot requests abstain before any provider call. Hidden reasoning and credentials are not returned.
+
+**Files changed and verified from disk (bytes):** `apps/api/app/api/routes/institutional_analytics.py` 4,828; `apps/api/app/institutional_analytics/__init__.py` 564; `copilot.py` 9,908; `engine.py` 26,562; `models.py` 7,393; `repository.py` 12,908; `service.py` 8,785; `apps/api/app/main.py` 36,099; `apps/api/app/mock_registration/replay_artifact.py` 16,929; `apps/api/tests/test_institutional_analytics.py` 10,537; `test_institutional_analytics_api.py` 4,008; `test_institutional_copilot.py` 4,176; `test_mock_registration.py` 35,239; `test_mock_registration_service_local_supabase.py` 14,282; `apps/web/src/app/institutional/_components/InstitutionalDashboard.tsx` 21,762; `InstitutionalShell.tsx` 3,218; institutional route pages 178–4,809 each; `apps/web/src/app/institutional/page.test.tsx` 7,236; `apps/web/src/lib/api/authenticated-client.ts` 3,398; `institutional-analytics.ts` 6,485; `docs/institutional-intelligence-policy.md` 36,779; and `docs/institutional-intelligence-production.md` 5,504. Every expected created file exists and is nonzero.
+
+**Test and verification evidence:**
+- Baseline institutional command before the repair: **178 passed, 3 failed, 2 warnings in 12.65s**; all three failures were the reproduced replay-source pin mismatch.
+- Final focused institutional/replay suite: **218 passed, 0 failed, 2 warnings in 9.73s**.
+- Copilot-only suite: **4 passed, 0 failed in 0.29s**. Core aggregate-engine suite (including the all-17 fixture): **9 passed, 0 failed in 0.30s**.
+- Full backend suite: **2,308 passed, 15 failed, 96 skipped, 3 warnings in 99.27s**. The 15 remaining failures are outside this slice: 4 legacy advisor-explanation tests and 11 legacy CORS tests; institutional tests have zero failures.
+- Focused web institutional suite: **1 file / 4 tests passed, 0 failed in 2.42s**.
+- Full web suite: **39 files / 247 tests passed, 0 failed in 37.81s**.
+- Web TypeScript check: **PASS**. Next.js production build: **PASS**, generating 38 routes including all new institutional routes. Changed-file ESLint: **0 findings**. Repo-wide lint: **0 errors, 31 pre-existing warnings in unrelated files**.
+- `git diff --check`: **PASS**. Worktree remains unstaged and uncommitted. Local `HEAD` and `origin/main` both remain `3d0c2ec8a9ffb1cf582fd65dce20af795fab26b1`.
+
+**All-17 deterministic acceptance fixture:** All 17 canonical composite identities are present and independently evaluated: `ZU:IT:AI:P12`, `ZU:IT:SE:P12`, `ZU:IT:CS:P12`, `ZU:IT:CYBER:P12`, `ZU:SCI:MATH:P12`, `ZU:SCI:PHYS:P12`, `ZU:ARTS:ARABIC:P12`, `ZU:ARTS:ENGLISH:P12`, `ZU:ARTS:HISTORY:P12`, `ZU:ARTS:TRANS:P12`, `ZU:BUS:ECON:P12`, `ZU:BUS:BBA:P12`, `ZU:BUS:ACC:P12`, `ZU:MEDIA:DJOURN:P12`, `ZU:MEDIA:RTV:P12`, `ZU:LAW:LAW:P12`, and `ZU:NURS:NURS:P12`. The fixture asserts 17 unique composite keys, non-empty program output, bounded metrics, deterministic repeated output, and institution totals equal the sum of unsuppressed program totals.
+
+**Compute-only performance evidence (250 repetitions; network excluded):** overview P50 1.172 ms / P95 1.559 ms; program P50 0.319 ms / P95 0.373 ms; course demand P50 1.175 ms / P95 1.661 ms; bottlenecks P50 1.249 ms / P95 2.357 ms. Repository reads are batched and paginate 1,000-row PostgREST pages; a regression test covers the 1,155 curriculum-membership case.
+
+**Local database validation blocker:** `npx supabase status` confirmed this repository's local stack is not running and displayed its linked production ref `lzwttbjnuhdllesfuzzs`; no remote mutation was attempted. A local-only `npx supabase start` could not bind PostgreSQL port 54322 because the separate `morshidi-uni-review` local Supabase stack owns ports 54321/54322. The attempted partial stack was stopped without touching that existing stack. Consequently, real local PostgreSQL/PostgREST/RLS validation is **NOT COMPLETE**. Per the repository security invariant, mocked tests cannot clear this gate.
+
+**Acceptance status:** CODE IMPLEMENTATION AND NON-DATABASE VERIFICATION PASS; PRODUCTION RELEASE/ACCEPTANCE BLOCKED. No files were staged, committed, pushed, merged, deployed, or applied to production. `PRODUCTION_MUTATIONS = 0`.
+
+**Exact next starting point:** Coordinate an isolated local Supabase port set (or an approved maintenance stop of the Fake University local stack), start/reset the Morshidi local database, run migrations and seeds, then execute real authenticated/anon/service-role PostgREST, RLS, tenant-isolation, advisor-assignment, pagination, and aggregate privacy tests. Re-run full backend/web gates after that. Only with separate human approval may a release commit, push, deployment, and production read-only acceptance begin. Stop before any real-university pilot.
+
+## End-to-End Course Registration Phase: Production Release & Acceptance Complete (2026-10-19, SUCCESS)
+
+**Objective:** Complete live production acceptance testing of the End-to-End Course Registration Phase across Morshidi and Fake University backends and production databases following Render deployment of commit `3d0c2ecf0445d475ef9c83ceb1fb30cf7f9191e4`.
+
+**Verified Live SHAs & Endpoints:**
+- Fake University Render Backend: `https://fake-university-aqdn.onrender.com` (commit `6a56c5b0f7986869b1c431c110535a40e90582a0`, healthz = 200 OK)
+- Fake University Supabase: `fjywltwzyfmwexumlnbz` (additive migration `20261019143000_registration_audit_and_demo_offerings.sql` verified applied; RPCs `university_record_registration_audit` and `university_register_sections` verified active and restricted to `service_role`)
+- Morshidi Render Backend: `https://morshidi.onrender.com` (commit `3d0c2ecf0445d475ef9c83ceb1fb30cf7f9191e4`, health = 200 OK, registration routes `/api/v1/me/registration/*` active)
+- Morshidi Vercel Frontend: `https://morshidi.vercel.app` (protected route `/student/registration` live)
+
+**Production Acceptance Test Execution Summary:**
+- Students tested: 16 / 16 available synthetic students across all 16 active curricula (Plan 12)
+- Software Engineering (`209900002`): Explicitly preserved with `SE_REGISTRATION_PRODUCTION_TEST = NOT_RUN_NO_CREDENTIAL` (zero modifications, zero password resets)
+- Preview passed: 16 / 16 (non-mutating verified)
+- Register passed: 16 / 16 (seat consumption verified: 30 -> 29)
+- Idempotency passed: 16 / 16 (duplicate requests returned canonical success with zero duplicate seats consumed)
+- Drop passed: 16 / 16 (seat restoration verified: 29 -> 30)
+- Final state restored: 16 / 16 (enrollments restored to original baseline = 0; zero test state remained)
+
+**Final Data Safety & Integrity Checks:**
+- GRADES_CHANGED = NO
+- GPA_CHANGED = NO
+- COMPLETED_COURSES_CHANGED = NO
+- COURSE_ATTEMPTS_CHANGED = NO
+- QUICK_TEST_EVIDENCE_CHANGED = NO
+- REAL_NON_SYNTHETIC_USERS_TOUCHED = NO (all 6 non-synthetic profiles verified 100% intact)
+- PRODUCTION_AUDIT_VALIDATION = PASS (all 16 register/drop operations logged under `registration.audit` event stream)
+- SECRET_LEAKAGE_IN_AUDIT = NO (zero tokens, passwords, or secrets logged in database)
+
+**Acceptance Status:** COMPLETE / SUCCESS.
+**Next starting point:** Course registration phase is fully released and verified in production. Await next milestone assignment.
+
 ## End-to-End Course Registration Phase: Production Release Execution (2026-10-19, release blocked on Morshidi Render deployment)
 
 **Objective:** Execute the authorized production release of the authoritative course registration phase across Fake University and Morshidi: apply Fake University production migration on Supabase `fjywltwzyfmwexumlnbz`, commit and deploy Fake University backend, commit and deploy Morshidi backend and frontend, and execute synthetic multi-major production acceptance testing.

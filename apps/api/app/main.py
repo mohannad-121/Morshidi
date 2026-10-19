@@ -21,6 +21,7 @@ from app.api.routes.offerings import (
 )
 from app.api.routes.registration import router as registration_router
 from app.api.routes.institutional_intelligence import router as institutional_intelligence_router
+from app.api.routes.institutional_analytics import router as institutional_analytics_router
 from app.api.routes.p11_intelligence import (
     student_router as p11_student_router, institutional_router as p11_institutional_router,
 )
@@ -134,6 +135,15 @@ from app.university_sync.client import UniversityContractClient
 from app.university_sync.identity_repository import SupabaseUniversityIdentityRepository
 from app.university_sync.service import UniversitySyncService
 from app.registration.service import RegistrationService
+from app.institutional_analytics import SupabaseInstitutionalAnalyticsRepository
+from app.institutional_analytics.service import (
+    CurrentUniversityOfferingProvider,
+    InstitutionalAnalyticsError,
+    InstitutionalAnalyticsService,
+)
+from app.institutional_analytics.copilot import (
+    InstitutionalCopilotService, OpenAIToolInterpreter, UnconfiguredToolInterpreter,
+)
 
 
 def build_advisor_providers(client: httpx.AsyncClient):
@@ -207,6 +217,8 @@ async def lifespan(application: FastAPI):
     application.state.mock_registration_student_service = None
     application.state.institutional_demand_service = None
     application.state.institutional_intelligence_service = None
+    application.state.institutional_analytics_service = None
+    application.state.institutional_copilot_service = None
     application.state.institutional_ai_query_service = None
     application.state.advisor_copilot_service = None
     application.state.policy_service = None
@@ -410,6 +422,29 @@ async def lifespan(application: FastAPI):
             identity_repo=uni_identity_repo,
             admin_auth=uni_admin_auth,
         )
+        institutional_analytics_repository = SupabaseInstitutionalAnalyticsRepository(
+            settings.supabase_url,
+            settings.supabase_secret_key.get_secret_value(),
+            client,
+        )
+        application.state.institutional_analytics_service = InstitutionalAnalyticsService(
+            institutional_analytics_repository,
+            persistence,
+            advisor_assignment_repo,
+            CurrentUniversityOfferingProvider(uni_contract_client, settings.uni_university_id),
+            minimum_cohort_size=settings.mock_registration_minimum_disclosure_group_size,
+        )
+        institutional_tool_interpreter = (
+            OpenAIToolInterpreter(
+                settings.advisor_llm_api_key.get_secret_value(), settings.advisor_llm_model, client)
+            if settings.advisor_llm_api_key is not None
+            and settings.advisor_llm_api_key.get_secret_value().strip()
+            and settings.advisor_llm_model is not None
+            and settings.advisor_llm_model.strip()
+            else UnconfiguredToolInterpreter()
+        )
+        application.state.institutional_copilot_service = InstitutionalCopilotService(
+            application.state.institutional_analytics_service, institutional_tool_interpreter)
         if settings.uni_university_id:
             application.state.registration_service = RegistrationService(
                 uni_contract_client,
@@ -451,6 +486,7 @@ app.include_router(student_offerings_router)
 app.include_router(registration_router)
 app.include_router(institutional_capacity_router)
 app.include_router(institutional_intelligence_router)
+app.include_router(institutional_analytics_router)
 app.include_router(p11_student_router)
 app.include_router(p11_institutional_router)
 app.include_router(plan_transitions_router)
@@ -465,6 +501,16 @@ app.include_router(advisor_decision_history_router)
 app.include_router(advisor_explainability_graph_router)
 app.include_router(institutional_change_impact_router)
 app.include_router(advisor_change_impact_router)
+
+
+@app.exception_handler(InstitutionalAnalyticsError)
+async def handle_institutional_analytics_error(
+    _: Request, exc: InstitutionalAnalyticsError,
+) -> JSONResponse:
+    return JSONResponse(
+        status_code=exc.status_code,
+        content={"kind": "error", "error_code": exc.code, "detail": exc.detail},
+    )
 
 
 @app.exception_handler(ImpactServiceError)
