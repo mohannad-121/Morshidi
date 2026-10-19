@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
 import { BarChart3, Blocks, Bot, Building2, ClipboardCheck, Gauge, GraduationCap,
-  LayoutDashboard, Scale, SlidersHorizontal } from "lucide-react";
+  LayoutDashboard, Network, Scale, SlidersHorizontal } from "lucide-react";
 import { Logo } from "@/components/ui/Logo";
 import { SignOutButton } from "@/auth/sign-out-button";
 
@@ -18,6 +18,7 @@ const links = [
   ["/institutional/review-queue", "طابور المراجعة", ClipboardCheck],
   ["/institutional/what-if", "ماذا لو؟", SlidersHorizontal],
   ["/institutional/copilot", "المساعد المؤسسي", Bot],
+  ["/institutional/integrations", "ربط الأنظمة (SIS)", Network],
 ] as const;
 
 export function InstitutionalShell({ children }: { children: ReactNode }) {

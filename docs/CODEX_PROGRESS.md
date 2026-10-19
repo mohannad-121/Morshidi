@@ -1,5 +1,76 @@
 # Morshidi — Codex Progress Record
 
+## Real University Pilot / SIS Integration Readiness Phase: Local Implementation & Validation Complete (2026-10-20, ready for review)
+
+**Objective/checkpoint:** Implement and validate the complete technical foundation for real university onboarding and SIS integration readiness without custom code rewrites, preserving the invariants:
+1. `AI EXPLAINS — DETERMINISTIC RULES DECIDE.`
+2. `THE UNIVERSITY SIS REMAINS AUTHORITATIVE.`
+3. Zero connection to real universities; zero real student data; zero commercial onboarding; zero direct DB-to-DB integration.
+4. Fake University preserved as official sandbox/reference SIS.
+5. Strict tenant isolation (`CROSS_TENANT_DATA_LEAKAGE = 0`).
+Starting SHA: `cd9491b7b6e1d5d8e8f27c52a3f9f241b6cb4486`, branch `main`.
+
+**Files changed and verified from disk (real sizes in bytes):**
+- Database migration:
+  `supabase/migrations/20261020100000_sis_integration_readiness.sql` (10,964)
+- Backend domain package (`apps/api/app/sis_integration/`):
+  `__init__.py` (3,526), `adapter_interface.py` (3,519), `adapter_registry.py` (2,659), `capabilities.py` (3,155), `errors.py` (4,589), `fake_university_adapter.py` (13,609), `generic_rest_adapter.py` (18,963), `health.py` (2,303), `mapping_layer.py` (4,245), `models.py` (8,306), `pilot_readiness.py` (6,119), `reconciliation.py` (9,115), `repository.py` (10,060), `security.py` (3,642), `service.py` (11,896), `sso_readiness.py` (3,753), `sync_orchestrator.py` (8,330), `webhook_engine.py` (4,924)
+- API routes and wiring:
+  `apps/api/app/api/routes/institutional_integrations.py` (7,809), `apps/api/app/main.py` (37,842)
+- Backend tests:
+  `apps/api/tests/test_sis_contract_kit.py` (14,526), `apps/api/tests/test_sis_security_and_tenants.py` (13,293), `apps/api/tests/test_sis_multi_tenant_isolation.py` (10,756), `apps/api/tests/test_sis_routes_api.py` (8,630)
+- Web frontend:
+  `apps/web/src/app/institutional/_components/InstitutionalShell.tsx` (3,348), `apps/web/src/app/institutional/integrations/page.tsx` (31,115), `apps/web/src/app/institutional/integrations/page.test.tsx` (4,767), `apps/web/src/lib/api/institutional-integrations.ts` (6,684), `apps/web/src/lib/api/authenticated-client.ts` (3,745)
+- Partner University IT documentation (`docs/pilot/`):
+  `README.md` (7,731), `sis-integration-contract.md` (9,985), `identity-sso-requirements.md` (6,950), `data-fields-required.md` (7,739), `network-security-requirements.md` (6,053), `webhook-contract.md` (5,191), `sync-reconciliation.md` (4,783), `pilot-readiness-checklist.md` (5,544), `sandbox-testing-guide.md` (5,220)
+
+**Implementation details:**
+1. Database Schema & Multi-Tenant Foundations:
+   - Applied additive migration `20261020100000_sis_integration_readiness.sql` cleanly to local Supabase (26 total migrations).
+   - Added `tenant_key` (unique), `timezone`, `default_locale`, `status` to `universities`.
+   - Created `university_integration_configs`, `university_mappings`, `university_sync_jobs`, `university_reconciliation_items`, `university_integration_audit_log`.
+   - Extended `student_university_identities` with `external_subject`, `morshidi_profile_id`, `idp_issuer`, `link_status`.
+   - Configured PostgreSQL RLS policies ensuring tenant isolation and service_role operational security.
+2. SIS Adapter & Capability Negotiation:
+   - Implemented typed `SISCapability` enums (15 granular capabilities) and `CapabilityNegotiator` enforcing fail-closed runtime authorization.
+   - Built `FakeUniversityAdapter` wrapping reference sandbox endpoints.
+   - Built configurable `GenericRestAdapter` for standard university REST gateways.
+   - Built `AdapterRegistry` factory resolving adapters by provider type.
+3. Security, SSRF & Inbound Webhooks:
+   - Multi-stage SSRF defense blocking RFC 1918 private ranges, loopback, link-local, and cloud metadata (`169.254.169.254`).
+   - Secret isolation masking credentials in API responses with 4-character SHA-256 fingerprints.
+   - Webhook engine verifying HMAC-SHA256 signatures in constant time, rejecting expired timestamps (> 300s), and deduplicating events.
+4. SSO Readiness & Reconciliation:
+   - OIDC and SAML 2.0 claim validation with fail-closed identity conflict detection.
+   - Non-destructive drift detector between SIS state and Morshidi shadow state.
+   - 16-point deterministic Pilot Readiness Scorecard.
+5. Frontend & IT Documentation:
+   - Full Arabic RTL dashboard under `/institutional/integrations` with 8 tabs.
+   - Complete 9-part IT documentation suite in `docs/pilot/` covering architecture, APIs, security, webhooks, and sandboxing.
+
+**Test and verification evidence:**
+- SIS Integration Backend Suite: `pytest apps/api/tests/test_sis_*.py` -> **12 passed, 0 failed in 5.47s**.
+- Full Backend Regression Suite: `pytest apps/api/tests -q -rs` -> **2,321 passed, 15 failed, 99 skipped in 105.81s**. Exactly 15 legacy baseline failures; `NEW_REGRESSIONS_INTRODUCED = 0`.
+- Web Component Test: `npm test -- src/app/institutional/integrations/page.test.tsx` -> **1 passed in 366ms**.
+- Full Web Test Suite: `npm test -- --run` -> **40 files / 248 tests passed, 0 failed in 28.82s**.
+- TypeScript Typecheck: `npx tsc --noEmit` -> **PASS (0 errors)**.
+- Next.js Production Build: `npm run build` -> **PASS**, 39 routes generated.
+- Git Diff Check: `git diff --check` -> **PASS**.
+- Remote Mutations: **0**.
+
+**Security checks:**
+- Zero production mutation or connection to real universities.
+- Fake University preserved as official reference sandbox.
+- SSRF prevention verified. Zero plaintext secrets in database.
+- `CROSS_TENANT_DATA_LEAKAGE = 0`.
+
+**Acceptance status:**
+LOCAL IMPLEMENTATION & VALIDATION COMPLETE.
+Awaiting human approval before any git staging, commit, push, or deployment.
+
+**Exact next starting point:**
+Await human operator review and instructions.
+
 ## Institutional Intelligence / V1 & V2 Replay Compatibility Resolution & Release Validation (2026-10-19, release authorized)
 
 **Objective/checkpoint:** Resolve the V1 historical replay compatibility question, verify V1/V2 contracts, confirm fail-closed source drift protection without weakening historical immutability, execute the complete local Supabase audit and institutional gates, and validate production release readiness. Starting SHA `3d0c2ec8a9ffb1cf582fd65dce20af795fab26b1`, branch `main`.

@@ -26,6 +26,15 @@ export interface SessionTokenSource {
 
 export type Fetcher = (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>;
 
+export type AuthenticatedApiPath =
+  | `/api/v1/me/${string}`
+  | `/api/v1/institutional/change-impact/${string}`
+  | `/api/v1/institutional/ai-query${string}`
+  | `/api/v1/institutional/capacity${string}`
+  | `/api/v1/institutional/cohorts${string}`
+  | `/api/v1/institutional/analytics${string}`
+  | `/api/v1/institutional/integrations${string}`;
+
 export class AuthenticatedApiClient {
   private readonly fetcher: Fetcher;
   private readonly baseUrl: string;
@@ -44,7 +53,7 @@ export class AuthenticatedApiClient {
     };
   }
 
-  async request(path: `/api/v1/me/${string}` | `/api/v1/institutional/change-impact/${string}` | `/api/v1/institutional/ai-query${string}` | `/api/v1/institutional/capacity${string}` | `/api/v1/institutional/cohorts${string}` | `/api/v1/institutional/analytics${string}`, init: RequestInit = {}): Promise<Response> {
+  async request(path: AuthenticatedApiPath, init: RequestInit = {}): Promise<Response> {
     const token = await this.tokens.getAccessToken();
     if (!token) throw new AuthenticatedApiError("UNAUTHENTICATED", 401);
 
@@ -74,7 +83,7 @@ export class AuthenticatedApiClient {
   }
 
   private async send(
-    path: `/api/v1/me/${string}` | `/api/v1/institutional/change-impact/${string}` | `/api/v1/institutional/ai-query${string}` | `/api/v1/institutional/capacity${string}` | `/api/v1/institutional/cohorts${string}` | `/api/v1/institutional/analytics${string}`,
+    path: AuthenticatedApiPath,
     init: RequestInit,
     token: string,
   ): Promise<Response> {

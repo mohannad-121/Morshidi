@@ -22,6 +22,15 @@ from app.api.routes.offerings import (
 from app.api.routes.registration import router as registration_router
 from app.api.routes.institutional_intelligence import router as institutional_intelligence_router
 from app.api.routes.institutional_analytics import router as institutional_analytics_router
+from app.api.routes.institutional_integrations import (
+    router as institutional_integrations_router,
+    webhook_router as integrations_webhook_router,
+)
+from app.sis_integration import (
+    SISIntegrationError,
+    SISIntegrationService,
+    SupabaseSISIntegrationRepository,
+)
 from app.api.routes.p11_intelligence import (
     student_router as p11_student_router, institutional_router as p11_institutional_router,
 )
@@ -452,6 +461,16 @@ async def lifespan(application: FastAPI):
                 settings.uni_university_id,
                 application.state.university_sync_service,
             )
+        sis_repo = SupabaseSISIntegrationRepository(
+            settings.supabase_url,
+            settings.supabase_secret_key.get_secret_value(),
+            client,
+        )
+        application.state.sis_integration_service = SISIntegrationService(
+            sis_repo,
+            http_client=client,
+            allow_localhost=settings.app_env in {"development", "test"},
+        )
     try:
         yield
     finally:
@@ -487,6 +506,8 @@ app.include_router(registration_router)
 app.include_router(institutional_capacity_router)
 app.include_router(institutional_intelligence_router)
 app.include_router(institutional_analytics_router)
+app.include_router(institutional_integrations_router)
+app.include_router(integrations_webhook_router)
 app.include_router(p11_student_router)
 app.include_router(p11_institutional_router)
 app.include_router(plan_transitions_router)
@@ -506,6 +527,16 @@ app.include_router(advisor_change_impact_router)
 @app.exception_handler(InstitutionalAnalyticsError)
 async def handle_institutional_analytics_error(
     _: Request, exc: InstitutionalAnalyticsError,
+) -> JSONResponse:
+    return JSONResponse(
+        status_code=exc.status_code,
+        content={"kind": "error", "error_code": exc.code, "detail": exc.detail},
+    )
+
+
+@app.exception_handler(SISIntegrationError)
+async def handle_sis_integration_error(
+    _: Request, exc: SISIntegrationError,
 ) -> JSONResponse:
     return JSONResponse(
         status_code=exc.status_code,
