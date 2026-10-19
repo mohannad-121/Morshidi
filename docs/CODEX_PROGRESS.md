@@ -1,5 +1,50 @@
 # Morshidi — Codex Progress Record
 
+## End-to-End Course Registration Phase: Production Release Execution (2026-10-19, release blocked on Morshidi Render deployment)
+
+**Objective:** Execute the authorized production release of the authoritative course registration phase across Fake University and Morshidi: apply Fake University production migration on Supabase `fjywltwzyfmwexumlnbz`, commit and deploy Fake University backend, commit and deploy Morshidi backend and frontend, and execute synthetic multi-major production acceptance testing.
+
+**Starting SHAs:** Morshidi `9b4b471d88f3d56b45f4fe26e6a32d964726a132` / `main`; Fake University `1482612c033c1a5816f48b6b415a8664c0f11748` / `main`.
+
+**Production Target Verification & Migration (Fake University):**
+- Project Ref: `fjywltwzyfmwexumlnbz` (Fake University Production Supabase, `MORSHIDIUNI`, `ap-south-1`).
+- Morshidi Production project (`lzwttbjnuhdllesfuzzs`): Strictly untouched and protected.
+- Migration repair: Synchronized migration table state for historical migrations `20261007111025`, `20261007120629`, `20261017155240` to reflect applied status.
+- Additive registration migration applied: `20261019143000_registration_audit_and_demo_offerings.sql` pushed via `npx supabase db push`.
+- Database verification:
+  - Canonical curriculum counts preserved: faculties = 7, majors = 17, plans = 17, requirement_groups = 102, plan_course_memberships = 1155.
+  - Canonical data counts preserved: students = 23 (6 legacy + 1 SE + 16 multi-plan), courses = 68, events = 9. Offerings = 353 (204 base + 149 prerequisite-free demo offerings).
+  - Schema & RPCs verified: `university_record_registration_audit` and `university_register_sections` verified in `pg_proc` as `SECURITY DEFINER` with `search_path = ''`.
+  - Live RLS & Privilege grants: `anon` and `authenticated` execute privileges revoked (`has_function_privilege` = false); `service_role` authorized (`has_function_privilege` = true).
+
+**Fake University Release & Deployment:**
+- Committed: `6a56c5b0f7986869b1c431c110535a40e90582a0` (`Add authoritative course registration integration`).
+- Pushed to `origin/main` (`https://github.com/muayid-rabah/morshidi-uni.git`). Remote SHA verified = `6a56c5b0f7986869b1c431c110535a40e90582a0`.
+- Render Deployment (`https://fake-university-aqdn.onrender.com`): Deployed and verified LIVE.
+- Live Endpoint Health:
+  - `GET /healthz`: HTTP 200 OK (`{"ok":true,"ready":true,"cursor":9}`).
+  - `GET /api/integrations/morshidi/v1/student/registration/context`: HTTP 401 UNAUTHORIZED (live and enforcing authentication).
+  - Safe read APIs verified: `student/me`, `student/courses`, `student/grades`, `student/enrollments`, `student/academic-plan` all operational.
+
+**Morshidi Release & Deployment:**
+- Committed: `439b5dcce5ce12e04d26bd7b9eaced8087c36351` (`Add end-to-end multi-plan course registration`).
+- Pushed to `origin/main` (`https://github.com/mohannad-121/Morshidi.git`). Remote SHA verified = `439b5dcce5ce12e04d26bd7b9eaced8087c36351`.
+- Vercel Deployment (`https://morshidi.vercel.app`): Deployed and verified LIVE.
+  - `GET /student/registration`: HTTP 307 redirect to `/login?returnTo=%2Fstudent%2Fregistration` (live and protected).
+- Morshidi Render Backend (`https://morshidi.onrender.com`):
+  - `GET /health`: HTTP 200 OK (`{"status":"ok","service":"Morshidi API","version":"0.1.0","environment":"production"}`).
+  - LIVE SHA status: Render has NOT deployed commit `439b5dcce5ce12e04d26bd7b9eaced8087c36351`. `/openapi.json` and `/api/v1/me/registration/context` return HTTP 404 because auto-deploy is not triggered automatically by GitHub push on the Morshidi service.
+
+**Release Gate Policy:**
+Per release protocol, production mutation testing MUST NOT be executed until:
+1. Fake University new SHA is LIVE (PASS: `6a56c5b` is live).
+2. Morshidi new SHA is LIVE (BLOCKED: Render backend deployment pending manual trigger).
+3. Frontend deployment is LIVE (PASS: Vercel is live with `/student/registration`).
+4. Both backends are healthy (PASS: both return HTTP 200 on health probes).
+
+**Acceptance Status:** REGISTRATION_RELEASE_BLOCKED.
+**Exact Blocker:** Morshidi backend service on Render (`https://morshidi.onrender.com`) has not deployed commit `439b5dcce5ce12e04d26bd7b9eaced8087c36351`. Human operator must trigger "Manual Deploy" -> "Deploy latest commit" in the Render dashboard for `morshidi`.
+
 ## End-to-End Course Registration Phase: Real Local PostgreSQL / Supabase Release Validation (2026-10-19, local validation complete; release ready for human approval)
 
 **Objective:** Complete real local PostgreSQL/Supabase validation of the authoritative registration slice across Fake University and Morshidi, executing full database reset, migration verification, live RLS/privilege checks, student ownership enforcement, PostgreSQL idempotency, critical final-seat concurrency gates, drop/seat restoration, non-mutating preview verification, deterministic policy tests, and audit logging verification on local Docker, without touching production.
