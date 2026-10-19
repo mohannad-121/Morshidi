@@ -153,6 +153,62 @@ class UniversityContractClient:
         except (json.JSONDecodeError, ValueError) as err:
             raise UniversityProtocolError(f"Malformed university JSON response on {path}: {err}") from err
 
+    async def exchange_student_token(self, student_id: str) -> str:
+        """Mint a short-lived upstream token after Morshidi resolves owner -> student server-side."""
+        secret = self._get_client_secret()
+        if not secret:
+            raise UniversityUnavailableError("UNI_CLIENT_SECRET is not configured")
+        try:
+            response = await self._client.post(
+                f"{self._get_base_url()}/api/integrations/morshidi/v1/auth/exchange",
+                headers={"X-Morshidi-Client-Id": self._get_client_id(),
+                         "X-Morshidi-Client-Secret": secret, "Content-Type": "application/json"},
+                json={"studentId": student_id}, timeout=10,
+            )
+        except httpx.HTTPError as err:
+            raise UniversityUnavailableError("University token exchange unavailable") from err
+        if response.status_code == 429:
+            raise UniversityRateLimitedError("University rate limit exceeded")
+        if response.status_code != 200:
+            raise UniversityUnavailableError(f"University token exchange failed (HTTP {response.status_code})")
+        try:
+            token = response.json().get("accessToken")
+        except (json.JSONDecodeError, ValueError, AttributeError) as err:
+            raise UniversityProtocolError("Malformed university token exchange response") from err
+        if not isinstance(token, str) or not token:
+            raise UniversityProtocolError("University token exchange omitted access token")
+        return token
+
+    async def registration_request(
+        self, method: str, path: str, token: str, *, payload: dict[str, Any] | None = None,
+        idempotency_key: str | None = None,
+    ) -> dict[str, Any]:
+        headers = {"Authorization": f"Bearer {token}", "Accept": "application/json"}
+        if payload is not None:
+            headers["Content-Type"] = "application/json"
+        if idempotency_key:
+            headers["Idempotency-Key"] = idempotency_key
+        try:
+            response = await self._client.request(
+                method, f"{self._get_base_url()}{path}", headers=headers, json=payload, timeout=15,
+            )
+        except httpx.HTTPError as err:
+            raise UniversityUnavailableError("University registration service unavailable") from err
+        if response.status_code == 401:
+            raise InvalidUniversityCredentialsError("University integration token invalid or expired")
+        if response.status_code == 429:
+            raise UniversityRateLimitedError("University rate limit exceeded")
+        if response.status_code >= 500:
+            raise UniversityUnavailableError(f"University registration unavailable (HTTP {response.status_code})")
+        try:
+            body = response.json()
+        except (json.JSONDecodeError, ValueError) as err:
+            raise UniversityProtocolError("Malformed university registration response") from err
+        if not isinstance(body, dict):
+            raise UniversityProtocolError("Malformed university registration response envelope")
+        body["_status_code"] = response.status_code
+        return body
+
     @staticmethod
     def _unwrap_envelope(
         data: Any,

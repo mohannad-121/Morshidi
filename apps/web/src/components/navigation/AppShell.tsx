@@ -12,7 +12,7 @@ import { getStudentDisplayName, getStudentInitial } from '@/lib/student-identity
 
 const groups = [
   { title: 'مساحتي', items: [['', 'نظرة عامة', LayoutDashboard], ['profile', 'الملف الأكاديمي', UserRound], ['progress', 'التقدم الدراسي', ChartNoAxesCombined], ['courses', 'المواد والدرجات', BookOpen]] },
-  { title: 'قراراتي', items: [['planner', 'خطة الفصل', CalendarDays], ['advisor', 'مرشدي AI', MessagesSquare], ['recommendations', 'التوصيات', Compass], ['eligibility', 'أهلية التسجيل', DoorOpen], ['degree-path', 'مسار التخرج', Route], ['mock-registration', 'محاكاة التسجيل', ClipboardList]] },
+  { title: 'قراراتي', items: [['registration', 'التسجيل الرسمي', DoorOpen], ['planner', 'خطة الفصل', CalendarDays], ['advisor', 'مرشدي AI', MessagesSquare], ['recommendations', 'التوصيات', Compass], ['eligibility', 'أهلية التسجيل', DoorOpen], ['degree-path', 'مسار التخرج', Route], ['mock-registration', 'محاكاة التسجيل', ClipboardList]] },
   { title: 'مصادري', items: [['roadmap', 'الخطة الدراسية', LibraryBig], ['offerings', 'المواد المطروحة', Columns3], ['chapters', 'شباتر المواد', BookOpenCheck], ['policies', 'اللوائح', ScrollText]] },
 ] as const;
 

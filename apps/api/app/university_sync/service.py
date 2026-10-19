@@ -284,6 +284,47 @@ class UniversitySyncService:
             _internal_shadow_password=shadow_pw,
         )
 
+    async def refresh_existing_student(self, owner_user_id: str, integration_token: str) -> None:
+        """Refresh an already-linked shadow profile after an authoritative SIS mutation."""
+        identity = await self._identity_repo.get_university_identity_for_user(
+            owner_user_id, self._university_id
+        )
+        if identity is None:
+            raise UniversitySyncFailedError("University identity is not linked")
+        try:
+            profile_data, courses_data, grades_snapshot, enrollments_data, plan_data = await asyncio.gather(
+                self._contract_client.get_student_me(integration_token),
+                self._contract_client.get_student_courses(integration_token),
+                self._contract_client.get_student_grades(integration_token),
+                self._contract_client.get_student_enrollments(integration_token),
+                self._contract_client.get_student_academic_plan(integration_token),
+            )
+        except UniversitySyncError:
+            raise
+        except Exception as err:
+            raise UniversityUnavailableError("Failed to refresh university registration state") from err
+        if profile_data.student_id != identity.university_student_id:
+            raise UniversityProtocolError("University refresh identity mismatch")
+        _validate_snapshot_consistency(profile_data, grades_snapshot)
+        resolved_study_plan_id = await self._resolve_study_plan(profile_data, plan_data)
+        course_map = await self._resolve_course_catalog(grades_snapshot.records, enrollments_data)
+        profile_id = await self._sync_academic_profile(
+            owner_user_id=owner_user_id,
+            study_plan_id=resolved_study_plan_id,
+            profile_data=profile_data,
+        )
+        policy_source_reference = grading_policy_source_reference(
+            self._university_id, grades_snapshot.grading_policy.version
+        )
+        await self._sync_attempts_and_enrollments(
+            profile_id=profile_id,
+            grades=grades_snapshot.records,
+            enrollments=enrollments_data,
+            course_map=course_map,
+            policy_source_reference=policy_source_reference,
+        )
+        await self._identity_repo.touch_last_synced_at(identity.id, datetime.now(timezone.utc))
+
     async def _resolve_study_plan(
         self,
         profile_data: UniversityStudentProfile,

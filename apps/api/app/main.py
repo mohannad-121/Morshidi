@@ -19,6 +19,7 @@ from app.api.routes.offerings import (
     student_router as student_offerings_router,
     institutional_router as institutional_capacity_router,
 )
+from app.api.routes.registration import router as registration_router
 from app.api.routes.institutional_intelligence import router as institutional_intelligence_router
 from app.api.routes.p11_intelligence import (
     student_router as p11_student_router, institutional_router as p11_institutional_router,
@@ -132,6 +133,7 @@ from app.university_sync.admin_auth import SupabaseAdminAuthClient
 from app.university_sync.client import UniversityContractClient
 from app.university_sync.identity_repository import SupabaseUniversityIdentityRepository
 from app.university_sync.service import UniversitySyncService
+from app.registration.service import RegistrationService
 
 
 def build_advisor_providers(client: httpx.AsyncClient):
@@ -228,6 +230,7 @@ async def lifespan(application: FastAPI):
     application.state.sandbox_offering_provider = SandboxOfferingProvider()
     application.state.login_rate_limiter = InMemoryLoginRateLimiter(max_attempts=10, window_seconds=60)
     application.state.university_sync_service = None
+    application.state.registration_service = None
     application.state.admin_auth_client = None
     if settings.supabase_url and settings.supabase_secret_key:
         repository = SupabaseAcademicCatalogRepository(
@@ -407,6 +410,13 @@ async def lifespan(application: FastAPI):
             identity_repo=uni_identity_repo,
             admin_auth=uni_admin_auth,
         )
+        if settings.uni_university_id:
+            application.state.registration_service = RegistrationService(
+                uni_contract_client,
+                uni_identity_repo,
+                settings.uni_university_id,
+                application.state.university_sync_service,
+            )
     try:
         yield
     finally:
@@ -438,6 +448,7 @@ app.include_router(student_conversations_router)
 app.include_router(mock_registration_router)
 app.include_router(institutional_demand_router)
 app.include_router(student_offerings_router)
+app.include_router(registration_router)
 app.include_router(institutional_capacity_router)
 app.include_router(institutional_intelligence_router)
 app.include_router(p11_student_router)
