@@ -1,0 +1,12 @@
+topic_id,topic_title_ar,topic_title_en,standard_requirement,institution_response,compliance_status,notes
+SEC_TLS,تشفير قنوات الاتصال,Transport Layer Security,TLS 1.2 or TLS 1.3 enforced on all endpoints,Supported on HTTPS port 443,COMPLIANT,شهادة صادرة من جهة معتمدة
+SEC_NET,عناوين وقوائم السماح,IP Allowlisting,Firewall allows outbound IPs from Morshidi cluster,Configured in campus perimeter,COMPLIANT,السماح للـ IPs المحددة
+SEC_AUTH,توثيق واجهات البرمجة,API Authentication,OAuth 2.0 Client Credentials or Scoped Token,Supported via API Gateway,COMPLIANT,صلاحيات محددة للقراءة فقط
+SEC_TOKEN,عمر وتدوير الرموز,Token Lifetime & Rotation,Access tokens expire within 1 hour,Configured for 3600 seconds,COMPLIANT,تدوير تلقائي
+SEC_SSO,بروتوكول الدخول الموحد,Single Sign-On (SSO),OIDC or SAML 2.0 with cryptographic signature,OIDC / Entra ID / Shibboleth,COMPLIANT,التحقق من التوقيع بالـ SHA-256
+SEC_WEBHOOK,توقيع الويب هوك,Webhook HMAC-SHA256,Events signed with shared secret; 300s window,HMAC-SHA256 header sent,COMPLIANT,حماية تامة من هجمات الإعادة
+SEC_RESIDENCY,استضافة ومكان البيانات,Data Residency,Complies with national higher ed data laws,Hosted in compliant region,COMPLIANT,لا توجد مخالفة لمتطلبات الوزارة
+SEC_RETENTION,تقليص واستبقاء البيانات,Data Minimization,No financial or medical data transmitted,Strict data minimization applied,COMPLIANT,حصر البيانات في السجل الأكاديمي
+SEC_AUDIT,سجلات التدقيق,Audit Trails,All sensitive actions logged with actor ID,Audit ledger enabled,COMPLIANT,سجل عمليات غير قابل للتعديل
+SEC_ENV_SEP,فصل البيئات,Environment Separation,Sandbox environment physically separate from Prod,Separate DB and gateway,COMPLIANT,لا يوجد اتصال بقاعدة بيانات الإنتاج
+SEC_INCIDENT,الاستجابة للحوادث,Incident Response,24/7 designated incident escalation contact,Named contacts provided,COMPLIANT,مصفوفة طوارئ SEV1-SEV4

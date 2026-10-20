@@ -1,0 +1,6 @@
+external_code,external_name_ar,external_name_en,faculty_external_code,canonical_id,mapping_status,notes
+AI_MAJOR,الذكاء الاصطناعي,Artificial Intelligence,IT_FACULTY,10000000-0000-0000-0000-000000000003,MAPPED,تخصص أساسي في الدفعة التجريبية
+SE_MAJOR,هندسة البرمجيات,Software Engineering,IT_FACULTY,10000000-0000-0000-0000-000000000005,MAPPED,تخصص أساسي في الدفعة التجريبية
+CS_MAJOR,علم الحاسوب,Computer Science,IT_FACULTY,10000000-0000-0000-0000-000000000006,MAPPED,تخصص أساسي في الدفعة التجريبية
+CYBER_MAJOR,الأمن السيبراني,Cybersecurity,IT_FACULTY,10000000-0000-0000-0000-000000000007,MAPPED,تخصص أساسي في الدفعة التجريبية
+CIVIL_MAJOR,الهندسة المدنية,Civil Engineering,ENG_FACULTY,,PENDING,مؤجل للمرحلة اللاحقة

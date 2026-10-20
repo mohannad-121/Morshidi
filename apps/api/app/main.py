@@ -26,6 +26,8 @@ from app.api.routes.institutional_integrations import (
     router as institutional_integrations_router,
     webhook_router as integrations_webhook_router,
 )
+from app.api.routes.institutional_pilots import router as institutional_pilots_router
+from app.pilot_onboarding import PilotRepository, PilotService
 from app.sis_integration import (
     SISIntegrationError,
     SISIntegrationService,
@@ -252,6 +254,7 @@ async def lifespan(application: FastAPI):
     application.state.login_rate_limiter = InMemoryLoginRateLimiter(max_attempts=10, window_seconds=60)
     application.state.university_sync_service = None
     application.state.registration_service = None
+    application.state.pilot_service = None
     application.state.admin_auth_client = None
     if settings.supabase_url and settings.supabase_secret_key:
         repository = SupabaseAcademicCatalogRepository(
@@ -471,6 +474,15 @@ async def lifespan(application: FastAPI):
             http_client=client,
             allow_localhost=settings.app_env in {"development", "test"},
         )
+        pilot_repo = PilotRepository(
+            settings.supabase_url,
+            settings.supabase_secret_key.get_secret_value(),
+            client,
+        )
+        application.state.pilot_service = PilotService(
+            pilot_repo,
+            sis_service=application.state.sis_integration_service,
+        )
     try:
         yield
     finally:
@@ -507,6 +519,7 @@ app.include_router(institutional_capacity_router)
 app.include_router(institutional_intelligence_router)
 app.include_router(institutional_analytics_router)
 app.include_router(institutional_integrations_router)
+app.include_router(institutional_pilots_router)
 app.include_router(integrations_webhook_router)
 app.include_router(p11_student_router)
 app.include_router(p11_institutional_router)

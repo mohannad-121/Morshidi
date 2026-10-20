@@ -1,0 +1,22 @@
+check_key,category,title_ar,title_en,importance,is_automated,status,evidence_reference,notes
+IDENTITY_RESOLUTION,IDENTITY,التحقق من صحة ربط هوية الطالب,Student Identity Resolution,REQUIRED,TRUE,NOT_TESTED,,مطابقة الرقم الجامعي مع رمز IdP
+TENANT_ASSIGNMENT,IDENTITY,تخصيص الطالب للمستأجر الصحيح,Strict Tenant Assignment,REQUIRED,TRUE,NOT_TESTED,,عزل تام بالـ RLS
+PROFILE_SYNC_CONSISTENCY,ACADEMIC_DATA,مطابقة بيانات الملف الأكاديمي,Profile Sync Consistency,REQUIRED,TRUE,NOT_TESTED,,مطابقة الاسم والتخصص
+GRADES_SYNC_ACCURACY,ACADEMIC_DATA,دقة سجل العلامات والمعدل,Grades & GPA Sync Accuracy,REQUIRED,TRUE,NOT_TESTED,,مطابقة العلامات التراكمية
+ENROLLMENTS_CONSISTENCY,ACADEMIC_DATA,مطابقة التسجيلات الحالية والشعب,Current Enrollments Consistency,REQUIRED,TRUE,NOT_TESTED,,التسجيلات الفعلية في الفصل
+STUDY_PLAN_RESOLVED,ACADEMIC_DATA,تحديد الخطة الدراسية بدقة,Authoritative Study Plan Resolution,REQUIRED,TRUE,NOT_TESTED,,ربط الخطة المعتمدة للطالب
+COHORT_PLANS_MAPPED,MAPPING,مطابقة خطط الدفعة بنسبة 100%,100% Cohort Plan Mapping,REQUIRED,TRUE,NOT_TESTED,,تغطية تامة لخطط الدفعة
+COHORT_COURSES_MAPPED,MAPPING,تغطية مطابقة المواد 90% فأكثر,>=90% Cohort Course Mapping,REQUIRED,TRUE,NOT_TESTED,,تغطية المواد النشطة
+NO_UNRESOLVED_CRITICAL_MAPPINGS,MAPPING,انعدام الكيانات المجهولة,Zero Unresolved Critical Mappings,REQUIRED,TRUE,NOT_TESTED,,لا توجد مواد مجهولة
+STUDENT_LOGIN_VERIFIED,STUDENT_EXPERIENCE,تسجيل دخول الطالب بنجاح,Student Login Verified,REQUIRED,TRUE,NOT_TESTED,,تجربة دخول ناجحة
+ELIGIBILITY_DETERMINISTIC,STUDENT_EXPERIENCE,أهلية المواد حتمية وصارمة,Deterministic Eligibility Engine,REQUIRED,TRUE,NOT_TESTED,,قواعد المتطلبات السابقة
+PLANNER_AND_DEGREE_PATH,STUDENT_EXPERIENCE,المخطط الفصلي ومسار التخرج,Semester Planner and Degree Path,REQUIRED,FALSE,NOT_TESTED,,فحص واجهات الطالب
+STUDENT_INTELLIGENCE_FUNCTIONAL,STUDENT_EXPERIENCE,عمل أسئلة الاختبار السريع,Curriculum Diagnostics Active,REQUIRED,TRUE,NOT_TESTED,,510 أسئلة تشخيصية
+ADVISOR_COPILOT_GROUNDED,STUDENT_EXPERIENCE,إجابات المرشد مسندة لأدلة,Advisor Guidance Grounded,REQUIRED,FALSE,NOT_TESTED,,عدم افتعال قرارات
+INSTITUTIONAL_OVERVIEW_CORRECT,INSTITUTIONAL_EXPERIENCE,دقة لوحة الذكاء المؤسسي,Institutional KPIs Accurate,REQUIRED,TRUE,NOT_TESTED,,مؤشرات البرامج الأكاديمية
+DEMAND_AND_BOTTLENECK_GROUNDED,INSTITUTIONAL_EXPERIENCE,تحليلات الطلب والاختناقات,Course Demand & Bottlenecks Grounded,REQUIRED,TRUE,NOT_TESTED,,حسابات حتمية
+ZERO_CROSS_TENANT_LEAKAGE,SECURITY,انعدام تسريب البيانات بين الجامعات,Zero Cross-Tenant Leakage,REQUIRED,TRUE,NOT_TESTED,,عزل مادي بالسياسات
+ZERO_SECRET_EXPOSURE,SECURITY,عدم كشف الأسرار في الواجهات,Zero Plaintext Secret Exposure,REQUIRED,TRUE,NOT_TESTED,,بصمات مشفرة فقط
+READ_ONLY_MODE_WRITE_BLOCKED,SECURITY,حظر التعديل في نمط القراءة فقط,Write Blocking in READ_ONLY_PILOT,REQUIRED,TRUE,NOT_TESTED,,حظر التسجيل والسحب
+SYNC_AND_RECONCILIATION_HEALTHY,OPERATIONS,سلامة المزامنة واستقرار الفروقات,Sync Health & Reconciliation Contained,REQUIRED,TRUE,NOT_TESTED,,مزامنة ضمن النطاق الزمني
+SUPPORT_ESCALATION_VALIDATED,OPERATIONS,جاهزية قنوات الدعم ومصفوفة الطوارئ,Escalation Matrix Validated,REQUIRED,FALSE,NOT_TESTED,,قنوات اتصال مشتركة

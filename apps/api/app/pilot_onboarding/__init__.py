@@ -1,0 +1,78 @@
+"""University Pilot Onboarding, Engagement, and Acceptance Package."""
+
+from .acceptance_engine import PilotAcceptanceEngine
+from .defaults import (
+    DATA_REQUIREMENTS_MATRIX,
+    DEFAULT_ACCEPTANCE_CHECKS,
+    DEFAULT_IT_REQUIREMENTS,
+    SECURITY_QUESTIONNAIRE_SCHEMA,
+    TECHNICAL_QUESTIONNAIRE_SCHEMA,
+)
+from .models import (
+    AcceptanceCategory,
+    AcceptanceStatus,
+    BlockerSeverity,
+    BlockerStatus,
+    DiscoveryIntake,
+    PilotAcceptanceCheck,
+    PilotActivity,
+    PilotBlocker,
+    PilotCohortScope,
+    PilotMode,
+    PilotReport,
+    PilotRequirement,
+    PilotSignoff,
+    PilotStakeholder,
+    PilotStatus,
+    PilotSummary,
+    RequirementCategory,
+    RequirementImportance,
+    RequirementStatus,
+    SignoffRole,
+    SignoffStatus,
+    UniversityPilot,
+)
+from .repository import PilotRepository, PilotRepositoryError
+from .service import PilotService, PilotServiceError, PilotTransitionError
+from .state_machine import PilotStateMachine
+from .write_enablement import WriteEnablementCheck, WriteEnablementGate, WriteEnablementResult
+
+__all__ = [
+    "AcceptanceCategory",
+    "AcceptanceStatus",
+    "BlockerSeverity",
+    "BlockerStatus",
+    "DATA_REQUIREMENTS_MATRIX",
+    "DEFAULT_ACCEPTANCE_CHECKS",
+    "DEFAULT_IT_REQUIREMENTS",
+    "DiscoveryIntake",
+    "PilotAcceptanceCheck",
+    "PilotAcceptanceEngine",
+    "PilotActivity",
+    "PilotBlocker",
+    "PilotCohortScope",
+    "PilotMode",
+    "PilotReport",
+    "PilotRepository",
+    "PilotRepositoryError",
+    "PilotRequirement",
+    "PilotService",
+    "PilotServiceError",
+    "PilotSignoff",
+    "PilotStakeholder",
+    "PilotStateMachine",
+    "PilotStatus",
+    "PilotSummary",
+    "PilotTransitionError",
+    "RequirementCategory",
+    "RequirementImportance",
+    "RequirementStatus",
+    "SECURITY_QUESTIONNAIRE_SCHEMA",
+    "SignoffRole",
+    "SignoffStatus",
+    "TECHNICAL_QUESTIONNAIRE_SCHEMA",
+    "UniversityPilot",
+    "WriteEnablementCheck",
+    "WriteEnablementGate",
+    "WriteEnablementResult",
+]

@@ -1,0 +1,5 @@
+external_plan_key,major_external_code,plan_version_number,total_credits,canonical_id,mapping_status,notes
+ZU:IT:AI:P12,AI_MAJOR,12,132,10000000-0000-0000-0000-000000000005,MAPPED,خطة الذكاء الاصطناعي 2022 المعتمدة للدفعة التجريبية
+ZU:IT:SE:P12,SE_MAJOR,12,132,10000000-0000-0000-0000-000000000006,MAPPED,خطة هندسة البرمجيات المعتمدة للدفعة التجريبية
+ZU:IT:CS:P12,CS_MAJOR,12,132,10000000-0000-0000-0000-000000000007,MAPPED,خطة علم الحاسوب المعتمدة
+ZU:IT:AI:P10,AI_MAJOR,10,132,,PENDING,خطة قديمة لطلبة متوقع تخرجهم

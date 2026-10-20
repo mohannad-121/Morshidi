@@ -1,0 +1,21 @@
+field_key,field_label_ar,field_label_en,sample_value,description
+institution_name_official,الاسم الرسمي للجامعة,Official Institution Name,جامعة تجريبية,الاسم المعتمد للجامعة في وزارة التعليم العالي
+country,الدولة,Country,Jordan,بلد المقر الرئيسي للجامعة
+timezone,المنطقة الزمنية,Timezone,Asia/Amman,المنطقة الزمنية للتقويم الأكاديمي
+preferred_locale,اللغة المفضلة,Preferred Locale,ar,اللغة الأساسية لواجهات النظام
+sis_vendor_name,اسم نظام معلومات الطلبة,SIS Vendor / Product,Banner / PeopleSoft / Custom,الشركة المطورة أو النظام المعتمد
+sis_hosting_model,نموذج الاستضافة,Hosting Model,ON_PREMISE / CLOUD_SAAS / HYBRID,مكان استضافة خوادم النظام الأكاديمي
+api_gateway_available,توفر واجهات برمجية,REST API Available,YES / NO,هل تتوفر واجهات برمجية للربط
+api_version,إصدار الواجهات,API Version,v1 / v2,إصدار الواجهات المتاحة للربط
+sandbox_environment_available,توفر بيئة تجريبية,Sandbox Environment Available,YES / NO,هل تتوفر بيئة اختبار منفصلة عن الإنتاج
+identity_sso_protocol,بروتوكول الدخول الموحد,SSO Protocol,OIDC / SAML 2.0 / NONE,آلية التحقق من هوية الطلبة
+academic_structure_faculties_count,عدد الكليات,Number of Faculties,12,إجمالي عدد الكليات
+academic_structure_majors_count,عدد التخصصات,Number of Majors / Programs,45,إجمالي عدد البرامج الأكاديمية
+course_code_format,صيغة رموز المواد,Course Code Format,CS101 / 1501110 / MATH-201,النمط المتبع في ترقيم المواد
+academic_term_format,صيغة رموز الفصول,Term Code Format,2026-1 / 202610 / 2026_FALL,صيغة ترقيم الفصول الدراسية
+technical_contact_name,اسم المسؤول التقني,Technical Contact Name,م. أحمد الفني,اسم منسق الربط التقني
+technical_contact_email,بريد المسؤول التقني,Technical Contact Email,tech.lead@university.edu.jo,البريد الإلكتروني الرسمي
+security_contact_name,مسؤول أمن المعلومات,Security Contact Name,م. سارة الأمن,مسؤول الأمن السيبراني
+security_contact_email,بريد مسؤول الأمن,Security Contact Email,security@university.edu.jo,بريد الطوارئ الأمنية
+academic_sponsor_name,الراعي الأكاديمي للمشروع,Academic Pilot Sponsor Name,د. عميد القبول والتسجيل,صاحب الصلاحية الأكاديمية
+notes,ملاحظات إضافية,Additional Operational Notes,,أي متطلبات أو قيود شبكية خاصة

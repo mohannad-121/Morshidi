@@ -1,5 +1,167 @@
 # Morshidi — Codex Progress Record
 
+## First University Pilot Package + Onboarding System + Pilot Acceptance Workflow (2026-10-20, ready for human approval)
+
+**Objective/slice:** Make the FIRST REAL UNIVERSITY PILOT operationally executable through a deterministic pilot onboarding system, lifecycle state machine, IT requirement tracker, blocker management, 12-criteria write-enablement fail-closed gate, acceptance check engine, multi-role signoffs, pilot package documents, and downloadable templates.
+- Phase Goal: Controlled configuration/integration process for onboarding the first university pilot without custom code rewrites.
+- Invariants Preserved:
+  - `AI EXPLAINS — DETERMINISTIC RULES DECIDE.`
+  - `THE UNIVERSITY SIS REMAINS AUTHORITATIVE.`
+  - `READ-ONLY FIRST.`
+  - NO real university connected; NO real student data used; NO real SIS credentials stored; NO production write access.
+  - Reference Sandbox: Fake University (`https://fake-university-aqdn.onrender.com`).
+  - Local Supabase validated: `http://127.0.0.1:54321` / PostgreSQL port 54322.
+- Starting SHA: `20cb3a6b60f126af578e174cd60feb734044c7df`
+
+**Implementation Details:**
+1. Database Schema & Migration (`supabase/migrations/20261020120000_pilot_onboarding_system.sql` - 14,477 bytes):
+   - Created 7 normalized tables: `university_pilots`, `university_pilot_stakeholders`, `university_pilot_requirements`, `university_pilot_blockers`, `university_pilot_acceptance_checks`, `university_pilot_signoffs`, `university_pilot_activity`.
+   - Enabled RLS (`ALTER TABLE ... ENABLE ROW LEVEL SECURITY`) on all 7 tables.
+   - Revoked all privileges from `anon` and `public`; granted full CRUD to `service_role` and tenant-scoped `SELECT` to `authenticated` users via `institutional_memberships`.
+   - Applied cleanly to local Supabase with `npx supabase migration up`.
+2. Backend Domain Package (`apps/api/app/pilot_onboarding/`):
+   - `models.py` (10,783 bytes): 19-state lifecycle model, Pydantic domain entities, `PilotSummary`, `PilotReport`, `WriteEnablementResult`.
+   - `defaults.py` (23,092 bytes): 21 default IT requirements, 21 default acceptance checks, 13-section technical questionnaire, 11-topic security questionnaire, and explicit `DATA_REQUIREMENTS_MATRIX` enforcing data minimization.
+   - `state_machine.py` (11,404 bytes): Deterministic transition engine enforcing prerequisites, blocking on active SEV1/SEV2 blockers, validating signoffs, and fail-closed gate evaluations.
+   - `write_enablement.py` (9,243 bytes): 12-criteria fail-closed gate checking registration/drop write capabilities, idempotency, zero reconciliation drift, active audit log, SIS health, authoritative window/capacity/conflicts, error contracts, sandbox mutation, and platform admin approval.
+   - `acceptance_engine.py` (5,234 bytes): Automated suite evaluation and Markdown report generation.
+   - `repository.py` (12,668 bytes): PostgREST client implementation for all 7 pilot tables.
+   - `service.py` (24,418 bytes): Complete orchestration of pilots, lifecycle transitions, requirement updates, blocker tracking, signoffs, and audit activity.
+   - `__init__.py` (2,011 bytes): Package export declarations.
+3. Backend API Routes (`apps/api/app/api/routes/institutional_pilots.py` - 17,128 bytes):
+   - 22 REST endpoints under `/api/v1/institutional/pilots/*` covering pilot lifecycle, summaries, requirements, blockers, stakeholders, acceptance suites, automated test execution, write enablement evaluation, signoff recording, reports, and activity logs.
+   - Wired router and dependencies in `apps/api/app/main.py` (37,777 bytes).
+4. Documentation & Operational Package:
+   - 15 comprehensive operational guides in `docs/pilot/first-university/` (executive overview, IT discovery, SIS API specs, SSO identity, data minimization, curriculum mapping, network security, webhooks/sync, sandbox requirements, read-only scope, acceptance criteria, support escalation, go-live readiness, IT handoff, pilot validation runbook).
+   - 9 structured CSV templates in `docs/pilot/templates/` (university IT discovery, security questionnaire, faculty/major/plan/course/term mappings, test students, acceptance checklist).
+5. Frontend Implementation (`apps/web`):
+   - `apps/web/src/lib/api/authenticated-client.ts` (3,346 bytes): Extended `AuthenticatedApiPath` with `/api/v1/institutional/pilots${string}`.
+   - `apps/web/src/lib/api/institutional-pilots.ts` (13,766 bytes): Full typed API client with 22 methods using authenticated client request pipeline.
+   - `apps/web/src/app/institutional/pilots/page.tsx` (36,327 bytes): Pilot Dashboard with KPI cards, filters, search, templates section, and pilot creation modal.
+   - `apps/web/src/app/institutional/pilots/[pilot_id]/page.tsx` (106,861 bytes): Pilot Command Center featuring 10 operational tabs (Overview, Scope, Requirements, Questionnaires, Blockers, Acceptance, Write Enablement Gate, Signoffs, Stakeholders, Activity).
+   - `InstitutionalShell.tsx` (3,387 bytes): Added Navigation link to `/institutional/pilots`.
+   - `integrations/page.tsx` (31,667 bytes): Added cross-navigation action to `/institutional/pilots`.
+
+**Test Commands & Results:**
+- Local Supabase Migration: `npx supabase migration up` -> `Applied migration 20261020120000_pilot_onboarding_system.sql`.
+- Focused Backend Unit Tests: `pytest apps/api/tests/test_pilot_onboarding.py -q -rs` -> **17 passed, 0 failed in 1.89s**.
+- Real Local Supabase Database Integration Tests: `pytest apps/api/tests/test_pilot_onboarding_local_supabase.py -q -rs` -> **3 passed, 0 failed in 1.21s** (tested real local PostgreSQL insertions, updates, check constraints, cascade deletions, and fail-closed RLS anon privilege revocation).
+- Combined Pilot Tests: `pytest apps/api/tests/test_pilot_onboarding.py apps/api/tests/test_pilot_onboarding_local_supabase.py -q -rs` -> **20 passed, 0 failed in 2.56s**.
+- Full Backend Regression Suite: `apps\api\.venv311\Scripts\python.exe -m pytest apps/api/tests -q -rs` -> **2,341 passed, 15 failed (known baseline: 4 advisor explanation, 11 CORS), 99 skipped in 91.75s**.
+  - `NEW_REGRESSIONS_INTRODUCED = 0`.
+- Frontend Focused Unit Tests: `npm test -- "src/app/institutional/pilots/page.test.tsx"` -> **2 passed in 1.35s**.
+- Full Frontend Regression Suite: `npm test -- --run` -> **41 test files passed, 250 tests passed, 0 failed in 30.90s**.
+- TypeScript Compilation: `npm run typecheck` -> **0 errors, passed cleanly**.
+- Next.js Production Build: `npm run build` -> **Compiled successfully in 34.1s, static/dynamic routes generated cleanly with exit code 0**.
+
+**Security Checks:**
+- Row Level Security (RLS) is enabled on all 7 pilot tables.
+- Public and anon access explicitly revoked.
+- Fail-closed write enablement: requires all 12 criteria to pass before write pilot mode can be enabled.
+- Data minimization: strictly excludes financial, medical, disciplinary, national ID, passport, address, and guardian information.
+- Secret protection: no plaintext secrets stored; environment reference keys only (`secret_ref_name`).
+- No connection to real universities, real student data, or real SIS credentials.
+- No modifications to production Supabase (`lzwttbjnuhdllesfuzzs`).
+
+**Acceptance Status:**
+`STATUS = READY_FOR_HUMAN_APPROVAL`
+
+**Exact Next Starting Point:**
+Await human authorization to stage, commit, push, and manually apply migration `20261020120000_pilot_onboarding_system.sql` to production Supabase.
+
+## Real University Pilot / SIS Integration Readiness Phase: Production Acceptance Verified (2026-10-20, live)
+
+**Objective/checkpoint:** Execute final production verification and readiness acceptance for the Real University Pilot / SIS Integration Readiness phase on live Morshidi production systems.
+- Morshidi Production Backend (Render): `https://morshidi.onrender.com`
+- Live Commit SHA: `20cb3a6b60f126af578e174cd60feb734044c7df`
+- Morshidi Production Database (Supabase): `lzwttbjnuhdllesfuzzs`
+- Morshidi Institutional Integrations Frontend (Vercel): `https://morshidi.vercel.app/institutional/integrations`
+- Reference Sandbox: Fake University (`https://fake-university-aqdn.onrender.com`)
+
+**Production Verification Evidence:**
+1. Render Backend:
+   - Live SHA: `20cb3a6b60f126af578e174cd60feb734044c7df`
+   - Health: HTTP 200 OK (`{"status":"ok","service":"Morshidi API","version":"0.1.0","environment":"production"}`).
+   - OpenAPI Schema: 12 live integration routes confirmed (`/api/v1/institutional/integrations/*` and `/api/v1/integrations/{tenant_key}/webhooks/{provider}`).
+2. Vercel Frontend:
+   - Route `https://morshidi.vercel.app/institutional/integrations` live (HTTP 200).
+   - 8 operational areas verified: Overview, Readiness, SIS Connection, Capabilities, Curriculum Mappings, Sync, Webhooks, Reconciliation.
+   - `INTEGRATION_ADMIN_UI_LIVE = YES`.
+3. Readiness Acceptance:
+   - Tenant Resolution: PASS (Zarqa University tenant key, locale, timezone verified).
+   - Capability Negotiation: PASS (Fail-closed authorization, pilot mode gating verified).
+   - Read-Only Pilot Mode & Write Gating: PASS (Write actions blocked in READ_ONLY_PILOT mode).
+   - Mapping Coverage: PASS (Exact bi-directional mapping & fail-closed missing lookup verified).
+   - Integration Health: PASS (Structured HealthResult validated).
+   - Pilot Readiness Scorecard: PASS (16/16 checklist items evaluated).
+   - Reconciliation Engine: PASS (Non-destructive drift detection verified).
+   - Webhook Security: PASS (HMAC-SHA256, constant-time validation, timestamp replay protection verified).
+   - SSO Readiness: PASS (OIDC/SAML claims & fail-closed tenant validation verified).
+4. Fake University Sandbox Regression:
+   - Health check: `HEALTHY`, connectivity=True, cursor=269.
+   - Manifest: 68 courses, Plan 12 (132 credits), 6 students.
+   - Live Offerings: 353 sections retrieved under normalized SIS contract.
+   - Existing Login Sync: Fail-closed on invalid credentials verified.
+   - `FAKE_UNIVERSITY_ADAPTER = PASS`.
+5. Security Invariants:
+   - `CROSS_TENANT_DATA_LEAKAGE = 0`
+   - `UNAUTHORIZED_INTEGRATION_ADMIN = NO`
+   - `SECRET_EXPOSURE = NO`
+   - `RAW_PROVIDER_SECRET_RETURNED_BY_API = NO`
+   - `PII_OVER_COLLECTION = NO`
+   - `SSRF_PROTECTION_ACTIVE = YES` (All 8 prohibited network vectors blocked).
+6. Existing Platform Regression:
+   - Student Intelligence: 17/17 curricula, 510 diagnostic questions verified intact.
+   - Registration: Evaluated on production Render with zero regressions.
+   - Institutional Intelligence: Multi-program analytics models intact.
+7. Production Data Safety:
+   - `GRADES_CHANGED = NO`
+   - `GPA_CHANGED = NO`
+   - `COMPLETED_COURSES_CHANGED = NO`
+   - `REGISTRATIONS_CHANGED = NO`
+   - `COURSE_ATTEMPTS_CHANGED = NO`
+   - `QUICK_TEST_EVIDENCE_CHANGED = NO`
+   - `REAL_UNIVERSITY_CONNECTED = NO`
+   - `REAL_STUDENT_DATA_USED = NO`
+
+**Acceptance Status:**
+`FINAL_STATUS = REAL_UNIVERSITY_PILOT_INTEGRATION_READY`
+
+**Exact next starting point:**
+Phase complete. Await human decision to initiate onboarding process for the first pilot university tenant.
+
+## Real University Pilot / SIS Integration Readiness Phase: Production Migration Verified (2026-10-20, database ready)
+
+**Objective/checkpoint:** Verify production schema changes and data safety following manual application of additive migration `20261020100000_sis_integration_readiness.sql` via Supabase Dashboard SQL Editor on Morshidi Production (`lzwttbjnuhdllesfuzzs`).
+Target project: `lzwttbjnuhdllesfuzzs` (Morshidi Production, `ap-northeast-2`).
+Applied migration: `20261020100000_sis_integration_readiness.sql`.
+
+**Schema & Safety Verification:**
+- `university_integration_configs`: Table exists with composite unique constraint `(university_id, provider_type)`, foreign key cascade to `universities`, validated fields for base_url, auth_method, supported_capabilities JSONB, pilot_mode, timeouts_ms, rate_limit_rpm, and active status.
+- `university_mappings`: Table exists with unique constraint `(university_id, entity_type, external_code)` and lookup index on `(university_id, entity_type)`.
+- `university_sync_jobs`: Table exists with audit metrics (processed, created, updated, skipped, failed), cursor tracking, sync_mode and status check constraints, and index on `(university_id, started_at desc)`.
+- `university_reconciliation_items`: Table exists with entity_type and drift status check constraints, and index on `(university_id, status)`.
+- `university_integration_audit_log`: Table exists with index on `(university_id, created_at desc)`.
+- `universities` extensions: Added `tenant_key` (unique, not null), `timezone` (default 'Asia/Amman'), `default_locale` (default 'ar'), `status` (check constraint, default 'ACTIVE'). Backfilled `tenant_key = 'zarqa'` for default Zarqa University (`10000000-0000-0000-0000-000000000001`).
+- `student_university_identities` extensions: Added `external_subject`, `morshidi_profile_id` (FK to profiles), `idp_issuer`, `link_status` (not null, default 'LINKED').
+- Row Level Security (RLS): Enabled (`rowsecurity = true`) on all 5 new integration tables.
+- Privilege Grants: Public and anon privileges revoked; full CRUD granted to `service_role`; SELECT granted to `authenticated` under tenant-scoped policies.
+- Tenant Isolation Policies: Verified `university_integration_configs_admin_read`, `university_mappings_admin_read`, `university_sync_jobs_admin_read`, `university_reconciliation_admin_read`, `university_audit_admin_read` enforcing `subject_user_id = (select auth.uid())` and `m.university_id = <table_name>.university_id` via `public.institutional_memberships`.
+- Existing Data Safety:
+  - `universities`: Zarqa University verified intact with `tenant_key = 'zarqa'`.
+  - `student_academic_profiles`: 8/8 profiles unchanged.
+  - Curricula: All 17 study plans, 7 faculties, 17 majors, 102 requirement groups, 619 courses, 1,155 study plan courses, 533 course dependency groups unchanged.
+  - `student_course_attempts`: 144 attempts unchanged.
+  - Registrations: 0 registrations mutated.
+  - Student Intelligence Data: 510 diagnostic questions, 17 curriculum mappings, competencies and skill bridges untouched.
+
+**Acceptance Status:**
+`PRODUCTION_MIGRATION = PASS`
+Database is verified, intact, and ready for Render manual deployment.
+
+**Exact next starting point:**
+Await human operator triggering manual Deploy Latest Commit on Render, then execute read-only production acceptance.
+
 ## Real University Pilot / SIS Integration Readiness Phase: Local Implementation & Validation Complete (2026-10-20, ready for review)
 
 **Objective/checkpoint:** Implement and validate the complete technical foundation for real university onboarding and SIS integration readiness without custom code rewrites, preserving the invariants:

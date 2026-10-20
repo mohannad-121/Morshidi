@@ -1,0 +1,5 @@
+external_term_code,term_name_ar,term_name_en,academic_year,is_current_registration,canonical_term_key,mapping_status
+2026-1,الفصل الأول 2026/2027,First Semester 2026/2027,2026/2027,TRUE,2026-1,MAPPED
+2026-2,الفصل الثاني 2026/2027,Second Semester 2026/2027,2026/2027,FALSE,2026-2,MAPPED
+2026-3,الفصل الصيفي 2026/2027,Summer Semester 2026/2027,2026/2027,FALSE,2026-3,MAPPED
+2025-2,الفصل الثاني 2025/2026,Second Semester 2025/2026,2025/2026,FALSE,2025-2,MAPPED

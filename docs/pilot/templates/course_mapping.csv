@@ -1,0 +1,8 @@
+external_course_code,course_title_ar,course_title_en,credit_hours,canonical_course_code,mapping_status,notes
+1501110,برمجة الحاسوب (1),Computer Programming 1,3,1501110,MAPPED,مادة متطلب إجباري عام لكلية تكنولوجيا المعلومات
+1501111,برمجة الحاسوب (2),Computer Programming 2,3,1501111,MAPPED,متطلب سابق: 1501110
+1501212,هياكل البيانات,Data Structures,3,1501212,MAPPED,متطلب سابق: 1501111
+1501331,مفاهيم الذكاء الاصطناعي,Artificial Intelligence Concepts,3,1501331,MAPPED,مادة أساسية لتخصص الذكاء الاصطناعي
+1501241,تحليل وتصميم النظم,Systems Analysis and Design,3,1501241,MAPPED,مادة أساسية لتخصص هندسة البرمجيات
+0101111,المدخل إلى الفقه الإسلامي,Introduction to Islamic Fiqh,3,0101111,MAPPED,متطلب جامعة اختياري
+9999999,مادة استدراكية خاصة,Special Remedial Course,0,,EXCLUDED,مادة استدراكية بدون ساعات معتمدة

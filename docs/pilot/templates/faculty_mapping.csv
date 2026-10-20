@@ -1,0 +1,5 @@
+external_code,external_name_ar,external_name_en,canonical_id,mapping_status,notes
+IT_FACULTY,كلية تكنولوجيا المعلومات,Faculty of Information Technology,10000000-0000-0000-0000-000000000002,MAPPED,مطابقة معتمدة
+ENG_FACULTY,كلية الهندسة والتكنولوجيا,Faculty of Engineering,10000000-0000-0000-0000-000000000003,MAPPED,مطابقة معتمدة
+BUS_FACULTY,كلية الاقتصاد والعلوم الإدارية,Faculty of Business,10000000-0000-0000-0000-000000000004,MAPPED,مطابقة معتمدة
+MED_FACULTY,كلية الطب البشري,Faculty of Medicine,,PENDING,قيد المراجعة للدفعة القادمة

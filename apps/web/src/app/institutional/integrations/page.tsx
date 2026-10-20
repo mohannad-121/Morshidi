@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState } from "react";
 import {
   Activity,
@@ -13,6 +14,7 @@ import {
   Lock,
   Network,
   RefreshCw,
+  Rocket,
   Server,
   ShieldAlert,
   ShieldCheck,
@@ -142,26 +144,36 @@ export default function IntegrationsDashboardPage() {
           </p>
         </div>
 
-        {/* Tenant Selector */}
-        {tenants.length > 0 && (
-          <div className="flex items-center gap-2">
-            <label htmlFor="tenant-select" className="text-xs font-medium text-muted whitespace-nowrap">
-              الجامعة المحددة:
-            </label>
-            <select
-              id="tenant-select"
-              value={selectedTenantId}
-              onChange={(e) => setSelectedTenantId(e.target.value)}
-              className="rounded-xl border border-border bg-surface px-3 py-2 text-sm text-foreground focus:border-amber-500 focus:outline-none"
-            >
-              {tenants.map((t) => (
-                <option key={t.id} value={t.id}>
-                  {t.name_ar} ({t.tenant_key})
-                </option>
-              ))}
-            </select>
-          </div>
-        )}
+        {/* Tenant Selector & Pilot Link */}
+        <div className="flex flex-wrap items-center gap-3">
+          <Link
+            href="/institutional/pilots"
+            className="inline-flex items-center gap-2 rounded-xl border border-amber-500/25 bg-amber-500/10 px-3.5 py-2 text-xs font-semibold text-amber-200 hover:bg-amber-500/20 transition-colors"
+          >
+            <Rocket className="size-4" />
+            <span>إدارة مشاريع الإطلاق (Pilots)</span>
+          </Link>
+
+          {tenants.length > 0 && (
+            <div className="flex items-center gap-2">
+              <label htmlFor="tenant-select" className="text-xs font-medium text-muted whitespace-nowrap">
+                الجامعة:
+              </label>
+              <select
+                id="tenant-select"
+                value={selectedTenantId}
+                onChange={(e) => setSelectedTenantId(e.target.value)}
+                className="rounded-xl border border-border bg-surface px-3 py-2 text-sm text-foreground focus:border-amber-500 focus:outline-none"
+              >
+                {tenants.map((t) => (
+                  <option key={t.id} value={t.id}>
+                    {t.name_ar} ({t.tenant_key})
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+        </div>
       </div>
 
       {error && (

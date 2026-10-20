@@ -33,7 +33,8 @@ export type AuthenticatedApiPath =
   | `/api/v1/institutional/capacity${string}`
   | `/api/v1/institutional/cohorts${string}`
   | `/api/v1/institutional/analytics${string}`
-  | `/api/v1/institutional/integrations${string}`;
+  | `/api/v1/institutional/integrations${string}`
+  | `/api/v1/institutional/pilots${string}`;
 
 export class AuthenticatedApiClient {
   private readonly fetcher: Fetcher;
