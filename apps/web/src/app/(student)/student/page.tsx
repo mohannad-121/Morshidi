@@ -17,6 +17,7 @@ import type {
 import { Badge } from "@/components/ui/Badge";
 import { StatCard } from "@/components/ui/StatCard";
 import { ProgressBar } from "@/components/ui/ProgressBar";
+import { Emoji } from "@/components/ui/Emoji";
 import { getArabicGreeting, getStudentDisplayName } from "@/lib/student-identity";
 import {
   DegreePathIcon,
@@ -241,8 +242,8 @@ export default function StudentPage({ client: injectedClient }: StudentPageProps
       <header className="dashboard-heading">
         <div className="dashboard-heading-row">
           <div className="dashboard-greeting">
-            <p className="eyebrow">لوحة الطالب <span aria-hidden="true">✨</span></p>
-            <h1 aria-label={`${greeting}، ${displayName}`}><span className="desktop-greeting">{greeting}، </span><span className="mobile-greeting">{greeting} <span aria-hidden="true">👋</span></span><span className="desktop-student-name">{displayName} <span aria-hidden="true">👋</span></span></h1>
+            <p className="eyebrow">لوحة الطالب <Emoji emoji="✨" decorative /></p>
+            <h1 aria-label={`${greeting}، ${displayName}`}><span className="desktop-greeting">{greeting}، </span><span className="mobile-greeting">{greeting} <Emoji emoji="👋" decorative /></span><span className="desktop-student-name">{displayName} <Emoji emoji="👋" decorative /></span></h1>
             <p className="mobile-student-name">{displayName}</p>
             <p className="dashboard-prompt">جاهز ترتّب يومك الأكاديمي؟</p>
           </div>
@@ -255,7 +256,7 @@ export default function StudentPage({ client: injectedClient }: StudentPageProps
               className="glass dashboard-refresh"
               aria-label="تحديث البيانات"
             >
-              <span aria-hidden="true" className={loading ? "animate-spin" : ""}>🔄</span>
+              <span aria-hidden="true" className={loading ? "animate-spin" : ""}><Emoji emoji="🔄" decorative /></span>
               <span className="refresh-label">تحديث البيانات</span>
             </button>
             <SignOutButton className="glass dashboard-signout" />
@@ -333,8 +334,8 @@ export default function StudentPage({ client: injectedClient }: StudentPageProps
         <div className="dashboard-loaded">
           {intelligence ? <section className="glass diagnostic-banner">
             <div className="diagnostic-banner-content">
-              <div><p>بصمتي الأكاديمية</p><h2>{intelligence.diagnostic_recommended ? <>ساعد مرشدي يتعرّف عليك بشكل أفضل <span aria-hidden="true">💡</span></> : `مرشدي يعرف أداءك من ${intelligence.verified_grade_count} علامة أكاديمية موثقة`}</h2><p>تخصيص مفسّر لا يغيّر الأهلية أو المتطلبات الأكاديمية.</p></div>
-              <Link href={intelligence.diagnostic_recommended ? "/student/diagnostic" : "/student/intelligence"} className="diagnostic-cta">{intelligence.diagnostic_recommended ? <>ابدأ الاختبار السريع <span aria-hidden="true">⚡</span></> : "عرض بصمتي"}</Link>
+              <div><p>بصمتي الأكاديمية</p><h2>{intelligence.diagnostic_recommended ? <>ساعد مرشدي يتعرّف عليك بشكل أفضل <Emoji emoji="💡" decorative /></> : `مرشدي يعرف أداءك من ${intelligence.verified_grade_count} علامة أكاديمية موثقة`}</h2><p>تخصيص مفسّر لا يغيّر الأهلية أو المتطلبات الأكاديمية.</p></div>
+              <Link href={intelligence.diagnostic_recommended ? "/student/diagnostic" : "/student/intelligence"} className="diagnostic-cta">{intelligence.diagnostic_recommended ? <>ابدأ الاختبار السريع <Emoji emoji="⚡" decorative /></> : "عرض بصمتي"}</Link>
             </div>
           </section> : null}
           {/* Quick Stats Grid */}
@@ -524,7 +525,7 @@ export default function StudentPage({ client: injectedClient }: StudentPageProps
 
           {/* Requirement Groups Breakdown */}
           <section className="dashboard-requirements">
-            <h2 aria-label="تفاصيل متطلبات الخطة"><span aria-hidden="true">🧩 </span>تفاصيل متطلبات الخطة</h2>
+            <h2 aria-label="تفاصيل متطلبات الخطة"><Emoji emoji="🧩" decorative /> تفاصيل متطلبات الخطة</h2>
             <div>
               {progress.requirement_groups.map((group, index) => (
                 <article
@@ -533,7 +534,7 @@ export default function StudentPage({ client: injectedClient }: StudentPageProps
                 >
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div>
-                      <h3 className="font-bold text-foreground"><span aria-hidden="true">{['🏛️', '🩺', '💉', '🌍', '🔬', '⭐'][index % 6]} </span>{group.name_ar}</h3>
+                      <h3 className="font-bold text-foreground"><Emoji emoji={['🏛️', '🩺', '💉', '🌍', '🔬', '⭐'][index % 6]} decorative /> {group.name_ar}</h3>
                       <p className="mt-1 text-xs text-muted" dir="ltr">
                         ({group.group_code})
                       </p>

@@ -1,5 +1,55 @@
 # Morshidi — Codex Progress Record
 
+## Student Apple emoji rendering (2026-10-20, implemented and verified)
+
+**Objective/slice:** Visual-only replacement of native emoji glyphs in the student shell and dashboard with locally hosted Apple 64px PNG artwork on every device. Data fetching, routes, authentication, authorization, academic calculations, deterministic rules, and business logic were kept unchanged.
+
+- **Starting branch/SHA:** `main` / `e708a4a0eff5c07e5d9c649b456b9563dd7be6a8`.
+- **Initial worktree:** clean (`git status --short` returned no entries).
+- **Architecture verified before editing:** `docs/CODEX_PROGRESS.md`, `apps/web/AGENTS.md`, current Git state, frontend package scripts and test setup, the shared `AppShell`, `/student`, `StatCard`, related tests, and all TSX source under the student route/UI scan boundary.
+
+**Implementation details:**
+1. Added `emoji-datasource-apple@^16.0.0` as a development dependency and the repeatable `npm run emoji:copy` command. `scripts/copy-emoji.mjs` scans the student pages, shared shell, and UI components; resolves grapheme clusters through the package's `emoji.json`; handles qualified/unqualified variation-selector names; removes stale generated PNGs; and copies only the Apple `img-apple-64` files actually referenced by the UI.
+2. Generated exactly 32 PNGs under `apps/web/public/emoji/` (174,220 bytes total): `1f30d`, `1f393`, `1f3af`, `1f3db-fe0f`, `1f3e0`, `1f44b`, `1f464`, `1f489`, `1f4a1`, `1f4c8`, `1f4ca`, `1f4cb`, `1f4d6`, `1f4da`, `1f4dc`, `1f4dd`, `1f504`, `1f514`, `1f52c`, `1f552`, `1f5d3-fe0f`, `1f5fa-fe0f`, `1f916`, `1f9d1-200d-1f393`, `1f9e9`, `1f9ed`, `1fa7a`, `23f3`, `26a1`, `2705`, `2728`, and `2b50`.
+3. Added client component `Emoji` and helper `renderEmoji(text)`. They normalize NFC/code points, variation selectors, and ZWJ sequences; render a local lazy, non-draggable inline image at `1.1em` with `vertical-align: -0.15em`; preserve the original character as alt text when meaningful; support `aria-hidden` for decorative use; and fall back to the native grapheme when an asset fails.
+4. Replaced directly rendered emoji in the desktop/mobile student shell, dashboard headings/actions/cards/chips, and `StatCard` string titles. Existing emoji data remains unchanged and is passed through `Emoji`/`renderEmoji`, preserving layout, copy, navigation, handlers, and state behavior.
+5. Added focused component coverage for variation-selector and ZWJ normalization, rendered local image paths/decorative accessibility, and native-character fallback after an image error. Updated shell assertions to verify Apple asset paths.
+6. Captured and visually inspected before/after screenshots at 1280x900 and 390x844 with deterministic synthetic student data. Temporary capture routing/tooling was removed afterward.
+
+**Files changed and verified from disk (bytes):**
+- `apps/web/package.json` - 1,036.
+- `apps/web/package-lock.json` - 357,395.
+- `apps/web/scripts/copy-emoji.mjs` - 3,442.
+- `apps/web/public/emoji/*.png` - 32 files / 174,220 total.
+- `apps/web/src/components/ui/Emoji.tsx` - 2,153.
+- `apps/web/src/components/ui/Emoji.test.tsx` - 1,080.
+- `apps/web/src/components/ui/StatCard.tsx` - 947.
+- `apps/web/src/components/navigation/AppShell.tsx` - 5,680.
+- `apps/web/src/components/navigation/AppShell.test.tsx` - 1,925.
+- `apps/web/src/app/(student)/student/page.tsx` - 24,987.
+- `docs/screenshots/apple-emoji/before-1280.png` - 622,997.
+- `docs/screenshots/apple-emoji/after-1280.png` - 631,228.
+- `docs/screenshots/apple-emoji/before-390.png` - 216,428.
+- `docs/screenshots/apple-emoji/after-390.png` - 219,958.
+- `docs/CODEX_PROGRESS.md` - 568,201 after this entry.
+
+**Verification evidence:**
+- Asset generation: `npm run emoji:copy` -> **32 Apple 64px PNGs copied**; a second run produced the identical 32-file set and byte total (`REPRODUCIBLE=True`).
+- Focused tests: `npm test -- "src/components/ui/Emoji.test.tsx" "src/components/navigation/AppShell.test.tsx" "src/app/(student)/student/page.test.tsx"` -> **3 files passed, 22 tests passed, 0 failed**.
+- Full frontend regression: `npm test -- --run` -> **42 files passed, 252 tests passed, 0 failed in 16.21s**.
+- TypeScript: `npm run typecheck` -> **passed, 0 errors** after deleting only stale generated `.next` references to the removed visual-capture route.
+- Changed-file lint: `npm run lint -- "src/components/ui/Emoji.tsx" "src/components/ui/Emoji.test.tsx" "src/components/ui/StatCard.tsx" "src/components/navigation/AppShell.tsx" "src/components/navigation/AppShell.test.tsx" "src/app/(student)/student/page.tsx" "src/app/(student)/student/page.test.tsx"` -> **passed, 0 errors/warnings**.
+- Production build: `npm run build` -> **passed**; compilation completed in 6.3s, TypeScript in 7.2s, and all 40 routes generated.
+- Screenshot dimensions: all four files verified from disk at the requested desktop/mobile widths (1280x900 and 390x844).
+
+**Security and scope checks:** `AI EXPLAINS - DETERMINISTIC RULES DECIDE.` remains preserved. No request, API, route, auth boundary, authorization rule, database/RLS policy, migration, academic rule, credential, environment file, or production resource changed. Screenshots contain synthetic local data only. Temporary visual-check files are absent. The dependency install reported the repository's current audit state of **8 vulnerabilities (7 high, 1 critical)**; dependency remediation is outside this visual slice. Nothing was committed, pushed, deployed, or applied to production during implementation verification.
+
+**Release workflow checkpoint (2026-10-20):** After implementation handoff, the user separately approved staging and committing. Exactly the verified 46-file Apple-emoji slice was staged, including the 32 generated PNGs and four screenshot artifacts; `git diff --cached --check` passed. This progress entry is included in the approved commit. Nothing has been pushed; repository policy still requires separate explicit push approval.
+
+**Acceptance status:** `STATUS = IMPLEMENTED_AND_LOCALLY_VERIFIED`; the requested local Apple emoji renderer, limited generated asset set, fallback behavior, regression coverage, and desktop/mobile visual evidence are complete.
+
+**Exact next starting point:** Human review of the source diff and four screenshot artifacts. If accepted, obtain separate explicit approvals for staging, committing, and pushing as required by repository policy. No implementation work remains in this slice.
+
 ## Student Dashboard “Midnight Glass” visual restyle (2026-10-20, implemented and verified)
 
 **Objective/slice:** Visual-only restyle of `/student` and its shared student shell for an Arabic RTL, iOS-inspired dark liquid-glass experience at desktop and phone widths. Data fetching, API paths, authentication, authorization, routes, academic calculations, deterministic decision boundaries, and real-data copy/value sources were not changed.
