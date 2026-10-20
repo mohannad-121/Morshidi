@@ -1,5 +1,41 @@
 # Morshidi — Codex Progress Record
 
+## Degree-path compute-capacity race fix (2026-10-21, implemented and verified)
+
+**Objective/slice:** Fix the student Degree Path page's repeatable 503 failure without changing degree rules, data contracts, authentication, authorization, routes, or backend capacity policy. The page was starting degree-path generation and credit-comparison generation concurrently even though both use the API's intentionally single-slot academic compute limiter.
+
+- **Starting branch/SHA:** `main` / `56f8f2b3d2065314bed8b528d8f277bc7ddec464`.
+- **Initial worktree:** clean (`git status --short` returned no entries).
+- **Architecture verified before editing:** `docs/CODEX_PROGRESS.md`, root `AGENTS.md`, `apps/web/AGENTS.md`, the Degree Path page, student API client and types, API degree-path and credit-comparison routes/services, `AcademicComputeLimiter`, capacity exception mapping, and relevant frontend/backend tests.
+
+**Root cause and implementation:**
+1. The Degree Path page used one `Promise.all` to start `POST /degree-paths`, `GET /academic-progress`, and `POST /degree-paths/credit-comparison` together. Degree-path generation and the comparison's adaptive-intelligence enrichment both acquire the same fail-fast academic compute limiter, whose configured capacity is one. Whichever request lost the race returned 503.
+2. When credit comparison failed first, `Promise.all` rejected while the degree-path worker continued running. The UI re-enabled retry, so the retry's degree-path request also received 503 from the still-occupied slot. This matches the reported browser trace: a pending degree-path request, a 503 credit comparison, and then 503s on retry.
+3. The page now runs degree-path generation alongside only the non-compute academic-progress read, waits for both to settle, and starts credit comparison only after the degree-path request has released the worker slot. `Promise.allSettled` also prevents a fast progress-read failure from exposing retry while degree computation is still outstanding.
+4. Progress UI state now marks scenario generation active only when the comparison request actually begins. No academic result, input, rule, API contract, route, or backend limiter behavior changed.
+5. Added a regression test that deliberately holds the degree-path response pending, confirms no credit-comparison request is issued during that interval, releases the response, and confirms comparison and rendering then proceed. Updated the server-error assertion to confirm comparison is not called after degree-path failure.
+
+**Files changed and verified from disk (bytes before this progress update):**
+- `apps/web/src/app/(student)/student/degree-path/page.tsx` - 19,415.
+- `apps/web/src/app/(student)/student/portal-pages.test.tsx` - 49,945.
+- `docs/CODEX_PROGRESS.md` - updated with this record.
+
+**Verification evidence:**
+- Focused regression: `npm test -- "src/app/(student)/student/portal-pages.test.tsx"` -> **1 file passed, 28 tests passed, 0 failed in 29.70s**.
+- Full frontend regression: `npm test -- --run` -> **43 files passed, 255 tests passed, 0 failed in 17.76s**.
+- TypeScript: `npm run typecheck` -> **passed, 0 errors**.
+- Changed-file lint: `npm run lint -- "src/app/(student)/student/degree-path/page.tsx" "src/app/(student)/student/portal-pages.test.tsx"` -> **passed, 0 errors/warnings**.
+- Production build: `npm run build` -> **passed**; compiled successfully in 47s, TypeScript completed in 3.0s, and all 40 routes generated.
+- Diff hygiene: `git diff --check` -> **passed** before the progress update; final check remains the delivery step.
+
+**Security and scope checks:** `AI EXPLAINS - DETERMINISTIC RULES DECIDE.` remains preserved. No deterministic academic algorithm, response data, endpoint contract, authentication/authorization boundary, student ownership rule, tenant isolation, database/RLS policy, migration, credential, dependency, environment file, or production resource changed. No local database integration test was required because there is no database/RLS change. Nothing was staged, committed, pushed, deployed, or applied to production.
+
+**Remaining problems:** The API's capacity-one, fail-fast policy can still return an intentional 503 when a genuinely separate academic computation is already using the worker. This slice removes the Degree Path page's self-contention and retry cascade; it does not weaken or bypass capacity protection.
+
+**Acceptance status:** `STATUS = IMPLEMENTED_AND_LOCALLY_VERIFIED`; the reported internal request race is fixed and covered by regression tests.
+
+**Exact next starting point:** Review the three-file diff and validate the Degree Path flow against a running API environment. Do not stage, commit, or push without separate human approval as required by repository policy.
+
 ## Student iOS-style system typography (2026-10-21, implemented and verified)
 
 **Objective/slice:** Visual-only typography update for the full student route group: native Apple system fonts remain first on Apple devices, with self-hosted free Inter for Latin/numerals and IBM Plex Sans Arabic for Arabic elsewhere. Existing font sizes, declared weights, spacing, letter-spacing, data, routes, authentication, authorization, and business logic were preserved.

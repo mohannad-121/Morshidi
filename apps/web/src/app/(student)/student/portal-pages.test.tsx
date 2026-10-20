@@ -735,6 +735,36 @@ describe('Morshidi Student Portal Pages Suite', () => {
     });
   });
 
+  it('waits for degree-path computation before requesting the credit comparison', async () => {
+    const normalFetch = fetchSpy.getMockImplementation()!;
+    let resolveDegreePath!: (response: Response) => void;
+    const pendingDegreePath = new Promise<Response>((resolve) => {
+      resolveDegreePath = resolve;
+    });
+    fetchSpy.mockImplementation((input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (url.endsWith('/api/v1/me/degree-paths')) return pendingDegreePath;
+      return normalFetch(input, init);
+    });
+
+    const user = userEvent.setup();
+    renderWithAuth(<DegreePathPage />);
+    await user.click(screen.getByRole('button', { name: 'ارسم المسار' }));
+    await waitFor(() => expect(fetchSpy.mock.calls.some(([url]: [RequestInfo | URL]) =>
+      String(url).endsWith('/api/v1/me/degree-paths'))).toBe(true));
+    expect(fetchSpy.mock.calls.some(([url]: [RequestInfo | URL]) =>
+      String(url).endsWith('/degree-paths/credit-comparison'))).toBe(false);
+
+    resolveDegreePath(new Response(JSON.stringify(mockDegreePath), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json' },
+    }));
+
+    await waitFor(() => expect(fetchSpy.mock.calls.some(([url]: [RequestInfo | URL]) =>
+      String(url).endsWith('/degree-paths/credit-comparison'))).toBe(true));
+    expect(await screen.findByText('الأسرع')).toBeDefined();
+  });
+
   it('renders RecommendationsPage with ranked courses and impact tags', async () => {
     const user = userEvent.setup();
     renderWithAuth(<RecommendationsPage />);
@@ -889,7 +919,6 @@ describe('Morshidi Student Portal Pages Suite', () => {
     expect(screen.queryByRole('status')).toBeNull();
     expect(requests.filter((request) => request.includes('/degree-paths'))).toEqual([
       expect.stringMatching(/^POST .*\/api\/v1\/me\/degree-paths$/),
-      expect.stringMatching(/^POST .*\/api\/v1\/me\/degree-paths\/credit-comparison$/),
     ]);
   });
 

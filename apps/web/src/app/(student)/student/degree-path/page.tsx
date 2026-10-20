@@ -110,11 +110,27 @@ export default function DegreePathPage() {
         { ...INITIAL_DEGREE_PATH_STEPS[2], status: "WAITING" },
         { ...INITIAL_DEGREE_PATH_STEPS[3], status: "WAITING" },
       ]);
-      const [paths, academicProgress, scenarios] = await Promise.all([
+      const [pathsResult, progressResult] = await Promise.allSettled([
         api.createDegreePaths(AUTOMATIC_PATH_REQUEST, signal),
         api.getProgress(),
-        api.compareCreditTimelines({ start_year: now.getFullYear(), start_term: "FIRST_SEMESTER" }),
       ]);
+      if (currentRequest !== requestId.current) return;
+      if (pathsResult.status === "rejected") throw pathsResult.reason;
+      if (progressResult.status === "rejected") throw progressResult.reason;
+      const paths = pathsResult.value;
+      const academicProgress = progressResult.value;
+      setPathSteps([
+        { ...INITIAL_DEGREE_PATH_STEPS[0], status: "COMPLETE" },
+        { ...INITIAL_DEGREE_PATH_STEPS[1], status: "COMPLETE" },
+        { ...INITIAL_DEGREE_PATH_STEPS[2], status: "ACTIVE" },
+        { ...INITIAL_DEGREE_PATH_STEPS[3], status: "WAITING" },
+      ]);
+      // Both endpoints perform bounded academic computation through the same
+      // single-slot worker. Starting them together makes one fail with 503.
+      const scenarios = await api.compareCreditTimelines({
+        start_year: now.getFullYear(),
+        start_term: "FIRST_SEMESTER",
+      });
       if (currentRequest !== requestId.current) return;
       setResult(paths);
       setProgress(academicProgress);
