@@ -115,6 +115,7 @@ def plan_semester(
     adaptive_scores: Mapping[str, int] | None = None,
     learning_profiles: Mapping[str, CourseLearningProfile] | None = None,
     accept_heavy_balance: bool = False,
+    combination_evaluation_limit: int | None = None,
 ) -> SemesterPlannerResult:
     """Generate and rank optimal semester course combinations deterministically.
 
@@ -139,6 +140,12 @@ def plan_semester(
         raise PlannerConstraintError("candidate_window_size must be at least 1")
     if not isinstance(accept_heavy_balance, bool):
         raise PlannerConstraintError("accept_heavy_balance must be boolean")
+    if combination_evaluation_limit is not None and (
+        isinstance(combination_evaluation_limit, bool)
+        or not isinstance(combination_evaluation_limit, int)
+        or combination_evaluation_limit < 1
+    ):
+        raise PlannerConstraintError("combination_evaluation_limit must be a positive integer or None")
 
     def record(name: str, started: float) -> None:
         if metrics is not None:
@@ -264,7 +271,10 @@ def plan_semester(
                 for option_code in group.option_course_codes:
                     unlock_targets_by_option.setdefault(option_code, set()).add(rule.course_code)
 
-    # 4. Deterministic Depth-First Branch-and-Bound Search
+    # 4. Deterministic combination search.  The standalone semester planner
+    # remains exhaustive by default.  Multi-semester callers may supply a
+    # bounded frontier size so one state cannot materialize and fully simulate
+    # every subset of a large candidate window (2**M).
     phase_started = monotonic()
     valid_combinations: list[tuple[RecommendationCandidate, ...]] = []
     visited_nodes = 0
@@ -296,7 +306,69 @@ def plan_semester(
         # Branch 2: Exclude candidate
         _dfs(index + 1, current_courses, current_credits)
 
-    _dfs(0, [], Decimal("0"))
+    if combination_evaluation_limit is None:
+        _dfs(0, [], Decimal("0"))
+    else:
+        frontier: list[tuple[tuple[RecommendationCandidate, ...], Decimal]] = [
+            ((), Decimal("0"))
+        ]
+
+        def _frontier_key(
+            item: tuple[tuple[RecommendationCandidate, ...], Decimal],
+        ) -> tuple:
+            combination, total_credits = item
+            selected_codes = {candidate.course_code for candidate in combination}
+            modeled_credit_delta, newly_satisfied_groups = progress_projection.selected_passes(
+                selected_codes
+            )
+            mandatory_count = sum(
+                candidate.requirement_type in (RequirementType.REQUIRED.value, "required")
+                for candidate in combination
+            )
+            adaptive_sum = sum(
+                adaptive_scores.get(candidate.course_code, 0) for candidate in combination
+            ) if adaptive_scores else 0
+            return (
+                -mandatory_count,
+                -len(newly_satisfied_groups),
+                -modeled_credit_delta,
+                -total_credits,
+                -adaptive_sum,
+                sum(candidate.rank for candidate in combination),
+                tuple(sorted(candidate.course_code for candidate in combination)),
+            )
+
+        for candidate in candidate_pool:
+            next_frontier = list(frontier)
+            for combination, total_credits in frontier:
+                visited_nodes += 1
+                if check_budget is not None and visited_nodes % 128 == 0:
+                    check_budget()
+                if total_credits + candidate.credit_hours > constraints.max_credit_hours:
+                    continue
+                if (
+                    constraints.max_courses is not None
+                    and len(combination) + 1 > constraints.max_courses
+                ):
+                    continue
+                next_combination = combination + (candidate,)
+                next_credits = total_credits + candidate.credit_hours
+                next_credit_delta, _ = progress_projection.selected_passes(
+                    {item.course_code for item in next_combination}
+                )
+                # A degree path must not place surplus elective alternatives
+                # after their authoritative group credit requirement is met.
+                # Such courses increase raw scheduled credits without advancing
+                # canonical plan credits and make final accounting misleading.
+                if next_credit_delta != next_credits:
+                    continue
+                next_frontier.append(
+                    (next_combination, next_credits)
+                )
+            next_frontier.sort(key=_frontier_key)
+            frontier = next_frontier[:combination_evaluation_limit]
+
+        valid_combinations = [combination for combination, _ in frontier if combination]
     record("combination_generation_ms", phase_started)
     if metrics is not None:
         metrics["valid_combinations"] = metrics.get("valid_combinations", 0) + len(valid_combinations)
@@ -535,7 +607,8 @@ def plan_semester(
                  if course.course_name_ar or course.course_name_en else course.course_code for course in item.courses
                  if learning_profiles[course.course_code].memorization_heavy]
                 [MAX_MEMORIZATION_HEAVY:])
-                             if heavy_count(item) > MAX_MEMORIZATION_HEAVY else None),
+                             if learning_profiles is not None
+                             and heavy_count(item) > MAX_MEMORIZATION_HEAVY else None),
         )
         for idx, item in enumerate(top_k)
     )

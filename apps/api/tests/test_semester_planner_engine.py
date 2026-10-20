@@ -1199,6 +1199,40 @@ def test_71_search_evaluates_all_combinations_before_slicing():
     assert res.plan_options[0].total_courses == 2
 
 
+def test_71b_bounded_frontier_caps_large_degree_path_search_deterministically():
+    group = _req_group(required_hours="45")
+    courses = tuple(_pc(f"C{i:02d}", display_order=i) for i in range(1, 16))
+    rules = tuple(_rule_na(course.course_code) for course in courses)
+    progress, eligibility = _build_catalogs((group,), courses, rules)
+    recommendations = _recommendation_result(tuple(
+        _candidate(course.course_code, rank=i)
+        for i, course in enumerate(courses, start=1)
+    ))
+    constraints = PlannerConstraints(max_credit_hours=Decimal("18"), max_options=3)
+
+    first = plan_semester(
+        progress,
+        eligibility,
+        (),
+        recommendations,
+        constraints,
+        combination_evaluation_limit=32,
+    )
+    second = plan_semester(
+        progress,
+        eligibility,
+        (),
+        recommendations,
+        constraints,
+        combination_evaluation_limit=32,
+    )
+
+    assert first == second
+    assert first.valid_combination_count <= 32
+    assert first.plan_options[0].total_credit_hours == Decimal("18")
+    assert first.plan_options[0].total_courses == 6
+
+
 def test_72_top_k_equals_prefix_of_full_sorted_options():
     g = _req_group(required_hours="12")
     pc1, pc2 = _pc("C1"), _pc("C2")

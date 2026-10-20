@@ -20,6 +20,7 @@ PLANNING_SCOPE = "MODELED_DEGREE_PATH_ONLY"
 DEFAULT_BEAM_WIDTH = 3
 DEFAULT_SEMESTER_BRANCH_WIDTH = 3
 DEFAULT_CANDIDATE_WINDOW_SIZE = 15
+DEFAULT_COMBINATION_EVALUATION_LIMIT = 256
 MAX_CREDIT_HOURS_SAFETY_CEILING = Decimal("30.00")
 
 # ---------------------------------------------------------------------------
@@ -33,6 +34,28 @@ class DegreePathConstraintError(ValueError):
 
 class DegreePathIntegrityError(RuntimeError):
     """Raised when input catalogs, student history, or search transitions violate integrity invariants."""
+
+
+class DegreePathValidationErrorCode(str, Enum):
+    """Stable fail-closed codes emitted by the final path validator."""
+
+    CREDIT_TOTAL_MISMATCH = "CREDIT_TOTAL_MISMATCH"
+    DUPLICATE_COURSE = "DUPLICATE_COURSE"
+    FOREIGN_PLAN_COURSE = "FOREIGN_PLAN_COURSE"
+    MISSING_PLAN_COURSE = "MISSING_PLAN_COURSE"
+    PREREQUISITE_ORDER_VIOLATION = "PREREQUISITE_ORDER_VIOLATION"
+    UNRESOLVED_DEPENDENCY = "UNRESOLVED_DEPENDENCY"
+    COMPLETED_COURSE_REPLACED = "COMPLETED_COURSE_REPLACED"
+    INVALID_TERM_LOAD = "INVALID_TERM_LOAD"
+    RESULT_MISMATCH = "RESULT_MISMATCH"
+
+
+class DegreePathValidationError(DegreePathIntegrityError):
+    """A generated path failed deterministic post-search validation."""
+
+    def __init__(self, code: DegreePathValidationErrorCode, detail: str) -> None:
+        self.code = code
+        super().__init__(f"{code.value}: {detail}")
 
 
 class DegreePathComputationTimeout(RuntimeError):

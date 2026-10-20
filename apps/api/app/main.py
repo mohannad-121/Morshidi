@@ -127,6 +127,7 @@ from app.degree_path.models import (
     DegreePathComputationTimeout,
     DegreePathConstraintError,
     DegreePathIntegrityError,
+    DegreePathValidationError,
 )
 from app.mock_registration_persistence.repository import SupabaseMockRegistrationRepository
 from app.mock_registration_service.context import SupabaseAcademicContextLoader
@@ -674,6 +675,13 @@ async def handle_target_not_in_plan(_: Request, __: TargetCourseNotInStudyPlan) 
         "TARGET_NOT_IN_STUDY_PLAN",
         "Target course is not in the requested study plan",
         409,
+    )
+
+
+@app.exception_handler(DegreePathValidationError)
+async def handle_degree_path_validation(_: Request, __: DegreePathValidationError) -> JSONResponse:
+    return _catalog_error_response(
+        "DEGREE_PATH_INTERNAL_ERROR", "Degree path validation failed", 500,
     )
 
 

@@ -15,6 +15,7 @@ from typing import Callable
 from app.degree_path.models import (
     DEFAULT_BEAM_WIDTH,
     DEFAULT_CANDIDATE_WINDOW_SIZE,
+    DEFAULT_COMBINATION_EVALUATION_LIMIT,
     DEFAULT_SEMESTER_BRANCH_WIDTH,
     DEGREE_PATH_POLICY_VERSION,
     PLANNING_SCOPE,
@@ -28,6 +29,7 @@ from app.degree_path.models import (
     PathReasonCode,
     PathStatus,
 )
+from app.degree_path.validation import validate_degree_path_result
 from app.planner.engine import plan_semester
 from app.planner.models import (
     PlanReasonCode,
@@ -73,7 +75,7 @@ _LIMITATIONS: tuple[str, ...] = (
     "Simulation assumes selected future courses pass with AttemptOutcome.PASSED at the conclusion of each modeled semester; this is an exploratory simulation assumption, not an outcome prediction.",
     "Persisted IN_PROGRESS courses are conservatively treated as unresolved and do not satisfy downstream prerequisites during simulation.",
     "Beam search with beam_width=3 prunes search branches; output is a deterministic bounded search result, not guaranteed globally optimal across all unexamined branches.",
-    "Single-semester combinations inherit Phase 8 top-M=15 candidate window bounding.",
+    "Single-semester combinations use a top-M=15 candidate window and a deterministic 256-state frontier; this prevents exponential subset expansion and is not guaranteed globally optimal.",
     "Course availability, seasonal offering patterns, section capacities, and weekly timetables are not modeled.",
     "No GPA prediction or academic standing forecast is performed.",
     "Does not predict or guarantee an official university graduation date.",
@@ -380,7 +382,7 @@ def plan_degree_paths(
             priority_tuple=priority_tuple,
             reason_codes=(PathReasonCode.REACHES_MODELED_PLAN_COMPLETION,),
         )
-        return DegreePathResult(
+        completed_result = DegreePathResult(
             study_plan_id=study_plan_id,
             degree_path_policy_version=DEGREE_PATH_POLICY_VERSION,
             planning_scope=PLANNING_SCOPE,
@@ -396,6 +398,18 @@ def plan_degree_paths(
             methodology_note=_METHODOLOGY_NOTE,
             limitations=_LIMITATIONS,
         )
+        phase_started = monotonic()
+        validate_degree_path_result(
+            progress_catalog,
+            eligibility_catalog,
+            student_attempts,
+            completed_result,
+            reported_cumulative_gpa=reported_cumulative_gpa,
+            reported_gpa_scale=reported_gpa_scale,
+            reported_earned_credit_hours=reported_earned_credit_hours,
+        )
+        record("validation_ms", phase_started)
+        return completed_result
 
     # 4. Search State Setup
     initial_state = _PathState(
@@ -510,6 +524,7 @@ def plan_degree_paths(
                 reported_earned_credit_hours=reported_earned_credit_hours,
                 check_budget=check_budget,
                 metrics=metrics,
+                combination_evaluation_limit=DEFAULT_COMBINATION_EVALUATION_LIMIT,
             )
             record("semester_planner_ms", phase_started)
 
@@ -860,7 +875,7 @@ def plan_degree_paths(
     final_paths = tuple(ranked_options[:constraints.max_paths])
     record("path_ranking_ms", phase_started)
 
-    return DegreePathResult(
+    result = DegreePathResult(
         study_plan_id=study_plan_id,
         degree_path_policy_version=DEGREE_PATH_POLICY_VERSION,
         planning_scope=PLANNING_SCOPE,
@@ -876,3 +891,15 @@ def plan_degree_paths(
         methodology_note=_METHODOLOGY_NOTE,
         limitations=_LIMITATIONS,
     )
+    phase_started = monotonic()
+    validate_degree_path_result(
+        progress_catalog,
+        eligibility_catalog,
+        student_attempts,
+        result,
+        reported_cumulative_gpa=reported_cumulative_gpa,
+        reported_gpa_scale=reported_gpa_scale,
+        reported_earned_credit_hours=reported_earned_credit_hours,
+    )
+    record("validation_ms", phase_started)
+    return result

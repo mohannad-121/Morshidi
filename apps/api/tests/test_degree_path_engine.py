@@ -25,6 +25,7 @@ Test coverage categories:
 from __future__ import annotations
 
 import sys
+from dataclasses import replace
 from decimal import Decimal
 
 import pytest
@@ -40,12 +41,15 @@ from app.degree_path.models import (
     DegreePathConstraintError,
     DegreePathConstraints,
     DegreePathIntegrityError,
+    DegreePathValidationError,
+    DegreePathValidationErrorCode,
     DegreePathOption,
     DegreePathResult,
     ModeledSemesterEntry,
     PathReasonCode,
     PathStatus,
 )
+from app.degree_path.validation import validate_degree_path_result
 from app.progress.engine import calculate_academic_progress
 from app.progress.models import (
     AcademicProgressCatalog,
@@ -1963,3 +1967,170 @@ class TestPolicySpecificationContracts:
         assert q5 == 0   # blocker_count
         assert q6 == 0   # aggregate_rank_sum
         assert q7 == (("A",),)  # canonical_path_codes
+
+
+class TestFinalPathValidation:
+    def test_114_credit_mismatch_is_typed_and_fail_closed(self) -> None:
+        pcs = (_pc("A", credits="3"),)
+        rules = (_rule_na("A"),)
+        p_cat, e_cat = _catalogs(pcs, rules, total_credits="3")
+        result = plan_degree_paths(
+            p_cat,
+            e_cat,
+            (),
+            DegreePathConstraints(max_credit_hours_per_semester=Decimal("3")),
+        )
+        bad_path = replace(result.paths[0], total_planned_credits=Decimal("4"))
+        bad_result = replace(result, paths=(bad_path,))
+
+        with pytest.raises(DegreePathValidationError) as caught:
+            validate_degree_path_result(p_cat, e_cat, (), bad_result)
+        assert caught.value.code is DegreePathValidationErrorCode.CREDIT_TOTAL_MISMATCH
+
+    def test_115_duplicate_course_is_typed_and_fail_closed(self) -> None:
+        pcs = (_pc("A", credits="3"), _pc("B", credits="3"))
+        rules = (_rule_na("A"), _rule_na("B"))
+        p_cat, e_cat = _catalogs(pcs, rules, total_credits="6")
+        result = plan_degree_paths(
+            p_cat,
+            e_cat,
+            (),
+            DegreePathConstraints(max_credit_hours_per_semester=Decimal("3")),
+        )
+        path = result.paths[0]
+        duplicate_option = replace(
+            path.semesters[1].plan_option,
+            courses=path.semesters[0].plan_option.courses,
+        )
+        duplicate_semester = replace(path.semesters[1], plan_option=duplicate_option)
+        bad_path = replace(path, semesters=(path.semesters[0], duplicate_semester))
+
+        with pytest.raises(DegreePathValidationError) as caught:
+            validate_degree_path_result(p_cat, e_cat, (), replace(result, paths=(bad_path,)))
+        assert caught.value.code is DegreePathValidationErrorCode.DUPLICATE_COURSE
+
+    def test_116_prerequisite_order_violation_is_typed_and_fail_closed(self) -> None:
+        pcs = (_pc("A", credits="3"), _pc("B", credits="3"))
+        rules = (_rule_na("A"), _rule_prereq("B", "A"))
+        p_cat, e_cat = _catalogs(pcs, rules, total_credits="6")
+        result = plan_degree_paths(
+            p_cat,
+            e_cat,
+            (),
+            DegreePathConstraints(max_credit_hours_per_semester=Decimal("3")),
+        )
+        path = result.paths[0]
+        reordered = (
+            replace(path.semesters[1], semester_index=1),
+            replace(path.semesters[0], semester_index=2),
+        )
+
+        with pytest.raises(DegreePathValidationError) as caught:
+            validate_degree_path_result(
+                p_cat,
+                e_cat,
+                (),
+                replace(result, paths=(replace(path, semesters=reordered),)),
+            )
+        assert caught.value.code is DegreePathValidationErrorCode.PREREQUISITE_ORDER_VIOLATION
+
+
+class TestAcademicHistoryRegression:
+    def test_117_mid_degree_excludes_completed_courses(self) -> None:
+        pcs = tuple(_pc(code, credits="3", display_order=index) for index, code in enumerate(
+            ("A", "B", "C", "D"), start=1
+        ))
+        rules = tuple(_rule_na(course.course_code) for course in pcs)
+        p_cat, e_cat = _catalogs(pcs, rules, total_credits="12")
+        result = plan_degree_paths(
+            p_cat,
+            e_cat,
+            (StudentCourseAttempt("A", AttemptOutcome.PASSED),
+             StudentCourseAttempt("B", AttemptOutcome.PASSED)),
+            DegreePathConstraints(max_credit_hours_per_semester=Decimal("6")),
+        )
+        selected = {
+            course.course_code
+            for semester in result.paths[0].semesters
+            for course in semester.plan_option.courses
+        }
+        assert selected == {"C", "D"}
+        assert result.paths[0].final_completed_plan_credits == Decimal("12")
+
+    def test_118_repeated_failed_then_passed_course_is_not_rescheduled(self) -> None:
+        pcs = (_pc("A", credits="3"), _pc("B", credits="3", display_order=2))
+        rules = (_rule_na("A"), _rule_na("B"))
+        p_cat, e_cat = _catalogs(pcs, rules, total_credits="6")
+        attempts = (
+            StudentCourseAttempt("A", AttemptOutcome.FAILED),
+            StudentCourseAttempt("A", AttemptOutcome.PASSED),
+        )
+        result = plan_degree_paths(
+            p_cat,
+            e_cat,
+            attempts,
+            DegreePathConstraints(max_credit_hours_per_semester=Decimal("3")),
+        )
+        selected = [
+            course.course_code
+            for semester in result.paths[0].semesters
+            for course in semester.plan_option.courses
+        ]
+        assert selected == ["B"]
+
+    def test_119_near_graduation_returns_only_final_course(self) -> None:
+        pcs = tuple(_pc(code, credits="3", display_order=index) for index, code in enumerate(
+            ("A", "B", "C"), start=1
+        ))
+        rules = tuple(_rule_na(course.course_code) for course in pcs)
+        p_cat, e_cat = _catalogs(pcs, rules, total_credits="9")
+        result = plan_degree_paths(
+            p_cat,
+            e_cat,
+            (StudentCourseAttempt("A", AttemptOutcome.PASSED),
+             StudentCourseAttempt("B", AttemptOutcome.PASSED)),
+            DegreePathConstraints(max_credit_hours_per_semester=Decimal("18")),
+        )
+        path = result.paths[0]
+        assert path.status is PathStatus.MODELED_COMPLETE
+        assert path.semester_count == 1
+        assert [course.course_code for course in path.semesters[0].plan_option.courses] == ["C"]
+
+    def test_120_current_enrollment_is_neither_completed_nor_rescheduled(self) -> None:
+        pcs = (_pc("A", credits="3"), _pc("B", credits="3", display_order=2))
+        rules = (_rule_na("A"), _rule_prereq("B", "A"))
+        p_cat, e_cat = _catalogs(pcs, rules, total_credits="6")
+        result = plan_degree_paths(
+            p_cat,
+            e_cat,
+            (StudentCourseAttempt("A", AttemptOutcome.IN_PROGRESS),),
+            DegreePathConstraints(max_credit_hours_per_semester=Decimal("6")),
+        )
+        assert result.paths[0].semesters == ()
+        assert result.paths[0].status is PathStatus.BLOCKED_BY_CURRENT_IN_PROGRESS
+
+    def test_121_surplus_elective_alternatives_are_not_scheduled(self) -> None:
+        elective_group = _rg(
+            group_id=GRP_ELEC,
+            code="MAJOR_ELECTIVE",
+            req_type=RequirementType.ELECTIVE,
+            required_hours="3",
+        )
+        pcs = tuple(
+            _pc(code, group_id=GRP_ELEC, credits="3", display_order=index)
+            for index, code in enumerate(("E1", "E2", "E3"), start=1)
+        )
+        rules = tuple(_rule_na(course.course_code) for course in pcs)
+        p_cat, e_cat = _catalogs(pcs, rules, groups=(elective_group,), total_credits="3")
+        result = plan_degree_paths(
+            p_cat,
+            e_cat,
+            (),
+            DegreePathConstraints(max_credit_hours_per_semester=Decimal("18")),
+        )
+
+        path = result.paths[0]
+        assert path.status is PathStatus.MODELED_COMPLETE
+        assert path.total_planned_courses == 1
+        assert path.total_planned_credits == Decimal("3")
+        assert path.completed_plan_credit_delta == Decimal("3")

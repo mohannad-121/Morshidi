@@ -17,6 +17,8 @@ from app.degree_path.models import (
     DegreePathComputationTimeout,
     DegreePathConstraints,
     DegreePathIntegrityError,
+    DegreePathValidationError,
+    DegreePathValidationErrorCode,
     DegreePathOption,
     DegreePathResult,
     ModeledSemesterEntry,
@@ -561,6 +563,19 @@ def test_49_transport_error_returns_503(client: TestClient, fake_service: FakeSt
     resp = client.post("/api/v1/me/degree-paths", json={"max_credit_hours_per_semester": 15})
     assert resp.status_code == 503
     assert resp.json()["error_code"] == "CATALOG_TRANSPORT_ERROR"
+
+
+def test_49b_validation_error_returns_typed_safe_500(
+    client: TestClient, fake_service: FakeStudentService,
+) -> None:
+    fake_service.error = DegreePathValidationError(
+        DegreePathValidationErrorCode.CREDIT_TOTAL_MISMATCH,
+        "private validation detail",
+    )
+    resp = client.post("/api/v1/me/degree-paths", json={"max_credit_hours_per_semester": 15})
+    assert resp.status_code == 500
+    assert resp.json()["error_code"] == "DEGREE_PATH_INTERNAL_ERROR"
+    assert "private validation detail" not in resp.text
 
 
 # ===========================================================================
