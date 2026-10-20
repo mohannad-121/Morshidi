@@ -1,5 +1,39 @@
 # Morshidi — Codex Progress Record
 
+## Degree-path hosted cold-start timeout alignment (2026-10-21, implemented and verified)
+
+**Objective/slice:** Prevent the student Degree Path request from being aborted by the browser's former 60-second deadline when the hosted API must wake before beginning its independently bounded academic computation. Preserve all deterministic degree rules, inputs, outputs, API contracts, routes, authentication, authorization, and backend resource controls.
+
+- **Starting branch/SHA:** `main` / `b7ee78b9518c948f58dfe9a37e66ed360b96ee4d`.
+- **Initial worktree:** clean; local and `origin/main` both pointed to the starting SHA.
+- **Evidence reviewed before editing:** prior real Local Supabase Plan 12 measurements in this record (three paths in approximately 11.5-12.4 seconds), the frontend's explicit 60-second AbortSignal, the backend's separate 50-second compute budget, Render free-instance cold-start risk already documented in the repository, degree-path request orchestration, timeout UI behavior, and focused frontend tests.
+
+**Root cause and implementation:**
+1. The browser's 60-second deadline began before the hosted API process was awake. The backend's 50-second academic-compute budget begins only after the request reaches the running application. A cold start plus the measured approximately 12-second Plan 12 calculation could therefore exceed the browser deadline even though computation itself was healthy and within its server budget.
+2. Added the named `DEGREE_PATH_REQUEST_TIMEOUT_MS` client transport deadline and set it to 120 seconds. This is an end-to-end transport allowance, not a larger computation budget: the API retains its existing 50-second bounded deterministic compute deadline and capacity-one admission policy.
+3. Extended the timeout regression to assert the exact 120-second contract. Existing abort handling, Arabic timeout copy, retry behavior, request sequencing, and loading cleanup remain intact.
+
+**Files changed and verified from disk (bytes before this progress update):**
+- `apps/web/src/app/(student)/student/degree-path/page.tsx` - 19,610.
+- `apps/web/src/app/(student)/student/portal-pages.test.tsx` - 49,999.
+- `docs/CODEX_PROGRESS.md` - updated with this record.
+
+**Verification evidence:**
+- Focused regression: `npm test -- "src/app/(student)/student/portal-pages.test.tsx"` -> **1 file passed, 28 tests passed, 0 failed in 6.97s**.
+- Full frontend regression: `npm test -- --run` -> **43 files passed, 255 tests passed, 0 failed in 22.29s**.
+- TypeScript: `npm run typecheck` -> **passed, 0 errors**.
+- Changed-file lint: `npm run lint -- "src/app/(student)/student/degree-path/page.tsx" "src/app/(student)/student/portal-pages.test.tsx"` -> **passed, 0 errors/warnings**.
+- Production build: `npm run build` -> **passed**; compiled in 2.8s, TypeScript completed in 3.9s, and all 40 routes generated.
+- Diff hygiene: `git diff --check` -> **passed** before this progress update; final staged verification remains required before commit.
+
+**Security and scope checks:** `AI EXPLAINS - DETERMINISTIC RULES DECIDE.` remains preserved. No academic engine, result, data request body, backend deadline, concurrency control, authentication/authorization boundary, student ownership, tenant isolation, database/RLS policy, migration, credential, dependency, environment value, or production resource changed. No database integration test was required because there is no database/RLS change.
+
+**Remaining problems:** A genuine backend computation exceeding its 50-second server budget still fails closed with the existing typed timeout, as intended. The 120-second browser limit remains a final network/process-start safety bound rather than an unlimited wait.
+
+**Acceptance status:** `STATUS = IMPLEMENTED_AND_LOCALLY_VERIFIED`; the false client timeout caused by hosted wake-up plus valid computation time is addressed and regression-covered.
+
+**Exact next starting point:** Stage exactly the two frontend files and this progress record, verify the cached diff, commit, push `main`, then allow the Vercel frontend deployment to complete. No Render deployment is required because this slice changes only `apps/web`.
+
 ## Degree-path compute-capacity race fix (2026-10-21, implemented and verified)
 
 **Objective/slice:** Fix the student Degree Path page's repeatable 503 failure without changing degree rules, data contracts, authentication, authorization, routes, or backend capacity policy. The page was starting degree-path generation and credit-comparison generation concurrently even though both use the API's intentionally single-slot academic compute limiter.

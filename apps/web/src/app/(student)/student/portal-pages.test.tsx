@@ -951,6 +951,7 @@ describe('Morshidi Student Portal Pages Suite', () => {
       renderWithAuth(<DegreePathPage />);
       await user.click(screen.getByRole('button', {name:'ارسم المسار'}));
       await screen.findByRole('alert');
+      expect(timeout).toHaveBeenCalledWith(120_000);
       expect(screen.getByRole('alert').textContent).toContain('استغرق إنشاء مسارات التخرج');
       expect(screen.queryByRole('status')).toBeNull();
     } finally {

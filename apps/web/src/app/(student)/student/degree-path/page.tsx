@@ -33,6 +33,10 @@ const AUTOMATIC_PATH_REQUEST: DegreePathRequest = {
   max_paths: 3,
 };
 
+// Includes a possible hosted API cold start before the server's bounded
+// 50-second academic-compute budget begins.
+const DEGREE_PATH_REQUEST_TIMEOUT_MS = 120_000;
+
 function remainingReported(progress: AcademicProgressResponse): number | null {
   return progress.reported_earned_credit_hours === null
     ? null
@@ -100,7 +104,7 @@ export default function DegreePathPage() {
     setGraph(null);
     setGraphError(false);
     setPathSteps(INITIAL_DEGREE_PATH_STEPS);
-    const signal = AbortSignal.timeout(60_000);
+    const signal = AbortSignal.timeout(DEGREE_PATH_REQUEST_TIMEOUT_MS);
     const now = new Date();
     try {
       const api = new StudentApiService(client);
