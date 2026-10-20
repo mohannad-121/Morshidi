@@ -3,6 +3,7 @@
 
 :root {
   color-scheme: dark;
+  --font-body: var(--font-plex-arabic);
   --text: #f6efe0;
   --accent: #ffc21a;
   --accent-text: #1a1300;
@@ -510,15 +511,23 @@ tbody tr:hover { background:linear-gradient(90deg, rgb(212 175 55 / .055), rgb(2
 }
 
 /* Midnight Glass — student workspace and dashboard */
+.student-font-root {
+  --font-ui: -apple-system, BlinkMacSystemFont, "SF Pro Arabic", "SF Pro Display", var(--font-inter), var(--font-plex-arabic), "Segoe UI", Tahoma, sans-serif;
+}
+.student-font-root,
 .app-shell {
   min-height: 100svh;
+  font-family: var(--font-ui);
+  font-variant-numeric: tabular-nums;
+}
+.app-shell {
   background: var(--wallpaper);
   background-attachment: fixed;
   color: var(--text);
-  font-family: -apple-system, "SF Pro Arabic", "SF Pro Display", "Segoe UI", Tahoma, sans-serif;
   overscroll-behavior: none;
 }
 .app-shell, .app-shell * { -webkit-tap-highlight-color: transparent; }
+.app-shell :where(button, input, select, textarea, summary, kbd, .badge, .font-mono) { font-family: inherit; }
 .app-shell h1, .app-shell h2, .app-shell h3, .app-shell h4 { color: var(--text); font-family: inherit; }
 .app-shell .glass,
 .app-shell .topbar,

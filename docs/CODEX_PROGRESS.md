@@ -1,5 +1,52 @@
 # Morshidi — Codex Progress Record
 
+## Student iOS-style system typography (2026-10-21, implemented and verified)
+
+**Objective/slice:** Visual-only typography update for the full student route group: native Apple system fonts remain first on Apple devices, with self-hosted free Inter for Latin/numerals and IBM Plex Sans Arabic for Arabic elsewhere. Existing font sizes, declared weights, spacing, letter-spacing, data, routes, authentication, authorization, and business logic were preserved.
+
+- **Starting branch/SHA:** `main` / `37e07a908a3e50b8ed30ec453e5715222d8ae65f`.
+- **Initial worktree:** clean (`git status --short` returned no entries); local `main` matched `origin/main`.
+- **Architecture verified before editing:** `docs/CODEX_PROGRESS.md`, `apps/web/AGENTS.md`, local Next.js 16.3.5 font documentation, root/student layouts, `globals.css`, student shell/dashboard components, font-weight usage across student TSX/CSS, relevant tests, and current Git state.
+
+**Implementation details:**
+1. Reused the existing `next/font/google` IBM Plex Sans Arabic instance at the root and renamed its generated variable to `--font-plex-arabic`, preserving the actual free, self-hosted weights 400/500/600/700 with `subsets: ["arabic", "latin"]` and `display: "swap"`. The existing global `--font-body` now aliases that variable, so non-student typography is unchanged.
+2. Added a student-layout-scoped Inter instance with `--font-inter`, `display: "swap"`, Latin subset, and only the weights exercised by student styles: 400/500/600/700/800/900. The 900 file is required by existing `font-black` declarations; no typography sizes or declared weights were changed.
+3. Added exactly one student stack token in `globals.css`: `--font-ui: -apple-system, BlinkMacSystemFont, "SF Pro Arabic", "SF Pro Display", var(--font-inter), var(--font-plex-arabic), "Segoe UI", Tahoma, sans-serif;`. No Apple font file is bundled. The token is defined where the student Inter variable exists, avoiding invalid custom-property resolution.
+4. Applied `--font-ui` to the student layout root and `.app-shell`, including protected-boundary states. Student buttons, inputs, selects, textareas, summaries, keyboard hints, badges/chips, and existing `.font-mono` chips inherit the same UI stack.
+5. Applied `font-variant-numeric: tabular-nums` across the student workspace. Existing `letter-spacing` rules remain untouched. Browser verification confirmed shell and control stacks match, metrics resolve to `tabular-nums`, and Arabic/Latin content has no horizontal overflow at either requested viewport.
+6. IBM Plex Sans Arabic has no official 800 face: Next.js reports its supported weights as 100–700 and rejected an 800 configuration during the first visual compile. The genuine requested 400–700 files are loaded; existing Arabic `font-weight: 800` declarations remain intact and use browser synthesis, while Latin/numerals use Inter's genuine 800 face. No nonexistent or mislabeled font binary was bundled.
+7. Added a focused source-contract regression test for font variables, subsets, weights, swap behavior, inherited controls/chips, and tabular numerals. Captured and visually inspected deterministic before/after dashboard screenshots at 1280x900 and 390x844. The temporary synthetic capture route and temporary Playwright tooling were removed afterward.
+
+**Files changed and verified from disk (bytes):**
+- `apps/web/src/app/layout.tsx` - 1,687.
+- `apps/web/src/app/(student)/layout.tsx` - 842.
+- `apps/web/src/app/(student)/typography.test.ts` - 1,538.
+- `apps/web/src/app/globals.css` - 67,071.
+- `docs/screenshots/ios-typography/before-1280.png` - 631,228.
+- `docs/screenshots/ios-typography/after-1280.png` - 654,971.
+- `docs/screenshots/ios-typography/before-390.png` - 219,958.
+- `docs/screenshots/ios-typography/after-390.png` - 235,016.
+- `docs/CODEX_PROGRESS.md` - 574,789 after this entry.
+
+**Verification evidence:**
+- Focused regression: `npm test -- "src/app/(student)/typography.test.ts" "src/components/navigation/AppShell.test.tsx" "src/app/(student)/student/page.test.tsx"` -> **3 files passed, 22 tests passed, 0 failed in 37.05s**.
+- Full frontend regression: `npm test -- --run` -> **43 files passed, 254 tests passed, 0 failed in 38.50s**.
+- TypeScript: `npm run typecheck` -> **passed, 0 errors** after clearing only generated `.next` files containing the removed visual-capture route.
+- Changed-file lint: `npm run lint -- "src/app/layout.tsx" "src/app/(student)/layout.tsx" "src/app/(student)/typography.test.ts"` -> **passed, 0 errors/warnings**.
+- Production build: `npm run build` -> **passed**; compiled in 31.6s, TypeScript finished in 25.5s, and all 40 static/dynamic routes generated.
+- Browser typography audit at 1280px: computed `--font-ui` resolves the complete requested stack; shell/control `font-family` values match; metric `font-variant-numeric` is `tabular-nums`; `body.scrollWidth === innerWidth === 1280`.
+- Browser overflow audit at 390px: `body.scrollWidth === innerWidth === 390`.
+- Screenshot dimensions verified from disk: 1280x900 and 390x844 for both before and after states.
+- Diff hygiene: `git diff --check` -> **passed**; source scan found no `student-visual-check` or visual-path override; temporary capture route and tooling are absent.
+
+**Security and scope checks:** `AI EXPLAINS - DETERMINISTIC RULES DECIDE.` remains preserved. No data request, API, route, auth boundary, authorization rule, database/RLS policy, migration, academic rule, credential, dependency, environment file, or production resource changed. Screenshot data is synthetic. Nothing was staged, committed, pushed, deployed, or applied to production during this slice.
+
+**Release workflow checkpoint (2026-10-21):** The user explicitly authorized staging, committing, and pushing the verified typography slice in sequence. The release target is `main` on the configured `origin`; the exact staged diff must pass `git diff --cached --check` before commit, and the remote SHA must be verified after push.
+
+**Acceptance status:** `STATUS = IMPLEMENTED_AND_LOCALLY_VERIFIED`; typography, self-hosted fallbacks, inherited controls/chips, tabular numerals, regression coverage, and requested desktop/mobile visual evidence are complete. The only specification variance is the impossible IBM Plex Sans Arabic 800 source face, documented above.
+
+**Exact next starting point:** Human review of the four screenshots and source diff. If accepted, obtain separate explicit approvals before staging, committing, and pushing. No implementation work remains in this slice.
+
 ## Student Apple emoji rendering (2026-10-20, implemented and verified)
 
 **Objective/slice:** Visual-only replacement of native emoji glyphs in the student shell and dashboard with locally hosted Apple 64px PNG artwork on every device. Data fetching, routes, authentication, authorization, academic calculations, deterministic rules, and business logic were kept unchanged.

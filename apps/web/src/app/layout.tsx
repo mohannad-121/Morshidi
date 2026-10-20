@@ -6,7 +6,7 @@ import { GlobalNavbar } from "@/components/layout/GlobalNavbar";
 import { GlobalFooter } from "@/components/layout/GlobalFooter";
 
 const bodyFont = IBM_Plex_Sans_Arabic({
-  variable: "--font-body",
+  variable: "--font-plex-arabic",
   weight: ["400", "500", "600", "700"],
   subsets: ["arabic", "latin"],
   display: "swap",
