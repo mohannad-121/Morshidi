@@ -1,5 +1,53 @@
 # Morshidi — Codex Progress Record
 
+## Student Dashboard “Midnight Glass” visual restyle (2026-10-20, implemented and verified)
+
+**Objective/slice:** Visual-only restyle of `/student` and its shared student shell for an Arabic RTL, iOS-inspired dark liquid-glass experience at desktop and phone widths. Data fetching, API paths, authentication, authorization, routes, academic calculations, deterministic decision boundaries, and real-data copy/value sources were not changed.
+
+- **Starting branch/SHA:** `main` / `7a43a99870754790a7f1d5012945f965e102a6a6`.
+- **Initial worktree:** clean (`git status --short` returned no entries).
+- **Architecture verified before editing:** `apps/web/AGENTS.md`, Next.js 16.3.5 local viewport documentation, shared `AppShell`, `/student` client page, `StatCard`, `ProgressBar`, global token/CSS layers, dashboard/shell tests, frontend package scripts, and current Git state.
+
+**Implementation details:**
+1. Added the requested global Midnight Glass variables (`--text`, `--accent`, `--accent-text`, glass surface/border/blur/shadow, card radius, progress track, and one replaceable `--wallpaper` variable), fixed colorful desktop/mobile gradients, blur fallbacks, reduced-transparency handling, reduced-motion compatibility, safe-area spacing, tap-highlight suppression, and 44px-or-larger primary touch targets.
+2. Restyled the shared student shell with a fixed 210px RTL glass sidebar, gold active destination, preserved 15 real navigation routes, requested native emoji mapping, glass notification/account controls, user chip, mobile drawer, and a four-item floating phone tab bar (`الرئيسية`, `التقدم`, `مرشدي`, `المواد`).
+3. Restyled `/student` without changing its requests or decisions: responsive greeting/actions, glass subnavigation, governed Student Intelligence quiz banner, one hero plan-hours card plus four desktop/two-by-two metrics, phone hero plus three compact metrics, real-data progress indicators, glass profile/progress/action sections, and three-column/stacked requirement cards. `StatCard` retained all existing props and gained rendering support for its already-declared subtitle plus optional children/React-node values needed for the real hero progress presentation.
+4. Added a student-segment static Next.js viewport with `themeColor: #05060b` and `viewportFit: "cover"` through the supported `Viewport` export, leaving the non-student viewport unchanged. The existing product accent is likewise preserved outside `.app-shell` despite the requested token being declared on `:root`.
+5. Added focused regression assertions for glass presentation hooks and emoji navigation while preserving existing semantic/data assertions.
+6. Captured baseline and final views from the exact starting SHA/current worktree using the same isolated fake authenticated session and deterministic mock academic dataset. Temporary capture route/tooling and the detached baseline worktree were removed afterward. Screenshot dimensions were verified from disk: 1280×900 and 390×844 for both states.
+
+**Files changed and verified from disk (bytes):**
+- `apps/web/src/app/(student)/student/page.tsx` — 24,933.
+- `apps/web/src/app/(student)/student/page.test.tsx` — 20,056.
+- `apps/web/src/app/globals.css` — 66,722.
+- `apps/web/src/app/(student)/layout.tsx` — 559.
+- `apps/web/src/components/navigation/AppShell.tsx` — 5,465.
+- `apps/web/src/components/navigation/AppShell.test.tsx` — 1,879.
+- `apps/web/src/components/ui/StatCard.tsx` — 878.
+- `docs/screenshots/midnight-glass/before-1280.png` — 320,402.
+- `docs/screenshots/midnight-glass/after-1280.png` — 622,997.
+- `docs/screenshots/midnight-glass/before-390.png` — 75,279.
+- `docs/screenshots/midnight-glass/after-390.png` — 216,428.
+- `docs/CODEX_PROGRESS.md` — 000561730 after this entry.
+
+**Verification evidence:**
+- Focused dashboard/shell tests: `npm test -- "src/app/(student)/student/page.test.tsx" "src/components/navigation/AppShell.test.tsx"` → **20 passed, 0 failed**.
+- Full frontend regression: `npm test -- --run` → **41 files passed, 250 tests passed, 0 failed in 18.96s**.
+- TypeScript: `npm run typecheck` → **passed, 0 errors** after clearing only stale generated `.next` types from the removed visual-capture route.
+- Focused lint: `npm run lint -- "src/app/(student)/student/page.tsx" "src/components/navigation/AppShell.tsx" "src/components/ui/StatCard.tsx" "src/app/(student)/student/page.test.tsx" "src/components/navigation/AppShell.test.tsx"` → **passed, 0 errors/warnings**.
+- Production build: `npm run build` → **passed**, compiled in 2.7s on the final rerun; TypeScript and all 40 static/dynamic route generations completed.
+- Diff hygiene: `git diff --check` → **passed**; temporary-route scan returned no `visual-check`/`visualPathname` references.
+- Repo-wide lint: `npm run lint` → **2 errors and 62 warnings in unchanged files**; the two errors are `react/no-unescaped-entities` at `apps/web/src/app/institutional/pilots/[pilot_id]/page.tsx:840`. No changed file produced a lint finding. This pre-existing, out-of-slice debt was not modified.
+- Dependency restoration note: temporary baseline cleanup followed a Windows junction into the untracked frontend `node_modules`; no source/user data was affected, and exact lockfile dependencies were restored with `npm ci` (**539 packages installed**). The install reported the lockfile’s current audit state of **8 vulnerabilities (7 high, 1 critical)**; no dependency or lockfile was changed because dependency remediation is outside this visual slice.
+
+**Security and scope checks:** Authentication and `ProtectedBoundary` remain intact; no API endpoint, request, route, database/RLS policy, migration, deterministic academic rule, credential, environment file, or production resource changed. Screenshots use synthetic local data only. `AI EXPLAINS — DETERMINISTIC RULES DECIDE.` remains preserved. Nothing was committed, pushed, deployed, or applied to production during implementation verification.
+
+**Release workflow checkpoint (2026-10-20):** The user explicitly authorized staging the verified Midnight Glass slice and pushing it to `https://github.com/mohannad-121/Morshidi`. Exactly the 8 modified source/test/progress files and 4 screenshot artifacts listed above were staged; `git diff --cached --check` passed. Commit authorization remains separately required by repository policy, so no commit or push has occurred yet.
+
+**Acceptance status:** `STATUS = IMPLEMENTED_AND_LOCALLY_VERIFIED`; requested desktop/mobile before-and-after artifacts exist and were visually inspected. Remaining repository concern is unrelated existing lint/dependency debt described above.
+
+**Exact next starting point:** Human review of the four screenshots and changed-source diff; if accepted, request separate explicit approval before staging, committing, or pushing. No implementation work remains in this slice.
+
 ## First University Pilot Package + Onboarding System + Pilot Acceptance Workflow (2026-10-20, ready for human approval)
 
 **Objective/slice:** Make the FIRST REAL UNIVERSITY PILOT operationally executable through a deterministic pilot onboarding system, lifecycle state machine, IT requirement tracker, blocker management, 12-criteria write-enablement fail-closed gate, acceptance check engine, multi-role signoffs, pilot package documents, and downloadable templates.

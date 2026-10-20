@@ -147,7 +147,7 @@ describe("Student Dashboard (لوحة الطالب)", () => {
 
     // Verify Academic Progress Card
     expect(screen.getByRole("heading", { name: "التقدم الأكاديمي", level: 2 })).toBeDefined();
-    expect(screen.getByText("132")).toBeDefined();
+    expect(screen.getAllByText("132").length).toBeGreaterThanOrEqual(1);
     expect(screen.getByText("72")).toBeDefined();
     expect(screen.getByText("2 من 5")).toBeDefined();
 
@@ -159,6 +159,11 @@ describe("Student Dashboard (لوحة الطالب)", () => {
     expect(screen.getByText("متطلبات التخصص الإجبارية")).toBeDefined();
     expect(screen.getByText("(REQ-CS-CORE)")).toBeDefined();
     expect(screen.getByText("غير مستوفاة")).toBeDefined();
+
+    // Midnight Glass keeps real values while exposing the responsive presentation hooks.
+    expect(document.querySelector(".dashboard-hero-stat.glass")).not.toBeNull();
+    expect(document.querySelectorAll(".dashboard-requirements article.glass")).toHaveLength(2);
+    expect(document.querySelector(".dashboard-refresh.glass")).not.toBeNull();
 
     // Verify SignOutButton is rendered
     expect(screen.getByRole("button", { name: "تسجيل الخروج" })).toBeDefined();

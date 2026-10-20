@@ -23,7 +23,6 @@ import {
   EligibilityIcon,
   PlannerIcon,
   RecommendationsIcon,
-  RefreshIcon,
 } from "@/components/ui/Icons";
 
 type StudentPageProps = {
@@ -238,59 +237,60 @@ export default function StudentPage({ client: injectedClient }: StudentPageProps
   }
 
   return (
-    <div className="space-y-8 dashboard-page" dir="rtl">
+    <div className="dashboard-page" dir="rtl">
       <header className="dashboard-heading">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <p className="eyebrow">لوحة الطالب</p>
-            <h1>{greeting}، {displayName}</h1>
-            <p className="mt-2 text-sm text-muted">جاهز ترتّب يومك الأكاديمي؟</p>
+        <div className="dashboard-heading-row">
+          <div className="dashboard-greeting">
+            <p className="eyebrow">لوحة الطالب <span aria-hidden="true">✨</span></p>
+            <h1 aria-label={`${greeting}، ${displayName}`}><span className="desktop-greeting">{greeting}، </span><span className="mobile-greeting">{greeting} <span aria-hidden="true">👋</span></span><span className="desktop-student-name">{displayName} <span aria-hidden="true">👋</span></span></h1>
+            <p className="mobile-student-name">{displayName}</p>
+            <p className="dashboard-prompt">جاهز ترتّب يومك الأكاديمي؟</p>
           </div>
 
-          <div className="flex flex-wrap items-center gap-2 self-start sm:self-center">
+          <div className="dashboard-header-actions">
             <button
               type="button"
               onClick={handleRefresh}
               disabled={loading || !client}
-              className="inline-flex min-h-10 items-center justify-center gap-2 rounded-xl border border-border bg-surface px-4 py-2 text-xs font-semibold text-foreground shadow-xs transition-colors hover:bg-surface-muted disabled:opacity-60"
+              className="glass dashboard-refresh"
               aria-label="تحديث البيانات"
             >
-              <RefreshIcon className={`h-3.5 w-3.5 text-accent ${loading ? "animate-spin" : ""}`} />
-              <span>تحديث البيانات</span>
+              <span aria-hidden="true" className={loading ? "animate-spin" : ""}>🔄</span>
+              <span className="refresh-label">تحديث البيانات</span>
             </button>
-            <SignOutButton />
+            <SignOutButton className="glass dashboard-signout" />
           </div>
         </div>
 
         {/* Account Sub-navigation Tabs */}
-        <div className="mt-5 flex flex-wrap items-center gap-2 border-t border-border/60 pt-4">
+        <div className="dashboard-subnav">
           <Link
             href="/student"
-            className="rounded-xl bg-accent px-3.5 py-1.5 text-xs font-semibold text-white shadow-2xs"
+            className="dashboard-subnav-active"
           >
             نظرة عامة
           </Link>
           <Link
             href="/student/profile"
-            className="rounded-xl border border-border bg-surface px-3.5 py-1.5 text-xs font-semibold text-foreground hover:bg-surface-muted transition-colors"
+            className="glass"
           >
             الملف الأكاديمي
           </Link>
           <Link
             href="/student/progress"
-            className="rounded-xl border border-border bg-surface px-3.5 py-1.5 text-xs font-semibold text-foreground hover:bg-surface-muted transition-colors"
+            className="glass"
           >
             التقدم الأكاديمي
           </Link>
           <Link
             href="/student/courses"
-            className="rounded-xl border border-border bg-surface px-3.5 py-1.5 text-xs font-semibold text-foreground hover:bg-surface-muted transition-colors"
+            className="glass"
           >
             سجل موادي
           </Link>
           <Link
             href="/student/planner"
-            className="rounded-xl border border-border bg-surface px-3.5 py-1.5 text-xs font-semibold text-foreground hover:bg-surface-muted transition-colors"
+            className="glass"
           >
             مخطط الفصل
           </Link>
@@ -300,7 +300,7 @@ export default function StudentPage({ client: injectedClient }: StudentPageProps
 
       {/* Loading state */}
       {loading ? (
-        <section className="rounded-3xl border border-border bg-surface p-8 shadow-xs" role="status">
+        <section className="glass dashboard-state" role="status">
           <p className="text-sm font-semibold text-accent animate-pulse">
             جاري تحميل البيانات الأكاديمية…
           </p>
@@ -311,7 +311,7 @@ export default function StudentPage({ client: injectedClient }: StudentPageProps
       {!loading && activeError ? (
         <section
           role={activeError === "NOT_FOUND" ? undefined : "alert"}
-          className="rounded-3xl border border-red-200 bg-red-50/80 p-8 shadow-xs"
+          className="glass dashboard-state dashboard-error"
         >
           <p className="text-red-900 font-semibold">{errorMessage(activeError)}</p>
           {isRetryable(activeError) ? (
@@ -330,25 +330,29 @@ export default function StudentPage({ client: injectedClient }: StudentPageProps
 
       {/* Data Loaded */}
       {!loading && !activeError && profile && progress ? (
-        <div className="space-y-8">
-          {intelligence ? <section className="rounded-3xl border border-amber-400/30 bg-stone-950 p-6 text-white shadow-lg">
-            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-              <div><p className="text-xs font-bold text-amber-400">بصمتي الأكاديمية</p><h2 className="mt-2 text-xl font-black">{intelligence.diagnostic_recommended ? "ساعد مرشدي يتعرّف عليك بشكل أفضل" : `مرشدي يعرف أداءك من ${intelligence.verified_grade_count} علامة أكاديمية موثقة`}</h2><p className="mt-2 text-sm text-stone-300">تخصيص مفسّر لا يغيّر الأهلية أو المتطلبات الأكاديمية.</p></div>
-              <Link href={intelligence.diagnostic_recommended ? "/student/diagnostic" : "/student/intelligence"} className="inline-flex min-h-11 shrink-0 items-center justify-center rounded-xl bg-amber-400 px-5 py-3 font-bold text-stone-950 focus-visible:ring-2 focus-visible:ring-white">{intelligence.diagnostic_recommended ? "ابدأ الاختبار السريع" : "عرض بصمتي"}</Link>
+        <div className="dashboard-loaded">
+          {intelligence ? <section className="glass diagnostic-banner">
+            <div className="diagnostic-banner-content">
+              <div><p>بصمتي الأكاديمية</p><h2>{intelligence.diagnostic_recommended ? <>ساعد مرشدي يتعرّف عليك بشكل أفضل <span aria-hidden="true">💡</span></> : `مرشدي يعرف أداءك من ${intelligence.verified_grade_count} علامة أكاديمية موثقة`}</h2><p>تخصيص مفسّر لا يغيّر الأهلية أو المتطلبات الأكاديمية.</p></div>
+              <Link href={intelligence.diagnostic_recommended ? "/student/diagnostic" : "/student/intelligence"} className="diagnostic-cta">{intelligence.diagnostic_recommended ? <>ابدأ الاختبار السريع <span aria-hidden="true">⚡</span></> : "عرض بصمتي"}</Link>
             </div>
           </section> : null}
           {/* Quick Stats Grid */}
           <div className="dashboard-journey" aria-label="ملخص الرحلة الأكاديمية">
             <StatCard
-              title="إجمالي ساعات الخطة"
-              value={`${displayValue(progress.plan_total_required_credits)} ساعة`}
+              title="⏳ إجمالي ساعات الخطة"
+              value={<>{displayValue(progress.plan_total_required_credits)} <small>ساعة</small></>}
               subtitle="ساعة معتمدة مطلوبة للتخرج"
               variant="warm"
-            />
+              className="dashboard-hero-stat glass"
+            >
+              <ProgressBar completed={Number(reportedEarnedCredits) || 0} total={progress.plan_total_required_credits} showPercent={false} />
+            </StatCard>
             <StatCard
-              title="الساعات المكتسبة (سجل الجامعة)"
-              value={`${displayValue(reportedEarnedCredits)} ساعة`}
+              title="✅ الساعات المكتسبة (سجل الجامعة)"
+              value={displayValue(reportedEarnedCredits)}
               subtitle="سجل الجامعة الرسمي"
+              className="glass"
               badge={
                 universityProgressPercent !== null ? (
                   <Badge variant="gold" size="sm">
@@ -358,27 +362,30 @@ export default function StudentPage({ client: injectedClient }: StudentPageProps
               }
             />
             <StatCard
-              title="الساعات المتبقية (حسب سجل الجامعة)"
-              value={`${displayValue(reportedRemainingCredits)} ساعة`}
+              title="📖 الساعات المتبقية (حسب سجل الجامعة)"
+              value={displayValue(reportedRemainingCredits)}
               subtitle="متبقية حسب سجل الجامعة"
               variant="gold"
+              className="glass"
             />
             <StatCard
-              title="الساعات قيد التسجيل"
-              value={`${displayValue(progress.in_progress_plan_credits)} ساعة`}
+              title="🕒 الساعات قيد التسجيل"
+              value={displayValue(progress.in_progress_plan_credits)}
               subtitle="مسجلة في الفصل الحالي"
+              className="glass"
             />
             <StatCard
-              title="نسبة الإنجاز (سجل الجامعة)"
+              title="📊 نسبة الإنجاز (سجل الجامعة)"
               value={universityProgressPercent !== null ? `${universityProgressPercent}%` : "غير متوفر"}
               subtitle="نسبة الساعات المكتسبة إلى الخطة"
+              className="glass"
             />
           </div>
 
           {/* Profile & Progress Section */}
           <section className="dashboard-foundation">
             {/* Academic Profile Card */}
-            <article className="rounded-3xl border border-border bg-surface p-6 shadow-xs">
+            <article className="glass">
               <div className="flex items-center justify-between border-b border-border/60 pb-4">
                 <h2 className="text-xl font-bold text-foreground">الملف الأكاديمي</h2>
                 <Badge variant="gold" size="sm">معتمد</Badge>
@@ -412,7 +419,7 @@ export default function StudentPage({ client: injectedClient }: StudentPageProps
             </article>
 
             {/* Academic Progress Card */}
-            <article className="rounded-3xl border border-border bg-surface p-6 shadow-xs">
+            <article className="glass">
               <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border/60 pb-4">
                 <h2 className="text-xl font-bold text-foreground">التقدم الأكاديمي</h2>
                 {progress.all_modeled_plan_requirements_satisfied ? (
@@ -448,7 +455,7 @@ export default function StudentPage({ client: injectedClient }: StudentPageProps
                     {displayValue(progress.remaining_plan_credits)}
                   </dd>
                 </div>
-                <div className="sm:col-span-2 rounded-xl bg-surface-muted p-3 border border-border">
+                <div className="glass foundation-progress sm:col-span-2">
                   <dt className="text-xs font-semibold text-muted">المجموعات المستوفاة</dt>
                   <dd className="mt-1 font-mono text-sm font-bold text-foreground">
                     {progress.satisfied_requirement_group_count} من {progress.total_requirement_group_count}
@@ -466,7 +473,7 @@ export default function StudentPage({ client: injectedClient }: StudentPageProps
           </section>
 
           {/* Quick Actions Panel */}
-          <div className="dashboard-actions">
+          <div className="dashboard-actions glass">
             <h3 className="text-sm font-bold text-foreground">إجراءات سريعة</h3>
             <p className="mt-1 text-xs text-muted">
               انتقل مباشرة إلى الأدوات الأكاديمية الذكية لاتخاذ قرارات مدروسة:
@@ -475,7 +482,7 @@ export default function StudentPage({ client: injectedClient }: StudentPageProps
             <div className="dashboard-action-grid">
               <Link
                 href="/student/eligibility"
-                className="flex items-center gap-3 rounded-xl border border-border bg-surface p-3.5 text-xs font-semibold text-foreground shadow-2xs transition-all hover:bg-accent-soft hover:border-accent"
+                className="glass"
               >
                 <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-accent-soft text-accent">
                   <EligibilityIcon className="h-4 w-4" />
@@ -485,7 +492,7 @@ export default function StudentPage({ client: injectedClient }: StudentPageProps
 
               <Link
                 href="/student/planner"
-                className="flex items-center gap-3 rounded-xl border border-border bg-surface p-3.5 text-xs font-semibold text-foreground shadow-2xs transition-all hover:bg-accent-soft hover:border-accent"
+                className="glass"
               >
                 <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-accent-soft text-accent">
                   <PlannerIcon className="h-4 w-4" />
@@ -495,7 +502,7 @@ export default function StudentPage({ client: injectedClient }: StudentPageProps
 
               <Link
                 href="/student/recommendations"
-                className="flex items-center gap-3 rounded-xl border border-border bg-surface p-3.5 text-xs font-semibold text-foreground shadow-2xs transition-all hover:bg-accent-soft hover:border-accent"
+                className="glass"
               >
                 <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-accent-soft text-accent">
                   <RecommendationsIcon className="h-4 w-4" />
@@ -505,7 +512,7 @@ export default function StudentPage({ client: injectedClient }: StudentPageProps
 
               <Link
                 href="/student/degree-path"
-                className="flex items-center gap-3 rounded-xl border border-border bg-surface p-3.5 text-xs font-semibold text-foreground shadow-2xs transition-all hover:bg-accent-soft hover:border-accent"
+                className="glass"
               >
                 <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-accent-soft text-accent">
                   <DegreePathIcon className="h-4 w-4" />
@@ -517,16 +524,16 @@ export default function StudentPage({ client: injectedClient }: StudentPageProps
 
           {/* Requirement Groups Breakdown */}
           <section className="dashboard-requirements">
-            <h2 className="text-xl font-bold text-foreground">تفاصيل متطلبات الخطة</h2>
-            <div className="mt-5 grid gap-4">
-              {progress.requirement_groups.map((group) => (
+            <h2 aria-label="تفاصيل متطلبات الخطة"><span aria-hidden="true">🧩 </span>تفاصيل متطلبات الخطة</h2>
+            <div>
+              {progress.requirement_groups.map((group, index) => (
                 <article
                   key={group.group_id}
-                  className="rounded-2xl border border-border bg-background p-5"
+                  className="glass"
                 >
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div>
-                      <h3 className="font-bold text-foreground">{group.name_ar}</h3>
+                      <h3 className="font-bold text-foreground"><span aria-hidden="true">{['🏛️', '🩺', '💉', '🌍', '🔬', '⭐'][index % 6]} </span>{group.name_ar}</h3>
                       <p className="mt-1 text-xs text-muted" dir="ltr">
                         ({group.group_code})
                       </p>
