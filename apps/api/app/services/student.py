@@ -457,6 +457,7 @@ class StudentService:
             max_paths=max_paths,
             cancel_event=cancel_event,
             snapshot_callback=capture,
+            multi_strategy=False,
         )
         if captured is None:
             raise StudentConfigurationError("Modeled roadmap input snapshot was not captured")
@@ -477,6 +478,7 @@ class StudentService:
         max_paths: int = 3,
         cancel_event: Event | None = None,
         snapshot_callback: Callable[[StudentAcademicState, AcademicProgressCatalog, CanTakeCatalog], Awaitable[None]] | None = None,
+        multi_strategy: bool = True,
     ) -> DegreePathResult:
         """Deterministically generate multi-semester degree paths for the authenticated student.
 
@@ -546,6 +548,7 @@ class StudentService:
                     max_courses_per_semester=max_courses_per_semester,
                     max_semesters_ahead=max_semesters_ahead,
                     max_paths=max_paths,
+                    multi_strategy=multi_strategy,
                 )
                 result = await self._academic_compute_limiter.run(
                     lambda check_budget: calculate(

@@ -245,6 +245,7 @@ async def test_05_constraints_pass_request_values_accurately() -> None:
         assert constraints.max_courses_per_semester == 5
         assert constraints.max_semesters_ahead == 6
         assert constraints.max_paths == 2
+        assert constraints.multi_strategy is True
 
 
 @pytest.mark.anyio

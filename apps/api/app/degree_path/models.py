@@ -157,6 +157,7 @@ class DegreePathConstraints:
     max_courses_per_semester: int | None = None
     max_semesters_ahead: int = 8
     max_paths: int = 3
+    multi_strategy: bool = False
 
     def __post_init__(self) -> None:
         # Validate max_credit_hours_per_semester
@@ -213,6 +214,25 @@ class DegreePathConstraints:
             raise DegreePathConstraintError("max_paths must be an integer")
         if self.max_paths < 1 or self.max_paths > 10:
             raise DegreePathConstraintError("max_paths must be between 1 and 10")
+
+        # Validate multi_strategy
+        if not isinstance(self.multi_strategy, bool):
+            raise DegreePathConstraintError("multi_strategy must be a boolean")
+
+
+class DegreePathStrategy(str, Enum):
+    """Academic planning strategies for degree path generation."""
+
+    FASTEST = "FASTEST"
+    BALANCED = "BALANCED"
+    LIGHTER = "LIGHTER"
+
+
+STRATEGY_LABELS_AR: dict[str, str] = {
+    DegreePathStrategy.FASTEST.value: "الأسرع للتخرج",
+    DegreePathStrategy.BALANCED.value: "الأكثر توازناً",
+    DegreePathStrategy.LIGHTER.value: "الأخف دراسياً",
+}
 
 
 # ---------------------------------------------------------------------------
@@ -299,6 +319,105 @@ class DegreePathOption:
     unplaced_course_codes: tuple[str, ...]
     credit_summary: DegreePathCreditSummary
     free_elective_requirements: tuple[DegreePathFreeElectiveRequirement, ...] = ()
+    strategy: str = DegreePathStrategy.FASTEST.value
+    strategy_name_ar: str = "الأسرع للتخرج"
+
+
+def canonical_semantic_fingerprint(
+    option: DegreePathOption,
+) -> tuple[tuple[tuple[str, ...], ...], tuple[Decimal, ...], tuple[str, ...]]:
+    """Return the canonical semantic signature for a degree path option.
+
+    Two paths with the same semester count, same sorted course codes in each semester,
+    same semester credit distribution, and same unplaced requirements have the same
+    academic allocation.
+    """
+    semesters_courses = tuple(
+        tuple(sorted(course.course_code for course in semester.plan_option.courses))
+        for semester in option.semesters
+    )
+    semester_credits = tuple(semester.plan_option.total_credit_hours for semester in option.semesters)
+    unplaced_reqs = tuple(sorted(req.group_code for req in option.free_elective_requirements))
+    return (semesters_courses, semester_credits, unplaced_reqs)
+
+
+def are_paths_materially_distinct(
+    path1: DegreePathOption,
+    path2: DegreePathOption,
+) -> bool:
+    """Two candidate paths are materially distinct IF AND ONLY IF:
+    - different semester count
+    OR
+    - different semester credit distribution
+    OR
+    - at least one course is placed in a different semester
+    OR
+    - different elective / requirement sequencing
+
+    They are NOT materially distinct if they only differ by:
+    - candidate ID / path_id
+    - internal array ordering within the same semester
+    - identical semesters with identical courses
+    """
+    if path1.semester_count != path2.semester_count:
+        return True
+
+    credits1 = tuple(s.plan_option.total_credit_hours for s in path1.semesters)
+    credits2 = tuple(s.plan_option.total_credit_hours for s in path2.semesters)
+    if credits1 != credits2:
+        return True
+
+    placements1: dict[str, int] = {}
+    for sem in path1.semesters:
+        for c in sem.plan_option.courses:
+            placements1[c.course_code] = sem.semester_index
+
+    placements2: dict[str, int] = {}
+    for sem in path2.semesters:
+        for c in sem.plan_option.courses:
+            placements2[c.course_code] = sem.semester_index
+
+    common_courses = set(placements1.keys()) & set(placements2.keys())
+    if not common_courses and (placements1 or placements2):
+        return True
+
+    for code in common_courses:
+        if placements1[code] != placements2[code]:
+            return True
+
+    all_codes1 = set(placements1.keys())
+    all_codes2 = set(placements2.keys())
+    if all_codes1 != all_codes2:
+        return False
+
+    return False
+
+
+def deduplicate_candidate_paths(
+    options: list[DegreePathOption],
+) -> list[DegreePathOption]:
+    """Deduplicate candidate paths to ensure all returned paths are materially distinct.
+
+    Preserves ranking order, retaining the highest-ranked candidate among duplicates.
+    """
+    unique: list[DegreePathOption] = []
+    seen_fingerprints: set[tuple] = set()
+
+    for opt in options:
+        fp = canonical_semantic_fingerprint(opt)
+        if fp in seen_fingerprints:
+            continue
+        is_distinct = True
+        for existing in unique:
+            if not are_paths_materially_distinct(existing, opt):
+                is_distinct = False
+                break
+        if is_distinct:
+            seen_fingerprints.add(fp)
+            unique.append(opt)
+
+    return unique
+
 
 
 @dataclass(frozen=True)

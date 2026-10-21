@@ -1,10 +1,11 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { Compass, Printer } from "lucide-react";
 import { useAuth } from "@/auth/auth-provider";
 import { AcademicAnalysisProgress, type ProgressStep } from "@/components/academic/AcademicAnalysisProgress";
 import { AcademicGraphExplanation } from "@/components/academic/AcademicGraphExplanation";
+import { Badge } from "@/components/ui/Badge";
 import { Button, FriendlyState } from "@/components/ui/DesignSystem";
 import { LoadingSkeletonCard } from "@/components/ui/LoadingSkeleton";
 import { PathMap } from "@/components/ui/PathMap";
@@ -82,7 +83,55 @@ export default function DegreePathPage() {
     }
   };
 
-  const selectedPath = result?.paths.find((path) => path.path_id === selectedPathId) ?? null;
+  const displayPaths = useMemo(() => {
+    if (!result?.paths) return [];
+    const unique: DegreePathOptionResponse[] = [];
+    const seen = new Set<string>();
+
+    for (const path of result.paths) {
+      const semestersCourses = path.semesters
+        .map((s) => s.plan_option.courses.map((c) => c.course_code).sort().join(","))
+        .join(";");
+      const credits = path.semesters.map((s) => Number(s.plan_option.total_credit_hours)).join(",");
+      const sig = `${path.semester_count}|${credits}|${semestersCourses}|${path.credit_summary.unplaced_credits}`;
+      if (seen.has(sig)) continue;
+      seen.add(sig);
+
+      const isDuplicate = unique.some((existing) => {
+        if (existing.semester_count !== path.semester_count) return false;
+        const c1 = existing.semesters.map((s) => Number(s.plan_option.total_credit_hours)).join(",");
+        const c2 = path.semesters.map((s) => Number(s.plan_option.total_credit_hours)).join(",");
+        if (c1 !== c2) return false;
+        if (Number(existing.credit_summary.unplaced_credits) !== Number(path.credit_summary.unplaced_credits)) return false;
+
+        const p1 = new Map<string, number>();
+        for (const s of existing.semesters) {
+          for (const c of s.plan_option.courses) p1.set(c.course_code, s.semester_index);
+        }
+        let hasShiftedCourse = false;
+        let hasCommon = false;
+        for (const s of path.semesters) {
+          for (const c of s.plan_option.courses) {
+            const sem1 = p1.get(c.course_code);
+            if (sem1 !== undefined) {
+              hasCommon = true;
+              if (sem1 !== s.semester_index) hasShiftedCourse = true;
+            }
+          }
+        }
+        if (hasShiftedCourse) return false;
+        if (hasCommon) return true;
+        return false;
+      });
+
+      if (!isDuplicate) {
+        unique.push(path);
+      }
+    }
+    return unique;
+  }, [result]);
+
+  const selectedPath = displayPaths.find((path) => path.path_id === selectedPathId) ?? displayPaths[0] ?? null;
   const stations = selectedPath?.semesters.map((semester) => ({
     id: String(semester.semester_index),
     title: `الفصل ${semester.semester_index}`,
@@ -113,19 +162,29 @@ export default function DegreePathPage() {
     </div>}
     {!loading && result && <>
       <div className="strategy-grid" aria-label="خيارات مسار التخرج">
-        {result.paths.map((path, index) => {
+        {displayPaths.map((path, index) => {
           const averageLoad = path.semester_count > 0
             ? Number(path.total_planned_credits) / path.semester_count
             : 0;
+          const peakLoad = path.semesters.reduce(
+            (max, s) => Math.max(max, Number(s.plan_option.total_credit_hours)),
+            0
+          );
+          const isSingle = displayPaths.length === 1;
           return <button key={path.path_id} type="button" className="strategy-card engraved"
-            data-selected={selectedPathId === path.path_id} aria-pressed={selectedPathId === path.path_id}
+            data-selected={selectedPath?.path_id === path.path_id} aria-pressed={selectedPath?.path_id === path.path_id}
             onClick={() => setSelectedPathId(path.path_id)}>
-            <span className="eyebrow">الخيار {index + 1}</span><h2>مسار {index + 1}</h2>
+            <div className="flex items-center justify-between gap-2 mb-2">
+              <span className="eyebrow">{isSingle ? "المسار المقترح" : `الخيار ${index + 1}`}</span>
+              {path.strategy_name_ar && <Badge variant="gold" size="sm">{path.strategy_name_ar}</Badge>}
+            </div>
+            <h2>{isSingle ? (path.strategy_name_ar || "المسار المقترح") : `مسار ${index + 1}`}</h2>
             <strong>{path.semester_count}</strong><span> فصول مخططة</span>
             <div className="strategy-loads">{path.semesters.map((semester) =>
               <span key={semester.semester_index}>الفصل {semester.semester_index} · <bdi>{formatCreditHours(semester.plan_option.total_credit_hours)}</bdi> ساعة</span>)}</div>
             <dl>
               <div><dt>متوسط الساعات في الفصل</dt><dd dir="ltr">{formatCreditHours(averageLoad)}</dd></div>
+              <div><dt>أعلى حمل فصلي</dt><dd dir="ltr">{formatCreditHours(peakLoad)}</dd></div>
               <div><dt>ساعات تحتاج مراجعة</dt><dd dir="ltr">{formatCreditHours(path.credit_summary.unplaced_credits)}</dd></div>
             </dl>
             <p>{statusDescription(path)}</p>
@@ -134,7 +193,7 @@ export default function DegreePathPage() {
       </div>
       {selectedPath ? <>
         <div className="flex items-center justify-between flex-wrap gap-4">
-          <div><h2 className="text-xl">خطة المقررات للخيار {selectedPath.rank}</h2><p className="text-xs text-muted mt-2">المسار المحدد: <bdi>{selectedPath.path_id}</bdi></p></div>
+          <div><h2 className="text-xl">{displayPaths.length === 1 ? `خطة المقررات — ${selectedPath.strategy_name_ar || "المسار المقترح"}` : `خطة المقررات للخيار ${selectedPath.rank}`}</h2><p className="text-xs text-muted mt-2">المسار المحدد: <bdi>{selectedPath.path_id}</bdi></p></div>
           <button className="button-secondary" onClick={() => window.print()}><Printer size={16}/>تصدير PDF</button>
         </div>
         <div className="journey-kpis" aria-label="حساب ساعات المسار المحدد">

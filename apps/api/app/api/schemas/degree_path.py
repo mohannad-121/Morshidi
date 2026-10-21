@@ -69,6 +69,7 @@ class DegreePathConstraintsResponse(BaseModel):
     max_courses_per_semester: int | None
     max_semesters_ahead: int
     max_paths: int
+    multi_strategy: bool = False
 
 
 class ModeledSemesterResponse(BaseModel):
@@ -104,6 +105,8 @@ class DegreePathOptionResponse(BaseModel):
     path_id: str
     rank: int
     status: PathStatus
+    strategy: str = "FASTEST"
+    strategy_name_ar: str = "الأسرع للتخرج"
     semesters: list[ModeledSemesterResponse]
     semester_count: int
     total_planned_courses: int

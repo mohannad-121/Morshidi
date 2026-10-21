@@ -10,6 +10,7 @@ from app.degree_path.models import (
     DegreePathValidationErrorCode,
     PathStatus,
     deterministic_path_id,
+    are_paths_materially_distinct,
 )
 from app.progress.engine import calculate_academic_progress
 from app.progress.models import AcademicProgressCatalog, CourseProgressState, RequirementType
@@ -75,6 +76,15 @@ def validate_degree_path_result(
         _fail(DegreePathValidationErrorCode.INVALID_TERM_LOAD, "too many paths returned")
     if len({path.path_id for path in result.paths}) != len(result.paths):
         _fail(DegreePathValidationErrorCode.RESULT_MISMATCH, "path ids are not unique")
+
+    # Pairwise material distinction check
+    for i in range(len(result.paths)):
+        for j in range(i + 1, len(result.paths)):
+            if not are_paths_materially_distinct(result.paths[i], result.paths[j]):
+                _fail(
+                    DegreePathValidationErrorCode.RESULT_MISMATCH,
+                    f"Candidate paths at index {i} and {j} are not materially distinct",
+                )
 
     baseline_completed = {
         course.course_code

@@ -443,6 +443,8 @@ export interface DegreePathOptionResponse {
   path_id: string;
   rank: number;
   status: "COMPLETE" | "INCOMPLETE_MAX_SEMESTERS" | "INCOMPLETE_BLOCKED" | string;
+  strategy?: string;
+  strategy_name_ar?: string;
   semesters: ModeledSemesterResponse[];
   semester_count: number;
   total_planned_courses: number;
@@ -485,6 +487,7 @@ export interface DegreePathConstraintsResponse {
   max_courses_per_semester: number | null;
   max_semesters_ahead: number;
   max_paths: number;
+  multi_strategy?: boolean;
 }
 
 export interface DegreePathResponse {

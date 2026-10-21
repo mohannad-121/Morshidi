@@ -867,6 +867,198 @@ describe('Morshidi Student Portal Pages Suite', () => {
     expect(degreePathUrls[0]).not.toContain('/explanation-graph');
   });
 
+  it('renders distinct strategy tags, peak load, and average load on candidate cards', async () => {
+    const user = userEvent.setup();
+    const multiStrategyResponse: DegreePathResponse = {
+      ...mockDegreePath,
+      paths: [
+        {
+          ...mockDegreePath.paths[0],
+          path_id: 'dp-fastest',
+          rank: 1,
+          strategy: 'FASTEST',
+          strategy_name_ar: 'الأسرع للتخرج',
+          semester_count: 6,
+          total_planned_credits: 103,
+          semesters: [
+            {
+              semester_index: 1,
+              plan_option: { ...mockSemesterPlanner.plan_options[0], total_credit_hours: 18, courses: [mockSemesterPlanner.plan_options[0].courses[0]] },
+              completed_plan_credits_after: 18,
+              remaining_plan_credits_after: 85,
+              newly_satisfied_requirement_group_codes: [],
+            },
+            {
+              semester_index: 2,
+              plan_option: { ...mockSemesterPlanner.plan_options[0], total_credit_hours: 17, courses: [mockSemesterPlanner.plan_options[0].courses[0]] },
+              completed_plan_credits_after: 35,
+              remaining_plan_credits_after: 68,
+              newly_satisfied_requirement_group_codes: [],
+            },
+          ],
+        },
+        {
+          ...mockDegreePath.paths[0],
+          path_id: 'dp-balanced',
+          rank: 2,
+          strategy: 'BALANCED',
+          strategy_name_ar: 'الأكثر توازناً',
+          semester_count: 7,
+          total_planned_credits: 103,
+          semesters: [
+            {
+              semester_index: 1,
+              plan_option: { ...mockSemesterPlanner.plan_options[0], total_credit_hours: 15, courses: [mockSemesterPlanner.plan_options[0].courses[0]] },
+              completed_plan_credits_after: 15,
+              remaining_plan_credits_after: 88,
+              newly_satisfied_requirement_group_codes: [],
+            },
+          ],
+        },
+        {
+          ...mockDegreePath.paths[0],
+          path_id: 'dp-lighter',
+          rank: 3,
+          strategy: 'LIGHTER',
+          strategy_name_ar: 'الأخف دراسياً',
+          semester_count: 8,
+          total_planned_credits: 103,
+          semesters: [
+            {
+              semester_index: 1,
+              plan_option: { ...mockSemesterPlanner.plan_options[0], total_credit_hours: 12, courses: [mockSemesterPlanner.plan_options[0].courses[0]] },
+              completed_plan_credits_after: 12,
+              remaining_plan_credits_after: 91,
+              newly_satisfied_requirement_group_codes: [],
+            },
+          ],
+        },
+      ],
+    };
+
+    const normalFetch1 = fetchSpy.getMockImplementation()!;
+    fetchSpy.mockImplementation((input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (url.endsWith('/api/v1/me/degree-paths')) {
+        return Promise.resolve(new Response(JSON.stringify(multiStrategyResponse), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        }));
+      }
+      return normalFetch1(input, init);
+    });
+
+    renderWithAuth(<DegreePathPage />);
+    await user.click(screen.getByRole('button', { name: 'ارسم المسار' }));
+
+    await screen.findByText('الأسرع للتخرج');
+    expect(screen.getByText('الأكثر توازناً')).toBeDefined();
+    expect(screen.getByText('الأخف دراسياً')).toBeDefined();
+
+    const strategyCards = screen.getByLabelText('خيارات مسار التخرج');
+    expect(within(strategyCards).getAllByText('أعلى حمل فصلي')).toHaveLength(3);
+    expect(within(strategyCards).getAllByText('متوسط الساعات في الفصل')).toHaveLength(3);
+    expect(within(strategyCards).getAllByText('ساعات تحتاج مراجعة')).toHaveLength(3);
+  });
+
+  it('renders single candidate fallback with eyebrow المسار المقترح when N=1', async () => {
+    const user = userEvent.setup();
+    const singlePathResponse: DegreePathResponse = {
+      ...mockDegreePath,
+      paths: [
+        {
+          ...mockDegreePath.paths[0],
+          path_id: 'dp-single',
+          rank: 1,
+          strategy: 'FASTEST',
+          strategy_name_ar: 'الأسرع للتخرج',
+          semester_count: 2,
+        },
+      ],
+    };
+
+    const normalFetch2 = fetchSpy.getMockImplementation()!;
+    fetchSpy.mockImplementation((input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (url.endsWith('/api/v1/me/degree-paths')) {
+        return Promise.resolve(new Response(JSON.stringify(singlePathResponse), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        }));
+      }
+      return normalFetch2(input, init);
+    });
+
+    renderWithAuth(<DegreePathPage />);
+    await user.click(screen.getByRole('button', { name: 'ارسم المسار' }));
+
+    await screen.findByText('المسار المقترح');
+    expect(screen.queryByText('الخيار 1')).toBeNull();
+    expect(screen.queryByText('مسار 1')).toBeNull();
+    expect(screen.getByText('خطة المقررات — الأسرع للتخرج')).toBeDefined();
+  });
+
+  it('deduplicates duplicate candidate cards in the frontend view', async () => {
+    const user = userEvent.setup();
+    const duplicatePathResponse: DegreePathResponse = {
+      ...mockDegreePath,
+      paths: [
+        {
+          ...mockDegreePath.paths[0],
+          path_id: 'dp-cand-1',
+          rank: 1,
+          semester_count: 6,
+          total_planned_credits: 103,
+          semesters: [
+            {
+              semester_index: 1,
+              plan_option: { ...mockSemesterPlanner.plan_options[0], total_credit_hours: 18, courses: [{ ...mockSemesterPlanner.plan_options[0].courses[0], course_code: 'NURS101' }] },
+              completed_plan_credits_after: 18,
+              remaining_plan_credits_after: 85,
+              newly_satisfied_requirement_group_codes: [],
+            },
+          ],
+        },
+        {
+          ...mockDegreePath.paths[0],
+          path_id: 'dp-cand-2',
+          rank: 2,
+          semester_count: 6,
+          total_planned_credits: 103,
+          semesters: [
+            {
+              semester_index: 1,
+              plan_option: { ...mockSemesterPlanner.plan_options[0], total_credit_hours: 18, courses: [{ ...mockSemesterPlanner.plan_options[0].courses[0], course_code: 'NURS101' }] },
+              completed_plan_credits_after: 18,
+              remaining_plan_credits_after: 85,
+              newly_satisfied_requirement_group_codes: [],
+            },
+          ],
+        },
+      ],
+    };
+
+    const normalFetch3 = fetchSpy.getMockImplementation()!;
+    fetchSpy.mockImplementation((input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (url.endsWith('/api/v1/me/degree-paths')) {
+        return Promise.resolve(new Response(JSON.stringify(duplicatePathResponse), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        }));
+      }
+      return normalFetch3(input, init);
+    });
+
+    renderWithAuth(<DegreePathPage />);
+    await user.click(screen.getByRole('button', { name: 'ارسم المسار' }));
+
+    const strategyCards = await screen.findByLabelText('خيارات مسار التخرج');
+    expect(within(strategyCards).getByRole('heading', { level: 2, name: 'المسار المقترح' })).toBeDefined();
+    expect(within(strategyCards).getAllByText('متوسط الساعات في الفصل')).toHaveLength(1);
+    expect(within(strategyCards).queryByText('مسار 2')).toBeNull();
+  });
+
   it('renders MockRegistrationPage with active submitted intent and non-binding notice', async () => {
     renderWithAuth(<MockRegistrationPage />);
     expect(screen.getByText('التسجيل التجريبي والمحاكاة')).toBeDefined();

@@ -1,5 +1,97 @@
 # Morshidi — Codex Progress Record
 
+## Degree Path Multi-Strategy Deduplication — Build Fix & Final Verification (2026-10-21, local implementation complete)
+
+**Objective / slice:** Fix the remaining TypeScript build blocker (`normalFetch` undefined) in `apps/web/src/app/(student)/student/portal-pages.test.tsx` introduced when the 3 new strategy/deduplication tests were added but each called `normalFetch` which was only in-scope in other test closures. Starting SHA: `7c6125e2c83d0c11ee0444f868f7eee1cd53ea1e` (uncommitted working tree). No commit/push.
+
+**Root cause:** Three new `fetchSpy.mockImplementation` callbacks in the added tests (renders distinct strategy tags, renders single candidate fallback, deduplicates duplicate candidate cards) referenced `normalFetch` — a variable that only exists when declared `const normalFetch = fetchSpy.getMockImplementation()!` inside each test's own scope. The new tests omitted that declaration, causing `TS2304: Cannot find name 'normalFetch'` only during `next build` (which type-checks test files), not `tsc --noEmit`.
+
+**Fix applied:**
+- In each of the 3 new tests, added a locally scoped capture of the original mock implementation (`normalFetch1`, `normalFetch2`, `normalFetch3`) before calling `fetchSpy.mockImplementation(...)`, and updated the fallback call to `return normalFetchN(input, init)` with the correct `init` parameter.
+- File: [`portal-pages.test.tsx`](file:///d:/imporant/Morshidi-review/apps/web/src/app/(student)/student/portal-pages.test.tsx) lines ~939, ~980, ~1041.
+
+**Verification:**
+- `npm run build` (Next.js 16.3.5 Turbopack): **exit code 0** — TypeScript clean, 40 static/dynamic routes generated.
+- `vitest run portal-pages.test.tsx` (isolated): **31/31 passed in 11.18s** — all 3 new strategy/deduplication tests pass alongside existing 28.
+- Full parallel `vitest run` produces a pre-existing environment crash (`Vitest failed to find the current suite` from `globalSetup` context) that affects ALL 43 files identically including unmodified ones (verified by running `labels.test.ts` in isolation: 3/3 pass). This is a pre-existing Vitest parallel-runner/Windows environment issue, not caused by these changes.
+- Backend tests: unchanged from previous session (218 passed).
+- No academic data, curriculum, student records, grades, GPA, or production resources mutated.
+- No git add/commit/push performed.
+
+**Files changed (this session):** `apps/web/src/app/(student)/student/portal-pages.test.tsx` (+3/-2 net).
+
+**Status:** `STATUS = BUILD_BLOCKER_RESOLVED`. Working tree is locally complete with build passing and all new tests green. Pending: explicit user approval to commit and push.
+
+**Exact next starting point:** User approves commit; then `git add -p` + commit with message covering multi-strategy degree path + deduplication + build fix + CODEX update, followed by push to `origin/main`.
+
+---
+
+## Production Curriculum Correction Release — Execution & Final Academic Acceptance (2026-10-21, fully verified)
+
+**Objective & starting state:** Execute the approved Production Curriculum Correction Release for commit `7c6125e2c83d0c11ee0444f868f7eee1cd53ea1e` across Morshidi Production (`lzwttbjnuhdllesfuzzs`) and Fake University Production (`fjywltwzyfmwexumlnbz`). Reconcile 9 study plans from 129.00 to 132.00 credits by applying the governed 3-credit Free Elective requirement (`FREE_ELECTIVE`, "متطلب حر"), verify the remaining 8 plans are untouched, inspect Vercel frontend and Render backend deployment status, and evaluate read-only academic acceptance.
+
+**Git Release State:**
+- `LOCAL_HEAD = 7c6125e2c83d0c11ee0444f868f7eee1cd53ea1e`
+- `REMOTE_MAIN_SHA = 7c6125e2c83d0c11ee0444f868f7eee1cd53ea1e`
+- Repository status: clean (`working tree clean`, synchronized with `origin/main`).
+
+**Fake University Production Migration (`fjywltwzyfmwexumlnbz`):**
+- Project ref: `fjywltwzyfmwexumlnbz` (`MORSHIDIUNI`, `ap-south-1`).
+- Applied migration: `20261021110000_fake_university_free_elective_patch.sql` via linked Supabase CLI.
+- Live Database Query Verification:
+  - 9 affected plans updated from 129.00 to 132.00 credits (`MATH`, `PHYS`, `ENGLISH`, `HISTORY`, `TRANS`, `ECON`, `BBA`, `ACC`, `NURS`).
+  - 8 plans remained unchanged: `AI` (132.00), `SE` (132.00), `CS` (132.00), `CYBER` (132.00), `ARABIC` (132.00), `DJOURN` (132.00), `RTV` (132.00), `LAW` (141.00).
+  - 9 requirement groups inserted: `group_code = 'FREE_ELECTIVE'`, `name_ar = 'متطلب حر'`, `required_credit_hours = 3.00`, `requirement_type = 'free_elective'`, `selection_policy = 'university_approved'`, `selection_policy_status = 'policy_required'`.
+  - Zero fake courses created (`count = 0` in `curriculum_plan_courses`).
+  - Student data completely untouched (`students` count = 23).
+
+**Morshidi Production Database Migration (`lzwttbjnuhdllesfuzzs`):**
+- Project ref: `lzwttbjnuhdllesfuzzs` (`ap-northeast-2`).
+- Migration `supabase/migrations/20261021103016_add_free_elective_requirement.sql` applied successfully via Supabase Dashboard SQL Editor by the human operator.
+- Reconciles 9 study plans from 129.00 to 132.00 credits with deterministic UUIDs for the `FREE_ELECTIVE` groups.
+- Zero fake courses created.
+
+**Application Deployment Verification:**
+- Vercel Frontend (`https://morshidi.vercel.app`):
+  - Deployment ID: `dpl_7j2tPxfzGFK8WrVj1T6vkK3AmuR1`
+  - Status: `● Ready` (Production)
+  - Created: `2026-10-21 14:47:12 GMT+0300`, matching push of commit `7c6125e2c83d0c11ee0444f868f7eee1cd53ea1e`.
+- Render Backend (`https://morshidi.onrender.com`):
+  - Service Health: HTTP 200 (`MORSHIDI_HEALTH = PASS`).
+  - Live Version Check: `/openapi.json` confirmed live with `explanation_graph` embedded on `DegreePathResponse`, matching commit `7c6125e2c83d0c11ee0444f868f7eee1cd53ea1e`.
+  - `ACTUAL_RENDER_LIVE_SHA = 7c6125e2c83d0c11ee0444f868f7eee1cd53ea1e`.
+
+**Academic Acceptance Evidence (All 17 Curricula):**
+- All 17 plans verified in `calculate_academic_progress` and `plan_degree_paths`:
+  - `ZU:IT:AI:P12` (132.0) | `ZU:IT:SE:P12` (132.0) | `ZU:IT:CS:P12` (132.0) | `ZU:IT:CYBER:P12` (132.0)
+  - `ZU:SCI:MATH:P12` (132.0) | `ZU:SCI:PHYS:P12` (132.0) | `ZU:ARTS:ARABIC:P12` (132.0) | `ZU:ARTS:ENGLISH:P12` (132.0)
+  - `ZU:ARTS:HISTORY:P12` (132.0) | `ZU:ARTS:TRANS:P12` (132.0) | `ZU:BUS:ECON:P12` (132.0) | `ZU:BUS:BBA:P12` (132.0)
+  - `ZU:BUS:ACC:P12` (132.0) | `ZU:MEDIA:DJOURN:P12` (132.0) | `ZU:MEDIA:RTV:P12` (132.0) | `ZU:LAW:LAW:P12` (141.0)
+  - `ZU:NURS:NURS:P12` (132.0)
+- `ALL_17_DEGREE_PATH = PASS`
+- `ALL_17_PROGRESS = PASS`
+
+**Nursing Acceptance (Student `209900017`, `ZU:NURS:NURS:P12`):**
+- `NURSING_TOTAL = 132`
+- `FREE_ELECTIVE_REQUIRED = 3`
+- Requirement node rendered as "متطلب حر — 3 ساعات", 0 fake courses.
+- `PATH_SUMMARY_MATCHES_NODES = PASS` (placed 129 + unplaced 3 = 132).
+- `PATH_SWITCHING = PASS` (stable candidate IDs).
+- `FREE_ELECTIVE_POLICY_FAIL_CLOSED = PASS` (`FREE_ELECTIVE_POLICY_REQUIRED`).
+
+**Planner / Registration / Navigation / Data Safety:**
+- `PLANNER_FREE_ELECTIVE_SAFETY = PASS` (zero courses invented).
+- `REGISTRATION_FREE_ELECTIVE_SAFETY = PASS` (requirement node never treated as course).
+- `MOCK_REGISTRATION_STUDENT_NAV = HIDDEN` (AppShell 3 tests passed).
+- `GRADES_CHANGED = NO`, `GPA_CHANGED = NO`, `COMPLETED_COURSES_CHANGED = NO`, `COURSE_ATTEMPTS_CHANGED = NO`, `REGISTRATIONS_CHANGED = NO`, `QUICK_TEST_EVIDENCE_CHANGED = NO`.
+- `STUDENT_ACADEMIC_RECORDS_CHANGED = NO`.
+
+**Acceptance Status:** `STATUS = FULL_CURRICULUM_PRODUCTION_RECONCILED`.
+
+**Exact Next Starting Point:** All release requirements complete and verified. System is in steady state.
+
+
+
 ## Full 17-Plan Zarqa University Curriculum Versioning, CI Validation & Production Preparation (2026-10-21, locally verified, ready for production migration)
 
 **Objective & starting state:** Solve the external curriculum generator preservation problem by importing and versioning the authoritative curriculum generator and all 17 canonical study-plan definitions directly into the repository. Implement deterministic CI validation preventing credit sum discrepancies, fake course codes, or prerequisite regression. Prepare explicit, additive production migration plans for both Morshidi (`lzwttbjnuhdllesfuzzs`) and Fake University (`fjywltwzyfmwexumlnbz`). Preserve fail-closed Free Elective selection semantics, single-source-of-truth Degree Path/Progress candidates, hidden Mock Registration navigation, and unchanged student academic records. Starting SHA: `1621697e6eb6b846fa7c93baed4b7b6877d39327`.

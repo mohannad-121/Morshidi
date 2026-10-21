@@ -45,6 +45,11 @@ from app.degree_path.models import (
     DegreePathValidationErrorCode,
     DegreePathOption,
     DegreePathResult,
+    DegreePathStrategy,
+    STRATEGY_LABELS_AR,
+    canonical_semantic_fingerprint,
+    are_paths_materially_distinct,
+    deduplicate_candidate_paths,
     ModeledSemesterEntry,
     PathReasonCode,
     PathStatus,
@@ -2193,3 +2198,124 @@ class TestAcademicHistoryRegression:
         assert path.total_planned_courses == 1
         assert path.total_planned_credits == Decimal("3")
         assert path.completed_plan_credit_delta == Decimal("3")
+
+
+class TestMultiStrategyAndMaterialDistinction:
+    """Tests for multi-strategy degree path generation and candidate deduplication."""
+
+    def test_122_multi_strategy_generates_three_materially_distinct_paths(self) -> None:
+        pcs = tuple(
+            _pc(f"C{i}", credits="3", display_order=i)
+            for i in range(1, 7)
+        )
+        rules = tuple(_rule_na(f"C{i}") for i in range(1, 7))
+        p_cat, e_cat = _catalogs(pcs, rules, total_credits="18")
+
+        result = plan_degree_paths(
+            p_cat,
+            e_cat,
+            (),
+            DegreePathConstraints(
+                max_credit_hours_per_semester=Decimal("18"),
+                max_paths=3,
+                multi_strategy=True,
+            ),
+        )
+
+        assert len(result.paths) == 3
+        fastest, balanced, lighter = result.paths
+
+        assert fastest.strategy == DegreePathStrategy.FASTEST.value
+        assert fastest.strategy_name_ar == STRATEGY_LABELS_AR[DegreePathStrategy.FASTEST.value]
+        assert fastest.semester_count == 1
+        assert fastest.semesters[0].plan_option.total_credit_hours == Decimal("18")
+
+        assert balanced.strategy == DegreePathStrategy.BALANCED.value
+        assert balanced.strategy_name_ar == STRATEGY_LABELS_AR[DegreePathStrategy.BALANCED.value]
+        assert balanced.semester_count == 2
+        assert [s.plan_option.total_credit_hours for s in balanced.semesters] == [Decimal("15"), Decimal("3")]
+
+        assert lighter.strategy == DegreePathStrategy.LIGHTER.value
+        assert lighter.strategy_name_ar == STRATEGY_LABELS_AR[DegreePathStrategy.LIGHTER.value]
+        assert lighter.semester_count == 2
+        assert [s.plan_option.total_credit_hours for s in lighter.semesters] == [Decimal("12"), Decimal("6")]
+
+        assert are_paths_materially_distinct(fastest, balanced) is True
+        assert are_paths_materially_distinct(fastest, lighter) is True
+        assert are_paths_materially_distinct(balanced, lighter) is True
+
+    def test_123_candidate_deduplication_prunes_duplicate_credit_paths(self) -> None:
+        pcs = (_pc("A", credits="3"), _pc("B", credits="3"))
+        rules = (_rule_na("A"), _rule_na("B"))
+        p_cat, e_cat = _catalogs(pcs, rules, total_credits="6")
+
+        result = plan_degree_paths(
+            p_cat,
+            e_cat,
+            (),
+            DegreePathConstraints(max_credit_hours_per_semester=Decimal("18")),
+        )
+        base_path = result.paths[0]
+
+        dup_path = replace(base_path, path_id="dp_duplicate_id")
+        assert are_paths_materially_distinct(base_path, dup_path) is False
+
+        deduped = deduplicate_candidate_paths([base_path, dup_path])
+        assert len(deduped) == 1
+        assert deduped[0].path_id == base_path.path_id
+
+    def test_124_single_candidate_fallback_when_remaining_credits_small(self) -> None:
+        pcs = (_pc("FINAL", credits="3"),)
+        rules = (_rule_na("FINAL"),)
+        p_cat, e_cat = _catalogs(pcs, rules, total_credits="3")
+
+        result = plan_degree_paths(
+            p_cat,
+            e_cat,
+            (),
+            DegreePathConstraints(
+                max_credit_hours_per_semester=Decimal("18"),
+                max_paths=3,
+                multi_strategy=True,
+            ),
+        )
+
+        assert len(result.paths) == 1
+        assert result.paths[0].strategy == DegreePathStrategy.FASTEST.value
+        assert result.paths[0].rank == 1
+        assert result.paths[0].semester_count == 1
+        assert result.paths[0].total_planned_credits == Decimal("3")
+
+    def test_125_pairwise_semantic_fingerprint_and_material_distinctness(self) -> None:
+        pcs = (
+            _pc("A", credits="3"),
+            _pc("B", credits="3"),
+            _pc("C", credits="3"),
+            _pc("D", credits="3"),
+        )
+        rules = (_rule_na("A"), _rule_na("B"), _rule_na("C"), _rule_na("D"))
+        p_cat, e_cat = _catalogs(pcs, rules, total_credits="12")
+
+        res1 = plan_degree_paths(
+            p_cat, e_cat, (),
+            DegreePathConstraints(max_credit_hours_per_semester=Decimal("12")),
+        )
+        res2 = plan_degree_paths(
+            p_cat, e_cat, (),
+            DegreePathConstraints(max_credit_hours_per_semester=Decimal("6")),
+        )
+
+        p1 = res1.paths[0]
+        p2 = res2.paths[0]
+
+        fp1 = canonical_semantic_fingerprint(p1)
+        fp2 = canonical_semantic_fingerprint(p2)
+        assert fp1 != fp2
+        assert are_paths_materially_distinct(p1, p2) is True
+
+    def test_126_multi_strategy_constraints_validation(self) -> None:
+        with pytest.raises(DegreePathConstraintError, match="multi_strategy must be a boolean"):
+            DegreePathConstraints(
+                max_credit_hours_per_semester=Decimal("18"),
+                multi_strategy="invalid",  # type: ignore[arg-type]
+            )

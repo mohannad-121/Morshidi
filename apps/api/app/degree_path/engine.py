@@ -7,12 +7,17 @@ It reuses Phase 5 (via Phase 7/8), Phase 6 (calculate_academic_progress), Phase 
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from decimal import Decimal
 from time import monotonic
 from typing import Callable
 
 from app.degree_path.models import (
+    DegreePathStrategy,
+    STRATEGY_LABELS_AR,
+    canonical_semantic_fingerprint,
+    are_paths_materially_distinct,
+    deduplicate_candidate_paths,
     DEFAULT_BEAM_WIDTH,
     DEFAULT_CANDIDATE_WINDOW_SIZE,
     DEFAULT_COMBINATION_EVALUATION_LIMIT,
@@ -297,6 +302,109 @@ def _partial_priority_tuple(
 # ---------------------------------------------------------------------------
 
 
+
+def _plan_multi_strategy_degree_paths(
+    progress_catalog: AcademicProgressCatalog,
+    eligibility_catalog: CanTakeCatalog,
+    student_attempts: tuple[StudentCourseAttempt, ...],
+    constraints: DegreePathConstraints,
+    *,
+    beam_width: int = DEFAULT_BEAM_WIDTH,
+    semester_branch_width: int = DEFAULT_SEMESTER_BRANCH_WIDTH,
+    reported_cumulative_gpa: Decimal | None = None,
+    reported_gpa_scale: Decimal | None = None,
+    reported_earned_credit_hours: Decimal | None = None,
+    check_budget: Callable[[], None] | None = None,
+    metrics: dict[str, float | int] | None = None,
+) -> DegreePathResult:
+    req_max = constraints.max_credit_hours_per_semester
+    strategy_definitions = [
+        (
+            DegreePathStrategy.FASTEST.value,
+            STRATEGY_LABELS_AR[DegreePathStrategy.FASTEST.value],
+            req_max,
+        ),
+        (
+            DegreePathStrategy.BALANCED.value,
+            STRATEGY_LABELS_AR[DegreePathStrategy.BALANCED.value],
+            min(Decimal("15"), req_max)
+            if req_max > Decimal("15")
+            else max(Decimal("12"), req_max - Decimal("3")),
+        ),
+        (
+            DegreePathStrategy.LIGHTER.value,
+            STRATEGY_LABELS_AR[DegreePathStrategy.LIGHTER.value],
+            min(Decimal("12"), req_max),
+        ),
+    ]
+
+    candidate_paths: list[DegreePathOption] = []
+    base_result: DegreePathResult | None = None
+
+    for strat_code, label_ar, cap_credits in strategy_definitions:
+        if check_budget is not None:
+            check_budget()
+        strat_constraints = replace(
+            constraints,
+            max_credit_hours_per_semester=cap_credits,
+            max_paths=1,
+            multi_strategy=False,
+        )
+        strat_res = plan_degree_paths(
+            progress_catalog=progress_catalog,
+            eligibility_catalog=eligibility_catalog,
+            student_attempts=student_attempts,
+            constraints=strat_constraints,
+            beam_width=beam_width,
+            semester_branch_width=semester_branch_width,
+            reported_cumulative_gpa=reported_cumulative_gpa,
+            reported_gpa_scale=reported_gpa_scale,
+            reported_earned_credit_hours=reported_earned_credit_hours,
+            check_budget=check_budget,
+            metrics=metrics,
+        )
+        if base_result is None:
+            base_result = strat_res
+        if strat_res.paths:
+            opt = strat_res.paths[0]
+            candidate_paths.append(replace(opt, strategy=strat_code, strategy_name_ar=label_ar))
+
+    deduped = deduplicate_candidate_paths(candidate_paths)
+    final_paths = tuple(
+        replace(opt, rank=idx)
+        for idx, opt in enumerate(deduped[:constraints.max_paths], start=1)
+    )
+
+    if base_result is None:
+        raise DegreePathIntegrityError("Failed to initialize baseline degree path result")
+
+    result = DegreePathResult(
+        study_plan_id=base_result.study_plan_id,
+        degree_path_policy_version=base_result.degree_path_policy_version,
+        planning_scope=base_result.planning_scope,
+        constraints=constraints,
+        paths=final_paths,
+        initial_completed_credits=base_result.initial_completed_credits,
+        initial_remaining_credits=base_result.initial_remaining_credits,
+        initial_satisfied_group_count=base_result.initial_satisfied_group_count,
+        total_requirement_group_count=base_result.total_requirement_group_count,
+        unresolved_review_required_courses=base_result.unresolved_review_required_courses,
+        persisted_in_progress_courses=base_result.persisted_in_progress_courses,
+        total_parent_states_expanded=base_result.total_parent_states_expanded,
+        methodology_note=base_result.methodology_note,
+        limitations=base_result.limitations,
+    )
+    validate_degree_path_result(
+        progress_catalog,
+        eligibility_catalog,
+        student_attempts,
+        result,
+        reported_cumulative_gpa=reported_cumulative_gpa,
+        reported_gpa_scale=reported_gpa_scale,
+        reported_earned_credit_hours=reported_earned_credit_hours,
+    )
+    return result
+
 def plan_degree_paths(
     progress_catalog: AcademicProgressCatalog,
     eligibility_catalog: CanTakeCatalog,
@@ -342,6 +450,21 @@ def plan_degree_paths(
     # 1. Structural Integrity Checks
     if eligibility_catalog.study_plan_id != study_plan_id:
         raise DegreePathIntegrityError("Mismatched study_plan_id between progress and eligibility catalogs")
+
+    if constraints.multi_strategy and constraints.max_paths > 1:
+        return _plan_multi_strategy_degree_paths(
+            progress_catalog=progress_catalog,
+            eligibility_catalog=eligibility_catalog,
+            student_attempts=student_attempts,
+            constraints=constraints,
+            beam_width=beam_width,
+            semester_branch_width=semester_branch_width,
+            reported_cumulative_gpa=reported_cumulative_gpa,
+            reported_gpa_scale=reported_gpa_scale,
+            reported_earned_credit_hours=reported_earned_credit_hours,
+            check_budget=check_budget,
+            metrics=metrics,
+        )
 
     if isinstance(beam_width, bool) or not isinstance(beam_width, int):
         raise DegreePathConstraintError("beam_width must be an integer")
@@ -877,6 +1000,7 @@ def plan_degree_paths(
 
     # 9. Sort All Finalized Options Lexicographically by FinalPriorityTuple
     raw_options.sort(key=lambda opt: opt.priority_tuple)
+    raw_options = deduplicate_candidate_paths(raw_options)
 
     # 10. Assign Relative and Absolute Reason Codes Across ALL Finalized Options
     complete_options = [opt for opt in raw_options if opt.status is PathStatus.MODELED_COMPLETE]
