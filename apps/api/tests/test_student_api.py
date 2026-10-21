@@ -270,7 +270,7 @@ def test_openapi_documents_secured_student_contracts(api) -> None:
     assert schema["components"]["schemas"]["CourseProgressState"]["enum"] == [
         "COMPLETED", "IN_PROGRESS", "ATTEMPTED_NOT_COMPLETED", "NOT_ATTEMPTED"
     ]
-    assert schema["components"]["schemas"]["RequirementType"]["enum"] == ["required", "elective"]
+    assert schema["components"]["schemas"]["RequirementType"]["enum"] == ["required", "elective", "free_elective"]
     for request_schema in ("ProfileCreateRequest", "ProfileUpdateRequest", "AttemptCreateRequest", "AttemptUpdateRequest"):
         assert "owner_user_id" not in schema["components"]["schemas"][request_schema]["properties"]
     assert schema["components"]["schemas"]["AttemptCreateRequest"]["properties"]["course_code"]["type"] == "string"

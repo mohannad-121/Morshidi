@@ -20,6 +20,7 @@ from app.decision_intelligence.models import (
 )
 from app.degree_path.models import (
     DegreePathConstraints,
+    DegreePathCreditSummary,
     DegreePathOption,
     DegreePathResult,
     ModeledSemesterEntry,
@@ -240,11 +241,23 @@ def _path_result(*, semesters=0, status=PathStatus.MODELED_COMPLETE, blockers=()
             ModeledSemesterEntry(index + 1, option, Decimal(credits), Decimal("0"), ())
             for index in range(semesters)
         )
+    planned = Decimal(credits) * semesters
     path = DegreePathOption(
-        1, status, semester_entries, semesters, semesters, Decimal(credits) * semesters,
-        Decimal(credits) * semesters, Decimal(credits) * semesters, Decimal("0"),
-        0, (), (), tuple(blockers), semesters,
-        (-1, semesters, Decimal("0"), 0, len(blockers), semesters, ()), (),
+        path_id=f"dp_test_{code}_{semesters}", rank=1, status=status,
+        semesters=semester_entries, semester_count=semesters,
+        total_planned_courses=semesters, total_planned_credits=planned,
+        completed_plan_credit_delta=planned, final_completed_plan_credits=planned,
+        final_remaining_plan_credits=Decimal("0"),
+        newly_satisfied_requirement_group_count=0,
+        newly_satisfied_requirement_group_codes=(), remaining_required_course_codes=(),
+        unresolved_blocker_codes=tuple(blockers), aggregate_semester_rank_sum=semesters,
+        priority_tuple=(-1, semesters, Decimal("0"), 0, len(blockers), semesters, ()),
+        reason_codes=(), completed_course_codes=(), current_course_codes=(),
+        unplaced_course_codes=(), credit_summary=DegreePathCreditSummary(
+            degree_required_credits=planned, completed_credits=Decimal("0"),
+            current_credits=Decimal("0"), future_placed_credits=planned,
+            unplaced_credits=Decimal("0"),
+        ),
     )
     return DegreePathResult(
         PLAN, "1.0", "MODELED_DEGREE_PATH_ONLY", DegreePathConstraints(Decimal("12")),

@@ -1,0 +1,106 @@
+{
+  "canonical_curriculum.json": {
+    "bytes": 425624,
+    "sha256": "c05cb188f4711b81d82d52cbf56038e9868173701855f46a3ecfa378fcdc4175"
+  },
+  "courses.csv": {
+    "bytes": 34718,
+    "sha256": "9c1f26b8adc9d170d941dfa1212309b2fbea43a17358f16102aa6011ea090978"
+  },
+  "data_quality_issues.csv": {
+    "bytes": 14769,
+    "sha256": "ef3e3804dbf818f92f6e6721706eef43b9c72892f5e65af4040ac1edec88cc09"
+  },
+  "fake_university_curriculum_registry.json": {
+    "bytes": 544306,
+    "sha256": "81ea8baf9effa8dac28673f36cad55336e68a94cc86500c67e4f1f9ef71331b6"
+  },
+  "fake_university_multi_plan_migration.sql": {
+    "bytes": 596266,
+    "sha256": "b6d37b7927f4ca8d0e4005cc4332e913529f5ef97054f5fb8581dcc90b787d37"
+  },
+  "morshidi_multi_plan_seed.sql": {
+    "bytes": 384325,
+    "sha256": "af4d542fe20a51a8070beea865cd36b093c1d7ee93d7f23350353315db64173b"
+  },
+  "morshidi_plan_ids.json": {
+    "bytes": 1118,
+    "sha256": "e8b7a19b6c5a15e01433372f253b0c73856ac77a82c30cfdbc40dff20bc35eb2"
+  },
+  "plan_courses.csv": {
+    "bytes": 297028,
+    "sha256": "f5a4ce979694b3b3d0f2774ec07dfd5d5c2db285f552146990d7f16efb7c341a"
+  },
+  "plans.csv": {
+    "bytes": 1735,
+    "sha256": "2066f48ed9ae5909fbc1898d9c1ce6fc9c3adbc1512ec55eb3a92c3e1050d421"
+  },
+  "plans/ZU_ARTS_ARABIC_P12.json": {
+    "bytes": 21251,
+    "sha256": "7c92367c96464f344b8a4c713a0d2f91a2ffe9ba7f46ce0058e0f947858ab2d1"
+  },
+  "plans/ZU_ARTS_ENGLISH_P12.json": {
+    "bytes": 20515,
+    "sha256": "e5484337979906cb1ed55d563606eee077b14293181ad37ecfae9976750039cb"
+  },
+  "plans/ZU_ARTS_HISTORY_P12.json": {
+    "bytes": 20550,
+    "sha256": "92d3bff1b06a16a1f0b31765a5ac2bbd131cf5a0853f029951a868531957e461"
+  },
+  "plans/ZU_ARTS_TRANS_P12.json": {
+    "bytes": 20783,
+    "sha256": "a96f046bbc19d632d2f74ad263ea7cc5bd5ed5571e78a837a3ca610864f99f04"
+  },
+  "plans/ZU_BUS_ACC_P12.json": {
+    "bytes": 22713,
+    "sha256": "c1a2c38c8dd4ec313edcd57ab3dd598eb890d65bec9c9c9ef559979baecf5c24"
+  },
+  "plans/ZU_BUS_BBA_P12.json": {
+    "bytes": 24067,
+    "sha256": "11f4e906fb26dbcf2f564d292c01ab31ea09cbb996d632d2049043d2691f6c88"
+  },
+  "plans/ZU_BUS_ECON_P12.json": {
+    "bytes": 21756,
+    "sha256": "fac629fb91418c446afe4e45334fe73faf8b6fa52668992d8d3ab174801c19a5"
+  },
+  "plans/ZU_IT_AI_P12.json": {
+    "bytes": 22964,
+    "sha256": "b9d309041a9447bf884ed09e39fe0af9376e1d60e8462561d26170eaa7439ff2"
+  },
+  "plans/ZU_IT_CS_P12.json": {
+    "bytes": 22177,
+    "sha256": "4e102bce4e7653a7885bf9582a0975ca5b509e2a21db134c2cf27baacb737994"
+  },
+  "plans/ZU_IT_CYBER_P12.json": {
+    "bytes": 22704,
+    "sha256": "e9cf626b3284476c38f66baa91be358190c256d9ebe5d50ca5cbd9e4c2ab0e75"
+  },
+  "plans/ZU_IT_SE_P12.json": {
+    "bytes": 22075,
+    "sha256": "ed5d668e7e19072b16cf201ffb74df216ccbd615521f89b405a89013dd53a9cf"
+  },
+  "plans/ZU_LAW_LAW_P12.json": {
+    "bytes": 26338,
+    "sha256": "ddd74c44989076ad38dc2ffda21297377cbcca5cf7e300bb5c153353230ab0ec"
+  },
+  "plans/ZU_MEDIA_DJOURN_P12.json": {
+    "bytes": 21872,
+    "sha256": "60c5229ee15f2a5b3e6332511a0f20fa4376ad077b0fcd1934768ccf906133ff"
+  },
+  "plans/ZU_MEDIA_RTV_P12.json": {
+    "bytes": 21679,
+    "sha256": "354b2db186fe861fead71c48d456d53165c8dbf262bd0b08261a4b34bfb52e17"
+  },
+  "plans/ZU_NURS_NURS_P12.json": {
+    "bytes": 20923,
+    "sha256": "33a894982414fc31274e1d8cd44ecd28e1dd296f3b7101d0c4b993423a48445c"
+  },
+  "plans/ZU_SCI_MATH_P12.json": {
+    "bytes": 24175,
+    "sha256": "64c60f55964fe4d60804ebfa7557ceb756ac23a43a5cefb051412aff0de1603c"
+  },
+  "plans/ZU_SCI_PHYS_P12.json": {
+    "bytes": 24184,
+    "sha256": "ea228a3930392aadc3ec2809e54e6eed23da187274d2dcb9b1136df585040693"
+  }
+}

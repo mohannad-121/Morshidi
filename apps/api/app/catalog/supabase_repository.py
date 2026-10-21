@@ -35,6 +35,8 @@ from app.progress.models import (
     ProgressPlanCourse,
     ProgressRequirementGroup,
     ProgressStudyPlan,
+    RequirementSelectionPolicy,
+    RequirementSelectionPolicyStatus,
     RequirementType,
 )
 
@@ -221,7 +223,8 @@ class SupabaseAcademicCatalogRepository:
             {
                 "select": (
                     "id,study_plan_id,group_code,name_ar,name_en,scope,"
-                    "requirement_type,required_credit_hours,display_order"
+                    "requirement_type,selection_policy,selection_policy_status,"
+                    "required_credit_hours,display_order"
                 ),
                 "study_plan_id": f"eq.{plan_id}",
                 "order": "display_order.asc,group_code.asc",
@@ -707,6 +710,16 @@ def _progress_group(row: Mapping[str, Any]) -> ProgressRequirementGroup:
             row, "required_credit_hours", "requirement_group"
         ),
         display_order=_required_nonnegative_int(row, "display_order", "requirement_group"),
+        selection_policy=_enum_value(
+            RequirementSelectionPolicy,
+            str(row.get("selection_policy", RequirementSelectionPolicy.PLAN_MEMBERSHIP.value)),
+            "selection_policy",
+        ),
+        selection_policy_status=_enum_value(
+            RequirementSelectionPolicyStatus,
+            str(row.get("selection_policy_status", RequirementSelectionPolicyStatus.AVAILABLE.value)),
+            "selection_policy_status",
+        ),
     )
 
 

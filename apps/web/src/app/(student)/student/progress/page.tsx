@@ -269,9 +269,11 @@ export default function ProgressPage() {
                               {group.group_code}
                             </span>
                             <span className="rounded-md bg-accent-soft px-2 py-0.5 text-[10px] font-semibold text-accent">
-                              {group.requirement_type === "MANDATORY" || group.requirement_type === "required"
-                                ? "إجباري"
-                                : "اختياري"}
+                              {group.requirement_type === "free_elective"
+                                ? "متطلب حر"
+                                : group.requirement_type === "MANDATORY" || group.requirement_type === "required"
+                                  ? "إجباري"
+                                  : "اختياري"}
                             </span>
                           </div>
                           <h3 className="mt-1 truncate text-base font-bold text-foreground">
@@ -285,6 +287,11 @@ export default function ProgressPage() {
                           <Badge variant="gold">قيد الاستيفاء</Badge>
                         )}
                       </div>
+                      {group.free_elective_selection_state === "FREE_ELECTIVE_POLICY_REQUIRED" && (
+                        <p className="mt-4 text-xs text-copper">
+                          يلزم اعتماد سياسة الجامعة للمواد المسموح باحتسابها قبل عرض خيارات التسجيل.
+                        </p>
+                      )}
 
                       <div className="mt-5 space-y-2">
                         <div className="flex items-center justify-between text-xs">

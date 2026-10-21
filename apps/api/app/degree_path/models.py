@@ -8,6 +8,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from decimal import Decimal
 from enum import Enum
+from hashlib import sha256
 
 from app.planner.models import SemesterPlanOption
 
@@ -230,10 +231,53 @@ class ModeledSemesterEntry:
     newly_satisfied_requirement_group_codes: tuple[str, ...]
 
 
+def deterministic_path_id(
+    study_plan_id: str,
+    semesters: tuple[ModeledSemesterEntry, ...],
+) -> str:
+    """Return a stable identity for one exact semester/course allocation."""
+    allocation = "|".join(
+        f"{semester.semester_index}:" + ",".join(
+            course.course_code for course in semester.plan_option.courses
+        )
+        for semester in semesters
+    )
+    digest = sha256(f"{study_plan_id}|{allocation}".encode("utf-8")).hexdigest()
+    return f"dp_{digest[:24]}"
+
+
+@dataclass(frozen=True)
+class DegreePathCreditSummary:
+    """Canonical credit accounting for one candidate path."""
+
+    degree_required_credits: Decimal
+    completed_credits: Decimal
+    current_credits: Decimal
+    future_placed_credits: Decimal
+    unplaced_credits: Decimal
+
+
+@dataclass(frozen=True)
+class DegreePathFreeElectiveRequirement:
+    """A credit requirement, never a fabricated catalog course or section."""
+
+    group_code: str
+    name_ar: str
+    name_en: str | None
+    required_credits: Decimal
+    completed_credits: Decimal
+    current_credits: Decimal
+    remaining_credits_after_current: Decimal
+    selection_state: str
+    completed_course_codes: tuple[str, ...]
+    current_course_codes: tuple[str, ...]
+
+
 @dataclass(frozen=True)
 class DegreePathOption:
     """A complete ranked multi-semester degree path option."""
 
+    path_id: str
     rank: int
     status: PathStatus
     semesters: tuple[ModeledSemesterEntry, ...]
@@ -250,6 +294,11 @@ class DegreePathOption:
     aggregate_semester_rank_sum: int
     priority_tuple: tuple[int, int, Decimal, int, int, int, tuple[tuple[str, ...], ...]]
     reason_codes: tuple[PathReasonCode, ...]
+    completed_course_codes: tuple[str, ...]
+    current_course_codes: tuple[str, ...]
+    unplaced_course_codes: tuple[str, ...]
+    credit_summary: DegreePathCreditSummary
+    free_elective_requirements: tuple[DegreePathFreeElectiveRequirement, ...] = ()
 
 
 @dataclass(frozen=True)

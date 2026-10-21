@@ -11,8 +11,10 @@ from app.progress.models import (
     AcademicProgressCatalog,
     CourseProgress,
     CourseProgressState,
+    FreeElectiveSelectionState,
     ProgressIntegrityError,
     RequirementGroupProgress,
+    RequirementSelectionPolicyStatus,
     RequirementType,
 )
 from app.rules.models import AttemptOutcome, StudentCourseAttempt
@@ -50,7 +52,7 @@ class ProgressProjection:
             credited_sum += credited
             completed_count = group.completed_course_count + added_counts[group.group_id]
             satisfied = credited >= group.required_credits and (
-                group.requirement_type is RequirementType.ELECTIVE
+                group.requirement_type in (RequirementType.ELECTIVE, RequirementType.FREE_ELECTIVE)
                 or completed_count == group.total_listed_course_count
             )
             if satisfied and not group.is_satisfied:
@@ -131,9 +133,38 @@ def calculate_academic_progress(
         courses_by_group[group.group_id].append(result)
         course_results.append(result)
 
+    approved_by_group: dict[str, list[CourseProgress]] = defaultdict(list)
+    approved_codes: set[str] = set()
+    for approval in sorted(
+        catalog.approved_free_elective_courses,
+        key=lambda row: (row.requirement_group_id, row.course_code),
+    ):
+        group = groups_by_id.get(approval.requirement_group_id)
+        if group is None or group.requirement_type is not RequirementType.FREE_ELECTIVE:
+            raise ProgressIntegrityError("Free-elective approval refers to an invalid requirement group")
+        if group.selection_policy_status is not RequirementSelectionPolicyStatus.AVAILABLE:
+            raise ProgressIntegrityError("Free-elective approvals require an available authoritative policy")
+        if approval.credit_hours <= ZERO:
+            raise ProgressIntegrityError("Free-elective approval has invalid credits")
+        if approval.course_code in course_codes or approval.course_code in approved_codes:
+            raise ProgressIntegrityError("A course cannot count toward two degree requirements")
+        approved_codes.add(approval.course_code)
+        result = CourseProgress(
+            course_code=approval.course_code,
+            credit_hours=approval.credit_hours,
+            requirement_group_id=group.group_id,
+            requirement_group_code=group.group_code,
+            state=_course_state(outcomes_by_course.get(approval.course_code, set())),
+            course_name_ar=approval.course_name_ar,
+            course_name_en=approval.course_name_en,
+            satisfies_free_elective=True,
+        )
+        approved_by_group[group.group_id].append(result)
+        course_results.append(result)
+
     group_results: list[RequirementGroupProgress] = []
     for group in ordered_groups:
-        courses = courses_by_group[group.group_id]
+        courses = courses_by_group[group.group_id] + approved_by_group[group.group_id]
         listed = sum((course.credit_hours for course in courses), ZERO)
         completed = sum(
             (course.credit_hours for course in courses if course.state is CourseProgressState.COMPLETED),
@@ -145,12 +176,22 @@ def calculate_academic_progress(
         )
         credited = min(completed, group.required_credit_hours)
         remaining = max(group.required_credit_hours - credited, ZERO)
+        in_progress_credited = min(in_progress, remaining)
         completed_count = _count(courses, CourseProgressState.COMPLETED)
         credit_condition = credited >= group.required_credit_hours
         mandatory_condition = completed_count == len(courses)
         is_satisfied = credit_condition and (
-            group.requirement_type is RequirementType.ELECTIVE or mandatory_condition
+            group.requirement_type in (RequirementType.ELECTIVE, RequirementType.FREE_ELECTIVE)
+            or mandatory_condition
         )
+        if group.requirement_type is RequirementType.FREE_ELECTIVE:
+            selection_state = (
+                FreeElectiveSelectionState.FREE_ELECTIVE_POLICY_REQUIRED
+                if group.selection_policy_status is RequirementSelectionPolicyStatus.POLICY_REQUIRED
+                else FreeElectiveSelectionState.OPTIONS_AVAILABLE
+            )
+        else:
+            selection_state = FreeElectiveSelectionState.NOT_APPLICABLE
         group_results.append(
             RequirementGroupProgress(
                 group_id=group.group_id,
@@ -173,6 +214,8 @@ def calculate_academic_progress(
                 not_attempted_count=_count(courses, CourseProgressState.NOT_ATTEMPTED),
                 total_listed_course_count=len(courses),
                 is_satisfied=is_satisfied,
+                in_progress_credited_toward_requirement=in_progress_credited,
+                free_elective_selection_state=selection_state,
             )
         )
 
@@ -180,8 +223,7 @@ def calculate_academic_progress(
     completed_plan = min(credited_sum, plan.total_credit_hours)
     remaining_plan = max(plan.total_credit_hours - completed_plan, ZERO)
     in_progress_plan = sum(
-        (course.credit_hours for course in course_results if course.state is CourseProgressState.IN_PROGRESS),
-        ZERO,
+        (group.in_progress_credited_toward_requirement for group in group_results), ZERO
     )
     satisfied_count = sum(group.is_satisfied for group in group_results)
     return AcademicProgress(

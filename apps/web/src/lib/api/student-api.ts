@@ -220,8 +220,10 @@ export class StudentApiService {
       body: JSON.stringify(request),
     });
     const data = await parseJson<DegreePathResponse>(res);
-    if (!data || !Array.isArray(data.paths) || data.paths.some((path) =>
-      !path || !Array.isArray(path.semesters) || path.semesters.some((semester) =>
+    if (!data || !data.explanation_graph || !Array.isArray(data.paths) || data.paths.some((path) =>
+      !path || typeof path.path_id !== "string" || !path.credit_summary ||
+      !Array.isArray(path.completed_course_codes) || !Array.isArray(path.current_course_codes) ||
+      !Array.isArray(path.unplaced_course_codes) || !Array.isArray(path.semesters) || path.semesters.some((semester) =>
         !semester || !semester.plan_option || !Array.isArray(semester.plan_option.courses) ||
         !Array.isArray(semester.newly_satisfied_requirement_group_codes)
       )

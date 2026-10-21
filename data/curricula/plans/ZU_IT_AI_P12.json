@@ -1,0 +1,627 @@
+{
+  "faculty_ar": "كلية تكنولوجيا المعلومات",
+  "faculty_code": "IT",
+  "major_ar": "الذكاء الاصطناعي",
+  "major_code": "AI",
+  "plan_number": "12",
+  "groups": [
+    {
+      "group_code": "UNIVERSITY_REQUIRED",
+      "name_ar": "متطلبات الجامعة الإجبارية",
+      "scope": "university",
+      "requirement_type": "required",
+      "required_credit_hours": 18.0,
+      "display_order": 1,
+      "courses": [
+        {
+          "course_code": "0200104",
+          "name_ar": "التربية الوطنية",
+          "credit_hours": 3.0,
+          "raw_prerequisite_text": null,
+          "learning_type": "نظري",
+          "delivery_mode": "الكتروني"
+        },
+        {
+          "course_code": "0200105",
+          "name_ar": "مهارات الاتصال والتواصل (اللغة العربية 1)",
+          "credit_hours": 3.0,
+          "raw_prerequisite_text": "0200150,0201001",
+          "learning_type": "نظري",
+          "delivery_mode": "الكتروني"
+        },
+        {
+          "course_code": "0200106",
+          "name_ar": "مهارات الاتصال والتواصل (اللغة الانجليزية 1)",
+          "credit_hours": 3.0,
+          "raw_prerequisite_text": "0200151,0202001",
+          "learning_type": "نظري",
+          "delivery_mode": "الكتروني"
+        },
+        {
+          "course_code": "0200110",
+          "name_ar": "العلوم العسكرية",
+          "credit_hours": 3.0,
+          "raw_prerequisite_text": null,
+          "learning_type": "نظري",
+          "delivery_mode": "الكتروني"
+        },
+        {
+          "course_code": "0200111",
+          "name_ar": "الثقافة الاسلامية وقضايا العصر",
+          "credit_hours": 3.0,
+          "raw_prerequisite_text": null,
+          "learning_type": "نظري",
+          "delivery_mode": "الكتروني"
+        },
+        {
+          "course_code": "0200115",
+          "name_ar": "تنمية المجتمع والعمل التطوعي",
+          "credit_hours": 3.0,
+          "raw_prerequisite_text": null,
+          "learning_type": "نظري",
+          "delivery_mode": "الكتروني"
+        },
+        {
+          "course_code": "0200153",
+          "name_ar": "المهارات الحياتية",
+          "credit_hours": 1.0,
+          "raw_prerequisite_text": null,
+          "learning_type": "نظري",
+          "delivery_mode": "الكتروني"
+        },
+        {
+          "course_code": "0200154",
+          "name_ar": "القيادة والمسؤولية المجتمعية",
+          "credit_hours": 1.0,
+          "raw_prerequisite_text": null,
+          "learning_type": "نظري",
+          "delivery_mode": "الكتروني"
+        },
+        {
+          "course_code": "0400202",
+          "name_ar": "الريادة والابتكار",
+          "credit_hours": 1.0,
+          "raw_prerequisite_text": null,
+          "learning_type": "نظري",
+          "delivery_mode": "الكتروني"
+        }
+      ],
+      "selection_policy": "plan_membership",
+      "selection_policy_status": "available"
+    },
+    {
+      "group_code": "UNIVERSITY_ELECTIVE",
+      "name_ar": "متطلبات الجامعة الاختيارية",
+      "scope": "university",
+      "requirement_type": "elective",
+      "required_credit_hours": 9.0,
+      "display_order": 2,
+      "courses": [
+        {
+          "course_code": "0200113",
+          "name_ar": "تاريخ الاردن وفلسطين",
+          "credit_hours": 3.0,
+          "raw_prerequisite_text": null,
+          "learning_type": "نظري",
+          "delivery_mode": "الكتروني"
+        },
+        {
+          "course_code": "0200114",
+          "name_ar": "القدس تاريخ وحضارة",
+          "credit_hours": 3.0,
+          "raw_prerequisite_text": null,
+          "learning_type": "نظري",
+          "delivery_mode": "الكتروني"
+        },
+        {
+          "course_code": "0200122",
+          "name_ar": "مبادئ علم التربية",
+          "credit_hours": 3.0,
+          "raw_prerequisite_text": null,
+          "learning_type": "نظري",
+          "delivery_mode": "الكتروني"
+        },
+        {
+          "course_code": "0200125",
+          "name_ar": "مبادئ علم القانون",
+          "credit_hours": 3.0,
+          "raw_prerequisite_text": null,
+          "learning_type": "نظري",
+          "delivery_mode": "الكتروني"
+        },
+        {
+          "course_code": "0200127",
+          "name_ar": "اخلاقيات الطالب الجامعي",
+          "credit_hours": 3.0,
+          "raw_prerequisite_text": null,
+          "learning_type": "نظري",
+          "delivery_mode": "الكتروني"
+        },
+        {
+          "course_code": "0200130",
+          "name_ar": "جرائم الارهاب",
+          "credit_hours": 3.0,
+          "raw_prerequisite_text": null,
+          "learning_type": "نظري",
+          "delivery_mode": "الكتروني"
+        },
+        {
+          "course_code": "0200156",
+          "name_ar": "التنمية والبيئة",
+          "credit_hours": 3.0,
+          "raw_prerequisite_text": null,
+          "learning_type": "نظري",
+          "delivery_mode": "الكتروني"
+        },
+        {
+          "course_code": "0300123",
+          "name_ar": "مبادئ علم الفلك",
+          "credit_hours": 3.0,
+          "raw_prerequisite_text": null,
+          "learning_type": "نظري",
+          "delivery_mode": "الكتروني"
+        },
+        {
+          "course_code": "0300124",
+          "name_ar": "الثقافة العلمية",
+          "credit_hours": 3.0,
+          "raw_prerequisite_text": null,
+          "learning_type": "نظري",
+          "delivery_mode": "الكتروني"
+        },
+        {
+          "course_code": "0300157",
+          "name_ar": "الثقافة الرقمية",
+          "credit_hours": 3.0,
+          "raw_prerequisite_text": null,
+          "learning_type": "نظري",
+          "delivery_mode": "الكتروني"
+        },
+        {
+          "course_code": "0300161",
+          "name_ar": "الاسعافات الاولية",
+          "credit_hours": 3.0,
+          "raw_prerequisite_text": null,
+          "learning_type": "نظري",
+          "delivery_mode": "الكتروني"
+        }
+      ],
+      "selection_policy": "plan_membership",
+      "selection_policy_status": "available"
+    },
+    {
+      "group_code": "FACULTY_REQUIRED",
+      "name_ar": "متطلبات الكلية الإجبارية",
+      "scope": "faculty",
+      "requirement_type": "required",
+      "required_credit_hours": 21.0,
+      "display_order": 3,
+      "courses": [
+        {
+          "course_code": "0300153",
+          "name_ar": "اساسيات تكنولوجيا المعلومات",
+          "credit_hours": 3.0,
+          "raw_prerequisite_text": null,
+          "learning_type": "نظري",
+          "delivery_mode": "مدمج"
+        },
+        {
+          "course_code": "0300154",
+          "name_ar": "اساسيات الامن السيبراني",
+          "credit_hours": 3.0,
+          "raw_prerequisite_text": null,
+          "learning_type": "نظري",
+          "delivery_mode": "وجاهي"
+        },
+        {
+          "course_code": "0300155",
+          "name_ar": "تصميم المنطق الرقمي",
+          "credit_hours": 3.0,
+          "raw_prerequisite_text": null,
+          "learning_type": "نظري",
+          "delivery_mode": "وجاهي"
+        },
+        {
+          "course_code": "0300220",
+          "name_ar": "رياضيات متقطعة",
+          "credit_hours": 3.0,
+          "raw_prerequisite_text": "0300153",
+          "learning_type": "نظري",
+          "delivery_mode": "مدمج"
+        },
+        {
+          "course_code": "1501110",
+          "name_ar": "برمجة الحاسوب (1)",
+          "credit_hours": 3.0,
+          "raw_prerequisite_text": "0300153",
+          "learning_type": "نظري",
+          "delivery_mode": "وجاهي"
+        },
+        {
+          "course_code": "1501112",
+          "name_ar": "برمجة الحاسوب (2)",
+          "credit_hours": 3.0,
+          "raw_prerequisite_text": "1501110",
+          "learning_type": "نظري",
+          "delivery_mode": "وجاهي"
+        },
+        {
+          "course_code": "1501221",
+          "name_ar": "تراكيب البيانات",
+          "credit_hours": 3.0,
+          "raw_prerequisite_text": "1501112",
+          "learning_type": "نظري",
+          "delivery_mode": "وجاهي"
+        },
+        {
+          "course_code": "1509999",
+          "name_ar": "حلقة بحث لطلبة كلية تكنولوجيا المعلومات",
+          "credit_hours": 3.0,
+          "raw_prerequisite_text": null,
+          "learning_type": "نظري",
+          "delivery_mode": "وجاهي"
+        }
+      ],
+      "selection_policy": "plan_membership",
+      "selection_policy_status": "available"
+    },
+    {
+      "group_code": "SUPPORTING_REQUIRED",
+      "name_ar": "المتطلبات المساندة",
+      "scope": "supporting",
+      "requirement_type": "required",
+      "required_credit_hours": 12.0,
+      "display_order": 4,
+      "courses": [
+        {
+          "course_code": "0200215",
+          "name_ar": "لغة انجليزية لأغراض خاصة بتكنولوجيا المعلومات (ESP-IT)",
+          "credit_hours": 3.0,
+          "raw_prerequisite_text": "0200106",
+          "learning_type": "نظري",
+          "delivery_mode": "مدمج"
+        },
+        {
+          "course_code": "0300101",
+          "name_ar": "التفاضل والتكامل 1",
+          "credit_hours": 3.0,
+          "raw_prerequisite_text": null,
+          "learning_type": "نظري",
+          "delivery_mode": "وجاهي"
+        },
+        {
+          "course_code": "0300104",
+          "name_ar": "الاحصاء والاحتمالات لتكنولوجيا المعلومات",
+          "credit_hours": 3.0,
+          "raw_prerequisite_text": null,
+          "learning_type": "نظري",
+          "delivery_mode": "مدمج"
+        },
+        {
+          "course_code": "0301245",
+          "name_ar": "الجبر الخطي لتكنولوجيا المعلومات",
+          "credit_hours": 3.0,
+          "raw_prerequisite_text": null,
+          "learning_type": "نظري",
+          "delivery_mode": "وجاهي"
+        }
+      ],
+      "selection_policy": "plan_membership",
+      "selection_policy_status": "available"
+    },
+    {
+      "group_code": "MAJOR_REQUIRED",
+      "name_ar": "متطلبات التخصص الإجبارية",
+      "scope": "major",
+      "requirement_type": "required",
+      "required_credit_hours": 63.0,
+      "display_order": 5,
+      "courses": [
+        {
+          "course_code": "1501111",
+          "name_ar": "مختبر برمجة الحاسوب (1)",
+          "credit_hours": 1.0,
+          "raw_prerequisite_text": "0300153",
+          "learning_type": "عملي",
+          "delivery_mode": "وجاهي"
+        },
+        {
+          "course_code": "1501113",
+          "name_ar": "مختبر برمجة الحاسوب (2)",
+          "credit_hours": 1.0,
+          "raw_prerequisite_text": "1501111",
+          "learning_type": "عملي",
+          "delivery_mode": "وجاهي"
+        },
+        {
+          "course_code": "1501222",
+          "name_ar": "نظم قواعد البيانات",
+          "credit_hours": 3.0,
+          "raw_prerequisite_text": "1501112",
+          "learning_type": "التعلم القائم على المشاريع",
+          "delivery_mode": "مدمج"
+        },
+        {
+          "course_code": "1501321",
+          "name_ar": "تصميم وتحليل الخوارزميات",
+          "credit_hours": 3.0,
+          "raw_prerequisite_text": "1501221",
+          "learning_type": "التعلم القائم على المشاريع",
+          "delivery_mode": "وجاهي"
+        },
+        {
+          "course_code": "1501340",
+          "name_ar": "شبكات الحاسوب",
+          "credit_hours": 3.0,
+          "raw_prerequisite_text": "1501112",
+          "learning_type": "التعلم القائم على المشاريع",
+          "delivery_mode": "وجاهي"
+        },
+        {
+          "course_code": "1501430",
+          "name_ar": "نظم التشغيل",
+          "credit_hours": 3.0,
+          "raw_prerequisite_text": "1501221",
+          "learning_type": "التعلم القائم على المشاريع",
+          "delivery_mode": "مدمج"
+        },
+        {
+          "course_code": "1503270",
+          "name_ar": "مقدمة لهندسة البرمجيات",
+          "credit_hours": 3.0,
+          "raw_prerequisite_text": "0300153",
+          "learning_type": "نظري",
+          "delivery_mode": "مدمج"
+        },
+        {
+          "course_code": "1505101",
+          "name_ar": "البرمجة بلغة بايثون",
+          "credit_hours": 3.0,
+          "raw_prerequisite_text": "1501110",
+          "learning_type": "التعلم القائم على المشاريع",
+          "delivery_mode": "وجاهي"
+        },
+        {
+          "course_code": "1505201",
+          "name_ar": "مقدمة في الذكاء الاصطناعي",
+          "credit_hours": 3.0,
+          "raw_prerequisite_text": "0300153",
+          "learning_type": "نظري",
+          "delivery_mode": "وجاهي"
+        },
+        {
+          "course_code": "1505223",
+          "name_ar": "برمجة وأدوات الذكاء الإصطناعي",
+          "credit_hours": 3.0,
+          "raw_prerequisite_text": "1505101",
+          "learning_type": "التعلم القائم على المشاريع",
+          "delivery_mode": "وجاهي"
+        },
+        {
+          "course_code": "1505311",
+          "name_ar": "تعلم الالة",
+          "credit_hours": 3.0,
+          "raw_prerequisite_text": "1505101,1505201",
+          "learning_type": "نظري",
+          "delivery_mode": "وجاهي"
+        },
+        {
+          "course_code": "1505320",
+          "name_ar": "تعلم الآلة المتقدم",
+          "credit_hours": 3.0,
+          "raw_prerequisite_text": "0300103,1505311",
+          "learning_type": "التعلم القائم على المشاريع",
+          "delivery_mode": "مدمج"
+        },
+        {
+          "course_code": "1505333",
+          "name_ar": "علم البيانات وتحليلها",
+          "credit_hours": 3.0,
+          "raw_prerequisite_text": "1501222",
+          "learning_type": "نظري",
+          "delivery_mode": "وجاهي"
+        },
+        {
+          "course_code": "1505366",
+          "name_ar": "معالجة الصور الرقمية",
+          "credit_hours": 3.0,
+          "raw_prerequisite_text": "0301241,1505101",
+          "learning_type": "التعلم القائم على المشاريع",
+          "delivery_mode": "وجاهي"
+        },
+        {
+          "course_code": "1505367",
+          "name_ar": "تدريب ميداني في الذكاء الاصطناعي",
+          "credit_hours": 3.0,
+          "raw_prerequisite_text": null,
+          "learning_type": "عملي",
+          "delivery_mode": "مدمج"
+        },
+        {
+          "course_code": "1505381",
+          "name_ar": "مقدمة في الروبوتات",
+          "credit_hours": 3.0,
+          "raw_prerequisite_text": "1505201",
+          "learning_type": "نظري",
+          "delivery_mode": "مدمج"
+        },
+        {
+          "course_code": "1505415",
+          "name_ar": "التعلم العميق التطبيقي",
+          "credit_hours": 3.0,
+          "raw_prerequisite_text": "1505311",
+          "learning_type": "التعلم القائم على المشاريع",
+          "delivery_mode": "وجاهي"
+        },
+        {
+          "course_code": "1505441",
+          "name_ar": "معالجة اللغات الطبيعية",
+          "credit_hours": 3.0,
+          "raw_prerequisite_text": "1505311",
+          "learning_type": "التعلم القائم على المشاريع",
+          "delivery_mode": "مدمج"
+        },
+        {
+          "course_code": "1505461",
+          "name_ar": "الرؤية الحاسوبية",
+          "credit_hours": 3.0,
+          "raw_prerequisite_text": "1505366,1505415",
+          "learning_type": "التعلم القائم على المشاريع",
+          "delivery_mode": "مدمج"
+        },
+        {
+          "course_code": "1505467",
+          "name_ar": "مشروع (1) في الذكاء الاصطناعي",
+          "credit_hours": 3.0,
+          "raw_prerequisite_text": null,
+          "learning_type": "عملي",
+          "delivery_mode": "مدمج"
+        },
+        {
+          "course_code": "1505468",
+          "name_ar": "مشروع (2) في الذكاء الاصطناعي",
+          "credit_hours": 3.0,
+          "raw_prerequisite_text": "1505467",
+          "learning_type": "عملي",
+          "delivery_mode": "مدمج"
+        },
+        {
+          "course_code": "1506180",
+          "name_ar": "برمجة ويب (1)",
+          "credit_hours": 3.0,
+          "raw_prerequisite_text": "1501110",
+          "learning_type": "نظري",
+          "delivery_mode": "وجاهي"
+        },
+        {
+          "course_code": "1506181",
+          "name_ar": "مختبر برمجة ويب (1)",
+          "credit_hours": 1.0,
+          "raw_prerequisite_text": "1501111",
+          "learning_type": "عملي",
+          "delivery_mode": "وجاهي"
+        }
+      ],
+      "selection_policy": "plan_membership",
+      "selection_policy_status": "available"
+    },
+    {
+      "group_code": "MAJOR_ELECTIVE",
+      "name_ar": "متطلبات التخصص الاختيارية",
+      "scope": "major",
+      "requirement_type": "elective",
+      "required_credit_hours": 9.0,
+      "display_order": 6,
+      "courses": [
+        {
+          "course_code": "1501212",
+          "name_ar": "برمجة مرئية",
+          "credit_hours": 3.0,
+          "raw_prerequisite_text": "1501222",
+          "learning_type": "التعلم القائم على المشاريع",
+          "delivery_mode": "مدمج"
+        },
+        {
+          "course_code": "1501360",
+          "name_ar": "مناهج واخلاقيات البحث العلمي",
+          "credit_hours": 3.0,
+          "raw_prerequisite_text": null,
+          "learning_type": "التعلم القائم على المشاريع",
+          "delivery_mode": "مدمج"
+        },
+        {
+          "course_code": "1501385",
+          "name_ar": "برمجة الهواتف الذكية",
+          "credit_hours": 3.0,
+          "raw_prerequisite_text": "1501112",
+          "learning_type": "التعلم القائم على المشاريع",
+          "delivery_mode": "مدمج"
+        },
+        {
+          "course_code": "1505211",
+          "name_ar": "لغات خاصة في البرمجة",
+          "credit_hours": 3.0,
+          "raw_prerequisite_text": "1501112",
+          "learning_type": "التعلم القائم على المشاريع",
+          "delivery_mode": "مدمج"
+        },
+        {
+          "course_code": "1505303",
+          "name_ar": "المنطق الضبابي",
+          "credit_hours": 3.0,
+          "raw_prerequisite_text": "0300220",
+          "learning_type": "التعلم القائم على المشاريع",
+          "delivery_mode": "مدمج"
+        },
+        {
+          "course_code": "1505351",
+          "name_ar": "علم الإدراك",
+          "credit_hours": 3.0,
+          "raw_prerequisite_text": "1505201",
+          "learning_type": "التعلم القائم على المشاريع",
+          "delivery_mode": "مدمج"
+        },
+        {
+          "course_code": "1505365",
+          "name_ar": "استرجاع المعلومات",
+          "credit_hours": 3.0,
+          "raw_prerequisite_text": "1501222",
+          "learning_type": "التعلم القائم على المشاريع",
+          "delivery_mode": "مدمج"
+        },
+        {
+          "course_code": "1505414",
+          "name_ar": "تعلم الالة التطبيقي",
+          "credit_hours": 3.0,
+          "raw_prerequisite_text": "1505311",
+          "learning_type": "التعلم القائم على المشاريع",
+          "delivery_mode": "مدمج"
+        },
+        {
+          "course_code": "1505435",
+          "name_ar": "موضوعات خاصة في الذكاء الاصطناعي (1)",
+          "credit_hours": 3.0,
+          "raw_prerequisite_text": null,
+          "learning_type": "التعلم القائم على المشاريع",
+          "delivery_mode": "مدمج"
+        },
+        {
+          "course_code": "1505436",
+          "name_ar": "موضوعات خاصة في الذكاء الاصطناعي (2)",
+          "credit_hours": 3.0,
+          "raw_prerequisite_text": null,
+          "learning_type": "التعلم القائم على المشاريع",
+          "delivery_mode": "مدمج"
+        },
+        {
+          "course_code": "1505480",
+          "name_ar": "البيانات الضخمة",
+          "credit_hours": 3.0,
+          "raw_prerequisite_text": "1501222",
+          "learning_type": "التعلم القائم على المشاريع",
+          "delivery_mode": "مدمج"
+        },
+        {
+          "course_code": "1505482",
+          "name_ar": "برمجة الروبوتات",
+          "credit_hours": 3.0,
+          "raw_prerequisite_text": "1505381",
+          "learning_type": "التعلم القائم على المشاريع",
+          "delivery_mode": "مدمج"
+        },
+        {
+          "course_code": "1506493",
+          "name_ar": "إنترنت الأشياء",
+          "credit_hours": 3.0,
+          "raw_prerequisite_text": "1501340",
+          "learning_type": "التعلم القائم على المشاريع",
+          "delivery_mode": "مدمج"
+        }
+      ],
+      "selection_policy": "plan_membership",
+      "selection_policy_status": "available"
+    }
+  ],
+  "plan_key": "ZU:IT:AI:P12",
+  "computed_total_required_credits": 132.0
+}

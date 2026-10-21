@@ -1,0 +1,582 @@
+{
+  "faculty_ar": "كلية الآداب",
+  "faculty_code": "ARTS",
+  "major_ar": "التاريخ",
+  "major_code": "HISTORY",
+  "plan_number": "12",
+  "groups": [
+    {
+      "group_code": "UNIVERSITY_REQUIRED",
+      "name_ar": "متطلبات الجامعة الإجبارية",
+      "scope": "university",
+      "requirement_type": "required",
+      "required_credit_hours": 18,
+      "display_order": 1,
+      "courses": [
+        {
+          "course_code": "0200104",
+          "name_ar": "التربية الوطنية",
+          "credit_hours": 3.0,
+          "raw_prerequisite_text": null,
+          "learning_type": "نظري",
+          "delivery_mode": "الكتروني"
+        },
+        {
+          "course_code": "0200105",
+          "name_ar": "مهارات الاتصال والتواصل (اللغة العربية 1)",
+          "credit_hours": 3.0,
+          "raw_prerequisite_text": "0200150,0201001",
+          "learning_type": "نظري",
+          "delivery_mode": "الكتروني"
+        },
+        {
+          "course_code": "0200106",
+          "name_ar": "مهارات الاتصال والتواصل (اللغة الإنجليزية 1)",
+          "credit_hours": 3.0,
+          "raw_prerequisite_text": "0200151,0202001",
+          "learning_type": "نظري",
+          "delivery_mode": "الكتروني"
+        },
+        {
+          "course_code": "0200110",
+          "name_ar": "العلوم العسكرية",
+          "credit_hours": 3.0,
+          "raw_prerequisite_text": null,
+          "learning_type": "نظري",
+          "delivery_mode": "الكتروني"
+        },
+        {
+          "course_code": "0200111",
+          "name_ar": "الثقافة الاسلامية وقضايا العصر",
+          "credit_hours": 3.0,
+          "raw_prerequisite_text": null,
+          "learning_type": "نظري",
+          "delivery_mode": "الكتروني"
+        },
+        {
+          "course_code": "0200115",
+          "name_ar": "تنمية المجتمع والعمل التطوعي",
+          "credit_hours": 0.0,
+          "raw_prerequisite_text": null,
+          "learning_type": "نظري",
+          "delivery_mode": "الكتروني"
+        },
+        {
+          "course_code": "0200153",
+          "name_ar": "المهارات الحياتية",
+          "credit_hours": 1.0,
+          "raw_prerequisite_text": null,
+          "learning_type": "نظري",
+          "delivery_mode": "الكتروني"
+        },
+        {
+          "course_code": "0200154",
+          "name_ar": "القيادة والمسؤولية المجتمعية",
+          "credit_hours": 1.0,
+          "raw_prerequisite_text": null,
+          "learning_type": "نظري",
+          "delivery_mode": "الكتروني"
+        },
+        {
+          "course_code": "0400202",
+          "name_ar": "الريادة والابتكار",
+          "credit_hours": 1.0,
+          "raw_prerequisite_text": null,
+          "learning_type": "نظري",
+          "delivery_mode": "الكتروني"
+        }
+      ],
+      "selection_policy": "plan_membership",
+      "selection_policy_status": "available"
+    },
+    {
+      "group_code": "UNIVERSITY_ELECTIVE",
+      "name_ar": "متطلبات الجامعة الإختيارية",
+      "scope": "university",
+      "requirement_type": "elective",
+      "required_credit_hours": 9,
+      "display_order": 2,
+      "courses": [
+        {
+          "course_code": "0200113",
+          "name_ar": "تاريخ الاردن وفلسطين",
+          "credit_hours": 3.0,
+          "raw_prerequisite_text": null,
+          "learning_type": "نظري",
+          "delivery_mode": "الكتروني"
+        },
+        {
+          "course_code": "0200114",
+          "name_ar": "القدس تاريخ وحضارة",
+          "credit_hours": 3.0,
+          "raw_prerequisite_text": null,
+          "learning_type": "نظري",
+          "delivery_mode": "الكتروني"
+        },
+        {
+          "course_code": "0200122",
+          "name_ar": "مبادئ علم التربية",
+          "credit_hours": 3.0,
+          "raw_prerequisite_text": null,
+          "learning_type": "نظري",
+          "delivery_mode": "الكتروني"
+        },
+        {
+          "course_code": "0200125",
+          "name_ar": "مبادئ علم القانون",
+          "credit_hours": 3.0,
+          "raw_prerequisite_text": null,
+          "learning_type": "نظري",
+          "delivery_mode": "الكتروني"
+        },
+        {
+          "course_code": "0200127",
+          "name_ar": "اخلاقيات الطالب الجامعي",
+          "credit_hours": 3.0,
+          "raw_prerequisite_text": null,
+          "learning_type": "نظري",
+          "delivery_mode": "الكتروني"
+        },
+        {
+          "course_code": "0200130",
+          "name_ar": "جرائم الارهاب",
+          "credit_hours": 3.0,
+          "raw_prerequisite_text": null,
+          "learning_type": "نظري",
+          "delivery_mode": "الكتروني"
+        },
+        {
+          "course_code": "0200156",
+          "name_ar": "التنمية والبيئة",
+          "credit_hours": 3.0,
+          "raw_prerequisite_text": null,
+          "learning_type": "نظري",
+          "delivery_mode": "الكتروني"
+        },
+        {
+          "course_code": "0300123",
+          "name_ar": "مبادئ علم الفلك",
+          "credit_hours": 3.0,
+          "raw_prerequisite_text": null,
+          "learning_type": "نظري",
+          "delivery_mode": "الكتروني"
+        },
+        {
+          "course_code": "0300124",
+          "name_ar": "الثقافة العلمية",
+          "credit_hours": 3.0,
+          "raw_prerequisite_text": null,
+          "learning_type": "نظري",
+          "delivery_mode": "الكتروني"
+        },
+        {
+          "course_code": "0300152",
+          "name_ar": "مهارات حاسوب",
+          "credit_hours": 3.0,
+          "raw_prerequisite_text": "0300151,0306001",
+          "learning_type": "نظري",
+          "delivery_mode": "الكتروني"
+        },
+        {
+          "course_code": "0300157",
+          "name_ar": "الثقافة الرقمية",
+          "credit_hours": 3.0,
+          "raw_prerequisite_text": null,
+          "learning_type": "نظري",
+          "delivery_mode": "الكتروني"
+        },
+        {
+          "course_code": "0300161",
+          "name_ar": "الاسعافات الاولية",
+          "credit_hours": 3.0,
+          "raw_prerequisite_text": null,
+          "learning_type": "نظري",
+          "delivery_mode": "الكتروني"
+        }
+      ],
+      "selection_policy": "plan_membership",
+      "selection_policy_status": "available"
+    },
+    {
+      "group_code": "FACULTY_REQUIRED",
+      "name_ar": "متطلبات الكلية الإجبارية",
+      "scope": "faculty",
+      "requirement_type": "required",
+      "required_credit_hours": 21,
+      "display_order": 3,
+      "courses": [
+        {
+          "course_code": "0200140",
+          "name_ar": "مدخل الى علم الاجتماع",
+          "credit_hours": 3.0,
+          "raw_prerequisite_text": null,
+          "learning_type": "نظري",
+          "delivery_mode": "مدمج"
+        },
+        {
+          "course_code": "0200143",
+          "name_ar": "فن الكتابة والتعبير",
+          "credit_hours": 3.0,
+          "raw_prerequisite_text": null,
+          "learning_type": "نظري",
+          "delivery_mode": "مدمج"
+        },
+        {
+          "course_code": "0200144",
+          "name_ar": "تذوق النص الادبي",
+          "credit_hours": 3.0,
+          "raw_prerequisite_text": null,
+          "learning_type": "نظري",
+          "delivery_mode": "مدمج"
+        },
+        {
+          "course_code": "0200146",
+          "name_ar": "المهارات الدراسية",
+          "credit_hours": 3.0,
+          "raw_prerequisite_text": null,
+          "learning_type": "نظري",
+          "delivery_mode": "مدمج"
+        },
+        {
+          "course_code": "0200147",
+          "name_ar": "حاضر العالم الاسلامي والقضية الفلسطينية",
+          "credit_hours": 3.0,
+          "raw_prerequisite_text": null,
+          "learning_type": "نظري",
+          "delivery_mode": "مدمج"
+        },
+        {
+          "course_code": "0200148",
+          "name_ar": "مهارات الاتصال والتواصل (اللغة الإنجليزية 2)",
+          "credit_hours": 3.0,
+          "raw_prerequisite_text": "0200106",
+          "learning_type": "نظري",
+          "delivery_mode": "مدمج"
+        },
+        {
+          "course_code": "0200149",
+          "name_ar": "مهارات الاتصال والتواصل (اللغة العربية 2)",
+          "credit_hours": 3.0,
+          "raw_prerequisite_text": "0200105",
+          "learning_type": "نظري",
+          "delivery_mode": "مدمج"
+        },
+        {
+          "course_code": "0209999",
+          "name_ar": "حلقة بحث لطلبة كلية الآداب",
+          "credit_hours": 0.0,
+          "raw_prerequisite_text": null,
+          "learning_type": "نظري",
+          "delivery_mode": "وجاهي"
+        }
+      ],
+      "selection_policy": "plan_membership",
+      "selection_policy_status": "available"
+    },
+    {
+      "group_code": "MAJOR_REQUIRED",
+      "name_ar": "متطلبات التخصص الإجبارية",
+      "scope": "major",
+      "requirement_type": "required",
+      "required_credit_hours": 72,
+      "display_order": 4,
+      "courses": [
+        {
+          "course_code": "0203110",
+          "name_ar": "الجغرافية التاريخية في العصور القديمة",
+          "credit_hours": 3.0,
+          "raw_prerequisite_text": null,
+          "learning_type": "نظري",
+          "delivery_mode": "مدمج"
+        },
+        {
+          "course_code": "0203111",
+          "name_ar": "تاريخ الشرق الأدنى القديم",
+          "credit_hours": 3.0,
+          "raw_prerequisite_text": null,
+          "learning_type": "نظري",
+          "delivery_mode": "مدمج"
+        },
+        {
+          "course_code": "0203112",
+          "name_ar": "تاريخ العرب قبل الاسلام",
+          "credit_hours": 3.0,
+          "raw_prerequisite_text": null,
+          "learning_type": "نظري",
+          "delivery_mode": "مدمج"
+        },
+        {
+          "course_code": "0203113",
+          "name_ar": "تاريخ اليونان والرومان",
+          "credit_hours": 3.0,
+          "raw_prerequisite_text": null,
+          "learning_type": "نظري",
+          "delivery_mode": "مدمج"
+        },
+        {
+          "course_code": "0203120",
+          "name_ar": "تاريخ عصر الرسول والخلفاء الراشدين",
+          "credit_hours": 3.0,
+          "raw_prerequisite_text": null,
+          "learning_type": "نظري",
+          "delivery_mode": "وجاهي"
+        },
+        {
+          "course_code": "0203222",
+          "name_ar": "تاريخ الدولة الاموية",
+          "credit_hours": 3.0,
+          "raw_prerequisite_text": "0203120",
+          "learning_type": "نظري",
+          "delivery_mode": "وجاهي"
+        },
+        {
+          "course_code": "0203223",
+          "name_ar": "تاريخ الدولة العباسية (132-232 هـ)",
+          "credit_hours": 3.0,
+          "raw_prerequisite_text": "0203222",
+          "learning_type": "نظري",
+          "delivery_mode": "وجاهي"
+        },
+        {
+          "course_code": "0203224",
+          "name_ar": "تاريخ المغرب والاندلس",
+          "credit_hours": 3.0,
+          "raw_prerequisite_text": null,
+          "learning_type": "نظري",
+          "delivery_mode": "وجاهي"
+        },
+        {
+          "course_code": "0203225",
+          "name_ar": "تاريخ العالم الاسلامي (ق 3 هـ - ق 5 هـ)",
+          "credit_hours": 3.0,
+          "raw_prerequisite_text": "0203222,0203223",
+          "learning_type": "نظري",
+          "delivery_mode": "مدمج"
+        },
+        {
+          "course_code": "0203226",
+          "name_ar": "تاريخ الأيوبيين والمماليك",
+          "credit_hours": 3.0,
+          "raw_prerequisite_text": null,
+          "learning_type": "نظري",
+          "delivery_mode": "وجاهي"
+        },
+        {
+          "course_code": "0203240",
+          "name_ar": "تاريخ أوروبا في العصور الوسطى",
+          "credit_hours": 3.0,
+          "raw_prerequisite_text": null,
+          "learning_type": "نظري",
+          "delivery_mode": "مدمج"
+        },
+        {
+          "course_code": "0203251",
+          "name_ar": "منهج البحث التاريخي",
+          "credit_hours": 3.0,
+          "raw_prerequisite_text": null,
+          "learning_type": "نظري",
+          "delivery_mode": "وجاهي"
+        },
+        {
+          "course_code": "0203322",
+          "name_ar": "فلسفة التاريخ الإسلامي",
+          "credit_hours": 3.0,
+          "raw_prerequisite_text": null,
+          "learning_type": "نظري",
+          "delivery_mode": "وجاهي"
+        },
+        {
+          "course_code": "0203326",
+          "name_ar": "تاريخ الدولة العباسية (232-656هـ)",
+          "credit_hours": 3.0,
+          "raw_prerequisite_text": "0203223",
+          "learning_type": "نظري",
+          "delivery_mode": "وجاهي"
+        },
+        {
+          "course_code": "0203332",
+          "name_ar": "تاريخ الولايات المتحدة الأمريكية الحديث",
+          "credit_hours": 3.0,
+          "raw_prerequisite_text": null,
+          "learning_type": "نظري",
+          "delivery_mode": "وجاهي"
+        },
+        {
+          "course_code": "0203336",
+          "name_ar": "تاريخ الخليج العربي الحديث والمعاصر",
+          "credit_hours": 3.0,
+          "raw_prerequisite_text": null,
+          "learning_type": "نظري",
+          "delivery_mode": "وجاهي"
+        },
+        {
+          "course_code": "0203337",
+          "name_ar": "تاريخ الدولة العثمانية",
+          "credit_hours": 3.0,
+          "raw_prerequisite_text": "0203226",
+          "learning_type": "نظري",
+          "delivery_mode": "وجاهي"
+        },
+        {
+          "course_code": "0203338",
+          "name_ar": "تاريخ العرب الحديث (1516-1918م)",
+          "credit_hours": 3.0,
+          "raw_prerequisite_text": "0203337",
+          "learning_type": "نظري",
+          "delivery_mode": "وجاهي"
+        },
+        {
+          "course_code": "0203341",
+          "name_ar": "تاريخ العالم الحديث ( 1500-1900م)",
+          "credit_hours": 3.0,
+          "raw_prerequisite_text": null,
+          "learning_type": "نظري",
+          "delivery_mode": "وجاهي"
+        },
+        {
+          "course_code": "0203355",
+          "name_ar": "التاريخ والذكاء الاصطناعي",
+          "credit_hours": 3.0,
+          "raw_prerequisite_text": null,
+          "learning_type": "نظري",
+          "delivery_mode": "مدمج"
+        },
+        {
+          "course_code": "0203434",
+          "name_ar": "تاريخ العرب المعاصر",
+          "credit_hours": 3.0,
+          "raw_prerequisite_text": "0203338",
+          "learning_type": "نظري",
+          "delivery_mode": "وجاهي"
+        },
+        {
+          "course_code": "0203442",
+          "name_ar": "تاريخ العالم المعاصر",
+          "credit_hours": 3.0,
+          "raw_prerequisite_text": "0203341",
+          "learning_type": "نظري",
+          "delivery_mode": "وجاهي"
+        },
+        {
+          "course_code": "0203455",
+          "name_ar": "مشروع تخرج",
+          "credit_hours": 3.0,
+          "raw_prerequisite_text": "0203251",
+          "learning_type": "نظري",
+          "delivery_mode": "وجاهي"
+        },
+        {
+          "course_code": "0203457",
+          "name_ar": "نصوص تاريخية معاصرة باللغة الإنجليزية",
+          "credit_hours": 3.0,
+          "raw_prerequisite_text": null,
+          "learning_type": "نظري",
+          "delivery_mode": "وجاهي"
+        }
+      ],
+      "selection_policy": "plan_membership",
+      "selection_policy_status": "available"
+    },
+    {
+      "group_code": "MAJOR_ELECTIVE",
+      "name_ar": "متطلبات التخصص الإختيارية",
+      "scope": "major",
+      "requirement_type": "elective",
+      "required_credit_hours": 6,
+      "display_order": 5,
+      "courses": [
+        {
+          "course_code": "0203260",
+          "name_ar": "الفرق في العالم الإسلامي",
+          "credit_hours": 3.0,
+          "raw_prerequisite_text": null,
+          "learning_type": "نظري",
+          "delivery_mode": "مدمج"
+        },
+        {
+          "course_code": "0203331",
+          "name_ar": "تاريخ الصين",
+          "credit_hours": 3.0,
+          "raw_prerequisite_text": null,
+          "learning_type": "نظري",
+          "delivery_mode": "مدمج"
+        },
+        {
+          "course_code": "0203335",
+          "name_ar": "تاريخ ايران الحديث",
+          "credit_hours": 3.0,
+          "raw_prerequisite_text": null,
+          "learning_type": "نظري",
+          "delivery_mode": "مدمج"
+        },
+        {
+          "course_code": "0203339",
+          "name_ar": "حركة الإصلاح الحديثة في الوطن العربي",
+          "credit_hours": 3.0,
+          "raw_prerequisite_text": null,
+          "learning_type": "نظري",
+          "delivery_mode": "مدمج"
+        },
+        {
+          "course_code": "0203362",
+          "name_ar": "الحضارة العربية الإسلامية",
+          "credit_hours": 3.0,
+          "raw_prerequisite_text": null,
+          "learning_type": "نظري",
+          "delivery_mode": "مدمج"
+        },
+        {
+          "course_code": "0203429",
+          "name_ar": "قضايا العالم الإسلامي المعاصر",
+          "credit_hours": 3.0,
+          "raw_prerequisite_text": null,
+          "learning_type": "نظري",
+          "delivery_mode": "مدمج"
+        },
+        {
+          "course_code": "0203433",
+          "name_ar": "اليهود في العصور الحديثة",
+          "credit_hours": 3.0,
+          "raw_prerequisite_text": null,
+          "learning_type": "نظري",
+          "delivery_mode": "مدمج"
+        }
+      ],
+      "selection_policy": "plan_membership",
+      "selection_policy_status": "available"
+    },
+    {
+      "group_code": "SUPPORTING_REQUIRED",
+      "name_ar": "المتطلبات المساندة",
+      "scope": "supporting",
+      "requirement_type": "required",
+      "required_credit_hours": 3,
+      "display_order": 6,
+      "courses": [
+        {
+          "course_code": "0501411",
+          "name_ar": "مناهج التربية الاجتماعية واساليب تدريسها",
+          "credit_hours": 3.0,
+          "raw_prerequisite_text": null,
+          "learning_type": "نظري",
+          "delivery_mode": "وجاهي"
+        }
+      ],
+      "selection_policy": "plan_membership",
+      "selection_policy_status": "available"
+    },
+    {
+      "group_code": "FREE_ELECTIVE",
+      "name_ar": "متطلب حر",
+      "scope": "other",
+      "requirement_type": "free_elective",
+      "required_credit_hours": 3,
+      "display_order": 7,
+      "courses": [],
+      "selection_policy": "university_approved",
+      "selection_policy_status": "policy_required"
+    }
+  ],
+  "plan_key": "ZU:ARTS:HISTORY:P12",
+  "computed_total_required_credits": 132
+}

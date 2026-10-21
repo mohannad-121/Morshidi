@@ -18,7 +18,6 @@ import {
   EligibilityIcon,
   RecommendationsIcon,
   DegreePathIcon,
-  MockRegistrationIcon,
   PoliciesIcon,
   DecisionHistoryIcon,
   ProgressIcon,
@@ -91,7 +90,6 @@ export function GlobalNavbar() {
     pathname.startsWith("/student/degree-path") ||
     pathname.startsWith("/student/roadmap") ||
     pathname.startsWith("/student/report") ||
-    pathname.startsWith("/student/mock-registration") ||
     pathname.startsWith("/student/policies") ||
     pathname.startsWith("/student/decision-history");
 
@@ -242,16 +240,6 @@ export function GlobalNavbar() {
                         <div>
                           <div>مسار التخرج</div>
                           <div className="text-[10px] font-normal text-muted">توقع الفصول حتى التخرج</div>
-                        </div>
-                      </Link>
-                      <Link
-                        href="/student/mock-registration"
-                        className="flex items-center gap-2.5 rounded-xl px-3 py-2 text-xs font-semibold text-foreground hover:bg-surface-muted hover:text-accent transition-colors"
-                      >
-                        <MockRegistrationIcon className="h-4 w-4 text-accent" />
-                        <div>
-                          <div>التسجيل التجريبي</div>
-                          <div className="text-[10px] font-normal text-muted">محاكاة رغبات غير ملزمة</div>
                         </div>
                       </Link>
                       <div className="my-1 border-t border-border/60" />
@@ -488,12 +476,6 @@ export function GlobalNavbar() {
                   className="rounded-xl px-3 py-2 text-xs font-semibold text-foreground hover:bg-surface-muted"
                 >
                   مسار التخرج
-                </Link>
-                <Link
-                  href="/student/mock-registration"
-                  className="rounded-xl px-3 py-2 text-xs font-semibold text-foreground hover:bg-surface-muted"
-                >
-                  التسجيل التجريبي
                 </Link>
                 <div className="my-2 border-t border-border" />
                 <SignOutButton className="button-secondary w-full" />

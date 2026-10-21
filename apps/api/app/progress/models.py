@@ -19,6 +19,23 @@ class CourseProgressState(str, Enum):
 class RequirementType(str, Enum):
     REQUIRED = "required"
     ELECTIVE = "elective"
+    FREE_ELECTIVE = "free_elective"
+
+
+class RequirementSelectionPolicy(str, Enum):
+    PLAN_MEMBERSHIP = "plan_membership"
+    UNIVERSITY_APPROVED = "university_approved"
+
+
+class RequirementSelectionPolicyStatus(str, Enum):
+    AVAILABLE = "available"
+    POLICY_REQUIRED = "policy_required"
+
+
+class FreeElectiveSelectionState(str, Enum):
+    NOT_APPLICABLE = "NOT_APPLICABLE"
+    OPTIONS_AVAILABLE = "OPTIONS_AVAILABLE"
+    FREE_ELECTIVE_POLICY_REQUIRED = "FREE_ELECTIVE_POLICY_REQUIRED"
 
 
 @dataclass(frozen=True)
@@ -38,6 +55,19 @@ class ProgressRequirementGroup:
     requirement_type: RequirementType
     required_credit_hours: Decimal
     display_order: int
+    selection_policy: RequirementSelectionPolicy = RequirementSelectionPolicy.PLAN_MEMBERSHIP
+    selection_policy_status: RequirementSelectionPolicyStatus = RequirementSelectionPolicyStatus.AVAILABLE
+
+
+@dataclass(frozen=True)
+class ApprovedFreeElectiveCourse:
+    """Authoritative permission for a real catalog course to satisfy an open requirement."""
+
+    requirement_group_id: str
+    course_code: str
+    credit_hours: Decimal
+    course_name_ar: str | None = None
+    course_name_en: str | None = None
 
 
 @dataclass(frozen=True)
@@ -58,6 +88,7 @@ class AcademicProgressCatalog:
     study_plan: ProgressStudyPlan
     requirement_groups: tuple[ProgressRequirementGroup, ...]
     plan_courses: tuple[ProgressPlanCourse, ...]
+    approved_free_elective_courses: tuple[ApprovedFreeElectiveCourse, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -69,6 +100,7 @@ class CourseProgress:
     state: CourseProgressState
     course_name_ar: str | None = None
     course_name_en: str | None = None
+    satisfies_free_elective: bool = False
 
 
 @dataclass(frozen=True)
@@ -91,6 +123,8 @@ class RequirementGroupProgress:
     not_attempted_count: int
     total_listed_course_count: int
     is_satisfied: bool
+    in_progress_credited_toward_requirement: Decimal = Decimal("0")
+    free_elective_selection_state: FreeElectiveSelectionState = FreeElectiveSelectionState.NOT_APPLICABLE
 
 
 @dataclass(frozen=True)

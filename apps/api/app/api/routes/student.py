@@ -488,7 +488,13 @@ async def create_credit_comparison(
 
 
 def _degree_path_response(result: DegreePathResult) -> DegreePathResponse:
-    return DegreePathResponse.model_validate(result, from_attributes=True)
+    payload = {
+        field_name: getattr(result, field_name)
+        for field_name in DegreePathResponse.model_fields
+        if field_name != "explanation_graph"
+    }
+    payload["explanation_graph"] = build_degree_path_graph(result)
+    return DegreePathResponse.model_validate(payload, from_attributes=True)
 
 
 @router.post("/degree-paths/explanation-graph", response_model=ExplainabilityGraph)

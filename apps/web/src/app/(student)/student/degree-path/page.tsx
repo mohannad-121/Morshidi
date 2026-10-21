@@ -1,31 +1,21 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { useAuth } from "@/auth/auth-provider";
-import { useAuthenticatedApi } from "@/lib/api/use-authenticated-api";
-import { StudentApiService } from "@/lib/api/student-api";
-import { useCourseIdentities } from "@/lib/api/use-course-identities";
-import { AcademicGraphExplanation } from "@/components/academic/AcademicGraphExplanation";
-import { PathMap } from "@/components/ui/PathMap";
-import { Button, FriendlyState } from "@/components/ui/DesignSystem";
 import { Compass, Printer } from "lucide-react";
-import { LoadingSkeletonCard } from "@/components/ui/LoadingSkeleton";
+import { useAuth } from "@/auth/auth-provider";
 import { AcademicAnalysisProgress, type ProgressStep } from "@/components/academic/AcademicAnalysisProgress";
+import { AcademicGraphExplanation } from "@/components/academic/AcademicGraphExplanation";
+import { Button, FriendlyState } from "@/components/ui/DesignSystem";
+import { LoadingSkeletonCard } from "@/components/ui/LoadingSkeleton";
+import { PathMap } from "@/components/ui/PathMap";
+import { StudentApiService } from "@/lib/api/student-api";
 import type {
-  AcademicExplanationGraph,
-  AcademicProgressResponse,
-  CreditComparisonResponse,
-  CreditTimelineRequest,
   DegreePathOptionResponse,
   DegreePathRequest,
   DegreePathResponse,
 } from "@/lib/api/student-types";
-
-const STRATEGIES = {
-  FASTEST: { name: "الأسرع", reason: "حمل أعلى لتقليل عدد الفصول المتوقعة ضمن حدود التخطيط." },
-  BALANCED: { name: "المتوازن", reason: "يوزّع العبء بصورة متوازنة وقد يستفيد من الفصل الصيفي." },
-  LOWER_LOAD: { name: "الأخف", reason: "يخفّض الحمل الفصلي مقابل مدة أطول وأكثر مرونة." },
-} as const;
+import { useAuthenticatedApi } from "@/lib/api/use-authenticated-api";
+import { useCourseIdentities } from "@/lib/api/use-course-identities";
 
 const AUTOMATIC_PATH_REQUEST: DegreePathRequest = {
   max_credit_hours_per_semester: 18,
@@ -33,20 +23,14 @@ const AUTOMATIC_PATH_REQUEST: DegreePathRequest = {
   max_paths: 3,
 };
 
-// Includes a possible hosted API cold start before the server's bounded
-// 50-second academic-compute budget begins.
 const DEGREE_PATH_REQUEST_TIMEOUT_MS = 120_000;
 
-function remainingReported(progress: AcademicProgressResponse): number | null {
-  return progress.reported_earned_credit_hours === null
-    ? null
-    : Math.max(0, progress.plan_total_required_credits - progress.reported_earned_credit_hours);
-}
-
-function termLabel(term: CreditTimelineRequest["start_term"]): string {
-  if (term === "SUMMER") return "صيفي";
-  return term === "FIRST_SEMESTER" ? "الأول" : "الثاني";
-}
+const INITIAL_DEGREE_PATH_STEPS: ProgressStep[] = [
+  { id: "audit_credits", title: "مطابقة سجل الساعات المعتمدة ومتطلبات الخطة", description: "فحص الساعات المتبقية وفق سجل الجامعة والحدود الأكاديمية", status: "ACTIVE" },
+  { id: "critical_path", title: "تحليل المسارات الحرجة وسلاسل المتطلبات", description: "فحص شجرة المواد الإلزامية والمتطلبات السابقة المتتابعة", status: "WAITING" },
+  { id: "scenarios", title: "توليد بدائل مسار التخرج", description: "احتساب بدائل حتمية مختلفة من المحرك الأكاديمي نفسه", status: "WAITING" },
+  { id: "journey_map", title: "تجهيز خريطة التخرج والتفسير البياني", description: "بناء المحطات الفصلية من البديل المختار نفسه", status: "WAITING" },
+];
 
 function formatCreditHours(value: number | string | null | undefined): string {
   if (value === null || value === undefined) return "—";
@@ -55,276 +39,147 @@ function formatCreditHours(value: number | string | null | undefined): string {
   return Number.isInteger(num) ? num.toString() : num.toFixed(1).replace(/\.0$/, "");
 }
 
+function statusDescription(path: DegreePathOptionResponse): string {
+  return path.status === "MODELED_COMPLETE"
+    ? "يستوفي متطلبات الخطة ضمن الفصول المعروضة."
+    : "أفضل تسلسل حتمي متاح ضمن القيود الحالية، وقد يحتاج بعض المتطلبات إلى مراجعة.";
+}
+
 export default function DegreePathPage() {
   const auth = useAuth();
   const client = useAuthenticatedApi();
   const identities = useCourseIdentities(auth.isAuthenticated);
   const [result, setResult] = useState<DegreePathResponse | null>(null);
-  const [progress, setProgress] = useState<AcademicProgressResponse | null>(null);
-  const [comparison, setComparison] = useState<CreditComparisonResponse | null>(null);
-  const [selectedIndex, setSelectedIndex] = useState(0);
+  const [selectedPathId, setSelectedPathId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [graph, setGraph] = useState<AcademicExplanationGraph | null>(null);
-  const [graphLoading, setGraphLoading] = useState(false);
-  const [graphError, setGraphError] = useState(false);
-  const INITIAL_DEGREE_PATH_STEPS: ProgressStep[] = [
-    { id: "audit_credits", title: "مطابقة سجل الساعات المعتمدة ومتطلبات الخطة", description: "فحص الساعات المتبقية وفق سجل الجامعة والحدود الأكاديمية", status: "ACTIVE" },
-    { id: "critical_path", title: "تحليل المسارات الحرجة وسلاسل المتطلبات", description: "فحص شجرة المواد الإلزامية والمتطلبات السابقة المتتابعة", status: "WAITING" },
-    { id: "scenarios", title: "توليد استراتيجيات التخرج والمقارنة الزمنية", description: "احتساب خطط المسارات: الأسرع، المتوازن، والأخف", status: "WAITING" },
-    { id: "journey_map", title: "تجهيز خريطة التخرج والتفسير البياني", description: "بناء المحطات الفصلية وشجرة التعليل الحتمي", status: "WAITING" },
-  ];
   const [pathSteps, setPathSteps] = useState<ProgressStep[]>(INITIAL_DEGREE_PATH_STEPS);
   const requestId = useRef(0);
 
-  const loadGraph = async () => {
-    setGraphLoading(true);
-    setGraphError(false);
-    try {
-      setGraph(await new StudentApiService(client).createDegreePathGraph(AUTOMATIC_PATH_REQUEST));
-      setPathSteps([
-        { ...INITIAL_DEGREE_PATH_STEPS[0], status: "COMPLETE" },
-        { ...INITIAL_DEGREE_PATH_STEPS[1], status: "COMPLETE" },
-        { ...INITIAL_DEGREE_PATH_STEPS[2], status: "COMPLETE" },
-        { ...INITIAL_DEGREE_PATH_STEPS[3], status: "COMPLETE" },
-      ]);
-    } catch {
-      setGraphError(true);
-    } finally {
-      setGraphLoading(false);
-    }
-  };
-
   const handleGeneratePath = async () => {
     const currentRequest = ++requestId.current;
+    const signal = AbortSignal.timeout(DEGREE_PATH_REQUEST_TIMEOUT_MS);
     setLoading(true);
     setErrorMessage(null);
     setResult(null);
-    setComparison(null);
-    setGraph(null);
-    setGraphError(false);
+    setSelectedPathId(null);
     setPathSteps(INITIAL_DEGREE_PATH_STEPS);
-    const signal = AbortSignal.timeout(DEGREE_PATH_REQUEST_TIMEOUT_MS);
-    const now = new Date();
     try {
-      const api = new StudentApiService(client);
-      setPathSteps([
-        { ...INITIAL_DEGREE_PATH_STEPS[0], status: "COMPLETE" },
-        { ...INITIAL_DEGREE_PATH_STEPS[1], status: "ACTIVE" },
-        { ...INITIAL_DEGREE_PATH_STEPS[2], status: "WAITING" },
-        { ...INITIAL_DEGREE_PATH_STEPS[3], status: "WAITING" },
-      ]);
-      const [pathsResult, progressResult] = await Promise.allSettled([
-        api.createDegreePaths(AUTOMATIC_PATH_REQUEST, signal),
-        api.getProgress(),
-      ]);
-      if (currentRequest !== requestId.current) return;
-      if (pathsResult.status === "rejected") throw pathsResult.reason;
-      if (progressResult.status === "rejected") throw progressResult.reason;
-      const paths = pathsResult.value;
-      const academicProgress = progressResult.value;
-      setPathSteps([
-        { ...INITIAL_DEGREE_PATH_STEPS[0], status: "COMPLETE" },
-        { ...INITIAL_DEGREE_PATH_STEPS[1], status: "COMPLETE" },
-        { ...INITIAL_DEGREE_PATH_STEPS[2], status: "ACTIVE" },
-        { ...INITIAL_DEGREE_PATH_STEPS[3], status: "WAITING" },
-      ]);
-      // Both endpoints perform bounded academic computation through the same
-      // single-slot worker. Starting them together makes one fail with 503.
-      const scenarios = await api.compareCreditTimelines({
-        start_year: now.getFullYear(),
-        start_term: "FIRST_SEMESTER",
-      });
+      const paths = await new StudentApiService(client).createDegreePaths(AUTOMATIC_PATH_REQUEST, signal);
       if (currentRequest !== requestId.current) return;
       setResult(paths);
-      setProgress(academicProgress);
-      setComparison(scenarios);
-      setSelectedIndex(0);
-      setPathSteps([
-        { ...INITIAL_DEGREE_PATH_STEPS[0], status: "COMPLETE" },
-        { ...INITIAL_DEGREE_PATH_STEPS[1], status: "COMPLETE" },
-        { ...INITIAL_DEGREE_PATH_STEPS[2], status: "COMPLETE" },
-        { ...INITIAL_DEGREE_PATH_STEPS[3], status: "ACTIVE" },
-      ]);
-      void loadGraph();
+      setSelectedPathId(paths.paths[0]?.path_id ?? null);
+      setPathSteps(INITIAL_DEGREE_PATH_STEPS.map((step) => ({ ...step, status: "COMPLETE" })));
     } catch {
       if (currentRequest !== requestId.current) return;
       setErrorMessage(signal.aborted
         ? "استغرق إنشاء مسارات التخرج وقتًا أطول من المتوقع. حاول مرة أخرى."
         : "تعذر إنشاء مسارات التخرج الآن. حاول مرة أخرى.");
-      setPathSteps((prev) =>
-        prev.map((step) =>
-          step.status === "ACTIVE" ? { ...step, status: "ERROR" } : step
-        )
-      );
+      setPathSteps((steps) => steps.map((step) =>
+        step.status === "ACTIVE" ? { ...step, status: "ERROR" } : step));
     } finally {
       if (currentRequest === requestId.current) setLoading(false);
     }
   };
 
-  const reportedRemaining = progress ? remainingReported(progress) : null;
-  const selectedScenario = comparison ? comparison.scenarios[selectedIndex] : null;
-  const selectedCoursePath = selectedScenario?.course_path ?? null;
-  const selectedPath: DegreePathOptionResponse | null = result?.paths[selectedIndex] ?? null;
-
-  const selectedScenarioPlannedCredits = selectedScenario
-    ? selectedScenario.timeline.terms.reduce((sum, term) => sum + Number(term.planned_credits), 0)
-    : 0;
-  const selectedScenarioStudyTerms = selectedScenario
-    ? (selectedScenario.scheduled_term_count ?? selectedScenario.total_modeled_terms)
-    : 0;
-
-  // Derive stations from the selected strategy's course plan (or fallback to modeled path)
-  const stations = selectedCoursePath && selectedCoursePath.terms.length > 0
-    ? selectedCoursePath.terms.map((term) => ({
-        id: String(term.semester_index),
-        title: `الفصل ${term.semester_index}${term.term === "SUMMER" ? " (صيفي)" : ""}`,
-        hours: term.allocated_credit_hours,
-        courses: term.courses.map((course) => ({
-          code: course.course_code,
-          name: course.course_name_ar,
-          hours: course.credit_hours,
-        })),
-      }))
-    : selectedPath
-    ? selectedPath.semesters.map((semester) => ({
-        id: String(semester.semester_index),
-        title: `الفصل ${semester.semester_index}`,
-        hours: semester.plan_option.total_credit_hours,
-        courses: semester.plan_option.courses.map((course) => ({
-          code: course.course_code,
-          name: course.course_name_ar,
-          hours: course.credit_hours,
-        })),
-      }))
-    : [];
-
-  const totalAllocatedCredits = selectedCoursePath
-    ? selectedCoursePath.total_allocated_credits
-    : selectedPath
-    ? selectedPath.total_planned_credits
-    : 0;
-
-  const totalTermsCount = selectedCoursePath
-    ? selectedCoursePath.terms.length
-    : selectedPath
-    ? selectedPath.semester_count
-    : selectedScenarioStudyTerms;
+  const selectedPath = result?.paths.find((path) => path.path_id === selectedPathId) ?? null;
+  const stations = selectedPath?.semesters.map((semester) => ({
+    id: String(semester.semester_index),
+    title: `الفصل ${semester.semester_index}`,
+    hours: semester.plan_option.total_credit_hours,
+    courses: semester.plan_option.courses.map((course) => ({
+      code: course.course_code,
+      name: course.course_name_ar,
+      hours: course.credit_hours,
+    })),
+  })) ?? [];
 
   return <div className="space-y-8 degree-page">
     <div className="page-heading">
-      <span className="eyebrow">ثلاث طرق واضحة نحو هدفك</span>
+      <span className="eyebrow">بدائل واضحة من محرك أكاديمي واحد</span>
       <h1>مسار التخرج</h1>
-      <p className="text-sm text-muted mt-3">مرشدي يحسب تلقائيًا الأسرع والمتوازن والأخف، مع إبقاء قرارات المتطلبات والتسلسل للمحركات الأكاديمية الحتمية.</p>
+      <p className="text-sm text-muted mt-3">كل بطاقة وخريطة فصلية وحساب ساعات أدناه تأتي من البديل الحتمي نفسه دون إعادة توزيع في المتصفح.</p>
     </div>
     <div className="engraved p-6 flex items-center justify-between gap-5 flex-wrap">
       <div><h2 className="text-lg">جاهز لرؤية الخيارات؟</h2><p className="text-xs text-muted mt-2">لا حاجة لاختيار عدد الفصول أو المسارات.</p></div>
       <Button type="button" disabled={loading} onClick={() => void handleGeneratePath()}>
-        <Compass size={18}/>{loading ? "جارٍ رسم 3 مسارات…" : "ارسم المسار"}
+        <Compass size={18}/>{loading ? "جارٍ رسم المسارات…" : "ارسم المسار"}
       </Button>
     </div>
     {errorMessage && <FriendlyState error title={errorMessage} onRetry={() => void handleGeneratePath()}/>}
-    {loading && (
-      <div className="space-y-6">
-        <AcademicAnalysisProgress
-          title="جاري رسم مسارات التخرج الحتمية"
-          subtitle="يقوم المحرك بمطابقة الساعات المتبقية، تحليل المسار الحرج، وتوليد السيناريوهات المعتمدة"
-          steps={pathSteps}
-        />
-        <LoadingSkeletonCard className="min-h-48"/>
-      </div>
-    )}
-    {!loading && result && comparison && progress && <>
+    {loading && <div className="space-y-6">
+      <AcademicAnalysisProgress title="جاري رسم مسارات التخرج الحتمية" subtitle="يطابق المحرك الساعات والمتطلبات ثم يولّد البدائل الفصلية" steps={pathSteps}/>
+      <LoadingSkeletonCard className="min-h-48"/>
+    </div>}
+    {!loading && result && <>
       <div className="strategy-grid" aria-label="خيارات مسار التخرج">
-        {comparison.scenarios.map((scenario, index) => {
-          const strategy = STRATEGIES[scenario.mode];
-          const hasCoursePath = scenario.course_path && scenario.course_path.terms.length > 0;
-          const plannedCredits = scenario.timeline.terms.reduce((sum, term) => sum + Number(term.planned_credits), 0);
-          const studyTerms = scenario.scheduled_term_count ?? scenario.total_modeled_terms;
-          return <button key={scenario.mode} type="button" className="strategy-card engraved"
-            data-selected={selectedIndex === index} aria-pressed={selectedIndex === index}
-            onClick={() => setSelectedIndex(index)}>
-            <span className="eyebrow">الخيار {index + 1}</span><h2>{strategy.name}</h2>
-            <strong>{studyTerms}</strong><span> فصول متوقعة</span>
-            <div className="strategy-loads">{scenario.timeline.terms.map((term, termIndex) =>
-              <span key={`${term.academic_year}-${term.term}-${termIndex}`} data-summer={term.term === "SUMMER"}>
-                {termLabel(term.term)} · <span dir="ltr">{formatCreditHours(term.planned_credits)}</span> ساعة
-              </span>)}</div>
+        {result.paths.map((path, index) => {
+          const averageLoad = path.semester_count > 0
+            ? Number(path.total_planned_credits) / path.semester_count
+            : 0;
+          return <button key={path.path_id} type="button" className="strategy-card engraved"
+            data-selected={selectedPathId === path.path_id} aria-pressed={selectedPathId === path.path_id}
+            onClick={() => setSelectedPathId(path.path_id)}>
+            <span className="eyebrow">الخيار {index + 1}</span><h2>مسار {index + 1}</h2>
+            <strong>{path.semester_count}</strong><span> فصول مخططة</span>
+            <div className="strategy-loads">{path.semesters.map((semester) =>
+              <span key={semester.semester_index}>الفصل {semester.semester_index} · <bdi>{formatCreditHours(semester.plan_option.total_credit_hours)}</bdi> ساعة</span>)}</div>
             <dl>
-              <div><dt>إجمالي العبء الموزع</dt><dd dir="ltr">{formatCreditHours(plannedCredits)}</dd></div>
-              <div><dt>المتبقي حسب سجل الجامعة</dt><dd dir="ltr">{reportedRemaining !== null ? formatCreditHours(reportedRemaining) : "غير متاح"}</dd></div>
+              <div><dt>متوسط الساعات في الفصل</dt><dd dir="ltr">{formatCreditHours(averageLoad)}</dd></div>
+              <div><dt>ساعات تحتاج مراجعة</dt><dd dir="ltr">{formatCreditHours(path.credit_summary.unplaced_credits)}</dd></div>
             </dl>
-            <p>{strategy.reason}</p>
-            {!hasCoursePath && !result.paths[index] && <small>لم ينتج المحرك مسار مقررات كاملًا لهذا الخيار؛ يظهر تقدير الساعات فقط.</small>}
+            <p>{statusDescription(path)}</p>
           </button>;
         })}
       </div>
-      {reportedRemaining !== null && reportedRemaining !== result.initial_remaining_credits &&
-        <details className="engraved p-5">
-          <summary>تفاصيل نموذج الخطة</summary>
-          <p className="text-xs text-muted mt-3">
-            نموذج مرشدي يحتسب {result.initial_remaining_credits} ساعة ضمن متطلبات الخطة بسبب اختلاف وزن بعض المقررات التاريخية، بينما سجل الجامعة الرسمي يثبت أن المتبقي للتخرج هو {reportedRemaining} ساعة. نستخدم النموذج الحتمي لتسلسل المقررات والمتطلبات فقط.
-          </p>
-        </details>}
-      <div className="flex items-center justify-between flex-wrap gap-4">
-        <div>
-          <h2 className="text-xl">خطة المقررات لخيار {selectedScenario ? STRATEGIES[selectedScenario.mode].name : `الخيار ${selectedIndex + 1}`}</h2>
-          <p className="text-xs text-muted mt-2">خطة دراسية حتمية تفصيلية لكل فصل تتطابق مع العبء المستهدف للخيار المختار وتحترم سلاسل المتطلبات الأكاديمية.</p>
+      {selectedPath ? <>
+        <div className="flex items-center justify-between flex-wrap gap-4">
+          <div><h2 className="text-xl">خطة المقررات للخيار {selectedPath.rank}</h2><p className="text-xs text-muted mt-2">المسار المحدد: <bdi>{selectedPath.path_id}</bdi></p></div>
+          <button className="button-secondary" onClick={() => window.print()}><Printer size={16}/>تصدير PDF</button>
         </div>
-        <button className="button-secondary" onClick={() => window.print()}><Printer size={16}/>تصدير PDF</button>
-      </div>
-      {stations.length > 0 ? <>
-        <div className="journey-kpis">
-          <div className="engraved">
-            <strong dir="ltr">{selectedScenarioStudyTerms}</strong>
-            <span>الفصول المخططة</span>
-          </div>
-          <div className="engraved">
-            <strong dir="ltr">{reportedRemaining !== null ? formatCreditHours(reportedRemaining) : "—"}</strong>
-            <span>الساعات المتبقية حسب سجل الجامعة</span>
-          </div>
-          <div className="engraved">
-            <strong dir="ltr">{formatCreditHours(selectedScenarioPlannedCredits)}</strong>
-            <span>الساعات الموزعة في السيناريو</span>
-          </div>
+        <div className="journey-kpis" aria-label="حساب ساعات المسار المحدد">
+          <div className="engraved"><strong dir="ltr">{formatCreditHours(selectedPath.credit_summary.degree_required_credits)}</strong><span>إجمالي ساعات الدرجة</span></div>
+          <div className="engraved"><strong dir="ltr">{formatCreditHours(selectedPath.credit_summary.completed_credits)}</strong><span>ساعات مكتملة</span></div>
+          <div className="engraved"><strong dir="ltr">{formatCreditHours(selectedPath.credit_summary.current_credits)}</strong><span>ساعات مسجلة حاليًا</span></div>
+          <div className="engraved"><strong dir="ltr">{formatCreditHours(selectedPath.credit_summary.future_placed_credits)}</strong><span>ساعات مستقبلية موزعة</span></div>
+          <div className="engraved"><strong dir="ltr">{formatCreditHours(selectedPath.credit_summary.unplaced_credits)}</strong><span>ساعات غير موزعة / للمراجعة</span></div>
         </div>
-        <PathMap key={`${selectedScenario?.mode ?? selectedIndex}`} stations={stations}/>
-        {selectedCoursePath && selectedCoursePath.status === "PARTIAL" && (
-          <div className="p-3 rounded-lg border border-copper/30 bg-copper/5 text-xs text-copper">
-            ملاحظة أكاديمية: تم توزيع <span dir="ltr">{formatCreditHours(selectedCoursePath.total_allocated_credits)}</span> ساعة من المقررات المؤهلة، وتعذر توزيع <span dir="ltr">{formatCreditHours(selectedCoursePath.unallocated_credit_hours)}</span> ساعة المتبقية ضمن هذا المسار بسبب قيود الخطة أو شروط فتح المواد اللاحقة.
+        {(selectedPath.free_elective_requirements ?? []).map((requirement) => <section
+          key={requirement.group_code}
+          className="engraved p-5"
+          aria-label={`${requirement.name_ar} ${formatCreditHours(requirement.required_credits)} ساعات`}
+        >
+          <div className="flex items-center justify-between flex-wrap gap-4">
+            <div>
+              <span className="eyebrow">متطلب درجة مستقل</span>
+              <h3 className="text-lg mt-2">{requirement.name_ar} — <bdi>{formatCreditHours(requirement.required_credits)}</bdi> ساعات</h3>
+            </div>
+            <div className="text-xs text-muted">
+              المتبقي بعد المسجل حاليًا: <bdi>{formatCreditHours(requirement.remaining_credits_after_current)}</bdi> ساعات
+            </div>
           </div>
-        )}
-        {selectedCoursePath && selectedCoursePath.status !== "COMPLETE" && selectedCoursePath.status !== "PARTIAL" && (
-          <p className="text-xs text-copper">هذا أفضل مسار صالح وجده المحرك ضمن الحدود الآمنة، وقد يكون جزئيًا.</p>
-        )}
-        {!selectedCoursePath && selectedPath && selectedPath.status !== "MODELED_COMPLETE" && (
-          <p className="text-xs text-copper">هذا أفضل مسار صالح وجده المحرك ضمن الحدود الآمنة، وقد يكون جزئيًا.</p>
-        )}
-        <details className="engraved p-5">
-          <summary>تفاصيل نموذج تسلسل المواد ({formatCreditHours(totalAllocatedCredits)} ساعة مقررات)</summary>
-          <div className="space-y-2 text-xs text-muted mt-3">
-            <p>
-              وزّع محرك تسلسل المقررات الحتمي <strong dir="ltr">{formatCreditHours(totalAllocatedCredits)}</strong> ساعة موزعة على {totalTermsCount} فصول بناءً على شبكة المتطلبات السابقة وشروط فتح المواد.
-            </p>
-            {reportedRemaining !== null && reportedRemaining !== totalAllocatedCredits && (
-              <p>
-                يختلف هذا الرقم (<span dir="ltr">{formatCreditHours(totalAllocatedCredits)}</span> ساعة مقررات مجدولة) عن العبء الأكاديمي الرسمي المتبقي للتخرج (<span dir="ltr">{formatCreditHours(reportedRemaining)}</span> ساعة) بسبب حزم الساعات المعتمدة للمقررات واشتراطات السقف الفصلي. الساعات الرسمية المعتمدة هي <span dir="ltr">{formatCreditHours(reportedRemaining)}</span> ساعة.
-              </p>
-            )}
-            {selectedPath && (
-              <p>
-                المتطلبات المتبقية في نموذج الخطة بعد هذا البديل: <strong dir="ltr">{formatCreditHours(selectedPath.final_remaining_plan_credits)}</strong> ساعة.
-              </p>
-            )}
-          </div>
+          {(requirement.completed_course_codes ?? []).length > 0 && <p className="text-xs text-muted mt-3">
+            احتسبت مواد فعلية مكتملة: <bdi>{requirement.completed_course_codes.join("، ")}</bdi>
+          </p>}
+          {(requirement.current_course_codes ?? []).length > 0 && <p className="text-xs text-muted mt-3">
+            مواد فعلية مسجلة حاليًا: <bdi>{requirement.current_course_codes.join("، ")}</bdi>
+          </p>}
+          {requirement.selection_state === "FREE_ELECTIVE_POLICY_REQUIRED" && <p className="text-xs text-copper mt-3">
+            يلزم اعتماد سياسة الجامعة للمواد المسموح باحتسابها قبل عرض خيارات أو إنشاء تسجيل.
+          </p>}
+        </section>)}
+        {stations.length > 0 ? <PathMap key={selectedPath.path_id} stations={stations}/> : <FriendlyState title="لا توجد فصول مستقبلية لهذا المسار."/>}
+        {selectedPath.status !== "MODELED_COMPLETE" && <p className="text-xs text-copper">هذا أفضل مسار صالح ضمن القيود الآمنة، وما زالت بعض المتطلبات تحتاج إلى مراجعة.</p>}
+        <details className="engraved p-5"><summary>تفاصيل مطابقة الساعات</summary>
+          <p className="text-xs text-muted mt-3">{formatCreditHours(selectedPath.credit_summary.completed_credits)} مكتملة + {formatCreditHours(selectedPath.credit_summary.current_credits)} حالية + {formatCreditHours(selectedPath.credit_summary.future_placed_credits)} مستقبلية + {formatCreditHours(selectedPath.credit_summary.unplaced_credits)} للمراجعة = {formatCreditHours(selectedPath.credit_summary.degree_required_credits)} ساعة.</p>
         </details>
         <details className="engraved p-5"><summary>لماذا هذا التسلسل؟</summary>
-          <AcademicGraphExplanation graph={graph} focusId={`degree-path:${(selectedPath?.rank ?? selectedIndex + 1)}`}
-            identities={identities} loading={graphLoading} error={graphError} onRetry={() => void loadGraph()}/>
+          <AcademicGraphExplanation graph={result.explanation_graph} focusId={`degree-path:${selectedPath.path_id}`}
+            identities={identities} loading={false} error={false} onRetry={() => void handleGeneratePath()}/>
         </details>
-      </> : <FriendlyState title="يتوفر تقدير ساعات لهذا الخيار، لكن لم يتوفر مسار مقررات حتمي كامل."/>}
-      <p className="text-xs text-muted">هذه سيناريوهات تخطيطية وليست موعد تخرج أو موافقة تسجيل معتمدة. لا تُنشأ مقررات وهمية، وقد تؤثر الإتاحة والسعة والنجاح الفعلي في المدة.</p>
+      </> : <FriendlyState title="لم ينتج المحرك مسارًا صالحًا ضمن القيود الحالية."/>}
+      <p className="text-xs text-muted">هذه مسارات تخطيطية وليست موعد تخرج أو موافقة تسجيل معتمدة.</p>
     </>}
-    {!loading && !errorMessage && !result && <FriendlyState title="اضغط «ارسم المسار» للحصول على 3 خيارات تلقائية"/>}
+    {!loading && !errorMessage && !result && <FriendlyState title="اضغط «ارسم المسار» للحصول على البدائل الحتمية"/>}
   </div>;
 }

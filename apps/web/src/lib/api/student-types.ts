@@ -104,6 +104,7 @@ export interface RequirementGroupProgressResponse {
   completed_listed_credits: number;
   credited_toward_requirement: number;
   in_progress_listed_credits: number;
+  in_progress_credited_toward_requirement?: number;
   remaining_required_credits: number;
   completed_course_count: number;
   in_progress_course_count: number;
@@ -111,6 +112,7 @@ export interface RequirementGroupProgressResponse {
   not_attempted_count: number;
   total_listed_course_count: number;
   is_satisfied: boolean;
+  free_elective_selection_state?: "NOT_APPLICABLE" | "OPTIONS_AVAILABLE" | "FREE_ELECTIVE_POLICY_REQUIRED";
 }
 
 export interface CourseProgressResponse {
@@ -121,6 +123,7 @@ export interface CourseProgressResponse {
   requirement_group_id: string | null;
   requirement_group_code: string | null;
   state: CourseProgressState | string;
+  satisfies_free_elective?: boolean;
 }
 
 export interface AcademicProgressResponse {
@@ -437,6 +440,7 @@ export interface ModeledSemesterResponse {
 }
 
 export interface DegreePathOptionResponse {
+  path_id: string;
   rank: number;
   status: "COMPLETE" | "INCOMPLETE_MAX_SEMESTERS" | "INCOMPLETE_BLOCKED" | string;
   semesters: ModeledSemesterResponse[];
@@ -452,6 +456,28 @@ export interface DegreePathOptionResponse {
   unresolved_blocker_codes: string[];
   aggregate_semester_rank_sum: number;
   reason_codes: string[];
+  completed_course_codes: string[];
+  current_course_codes: string[];
+  unplaced_course_codes: string[];
+  credit_summary: {
+    degree_required_credits: number;
+    completed_credits: number;
+    current_credits: number;
+    future_placed_credits: number;
+    unplaced_credits: number;
+  };
+  free_elective_requirements: Array<{
+    group_code: string;
+    name_ar: string;
+    name_en: string | null;
+    required_credits: number;
+    completed_credits: number;
+    current_credits: number;
+    remaining_credits_after_current: number;
+    selection_state: "NOT_APPLICABLE" | "OPTIONS_AVAILABLE" | "FREE_ELECTIVE_POLICY_REQUIRED";
+    completed_course_codes: string[];
+    current_course_codes: string[];
+  }>;
 }
 
 export interface DegreePathConstraintsResponse {
@@ -467,6 +493,7 @@ export interface DegreePathResponse {
   planning_scope: string;
   constraints: DegreePathConstraintsResponse;
   paths: DegreePathOptionResponse[];
+  explanation_graph: AcademicExplanationGraph;
   initial_completed_credits: number;
   initial_remaining_credits: number;
   initial_satisfied_group_count: number;

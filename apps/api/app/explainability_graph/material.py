@@ -293,7 +293,7 @@ def build_degree_path_graph(result: DegreePathResult) -> ExplainabilityGraph:
         builder.constraint(builder.root, key, value)
     for path in result.paths:
         ident = builder.add(GraphNode(
-            id=f"degree-path:{path.rank}", type=GraphNodeType.DEGREE_PATH,
+            id=f"degree-path:{path.path_id}", type=GraphNodeType.DEGREE_PATH,
             facts=(
                 _fact(GraphFactKey.RANK, path.rank),
                 _fact(GraphFactKey.STATUS, path.status),
@@ -317,7 +317,7 @@ def build_degree_path_graph(result: DegreePathResult) -> ExplainabilityGraph:
             builder.constraint(ident, key, value)
         for semester in path.semesters:
             sem_id = _semester_option(builder, semester.plan_option, parent=ident,
-                                      prefix=f"degree-path:{path.rank}:semester:{semester.semester_index}",
+                                      prefix=f"degree-path:{path.path_id}:semester:{semester.semester_index}",
                                       version=result.degree_path_policy_version, engine="degree-path")
             # The semester is modeled; its resulting deltas are not historical attempts.
             sem_node = builder.nodes[sem_id]

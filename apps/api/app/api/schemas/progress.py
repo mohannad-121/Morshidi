@@ -5,7 +5,11 @@ from uuid import UUID
 
 from pydantic import BaseModel
 
-from app.progress.models import CourseProgressState, RequirementType
+from app.progress.models import (
+    CourseProgressState,
+    FreeElectiveSelectionState,
+    RequirementType,
+)
 
 
 class CourseProgressResponse(BaseModel):
@@ -16,6 +20,7 @@ class CourseProgressResponse(BaseModel):
     requirement_group_id: UUID
     requirement_group_code: str
     state: CourseProgressState
+    satisfies_free_elective: bool
 
 
 class RequirementGroupProgressResponse(BaseModel):
@@ -30,6 +35,7 @@ class RequirementGroupProgressResponse(BaseModel):
     completed_listed_credits: Decimal
     credited_toward_requirement: Decimal
     in_progress_listed_credits: Decimal
+    in_progress_credited_toward_requirement: Decimal
     remaining_required_credits: Decimal
     completed_course_count: int
     in_progress_course_count: int
@@ -37,6 +43,7 @@ class RequirementGroupProgressResponse(BaseModel):
     not_attempted_count: int
     total_listed_course_count: int
     is_satisfied: bool
+    free_elective_selection_state: FreeElectiveSelectionState
 
 
 class AcademicProgressResponse(BaseModel):

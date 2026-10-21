@@ -14,6 +14,7 @@ from app.degree_path.models import (
     PathReasonCode,
     PathStatus,
 )
+from app.explainability_graph import ExplainabilityGraph
 
 
 class DegreePathRequest(BaseModel):
@@ -78,7 +79,29 @@ class ModeledSemesterResponse(BaseModel):
     newly_satisfied_requirement_group_codes: list[str]
 
 
+class DegreePathCreditSummaryResponse(BaseModel):
+    degree_required_credits: Decimal
+    completed_credits: Decimal
+    current_credits: Decimal
+    future_placed_credits: Decimal
+    unplaced_credits: Decimal
+
+
+class DegreePathFreeElectiveRequirementResponse(BaseModel):
+    group_code: str
+    name_ar: str
+    name_en: str | None
+    required_credits: Decimal
+    completed_credits: Decimal
+    current_credits: Decimal
+    remaining_credits_after_current: Decimal
+    selection_state: str
+    completed_course_codes: list[str]
+    current_course_codes: list[str]
+
+
 class DegreePathOptionResponse(BaseModel):
+    path_id: str
     rank: int
     status: PathStatus
     semesters: list[ModeledSemesterResponse]
@@ -95,6 +118,11 @@ class DegreePathOptionResponse(BaseModel):
     aggregate_semester_rank_sum: int
     priority_tuple: list[Any]
     reason_codes: list[PathReasonCode]
+    completed_course_codes: list[str]
+    current_course_codes: list[str]
+    unplaced_course_codes: list[str]
+    credit_summary: DegreePathCreditSummaryResponse
+    free_elective_requirements: list[DegreePathFreeElectiveRequirementResponse]
 
 
 class DegreePathResponse(BaseModel):
@@ -103,6 +131,7 @@ class DegreePathResponse(BaseModel):
     planning_scope: str
     constraints: DegreePathConstraintsResponse
     paths: list[DegreePathOptionResponse]
+    explanation_graph: ExplainabilityGraph
     initial_completed_credits: Decimal
     initial_remaining_credits: Decimal
     initial_satisfied_group_count: int

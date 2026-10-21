@@ -1,0 +1,18 @@
+﻿plan_key,faculty_code,faculty_ar,major_code,major_ar,plan_number,computed_total_required_credits
+ZU:IT:AI:P12,IT,كلية تكنولوجيا المعلومات,AI,الذكاء الاصطناعي,12,132
+ZU:IT:SE:P12,IT,كلية تكنولوجيا المعلومات,SE,هندسة البرمجيات,12,132
+ZU:IT:CS:P12,IT,كلية تكنولوجيا المعلومات,CS,علم الحاسوب,12,132
+ZU:IT:CYBER:P12,IT,كلية تكنولوجيا المعلومات,CYBER,الامن السيبراني,12,132
+ZU:SCI:MATH:P12,SCI,كلية العلوم,MATH,الرياضيات,12,132
+ZU:SCI:PHYS:P12,SCI,كلية العلوم,PHYS,الفيزياء,12,132
+ZU:ARTS:ARABIC:P12,ARTS,كلية الآداب,ARABIC,اللغة العربية وآدابها,12,132
+ZU:ARTS:ENGLISH:P12,ARTS,كلية الآداب,ENGLISH,اللغة الإنجليزية وآدابها,12,132
+ZU:ARTS:HISTORY:P12,ARTS,كلية الآداب,HISTORY,التاريخ,12,132
+ZU:ARTS:TRANS:P12,ARTS,كلية الآداب,TRANS,الترجمة,12,132
+ZU:BUS:ECON:P12,BUS,كلية الاقتصاد والعلوم الإدارية,ECON,الاقتصاد,12,132
+ZU:BUS:BBA:P12,BUS,كلية الاقتصاد والعلوم الإدارية,BBA,إدارة الأعمال,12,132
+ZU:BUS:ACC:P12,BUS,كلية الاقتصاد والعلوم الإدارية,ACC,المحاسبة,12,132
+ZU:MEDIA:DJOURN:P12,MEDIA,كلية الإعلام والصحافة,DJOURN,الصحافة والإعلام الرقمي,12,132
+ZU:MEDIA:RTV:P12,MEDIA,كلية الإعلام والصحافة,RTV,الإذاعة والتلفزيون,12,132
+ZU:LAW:LAW:P12,LAW,كلية الحقوق,LAW,الحقوق,12,141
+ZU:NURS:NURS:P12,NURS,كلية التمريض,NURS,التمريض,12,132

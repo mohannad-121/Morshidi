@@ -1790,7 +1790,7 @@ class TestDeterminism:
         assert not hasattr(res, "timestamp")
         assert not hasattr(res, "created_at")
 
-    def test_104_no_random_uuid_in_result(self) -> None:
+    def test_104_path_identity_is_stable_and_not_random(self) -> None:
         pcs = (_pc("A", credits="3"),)
         rules = (_rule_na("A"),)
         p_cat, e_cat = _catalogs(pcs, rules, total_credits="3")
@@ -1800,9 +1800,16 @@ class TestDeterminism:
             (),
             DegreePathConstraints(max_credit_hours_per_semester=Decimal("3")),
         )
+        repeated = plan_degree_paths(
+            p_cat,
+            e_cat,
+            (),
+            DegreePathConstraints(max_credit_hours_per_semester=Decimal("3")),
+        )
         for path in res.paths:
             assert not hasattr(path, "uuid")
-            assert not hasattr(path, "path_id")
+            assert path.path_id.startswith("dp_")
+            assert path.path_id == repeated.paths[path.rank - 1].path_id
 
 
 # ===========================================================================
@@ -1970,6 +1977,58 @@ class TestPolicySpecificationContracts:
 
 
 class TestFinalPathValidation:
+    def test_summary_node_consistency_and_credit_reconciliation(self) -> None:
+        pcs = (_pc("A", credits="3"), _pc("B", credits="3"))
+        rules = (_rule_na("A"), _rule_na("B"))
+        p_cat, e_cat = _catalogs(pcs, rules, total_credits="6")
+        result = plan_degree_paths(
+            p_cat,
+            e_cat,
+            (),
+            DegreePathConstraints(max_credit_hours_per_semester=Decimal("3")),
+        )
+
+        for path in result.paths:
+            node_codes = {
+                course.course_code
+                for semester in path.semesters
+                for course in semester.plan_option.courses
+            }
+            node_credits = sum(
+                (semester.plan_option.total_credit_hours for semester in path.semesters),
+                Decimal("0"),
+            )
+            summary = path.credit_summary
+            assert node_codes.isdisjoint(path.completed_course_codes)
+            assert node_codes.isdisjoint(path.current_course_codes)
+            assert node_codes.isdisjoint(path.unplaced_course_codes)
+            assert node_credits == path.total_planned_credits == summary.future_placed_credits
+            assert sum(
+                (
+                    summary.completed_credits,
+                    summary.current_credits,
+                    summary.future_placed_credits,
+                    summary.unplaced_credits,
+                ),
+                Decimal("0"),
+            ) == summary.degree_required_credits
+
+    def test_path_identity_mismatch_is_typed_and_fail_closed(self) -> None:
+        pcs = (_pc("A", credits="3"),)
+        rules = (_rule_na("A"),)
+        p_cat, e_cat = _catalogs(pcs, rules, total_credits="3")
+        result = plan_degree_paths(
+            p_cat,
+            e_cat,
+            (),
+            DegreePathConstraints(max_credit_hours_per_semester=Decimal("3")),
+        )
+        bad_path = replace(result.paths[0], path_id="dp_not_the_selected_allocation")
+
+        with pytest.raises(DegreePathValidationError) as caught:
+            validate_degree_path_result(p_cat, e_cat, (), replace(result, paths=(bad_path,)))
+        assert caught.value.code is DegreePathValidationErrorCode.RESULT_MISMATCH
+
     def test_114_credit_mismatch_is_typed_and_fail_closed(self) -> None:
         pcs = (_pc("A", credits="3"),)
         rules = (_rule_na("A"),)

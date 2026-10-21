@@ -9,6 +9,7 @@ from app.degree_path.models import (
     DegreePathValidationError,
     DegreePathValidationErrorCode,
     PathStatus,
+    deterministic_path_id,
 )
 from app.progress.engine import calculate_academic_progress
 from app.progress.models import AcademicProgressCatalog, CourseProgressState, RequirementType
@@ -72,18 +73,28 @@ def validate_degree_path_result(
         _fail(DegreePathValidationErrorCode.RESULT_MISMATCH, "initial progress fields differ")
     if len(result.paths) > result.constraints.max_paths:
         _fail(DegreePathValidationErrorCode.INVALID_TERM_LOAD, "too many paths returned")
+    if len({path.path_id for path in result.paths}) != len(result.paths):
+        _fail(DegreePathValidationErrorCode.RESULT_MISMATCH, "path ids are not unique")
 
     baseline_completed = {
         course.course_code
         for course in baseline.courses
         if course.state is CourseProgressState.COMPLETED
     }
+    baseline_current = {
+        course.course_code
+        for course in baseline.courses
+        if course.state is CourseProgressState.IN_PROGRESS
+    }
+    baseline_plan_completed = baseline_completed.intersection(plan_courses)
+    baseline_plan_current = baseline_current.intersection(plan_courses)
+    approved_degree_codes = baseline_completed.union(baseline_current) - set(plan_courses)
+    expected_classified_codes = set(plan_courses).union(approved_degree_codes)
     group_by_id = {group.group_id: group for group in progress_catalog.requirement_groups}
 
     for expected_rank, path in enumerate(result.paths, start=1):
         if path.rank != expected_rank or path.semester_count != len(path.semesters):
             _fail(DegreePathValidationErrorCode.RESULT_MISMATCH, "path rank or semester count differs")
-
         attempts = student_attempts
         selected_codes: set[str] = set()
         raw_planned_credits = Decimal("0")
@@ -188,12 +199,97 @@ def validate_degree_path_result(
         if path.remaining_required_course_codes != expected_remaining_required:
             _fail(DegreePathValidationErrorCode.MISSING_PLAN_COURSE, "remaining required courses differ")
 
-        unplaced_codes = set(plan_courses) - baseline_completed - selected_codes
-        accounted_codes = baseline_completed | selected_codes | unplaced_codes
+        unplaced_codes = set(plan_courses) - baseline_plan_completed - selected_codes
+        accounted_codes = baseline_plan_completed | selected_codes | unplaced_codes
         if accounted_codes != set(plan_courses):
             _fail(DegreePathValidationErrorCode.MISSING_PLAN_COURSE, "not every plan course is accounted for")
         if path.total_planned_credits != raw_planned_credits or path.total_planned_courses != raw_planned_courses:
             _fail(DegreePathValidationErrorCode.CREDIT_TOTAL_MISMATCH, "path planned totals differ")
+        if path.path_id != deterministic_path_id(plan_id, path.semesters):
+            _fail(DegreePathValidationErrorCode.RESULT_MISMATCH, "path id differs from its allocation")
+        expected_unplaced = set(plan_courses) - baseline_plan_completed - baseline_plan_current - selected_codes
+        classifications = (
+            set(path.completed_course_codes),
+            set(path.current_course_codes),
+            selected_codes,
+            set(path.unplaced_course_codes),
+        )
+        if any(left.intersection(right) for index, left in enumerate(classifications)
+               for right in classifications[index + 1:]):
+            _fail(DegreePathValidationErrorCode.DUPLICATE_COURSE, "candidate classifications overlap")
+        if (
+            set(path.completed_course_codes) != baseline_completed
+            or set(path.current_course_codes) != baseline_current
+            or set(path.unplaced_course_codes) != expected_unplaced
+            or set().union(*classifications) != expected_classified_codes
+        ):
+            _fail(DegreePathValidationErrorCode.MISSING_PLAN_COURSE, "candidate classifications differ")
+        expected_free_requirements = tuple(
+            (
+                group.group_code,
+                group.name_ar,
+                group.name_en,
+                group.required_credits,
+                group.credited_toward_requirement,
+                group.in_progress_credited_toward_requirement,
+                max(
+                    group.remaining_required_credits - group.in_progress_credited_toward_requirement,
+                    Decimal("0"),
+                ),
+                group.free_elective_selection_state.value,
+                tuple(sorted(
+                    course.course_code for course in progress.courses
+                    if course.requirement_group_id == group.group_id
+                    and course.satisfies_free_elective
+                    and course.state is CourseProgressState.COMPLETED
+                )),
+                tuple(sorted(
+                    course.course_code for course in progress.courses
+                    if course.requirement_group_id == group.group_id
+                    and course.satisfies_free_elective
+                    and course.state is CourseProgressState.IN_PROGRESS
+                )),
+            )
+            for group in progress.requirement_groups
+            if group.requirement_type is RequirementType.FREE_ELECTIVE
+        )
+        actual_free_requirements = tuple(
+            (
+                requirement.group_code,
+                requirement.name_ar,
+                requirement.name_en,
+                requirement.required_credits,
+                requirement.completed_credits,
+                requirement.current_credits,
+                requirement.remaining_credits_after_current,
+                requirement.selection_state,
+                requirement.completed_course_codes,
+                requirement.current_course_codes,
+            )
+            for requirement in path.free_elective_requirements
+        )
+        if actual_free_requirements != expected_free_requirements:
+            _fail(DegreePathValidationErrorCode.RESULT_MISMATCH, "free-elective requirements differ")
+        expected_unplaced_credits = canonical_total - (
+            baseline.completed_plan_credits
+            + baseline.in_progress_plan_credits
+            + raw_planned_credits
+        )
+        summary = path.credit_summary
+        if expected_unplaced_credits < 0 or (
+            summary.degree_required_credits != canonical_total
+            or summary.completed_credits != baseline.completed_plan_credits
+            or summary.current_credits != baseline.in_progress_plan_credits
+            or summary.future_placed_credits != raw_planned_credits
+            or summary.unplaced_credits != expected_unplaced_credits
+            or sum((
+                summary.completed_credits,
+                summary.current_credits,
+                summary.future_placed_credits,
+                summary.unplaced_credits,
+            ), Decimal("0")) != canonical_total
+        ):
+            _fail(DegreePathValidationErrorCode.CREDIT_TOTAL_MISMATCH, "candidate credit summary differs")
         if path.total_planned_credits != path.completed_plan_credit_delta:
             _fail(
                 DegreePathValidationErrorCode.CREDIT_TOTAL_MISMATCH,

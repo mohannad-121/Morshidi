@@ -60,7 +60,7 @@ _PINNED_V2_SOURCES = {
     Path(__file__).with_name("registries.py"): "c7c30b1dc2f1650fe07ec0346b40630173d1dd8efa98283fdd3023f104e04796",
     Path(__file__).parents[1] / "rules" / "evaluator.py": "61921c5e963499c78bf2cbcb967a301476f69cd21291de73a9c3e616826557fe",
     Path(__file__).parents[1] / "rules" / "models.py": "af80eee1d8c1403da2c2b83792f83114ec878d20b194c9973be94b3e6414141d",
-    Path(__file__).parents[1] / "progress" / "models.py": "ccd6131a640b92517f3c9e011b276a0747038ffcaa24765033ee4393f58e1efc",
+    Path(__file__).parents[1] / "progress" / "models.py": "c946e51d62dada5fff5e9a1944b57be7890854f28417e41a63418e28c838f06e",
 }
 
 

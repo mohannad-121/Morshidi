@@ -22,12 +22,15 @@ from app.degree_path.models import (
     BlockerType,
     DegreePathConstraintError,
     DegreePathConstraints,
+    DegreePathCreditSummary,
+    DegreePathFreeElectiveRequirement,
     DegreePathIntegrityError,
     DegreePathOption,
     DegreePathResult,
     ModeledSemesterEntry,
     PathReasonCode,
     PathStatus,
+    deterministic_path_id,
 )
 from app.degree_path.validation import validate_degree_path_result
 from app.planner.engine import plan_semester
@@ -81,6 +84,39 @@ _LIMITATIONS: tuple[str, ...] = (
     "Does not predict or guarantee an official university graduation date.",
     "Does not constitute official institutional graduation clearance or academic advising.",
 )
+
+
+def _free_elective_requirements(progress: AcademicProgress) -> tuple[DegreePathFreeElectiveRequirement, ...]:
+    courses_by_group = {
+        group.group_id: tuple(course for course in progress.courses if course.requirement_group_id == group.group_id)
+        for group in progress.requirement_groups
+        if group.requirement_type is RequirementType.FREE_ELECTIVE
+    }
+    return tuple(
+        DegreePathFreeElectiveRequirement(
+            group_code=group.group_code,
+            name_ar=group.name_ar,
+            name_en=group.name_en,
+            required_credits=group.required_credits,
+            completed_credits=group.credited_toward_requirement,
+            current_credits=group.in_progress_credited_toward_requirement,
+            remaining_credits_after_current=max(
+                group.remaining_required_credits - group.in_progress_credited_toward_requirement,
+                Decimal("0"),
+            ),
+            selection_state=group.free_elective_selection_state.value,
+            completed_course_codes=tuple(sorted(
+                course.course_code for course in courses_by_group[group.group_id]
+                if course.satisfies_free_elective and course.state is CourseProgressState.COMPLETED
+            )),
+            current_course_codes=tuple(sorted(
+                course.course_code for course in courses_by_group[group.group_id]
+                if course.satisfies_free_elective and course.state is CourseProgressState.IN_PROGRESS
+            )),
+        )
+        for group in progress.requirement_groups
+        if group.requirement_type is RequirementType.FREE_ELECTIVE
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -337,6 +373,10 @@ def plan_degree_paths(
             )
         )
     )
+    completed_course_codes = tuple(sorted(_completed_passed_codes(initial_progress)))
+    current_course_codes = persisted_in_progress
+    canonical_total_credits = progress_catalog.study_plan.total_credit_hours
+    current_plan_credits = initial_progress.in_progress_plan_credits
 
     # Initial recommendation result to identify global review-required courses
     phase_started = monotonic()
@@ -365,6 +405,7 @@ def plan_degree_paths(
             (),  # P7: canonical path codes
         )
         single_path = DegreePathOption(
+            path_id=deterministic_path_id(study_plan_id, ()),
             rank=1,
             status=PathStatus.MODELED_COMPLETE,
             semesters=(),
@@ -381,6 +422,17 @@ def plan_degree_paths(
             aggregate_semester_rank_sum=0,
             priority_tuple=priority_tuple,
             reason_codes=(PathReasonCode.REACHES_MODELED_PLAN_COMPLETION,),
+            completed_course_codes=completed_course_codes,
+            current_course_codes=current_course_codes,
+            unplaced_course_codes=(),
+            credit_summary=DegreePathCreditSummary(
+                degree_required_credits=canonical_total_credits,
+                completed_credits=initial_progress.completed_plan_credits,
+                current_credits=current_plan_credits,
+                future_placed_credits=Decimal("0"),
+                unplaced_credits=Decimal("0"),
+            ),
+            free_elective_requirements=_free_elective_requirements(initial_progress),
         )
         completed_result = DegreePathResult(
             study_plan_id=study_plan_id,
@@ -703,6 +755,13 @@ def plan_degree_paths(
     raw_options: list[DegreePathOption] = []
 
     for state, status, blocker_codes in finalized_states:
+        free_elective_requirements = _free_elective_requirements(state.academic_progress)
+        if any(
+            requirement.selection_state == "FREE_ELECTIVE_POLICY_REQUIRED"
+            and requirement.remaining_credits_after_current > 0
+            for requirement in free_elective_requirements
+        ):
+            blocker_codes = tuple(sorted(set(blocker_codes) | {"FREE_ELECTIVE_POLICY_REQUIRED"}))
         semester_count = len(state.selected_semesters)
         total_planned_courses = sum(
             len(s.plan_option.courses) for s in state.selected_semesters
@@ -756,6 +815,22 @@ def plan_degree_paths(
         p5 = len(blocker_codes)
         p6 = aggregate_semester_rank_sum
         p7 = state.canonical_path_codes
+        selected_codes = {
+            course.course_code
+            for semester in state.selected_semesters
+            for course in semester.plan_option.courses
+        }
+        unplaced_course_codes = tuple(sorted(
+            set(plan_courses_by_code)
+            - set(completed_course_codes)
+            - set(current_course_codes)
+            - selected_codes
+        ))
+        unplaced_credits = final_remaining_plan_credits - current_plan_credits
+        if unplaced_credits < 0:
+            raise DegreePathIntegrityError(
+                "In-progress plan credits exceed the final remaining canonical credits"
+            )
 
         final_priority_tuple = (
             -p1,
@@ -769,6 +844,7 @@ def plan_degree_paths(
 
         raw_options.append(
             DegreePathOption(
+                path_id=deterministic_path_id(study_plan_id, state.selected_semesters),
                 rank=0,  # Assigned after sorting
                 status=status,
                 semesters=state.selected_semesters,
@@ -785,6 +861,17 @@ def plan_degree_paths(
                 aggregate_semester_rank_sum=aggregate_semester_rank_sum,
                 priority_tuple=final_priority_tuple,
                 reason_codes=(),  # Assigned below
+                completed_course_codes=completed_course_codes,
+                current_course_codes=current_course_codes,
+                unplaced_course_codes=unplaced_course_codes,
+                credit_summary=DegreePathCreditSummary(
+                    degree_required_credits=canonical_total_credits,
+                    completed_credits=initial_progress.completed_plan_credits,
+                    current_credits=current_plan_credits,
+                    future_placed_credits=total_planned_credits,
+                    unplaced_credits=unplaced_credits,
+                ),
+                free_elective_requirements=free_elective_requirements,
             )
         )
 
@@ -852,6 +939,7 @@ def plan_degree_paths(
 
         ranked_options.append(
             DegreePathOption(
+                path_id=opt.path_id,
                 rank=idx,
                 status=opt.status,
                 semesters=opt.semesters,
@@ -868,6 +956,11 @@ def plan_degree_paths(
                 aggregate_semester_rank_sum=opt.aggregate_semester_rank_sum,
                 priority_tuple=opt.priority_tuple,
                 reason_codes=tuple(reasons),
+                completed_course_codes=opt.completed_course_codes,
+                current_course_codes=opt.current_course_codes,
+                unplaced_course_codes=opt.unplaced_course_codes,
+                credit_summary=opt.credit_summary,
+                free_elective_requirements=opt.free_elective_requirements,
             )
         )
 

@@ -148,7 +148,7 @@ def test_degree_path_status_constraints_semesters_and_no_historical_completion(s
     _sound(graph)
     assert any(_fact(node, "STATUS") == status.value for node in graph.nodes)
     assert len([n for n in graph.nodes if n.type is GraphNodeType.SEMESTER]) == 2
-    assert any(edge.relation is EdgeRelation.SELECTED_IN and edge.from_node_id == "degree-path:1" for edge in graph.edges)
+    assert any(edge.relation is EdgeRelation.SELECTED_IN and edge.from_node_id == "degree-path:dp_test_1" for edge in graph.edges)
     assert "MODELED_OUTCOME_NOT_HISTORICAL" in {item.value for item in graph.limitations}
     assert graph.policy_versions == ("1.0",)
 
@@ -170,7 +170,7 @@ def test_degree_path_remaining_requirements_blockers_and_all_requested_constrain
         final_remaining_plan_credits=Decimal("6"),
     )
     graph = build_degree_path_graph(_sample_degree_path_result(paths=(path,)))
-    item = next(node for node in graph.nodes if node.id == "degree-path:1")
+    item = next(node for node in graph.nodes if node.id == "degree-path:dp_test_1")
     assert _fact(item, "FINAL_REMAINING_CREDITS") == Decimal("6")
     assert any(edge.from_node_id == item.id and edge.relation is EdgeRelation.REFERENCES
                and edge.to_node_id == "course:1509999" for edge in graph.edges)

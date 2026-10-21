@@ -16,6 +16,7 @@ from app.degree_path.models import (
     DegreePathCapacityError,
     DegreePathComputationTimeout,
     DegreePathConstraints,
+    DegreePathCreditSummary,
     DegreePathIntegrityError,
     DegreePathValidationError,
     DegreePathValidationErrorCode,
@@ -142,6 +143,7 @@ def _sample_degree_path_option(
         semesters = (_sample_modeled_semester(),)
     p1 = 1 if status is PathStatus.MODELED_COMPLETE else 0
     return DegreePathOption(
+        path_id=f"dp_test_{rank}",
         rank=rank,
         status=status,
         semesters=semesters,
@@ -166,6 +168,16 @@ def _sample_degree_path_option(
             (("1501110", "0200110"),),
         ),
         reason_codes=reason_codes,
+        completed_course_codes=(),
+        current_course_codes=(),
+        unplaced_course_codes=(),
+        credit_summary=DegreePathCreditSummary(
+            degree_required_credits=Decimal(final_completed) + Decimal(final_remaining),
+            completed_credits=Decimal(final_completed) - Decimal(credit_delta),
+            current_credits=Decimal("0"),
+            future_placed_credits=Decimal(credit_delta),
+            unplaced_credits=Decimal(final_remaining),
+        ),
     )
 
 
@@ -452,6 +464,11 @@ def test_34_paths_serialize(client: TestClient) -> None:
     data = client.post("/api/v1/me/degree-paths", json={"max_credit_hours_per_semester": 15}).json()
     assert len(data["paths"]) == 1
     assert data["paths"][0]["rank"] == 1
+    path_id = data["paths"][0]["path_id"]
+    assert any(
+        node["id"] == f"degree-path:{path_id}"
+        for node in data["explanation_graph"]["nodes"]
+    )
 
 
 def test_35_semesters_serialize(client: TestClient) -> None:
