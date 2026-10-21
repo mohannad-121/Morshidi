@@ -142,6 +142,8 @@ from app.p11_intelligence.fake_provider import FakeP11Provider
 from app.p11_intelligence.providers import UnavailableP11Provider
 from app.p16_sandbox import SandboxOfferingProvider, SandboxSISAdapter
 from app.core.rate_limiter import InMemoryLoginRateLimiter
+from app.university_sync.event_routes import router as university_event_router
+from app.university_sync.events import UniversityEventStore
 from app.university_sync.admin_auth import SupabaseAdminAuthClient
 from app.university_sync.client import UniversityContractClient
 from app.university_sync.identity_repository import SupabaseUniversityIdentityRepository
@@ -253,11 +255,14 @@ async def lifespan(application: FastAPI):
     application.state.sandbox_sis_adapter = SandboxSISAdapter()
     application.state.sandbox_offering_provider = SandboxOfferingProvider()
     application.state.login_rate_limiter = InMemoryLoginRateLimiter(max_attempts=10, window_seconds=60)
+    application.state.university_event_store = None
+    application.state.university_identity_repository = None
     application.state.university_sync_service = None
     application.state.registration_service = None
     application.state.pilot_service = None
     application.state.admin_auth_client = None
-    if settings.supabase_url and settings.supabase_secret_key:
+    if (settings.supabase_url and settings.supabase_url.strip()
+            and settings.supabase_secret_key and settings.supabase_secret_key.get_secret_value().strip()):
         repository = SupabaseAcademicCatalogRepository(
             settings.supabase_url,
             settings.supabase_secret_key.get_secret_value(),
@@ -419,6 +424,10 @@ async def lifespan(application: FastAPI):
             settings.supabase_secret_key.get_secret_value(),
             client=client,
         )
+        application.state.university_identity_repository = uni_identity_repo
+        application.state.university_event_store = UniversityEventStore(
+            settings.supabase_url, settings.supabase_secret_key.get_secret_value(), client
+        )
         uni_admin_auth = SupabaseAdminAuthClient(
             settings.supabase_url,
             settings.supabase_secret_key.get_secret_value(),
@@ -508,6 +517,7 @@ app.add_middleware(RequestTimingMiddleware)
 
 app.include_router(health_router)
 app.include_router(auth_router)
+app.include_router(university_event_router)
 app.include_router(eligibility_router)
 app.include_router(student_router)
 app.include_router(advisor_router)

@@ -25,62 +25,63 @@ export function UniversityLiveSync() {
     setLastSync(new Date());
   }, []);
 
-  const poll = useCallback(async () => {
-    const response = await api.request("/api/v1/me/university-notifications");
+  const poll = useCallback(async (signal?: AbortSignal) => {
+    const response = await api.request("/api/v1/me/university-notifications", { signal });
     if (!response.ok) throw new Error("sync unavailable");
-    update(await response.json() as Notice[]);
+    const notices = await response.json() as Notice[];
+    if (!signal?.aborted) update(notices);
   }, [api, update]);
 
   useEffect(() => {
     if (!auth.isAuthenticated) return;
-    let stopped = false;
-    let fallback: number | undefined;
+    const controller = new AbortController();
+    const refresh = () => { void poll(controller.signal).catch(() => { if (!controller.signal.aborted) setConnected(false); }); };
+    refresh();
+    const fallback = window.setInterval(refresh, 60_000);
     const start = async () => {
       try {
-        const response = await api.request("/api/v1/me/university-stream");
+        const response = await api.request("/api/v1/me/university-stream", { signal: controller.signal });
         if (!response.ok || !response.body) throw new Error("stream unavailable");
+        if (controller.signal.aborted) return;
         setConnected(true);
-        fallback = window.setInterval(() => { void poll().catch(() => setConnected(false)); }, 60_000);
         const reader = response.body.getReader();
         const decoder = new TextDecoder("utf-8");
         let buffer = "";
-        while (!stopped) {
-          const part = await reader.read();
-          if (part.done) break;
-          buffer += decoder.decode(part.value, { stream: true });
-          const messages = buffer.split("\n\n");
-          buffer = messages.pop() || "";
-          for (const message of messages) {
-            const line = message.split("\n").find((value) => value.startsWith("data: "));
-            if (!line) continue;
-            try {
-              const notice = JSON.parse(line.slice(6)) as Notice;
-              update([notice]);
-              setUnread((count) => count + 1);
-              window.dispatchEvent(new CustomEvent("morshidi:university-event", { detail: notice }));
-            } catch { /* Ignore malformed stream frames and keep listening. */ }
+        try {
+          while (!controller.signal.aborted) {
+            const part = await reader.read();
+            if (part.done || controller.signal.aborted) break;
+            buffer += decoder.decode(part.value, { stream: true });
+            const messages = buffer.split("\n\n");
+            buffer = messages.pop() || "";
+            for (const message of messages) {
+              const line = message.split("\n").find((value) => value.startsWith("data: "));
+              if (!line) continue;
+              try {
+                const notice = JSON.parse(line.slice(6)) as Notice;
+                if (typeof notice.id !== "number" || typeof notice.summary !== "string" || typeof notice.created_at !== "string") continue;
+                update([notice]);
+                setUnread((count) => count + 1);
+                window.dispatchEvent(new CustomEvent("morshidi:university-event", { detail: notice }));
+              } catch { /* Ignore malformed stream frames and keep listening. */ }
+            }
           }
+        } finally {
+          reader.releaseLock();
         }
-        if (!stopped) {
-          setConnected(false);
-          try { await poll(); } catch { /* Continue on periodic retry. */ }
-          fallback = window.setInterval(() => { void poll().catch(() => setConnected(false)); }, 60_000);
-        }
-      } catch {
-        setConnected(false);
-        try { await poll(); } catch { /* Keep the shell usable if the sync API is down. */ }
-        fallback = window.setInterval(() => { void poll().catch(() => setConnected(false)); }, 60_000);
-      }
+      } catch { /* Periodic polling keeps the shell usable if the stream is down. */ }
+      if (!controller.signal.aborted) setConnected(false);
     };
     void start();
-    return () => { stopped = true; setConnected(false); if (fallback) window.clearInterval(fallback); };
+    return () => { controller.abort(); window.clearInterval(fallback); };
+
   }, [api, auth.isAuthenticated, poll, update]);
 
   const syncLabel = useMemo(() => lastSync ? lastSync.toLocaleTimeString("ar-JO", { hour: "2-digit", minute: "2-digit" }) : "—", [lastSync]);
 
-  return <div className="relative">
+  return <div className="notification-wrap">
     <button type="button" onClick={() => { setOpen((value) => !value); setUnread(0); }} aria-label={`الإشعارات${unread ? `، ${unread} جديدة` : ""}`} aria-expanded={open}
-      className="relative inline-flex h-10 w-10 items-center justify-center rounded-xl border border-border/30 bg-surface text-foreground hover:border-accent focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent">
+      className="icon-button relative focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent">
       <BellMark />
       {unread > 0 && <span className="absolute -left-1 -top-1 min-w-4 rounded-full bg-[#B8672E] px-1 text-[10px] text-white">{unread}</span>}
     </button>

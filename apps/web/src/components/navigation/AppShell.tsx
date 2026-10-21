@@ -7,6 +7,7 @@ import { ChevronDown, Menu, X } from 'lucide-react';
 import { useAuth } from '@/auth/auth-provider';
 import { SignOutButton } from '@/auth/sign-out-button';
 import { Emoji } from '@/components/ui/Emoji';
+import { UniversityLiveSync } from '@/components/navigation/UniversityLiveSync';
 import { getStudentDisplayName, getStudentInitial } from '@/lib/student-identity';
 
 const groups = [
@@ -19,7 +20,6 @@ export function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const auth = useAuth();
   const [drawer, setDrawer] = useState(false);
-  const [bell, setBell] = useState(false);
   const active = groups.flatMap((group) => [...group.items]).find(([path]) => pathname === `/student${path ? '/' + path : ''}`);
   const displayName = getStudentDisplayName(auth.user);
   const initial = getStudentInitial(auth.user);
@@ -31,7 +31,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       <div className="topbar-context"><span>مساحة الطالب</span><strong>{active?.[1] ?? 'مرشدي'}</strong></div>
       <div className="topbar-actions">
         <Link className="quick-command" href="/student/advisor"><span aria-hidden="true"><Emoji emoji="🤖" decorative /></span><span>اسأل مرشدي</span><kbd>⌘ K</kbd></Link>
-        <div className="notification-wrap"><button className="icon-button" aria-label="الإشعارات" aria-expanded={bell} onClick={() => setBell(!bell)}><Emoji emoji="🔔" decorative /></button>{bell && <div className="account-popover"><p>لا إشعارات بعد</p></div>}</div>
+        <UniversityLiveSync />
         <details className="account-menu"><summary><span className="account-initial">{initial}</span><span className="account-name">{displayName}</span><ChevronDown size={14}/></summary><div className="account-popover"><div className="account-identity"><strong>{displayName}</strong>{studentId ? <span dir="ltr">{String(studentId)}</span> : null}</div><Link href="/student/profile">الملف الشخصي</Link><Link href="/student/privacy">الخصوصية</Link><Link href="/student/decision-history">سجل القرارات</Link><SignOutButton/></div></details>
       </div>
     </header>

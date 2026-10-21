@@ -9,7 +9,7 @@ import httpx
 from pydantic import SecretStr
 from app.core.config import settings
 from app.university_sync.client import HttpUniversityOfferingProvider, UniversityContractClient
-from app.university_sync.event_routes import student_scope_from_email, verify_signature
+from app.university_sync.event_routes import verify_signature
 from app.university_sync.events import UniversityEventStore
 
 
@@ -22,16 +22,6 @@ def test_signature_accepts_only_exact_body_and_secret() -> None:
     assert not verify_signature(body, None, "dev-secret")
 
 
-def test_student_scope_is_derived_from_verified_account_email() -> None:
-    assert student_scope_from_email("202510004@std.morshidi.edu.jo") == "202510004"
-    for email in ("202510004@other.example", None):
-        try:
-            student_scope_from_email(email)
-        except Exception:
-            continue
-        raise AssertionError("invalid student scope was accepted")
-
-
 def test_notification_query_is_scoped_to_one_student_and_global_announcements() -> None:
     captured: dict[str, str] = {}
 
@@ -42,10 +32,11 @@ def test_notification_query_is_scoped_to_one_student_and_global_announcements() 
     client = httpx.AsyncClient(transport=httpx.MockTransport(handler))
     try:
         store = UniversityEventStore("https://db.example", "private-test-key", client)
-        asyncio.run(store.list_notifications("202510004"))
+        asyncio.run(store.list_notifications("22222222-2222-2222-2222-222222222222", "202510004"))
     finally:
         asyncio.run(client.aclose())
 
+    assert captured["university_id"] == "eq.22222222-2222-2222-2222-222222222222"
     assert captured["or"] == "(student_id.eq.202510004,student_id.is.null)"
     assert captured["order"] == "created_at.desc,id.desc"
 
@@ -64,12 +55,12 @@ def test_event_ingestion_forwards_envelope_to_transactional_rpc() -> None:
         event = {"id": "9d5e9478-801a-4b4d-a9b1-0d49555f3273", "type": "grade.posted",
                  "version": 2, "occurredAt": "2026-10-04T10:00:00Z", "studentId": "202510004",
                  "payload": {"courseCode": "CS101"}, "idempotencyKey": "grade-202510004-1"}
-        result = asyncio.run(store.ingest(event))
+        result = asyncio.run(store.ingest("22222222-2222-2222-2222-222222222222", event))
     finally:
         asyncio.run(client.aclose())
 
-    assert str(captured["url"]).endswith("/rpc/ingest_university_event")
-    assert captured["payload"] == {"p_event": event}
+    assert str(captured["url"]).endswith("/rpc/ingest_university_event_scoped")
+    assert captured["payload"] == {"p_university_id": "22222222-2222-2222-2222-222222222222", "p_event": event}
     assert result == {"duplicate": False, "applied": True}
 
 
@@ -110,3 +101,17 @@ def test_live_provider_uses_calendar_uuid_mapping_and_preserves_synthetic_proven
     assert snapshot.source_type.value == "SYNTHETIC"
     assert "SYNTHETIC" in snapshot.provenance
     assert snapshot.sections[0].available == 13
+
+def test_stream_poll_query_pages_forward_by_id() -> None:
+    captured = {}
+    async def handler(request: httpx.Request) -> httpx.Response:
+        captured.update(dict(request.url.params))
+        return httpx.Response(200, json=[])
+    async def run():
+        async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+            store = UniversityEventStore('https://db.example', 'private-test-key', client)
+            await store.list_notifications('22222222-2222-2222-2222-222222222222', '202510004', after_id=41)
+    asyncio.run(run())
+    assert captured['or'] == '(student_id.eq.202510004,student_id.is.null)'
+    assert captured['id'] == 'gt.41'
+    assert captured['order'] == 'id.asc'
