@@ -142,6 +142,27 @@ def test_stream_store_error_and_disconnect(monkeypatch):
         with pytest.raises(StopAsyncIteration): await anext(iterator)
     asyncio.run(run())
 
+def test_idle_stream_emits_comment_heartbeat_without_notification(monkeypatch):
+    monkeypatch.setattr(settings, 'uni_university_id', UNI)
+    enable_stream_auth(monkeypatch)
+    ticks = iter([0.0, 16.0, 16.0])
+    monkeypatch.setattr(event_routes, 'monotonic', lambda: next(ticks))
+    async def no_wait(_): pass
+    monkeypatch.setattr(event_routes.asyncio, 'sleep', no_wait)
+    class Empty:
+        async def list_notifications(self, *args, **kwargs): return []
+    class Request:
+        headers = {'authorization': 'Bearer test-token'}
+        app = SimpleNamespace(state=SimpleNamespace(university_identity_repository=Identities(), university_event_store=Empty()))
+        async def is_disconnected(self): return False
+    async def run():
+        response = await my_university_stream(CurrentUser('a'), Request())
+        iterator = response.body_iterator
+        assert await anext(iterator) == 'retry: 3000\n\n'
+        assert await anext(iterator) == ': keep-alive\n\n'
+        await iterator.aclose()
+    asyncio.run(run())
+
 def test_invalid_identity_and_configuration_fail_closed(client, monkeypatch):
     c, api = client
     class WrongIdentity:

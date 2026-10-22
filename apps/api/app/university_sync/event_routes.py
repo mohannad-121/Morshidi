@@ -6,6 +6,7 @@ import hmac
 import json
 import re
 from datetime import datetime
+from time import monotonic
 from typing import Annotated, Literal
 from uuid import UUID
 
@@ -25,6 +26,7 @@ EventType = Literal[
     "grade.posted", "record.updated", "registration.opened", "registration.closed",
     "offering.updated", "section.opened", "section.closed", "schedule.changed", "plan.updated",
 ]
+SSE_HEARTBEAT_SECONDS = 15.0
 
 
 class UniversityEvent(BaseModel):
@@ -127,6 +129,7 @@ async def my_university_stream(user: AuthenticatedUser, request: Request, since:
 
     async def stream():
         cursor: int | None = None
+        last_emit_at = monotonic()
         yield "retry: 3000\n\n"
         while not await request.is_disconnected():
             # Reuse the same Auth verification as the initial request. Check
@@ -152,8 +155,15 @@ async def my_university_stream(user: AuthenticatedUser, request: Request, since:
                         cursor = row["id"]
                 if frames:
                     yield "".join(frames)
+                    last_emit_at = monotonic()
+                elif monotonic() - last_emit_at >= SSE_HEARTBEAT_SECONDS:
+                    # SSE comments keep idle proxy connections active without
+                    # inventing an event, cursor, or client-visible message.
+                    yield ": keep-alive\n\n"
+                    last_emit_at = monotonic()
             except Exception:
                 yield "event: sync-error\ndata: {}\n\n"
+                last_emit_at = monotonic()
             await asyncio.sleep(3)
 
     return StreamingResponse(stream(), media_type="text/event-stream; charset=utf-8", headers={

@@ -1,10 +1,42 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useAuth } from "@/auth/auth-provider";
+import { AuthenticatedApiError } from "@/lib/api/authenticated-client";
 import { useAuthenticatedApi } from "@/lib/api/use-authenticated-api";
 
 type Notice = { id: number; event_id: string; summary: string; created_at: string };
+const RECONNECT_BASE_MS = 1_000;
+const RECONNECT_MAX_MS = 30_000;
+
+export function reconnectDelayMs(attempt: number, random: () => number = Math.random): number {
+  const ceiling = Math.min(RECONNECT_MAX_MS, RECONNECT_BASE_MS * (2 ** Math.max(0, attempt)));
+  return Math.round(ceiling * (0.5 + Math.min(1, Math.max(0, random())) * 0.5));
+}
+
+export function extractSseData(buffer: string): { data: string[]; rest: string } {
+  const messages = buffer.split(/\r?\n\r?\n/);
+  const rest = messages.pop() || "";
+  const data = messages.flatMap((message) => {
+    const lines = message.split(/\r?\n/)
+      .filter((line) => line.startsWith("data:"))
+      .map((line) => line.slice(5).replace(/^ /, ""));
+    return lines.length ? [lines.join("\n")] : [];
+  });
+  return { data, rest };
+}
+
+function isNotice(value: unknown): value is Notice {
+  if (!value || typeof value !== "object") return false;
+  const notice = value as Partial<Notice>;
+  return typeof notice.id === "number" && typeof notice.event_id === "string" &&
+    typeof notice.summary === "string" && typeof notice.created_at === "string";
+}
+
+function isTerminalAuthError(error: unknown): boolean {
+  return error instanceof AuthenticatedApiError && (error.status === 401 || error.status === 403);
+}
+
 const BellMark = () => <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.7" aria-hidden="true"><path d="M18 9a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4" strokeLinecap="round" strokeLinejoin="round"/></svg>;
 const SyncMark = () => <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.7" aria-hidden="true"><path d="M20 7v5h-5M4 17v-5h5M5.6 9A7 7 0 0 1 18 6l2 1M4 17l2 1a7 7 0 0 0 12.4-3" strokeLinecap="round" strokeLinejoin="round"/></svg>;
 
@@ -16,64 +48,126 @@ export function UniversityLiveSync() {
   const [open, setOpen] = useState(false);
   const [lastSync, setLastSync] = useState<Date | null>(null);
   const [connected, setConnected] = useState(false);
+  const seenEventIds = useRef(new Set<string>());
 
-  const update = useCallback((incoming: Notice[]) => {
-    setItems((previous) => {
-      const byId = new Map([...incoming, ...previous].map((item) => [item.id, item]));
-      return [...byId.values()].sort((a, b) => b.created_at.localeCompare(a.created_at)).slice(0, 30);
-    });
+  const update = useCallback((incoming: Notice[], announce: boolean) => {
+    const valid = incoming.filter(isNotice);
+    const byEvent = new Map(valid.map((notice) => [notice.event_id, notice]));
+    const fresh = [...byEvent.values()].filter((notice) => !seenEventIds.current.has(notice.event_id));
+    for (const notice of byEvent.values()) seenEventIds.current.add(notice.event_id);
+    if (byEvent.size) {
+      setItems((previous) => {
+        const merged = new Map(previous.map((item) => [item.event_id, item]));
+        for (const notice of byEvent.values()) merged.set(notice.event_id, notice);
+        return [...merged.values()].sort((a, b) => b.created_at.localeCompare(a.created_at)).slice(0, 30);
+      });
+    }
+    if (announce && fresh.length) setUnread((count) => count + fresh.length);
     setLastSync(new Date());
+    return fresh;
   }, []);
 
   const poll = useCallback(async (signal?: AbortSignal) => {
     const response = await api.request("/api/v1/me/university-notifications", { signal });
     if (!response.ok) throw new Error("sync unavailable");
     const notices = await response.json() as Notice[];
-    if (!signal?.aborted) update(notices);
+    if (!signal?.aborted) update(notices, false);
   }, [api, update]);
 
   useEffect(() => {
     if (!auth.isAuthenticated) return;
-    const controller = new AbortController();
-    const refresh = () => { void poll(controller.signal).catch(() => { if (!controller.signal.aborted) setConnected(false); }); };
-    refresh();
-    const fallback = window.setInterval(refresh, 60_000);
-    const start = async () => {
+    const lifecycle = new AbortController();
+    let streamController: AbortController | null = null;
+    let retryTimer: number | null = null;
+    let terminalAuthFailure = false;
+
+    const reconcile = async () => {
+      if (lifecycle.signal.aborted || terminalAuthFailure) return;
       try {
-        const response = await api.request("/api/v1/me/university-stream", { signal: controller.signal });
-        if (!response.ok || !response.body) throw new Error("stream unavailable");
-        if (controller.signal.aborted) return;
-        setConnected(true);
-        const reader = response.body.getReader();
-        const decoder = new TextDecoder("utf-8");
-        let buffer = "";
+        await poll(lifecycle.signal);
+      } catch (error) {
+        if (isTerminalAuthError(error)) terminalAuthFailure = true;
+      }
+    };
+
+    const waitForRetry = (delay: number) => new Promise<void>((resolve) => {
+      if (lifecycle.signal.aborted) return resolve();
+      const finish = () => {
+        if (retryTimer !== null) window.clearTimeout(retryTimer);
+        retryTimer = null;
+        lifecycle.signal.removeEventListener("abort", finish);
+        resolve();
+      };
+      retryTimer = window.setTimeout(finish, delay);
+      lifecycle.signal.addEventListener("abort", finish, { once: true });
+    });
+
+    const runStream = async () => {
+      await reconcile();
+      let failedAttempts = 0;
+      while (!lifecycle.signal.aborted && !terminalAuthFailure) {
+        streamController = new AbortController();
+        const abortStream = () => streamController?.abort();
+        lifecycle.signal.addEventListener("abort", abortStream, { once: true });
+        let reader: ReadableStreamDefaultReader<Uint8Array> | null = null;
+        let receivedNotice = false;
         try {
-          while (!controller.signal.aborted) {
+          const response = await api.request("/api/v1/me/university-stream", { signal: streamController.signal });
+          if (!response.ok || !response.body) throw new Error("stream unavailable");
+          if (lifecycle.signal.aborted) break;
+          setConnected(true);
+          reader = response.body.getReader();
+          const decoder = new TextDecoder("utf-8");
+          let buffer = "";
+          while (!lifecycle.signal.aborted) {
             const part = await reader.read();
-            if (part.done || controller.signal.aborted) break;
+            if (part.done) throw new Error("stream ended");
+            if (lifecycle.signal.aborted) break;
             buffer += decoder.decode(part.value, { stream: true });
-            const messages = buffer.split("\n\n");
-            buffer = messages.pop() || "";
-            for (const message of messages) {
-              const line = message.split("\n").find((value) => value.startsWith("data: "));
-              if (!line) continue;
+            const extracted = extractSseData(buffer);
+            buffer = extracted.rest;
+            for (const data of extracted.data) {
               try {
-                const notice = JSON.parse(line.slice(6)) as Notice;
-                if (typeof notice.id !== "number" || typeof notice.summary !== "string" || typeof notice.created_at !== "string") continue;
-                update([notice]);
-                setUnread((count) => count + 1);
+                const notice = JSON.parse(data) as unknown;
+                if (!isNotice(notice)) continue;
+                const fresh = update([notice], true);
+                if (!fresh.length) continue;
+                receivedNotice = true;
                 window.dispatchEvent(new CustomEvent("morshidi:university-event", { detail: notice }));
-              } catch { /* Ignore malformed stream frames and keep listening. */ }
+              } catch { /* Ignore malformed data frames and keep the scoped stream open. */ }
             }
           }
+        } catch (error) {
+          if (!lifecycle.signal.aborted && isTerminalAuthError(error)) terminalAuthFailure = true;
         } finally {
-          reader.releaseLock();
+          lifecycle.signal.removeEventListener("abort", abortStream);
+          if (reader) {
+            void reader.cancel().catch(() => undefined);
+            reader.releaseLock();
+          }
+          streamController = null;
+          if (!lifecycle.signal.aborted) setConnected(false);
         }
-      } catch { /* Periodic polling keeps the shell usable if the stream is down. */ }
-      if (!controller.signal.aborted) setConnected(false);
+        if (lifecycle.signal.aborted || terminalAuthFailure) break;
+        await reconcile();
+        if (lifecycle.signal.aborted || terminalAuthFailure) break;
+        failedAttempts = receivedNotice ? 0 : failedAttempts + 1;
+        await waitForRetry(reconnectDelayMs(Math.max(0, failedAttempts - 1)));
+      }
     };
-    void start();
-    return () => { controller.abort(); window.clearInterval(fallback); };
+
+    const refresh = () => { void reconcile(); };
+    const onVisibility = () => { if (document.visibilityState === "visible") refresh(); };
+    const fallback = window.setInterval(refresh, 60_000);
+    document.addEventListener("visibilitychange", onVisibility);
+    void runStream();
+    return () => {
+      lifecycle.abort();
+      streamController?.abort();
+      if (retryTimer !== null) window.clearTimeout(retryTimer);
+      window.clearInterval(fallback);
+      document.removeEventListener("visibilitychange", onVisibility);
+    };
 
   }, [api, auth.isAuthenticated, poll, update]);
 

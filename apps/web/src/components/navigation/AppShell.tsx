@@ -31,7 +31,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       <div className="topbar-context"><span>مساحة الطالب</span><strong>{active?.[1] ?? 'مرشدي'}</strong></div>
       <div className="topbar-actions">
         <Link className="quick-command" href="/student/advisor"><span aria-hidden="true"><Emoji emoji="🤖" decorative /></span><span>اسأل مرشدي</span><kbd>⌘ K</kbd></Link>
-        <UniversityLiveSync />
+        <UniversityLiveSync key={auth.user?.id ?? auth.user?.email ?? 'anonymous'} />
         <details className="account-menu"><summary><span className="account-initial">{initial}</span><span className="account-name">{displayName}</span><ChevronDown size={14}/></summary><div className="account-popover"><div className="account-identity"><strong>{displayName}</strong>{studentId ? <span dir="ltr">{String(studentId)}</span> : null}</div><Link href="/student/profile">الملف الشخصي</Link><Link href="/student/privacy">الخصوصية</Link><Link href="/student/decision-history">سجل القرارات</Link><SignOutButton/></div></details>
       </div>
     </header>
