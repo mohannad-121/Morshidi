@@ -32,6 +32,8 @@ from app.degree_path.models import (
     DegreePathIntegrityError,
     DegreePathOption,
     DegreePathResult,
+    UnplacedCreditBreakdown,
+    UnplacedCreditReason,
     ModeledSemesterEntry,
     PathReasonCode,
     PathStatus,
@@ -122,6 +124,75 @@ def _free_elective_requirements(progress: AcademicProgress) -> tuple[DegreePathF
         for group in progress.requirement_groups
         if group.requirement_type is RequirementType.FREE_ELECTIVE
     )
+
+
+def _unplaced_credit_breakdown(
+    progress: AcademicProgress,
+    *,
+    total_unplaced_credits: Decimal,
+    unplaced_course_codes: tuple[str, ...],
+    blocker_codes: tuple[str, ...],
+) -> tuple[UnplacedCreditBreakdown, ...]:
+    """Partition final unplaced credits by canonical requirement group exactly once."""
+    unplaced = set(unplaced_course_codes)
+    courses_by_group = {
+        group.group_id: tuple(
+            course for course in progress.courses
+            if course.requirement_group_id == group.group_id
+            and course.course_code in unplaced
+        )
+        for group in progress.requirement_groups
+    }
+    entries: list[UnplacedCreditBreakdown] = []
+    credits_left = total_unplaced_credits
+    for group in progress.requirement_groups:
+        credits = min(
+            max(
+                group.remaining_required_credits - group.in_progress_credited_toward_requirement,
+                Decimal("0"),
+            ),
+            credits_left,
+        )
+        courses = courses_by_group[group.group_id]
+        if credits > 0:
+            if (
+                group.requirement_type is RequirementType.FREE_ELECTIVE
+                and group.free_elective_selection_state.value == "FREE_ELECTIVE_POLICY_REQUIRED"
+            ):
+                reason = UnplacedCreditReason.FREE_ELECTIVE_POLICY_REQUIRED
+            elif group.requirement_type is RequirementType.REQUIRED:
+                reason = UnplacedCreditReason.UNSCHEDULED_REQUIRED_CREDITS
+            else:
+                reason = UnplacedCreditReason.UNSCHEDULED_ELECTIVE_CREDITS
+            entries.append(UnplacedCreditBreakdown(
+                reason=reason,
+                credits=credits,
+                requirement_group_code=group.group_code,
+                course_codes=tuple(sorted(course.course_code for course in courses)),
+                evidence_codes=tuple(sorted(set(blocker_codes))),
+                actionable=reason is not UnplacedCreditReason.FREE_ELECTIVE_POLICY_REQUIRED,
+            ))
+            credits_left -= credits
+        for course in courses:
+            if course.credit_hours == 0:
+                entries.append(UnplacedCreditBreakdown(
+                    reason=UnplacedCreditReason.MANDATORY_ZERO_CREDIT_REQUIREMENT,
+                    credits=Decimal("0"),
+                    requirement_group_code=group.group_code,
+                    course_codes=(course.course_code,),
+                    evidence_codes=tuple(sorted(set(blocker_codes))),
+                    actionable=True,
+                ))
+    if credits_left > 0:
+        entries.append(UnplacedCreditBreakdown(
+            reason=UnplacedCreditReason.UNMODELED_PLAN_CREDITS,
+            credits=credits_left,
+            requirement_group_code="UNMODELED_PLAN_TOTAL",
+            course_codes=(),
+            evidence_codes=tuple(sorted(set(blocker_codes))),
+            actionable=False,
+        ))
+    return tuple(entries)
 
 
 # ---------------------------------------------------------------------------
@@ -556,6 +627,7 @@ def plan_degree_paths(
                 unplaced_credits=Decimal("0"),
             ),
             free_elective_requirements=_free_elective_requirements(initial_progress),
+            unplaced_credit_breakdown=(),
         )
         completed_result = DegreePathResult(
             study_plan_id=study_plan_id,
@@ -954,6 +1026,16 @@ def plan_degree_paths(
             raise DegreePathIntegrityError(
                 "In-progress plan credits exceed the final remaining canonical credits"
             )
+        unplaced_breakdown = _unplaced_credit_breakdown(
+            state.academic_progress,
+            total_unplaced_credits=unplaced_credits,
+            unplaced_course_codes=unplaced_course_codes,
+            blocker_codes=blocker_codes,
+        )
+        if sum((item.credits for item in unplaced_breakdown), Decimal("0")) != unplaced_credits:
+            raise DegreePathIntegrityError(
+                "Unplaced credit breakdown does not reconcile to canonical unplaced credits"
+            )
 
         final_priority_tuple = (
             -p1,
@@ -995,6 +1077,7 @@ def plan_degree_paths(
                     unplaced_credits=unplaced_credits,
                 ),
                 free_elective_requirements=free_elective_requirements,
+                unplaced_credit_breakdown=unplaced_breakdown,
             )
         )
 
@@ -1085,6 +1168,7 @@ def plan_degree_paths(
                 unplaced_course_codes=opt.unplaced_course_codes,
                 credit_summary=opt.credit_summary,
                 free_elective_requirements=opt.free_elective_requirements,
+                unplaced_credit_breakdown=opt.unplaced_credit_breakdown,
             )
         )
 

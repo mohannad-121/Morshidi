@@ -246,7 +246,10 @@ def pre_route_academic_intent(
         return None
 
     # Guard 2: Definition inquiries (e.g. "شو يعني prerequisite؟") are general academic info, not course inquiries
-    if re.search(r"(?:شو\s+يعني|ما\s+معنى|معنى|ماذا\s+يعني|what\s+does\s+.+mean|meaning\s+of)", normalized):
+    if re.search(r"(?:شو\s+يعني|ما\s+معنى|معنى|ماذا\s+يعني|what\s+does\s+.+mean|meaning\s+of)", normalized) or re.fullmatch(
+        r"(?:what\s+(?:is|are)\s+(?:an?\s+|the\s+)?|(?:explain|define)\s+)(?:prerequisites?|course\s+requirements?)\s*[?؟]?",
+        normalized,
+    ):
         return None
 
     # Course fit takes precedence for a compound strengths + suitable-courses

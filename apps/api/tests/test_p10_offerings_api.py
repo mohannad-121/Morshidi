@@ -18,6 +18,7 @@ from app.mock_registration.models import (
 )
 from app.mock_registration.registries import DemandMetricId
 from app.offerings.fake_provider import FAKE_PERIOD, FAKE_UNIVERSITY_ID, FakeUniversityOfferingProvider, fake_snapshot
+from app.offerings.models import OfferingPeriod, SourceType
 from app.offerings.provider import OfferingProviderUnavailable
 from app.planner.models import PlannerConstraints, PlannedCourseEntry, SemesterPlanOption, SemesterPlannerResult
 from app.rules.models import (
@@ -121,6 +122,121 @@ def test_student_offerings_are_owner_derived_and_synthetic():
         assert payload["provenance"] == "SANDBOX / SYNTHETIC DATA"
         assert len(payload["sections"]) == 2
         assert student.owner_calls == [USER, USER]
+    finally:
+        _close(client)
+
+
+def test_student_period_discovery_is_owner_tenant_scoped_and_provenanced():
+    student = StudentStub()
+    client = _client(student=student)
+    try:
+        response = client.get("/api/v1/me/offerings/periods")
+        assert response.status_code == 200, response.text
+        payload = response.json()
+        assert payload["status"] == "AVAILABLE"
+        assert payload["periods"][0]["period_key"] == FAKE_PERIOD
+        assert payload["periods"][0]["source_type"] == "SYNTHETIC"
+        assert payload["periods"][0]["registration_open"] is True
+        assert "SYNTHETIC" in payload["periods"][0]["provenance"]
+        assert student.owner_calls == [USER]
+    finally:
+        _close(client)
+
+
+def test_student_period_catalog_is_owner_scoped_and_only_student_visible():
+    student = StudentStub()
+    client = _client(student=student)
+    try:
+        response = client.get("/api/v1/me/offerings", params={"period_key": FAKE_PERIOD})
+        assert response.status_code == 200, response.text
+        assert response.headers["Cache-Control"] == "private, no-store"
+        payload = response.json()
+        assert payload["operational_state"] == "AVAILABLE"
+        assert payload["coverage_complete"] is True
+        assert len(payload["sections"]) == 5
+        assert student.owner_calls == [USER]
+    finally:
+        _close(client)
+
+
+def test_student_period_catalog_fails_closed_for_cross_tenant_and_hidden_sections():
+    client = _client(student=StudentStub(OTHER))
+    try:
+        response = client.get("/api/v1/me/offerings", params={"period_key": FAKE_PERIOD})
+        assert response.status_code == 200
+        assert response.json()["operational_state"] == "PROVIDER_UNAVAILABLE"
+        assert response.json()["sections"] == []
+    finally:
+        _close(client)
+
+    class RestrictedProvider:
+        async def load_snapshot(self, university_id, period_key):
+            snapshot = fake_snapshot()
+            return replace(snapshot, sections=tuple(replace(s, student_visible=False)
+                                                      for s in snapshot.sections))
+
+    client = _client()
+    app.state.course_offering_provider = RestrictedProvider()
+    try:
+        response = client.get("/api/v1/me/offerings", params={"period_key": FAKE_PERIOD})
+        assert response.status_code == 200
+        payload = response.json()
+        assert payload["operational_state"] == "OFFERING_COVERAGE_INCOMPLETE"
+        assert payload["coverage_complete"] is False
+        assert payload["sections"] == []
+        assert "SYN-CS101-A" not in response.text
+    finally:
+        _close(client)
+
+
+def test_two_tenants_with_overlapping_course_codes_keep_calendars_and_sections_distinct():
+    tenant_b = "f1000000-0000-0000-0000-000000000050"
+
+    class DualTenantProvider:
+        async def list_periods(self, university_id):
+            if university_id == FAKE_UNIVERSITY_ID:
+                return (OfferingPeriod("A-2026", "تقويم أ", "Calendar A", "2026-09-01", "2026-12-31",
+                                       SourceType.SYNTHETIC, "SYNTHETIC A", True),)
+            if university_id == tenant_b:
+                return (OfferingPeriod("B-2027", "تقويم ب", "Calendar B", "2027-02-01", "2027-06-01",
+                                       SourceType.SYNTHETIC, "SYNTHETIC B", False),)
+            return ()
+
+        async def load_snapshot(self, university_id, period_key):
+            base = fake_snapshot()
+            if university_id == FAKE_UNIVERSITY_ID and period_key == "A-2026":
+                return replace(base, period_key=period_key, sections=(base.sections[0],), provenance="SYNTHETIC A")
+            if university_id == tenant_b and period_key == "B-2027":
+                foreign = replace(base.sections[0], section_id="TENANT-B-CS101", campus="TENANT-B-CAMPUS")
+                return replace(base, university_id=tenant_b, period_key=period_key,
+                               sections=(foreign,), provenance="SYNTHETIC B")
+            return None
+
+    provider = DualTenantProvider()
+    results = []
+    for tenant, period_key in ((FAKE_UNIVERSITY_ID, "A-2026"), (tenant_b, "B-2027")):
+        client = _client(student=StudentStub(tenant))
+        app.state.course_offering_provider = provider
+        try:
+            calendar = client.get("/api/v1/me/offerings/periods").json()["periods"]
+            offerings = client.get("/api/v1/me/offerings", params={"period_key": period_key}).json()
+            results.append((calendar, offerings))
+        finally:
+            _close(client)
+
+    assert results[0][0][0]["period_key"] == "A-2026"
+    assert results[1][0][0]["period_key"] == "B-2027"
+    assert results[0][1]["sections"][0]["section_id"] == "SYN-CS101-A"
+    assert results[1][1]["sections"][0]["section_id"] == "TENANT-B-CS101"
+    assert results[0][1]["sections"][0]["course_code"] == results[1][1]["sections"][0]["course_code"] == "CS101"
+
+
+def test_period_discovery_does_not_cross_tenant_fallback():
+    client = _client(student=StudentStub(OTHER))
+    try:
+        response = client.get("/api/v1/me/offerings/periods")
+        assert response.status_code == 200
+        assert response.json() == {"status": "SOURCE_UNAVAILABLE", "periods": []}
     finally:
         _close(client)
 

@@ -29,6 +29,24 @@ class CapacityState(str, Enum):
 
 
 @dataclass(frozen=True)
+class OfferingPeriod:
+    period_key: str
+    name_ar: str
+    name_en: str | None
+    starts_on: str | None
+    ends_on: str | None
+    source_type: SourceType
+    provenance: str
+    registration_open: bool = False
+
+    def __post_init__(self) -> None:
+        if not self.period_key or not self.name_ar or not self.provenance:
+            raise ValueError("period identity and provenance are required")
+        if type(self.registration_open) is not bool:
+            raise ValueError("registration_open must be boolean")
+
+
+@dataclass(frozen=True)
 class MeetingBlock:
     day: int  # ISO weekday, 1-7
     starts_at: time

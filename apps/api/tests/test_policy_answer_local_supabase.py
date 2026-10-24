@@ -63,7 +63,7 @@ def test_local_synthetic_verified_passage_produces_exact_server_citation() -> No
             university = insert("universities", {
                 "name_ar": f"جامعة اختبار غير رسمية {token}",
                 "name_en": f"Synthetic Policy Test {token}",
-                "country": "Jordan", "active": True,
+                "country": "Jordan", "active": True, "tenant_key": f"policy-answer-{token}",
             })
             created["universities"] = university["id"]
             document = insert("policy_documents", {

@@ -64,7 +64,7 @@ def seed_catalog(client: httpx.Client) -> None:
     _local_only()
     _ensure(client, "universities", {"id": FAKE_UNIVERSITY_ID,
              "name_ar": "جامعة مرشدي التجريبية الخيالية", "name_en": "Morshidi Fictional Sandbox University",
-             "country": "SYNTHETIC", "active": True})
+             "country": "SYNTHETIC", "active": True, "tenant_key": "morshidi-fictional-sandbox"})
     _ensure(client, "faculties", {"id": FACULTY_ID, "university_id": FAKE_UNIVERSITY_ID,
              "code": "SYN-ENG", "name_ar": "كلية تجريبية", "name_en": "Fictional Faculty"})
     _ensure(client, "majors", {"id": MAJOR_ID, "faculty_id": FACULTY_ID,
@@ -95,7 +95,7 @@ def seed_catalog(client: httpx.Client) -> None:
     # no P10 period, offering provider, analyst, or institutional demand.
     _ensure(client, "universities", {"id": FOREIGN_UNIVERSITY_ID,
              "name_ar": "جامعة حدود تجريبية خيالية", "name_en": "Fictional Isolation Sentinel University",
-             "country": "SYNTHETIC", "active": True})
+             "country": "SYNTHETIC", "active": True, "tenant_key": "fictional-isolation-sentinel"})
     _ensure(client, "faculties", {"id": FOREIGN_FACULTY_ID,
              "university_id": FOREIGN_UNIVERSITY_ID, "name_ar": "كلية حدود خيالية"})
     _ensure(client, "majors", {"id": FOREIGN_MAJOR_ID, "faculty_id": FOREIGN_FACULTY_ID,

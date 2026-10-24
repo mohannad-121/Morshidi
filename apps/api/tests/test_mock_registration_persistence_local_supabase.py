@@ -422,6 +422,7 @@ def test_p6_4_local_runtime_persistence_and_security_contract() -> None:
                 "name_ar": f"جامعة اختبار اصطناعية {run_id}",
                 "name_en": f"Synthetic Runtime University {run_id}",
                 "country": "Synthetic",
+                "tenant_key": f"mock-registration-{run_id}",
             },
         )
         foreign_university.raise_for_status()

@@ -74,6 +74,7 @@ def _foreign_university_id(client: httpx.Client) -> str:
             "name_en": f"P8 Local Foreign University {marker}",
             "name_ar": f"P8 Local Foreign University {marker}",
             "country": "JO",
+            "tenant_key": f"p8-foreign-{marker}",
         },
     )
     response.raise_for_status()

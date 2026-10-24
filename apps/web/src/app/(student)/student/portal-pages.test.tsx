@@ -319,6 +319,14 @@ const mockDegreePath: DegreePathResponse = {
         unplaced_credits: 41,
       },
       free_elective_requirements: [],
+      unplaced_credit_breakdown: [{
+        reason: 'UNSCHEDULED_REQUIRED_CREDITS',
+        credits: 41,
+        requirement_group_code: 'MAJOR_REQUIRED',
+        course_codes: [`REMAINING-${rank}`],
+        evidence_codes: [],
+        actionable: true,
+      }],
     };
   }),
   explanation_graph: mockPathGraph,

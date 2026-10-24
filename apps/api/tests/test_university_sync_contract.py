@@ -4,6 +4,7 @@ import hashlib
 import hmac
 import json
 import asyncio
+from pathlib import Path
 
 import httpx
 from pydantic import SecretStr
@@ -11,6 +12,9 @@ from app.core.config import settings
 from app.university_sync.client import HttpUniversityOfferingProvider, UniversityContractClient
 from app.university_sync.event_routes import verify_signature
 from app.university_sync.events import UniversityEventStore
+
+
+ROOT = Path(__file__).resolve().parents[3]
 
 
 def test_signature_accepts_only_exact_body_and_secret() -> None:
@@ -62,6 +66,15 @@ def test_event_ingestion_forwards_envelope_to_transactional_rpc() -> None:
     assert str(captured["url"]).endswith("/rpc/ingest_university_event_scoped")
     assert captured["payload"] == {"p_university_id": "22222222-2222-2222-2222-222222222222", "p_event": event}
     assert result == {"duplicate": False, "applied": True}
+
+
+def test_release_drops_only_the_revoked_unscoped_event_rpc() -> None:
+    migration = (
+        ROOT / "supabase/migrations/20261024083357_drop_legacy_unscoped_university_event_rpc.sql"
+    ).read_text("utf-8")
+    assert "drop function public.ingest_university_event(jsonb)" in migration
+    assert "ingest_university_event_scoped(uuid,jsonb)" in migration
+    assert "drop function public.ingest_university_event_scoped" not in migration
 
 
 def test_live_provider_uses_calendar_uuid_mapping_and_preserves_synthetic_provenance(monkeypatch) -> None:

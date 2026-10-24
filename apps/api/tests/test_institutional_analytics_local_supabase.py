@@ -127,6 +127,7 @@ def local_facts():
         load_group_id = str(uuid5(NAMESPACE_URL, f"institutional-load-group:{run_id}"))
         _insert(client, "universities", {
             "id": university_id, "name_ar": "Institutional local", "country": "LOCAL",
+            "tenant_key": f"institutional-local-{run_id}",
         })
         _insert(client, "faculties", {
             "id": faculty_id, "university_id": university_id, "code": "LOCAL",
@@ -217,7 +218,7 @@ def local_facts():
         foreign_group_id = str(uuid5(NAMESPACE_URL, f"institutional-foreign-group:{run_id}"))
         foreign_course_id = str(uuid5(NAMESPACE_URL, f"institutional-foreign-course:{run_id}"))
         created_course_ids.append(foreign_course_id)
-        _insert(client, "universities", {"id": foreign_university_id, "name_ar": "Foreign local", "country": "LOCAL"})
+        _insert(client, "universities", {"id": foreign_university_id, "name_ar": "Foreign local", "country": "LOCAL", "tenant_key": f"institutional-foreign-{run_id}"})
         _insert(client, "faculties", {"id": foreign_faculty_id, "university_id": foreign_university_id,
                                        "code": "FOREIGN", "name_ar": "Foreign faculty"})
         _insert(client, "majors", {"id": foreign_major_id, "faculty_id": foreign_faculty_id,

@@ -110,6 +110,16 @@ class BlockerType(str, Enum):
     """An outside-window recommendation fits constraints when top-M yields no plan."""
 
 
+class UnplacedCreditReason(str, Enum):
+    """Deterministic, non-overlapping explanation for an unplaced requirement."""
+
+    FREE_ELECTIVE_POLICY_REQUIRED = "FREE_ELECTIVE_POLICY_REQUIRED"
+    UNSCHEDULED_REQUIRED_CREDITS = "UNSCHEDULED_REQUIRED_CREDITS"
+    UNSCHEDULED_ELECTIVE_CREDITS = "UNSCHEDULED_ELECTIVE_CREDITS"
+    MANDATORY_ZERO_CREDIT_REQUIREMENT = "MANDATORY_ZERO_CREDIT_REQUIREMENT"
+    UNMODELED_PLAN_CREDITS = "UNMODELED_PLAN_CREDITS"
+
+
 class PathReasonCode(str, Enum):
     """Stable, machine-readable reason codes for generated degree paths."""
 
@@ -294,6 +304,18 @@ class DegreePathFreeElectiveRequirement:
 
 
 @dataclass(frozen=True)
+class UnplacedCreditBreakdown:
+    """One requirement-group contribution to the aggregate unplaced total."""
+
+    reason: UnplacedCreditReason
+    credits: Decimal
+    requirement_group_code: str
+    course_codes: tuple[str, ...]
+    evidence_codes: tuple[str, ...]
+    actionable: bool
+
+
+@dataclass(frozen=True)
 class DegreePathOption:
     """A complete ranked multi-semester degree path option."""
 
@@ -319,6 +341,7 @@ class DegreePathOption:
     unplaced_course_codes: tuple[str, ...]
     credit_summary: DegreePathCreditSummary
     free_elective_requirements: tuple[DegreePathFreeElectiveRequirement, ...] = ()
+    unplaced_credit_breakdown: tuple[UnplacedCreditBreakdown, ...] = ()
     strategy: str = DegreePathStrategy.FASTEST.value
     strategy_name_ar: str = "الأسرع للتخرج"
 

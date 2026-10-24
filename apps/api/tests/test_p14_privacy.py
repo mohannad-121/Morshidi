@@ -346,3 +346,30 @@ def test_chat_export_and_deletion_request_are_owner_scoped_and_non_destructive()
         app.state.student_service = None
         app.state.p14_privacy_store = None
         app.state.student_conversation_store = None
+
+
+def test_privacy_export_survives_typed_conversation_storage_outage():
+    from app.student_conversation.store import ConversationUnavailable
+
+    class UnavailableChatStore:
+        async def export_owned_chats(self, owner, institution):
+            raise ConversationUnavailable("synthetic outage")
+
+    store = LocalPrivacyStore((study(),))
+    app.dependency_overrides[get_current_user] = lambda: CurrentUser(OWNER)
+    try:
+        with TestClient(app) as client:
+            app.state.student_service = StudentStub()
+            app.state.p14_privacy_store = store
+            app.state.student_conversation_store = UnavailableChatStore()
+            response = client.post("/api/v1/me/privacy/export")
+            assert response.status_code == 200
+            payload = response.json()
+            assert payload["subject"] == OWNER
+            assert payload["conversation_export_status"] == "CONVERSATION_STORAGE_UNAVAILABLE_NOT_INCLUDED"
+            assert "conversations" not in payload["source_sections"]
+    finally:
+        app.dependency_overrides.clear()
+        app.state.p14_privacy_store = None
+        app.state.student_service = None
+        app.state.student_conversation_store = None

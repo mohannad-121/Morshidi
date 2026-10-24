@@ -305,6 +305,10 @@ def test_real_plan12_degree_paths_scenarios_and_isolation() -> None:
                         "max_paths": 2,
                     },
                 ).json()
+                # Response-generation metadata is intentionally observational;
+                # every academic decision and graph fact must remain identical.
+                call_1["explanation_graph"].pop("generated_at")
+                call_2["explanation_graph"].pop("generated_at")
                 assert call_1 == call_2
 
                 # -----------------------------------------------------------

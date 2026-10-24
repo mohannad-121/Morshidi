@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from datetime import datetime, time, timedelta, timezone
 
-from .models import MeetingBlock, Modality, OfferingSection, OfferingSnapshot, SourceType
+from .models import MeetingBlock, Modality, OfferingPeriod, OfferingSection, OfferingSnapshot, SourceType
 
 FAKE_UNIVERSITY_ID = "f1000000-0000-0000-0000-000000000010"
 FAKE_PERIOD = "SANDBOX-P10-FALL"
@@ -22,6 +22,14 @@ def _section(identifier: str, course: str, day: int, start: int, end: int, *,
 
 
 class FakeUniversityOfferingProvider:
+    async def list_periods(self, university_id: str) -> tuple[OfferingPeriod, ...]:
+        if university_id != FAKE_UNIVERSITY_ID:
+            return ()
+        return (OfferingPeriod(
+            FAKE_PERIOD, "فصل تجريبي", "Synthetic fall", "2026-09-01", "2026-12-31",
+            SourceType.SYNTHETIC, "SANDBOX / SYNTHETIC DATA", True,
+        ),)
+
     async def load_snapshot(self, university_id: str, period_key: str) -> OfferingSnapshot | None:
         if university_id != FAKE_UNIVERSITY_ID or period_key != FAKE_PERIOD:
             return None
