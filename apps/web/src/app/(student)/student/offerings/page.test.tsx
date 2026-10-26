@@ -61,7 +61,7 @@ test("Arabic first-character search and keyboard selection use the canonical cou
   expect(await screen.findByRole("option", { name: /مُقَدِّمة البرمجة/ })).toBeDefined();
   fireEvent.keyDown(input, { key: "ArrowDown" });
   fireEvent.keyDown(input, { key: "Enter" });
-  await screen.findByText(/الأهلية الأكاديمية: ELIGIBLE/);
+  await screen.findByText(/مؤهل أكاديمياً/);
   expect(api.request.mock.calls.some((call: unknown[]) => String(call[0]).includes("/offerings/CS101?"))).toBe(true);
 });
 
@@ -130,7 +130,10 @@ test("explicit planner overlay preserves academic rank and displays typed confli
   render(<OfferingsPage />);
   await screen.findByRole("option", { name: /الفصل الحالي/ });
   fireEvent.click(screen.getByRole("button", { name: "مقارنة الخطة الأكاديمية بالعروض" }));
-  expect((await screen.findByText(/TIME_OVERLAP/)).textContent).toContain("SYN-MATH101-A");
+  const conflict = await screen.findByText(/تعارض في أوقات المحاضرات/);
+  expect(conflict.closest("div")?.textContent).toContain("SYN-MATH101-A");
+  expect(conflict.closest("div")?.textContent).toContain("الاثنين");
+  expect(conflict.closest("div")?.textContent).toContain("10:00 ص – 11:00 ص");
 });
 
 test("course-name search matches partial Arabic words, fills full name on selection, and shows status badge", async () => {
@@ -151,8 +154,8 @@ test("course-name search matches partial Arabic words, fills full name on select
   // Input should now contain the full course name
   expect(input.value).toBe("مُقَدِّمة البرمجة");
 
-  // Eligibility and sections should load for the canonical code CS101
-  await screen.findByText(/الأهلية الأكاديمية: ELIGIBLE/);
+  // Eligibility and sections should load for the canonical code CS101 with elegant Arabic labels
+  await screen.findByText(/مؤهل أكاديمياً/);
   expect(api.request.mock.calls.some((call: unknown[]) => String(call[0]).includes("/offerings/CS101?"))).toBe(true);
 });
 
@@ -187,4 +190,30 @@ test("clear search button resets query and selection, and Escape closes dropdown
   fireEvent.click(clearBtn);
   expect(input.value).toBe("");
   expect(screen.queryByRole("option", { name: /رياضيات متقطعة/ })).toBeNull();
+});
+
+test("renders polished Arabic section cards and suppresses raw technical metadata", async () => {
+  render(<OfferingsPage />);
+  const input = await screen.findByRole("combobox", { name: "ابحث عن مادة" });
+  fireEvent.change(input, { target: { value: "برمجة" } });
+  const option = await screen.findByRole("option", { name: /مُقَدِّمة البرمجة/ });
+  fireEvent.click(option);
+
+  // Status badges in Arabic
+  await screen.findByText("مؤهل أكاديمياً");
+  expect(screen.getByText("الشعبة مفتوحة")).toBeDefined();
+
+  // Section card details in elegant Arabic
+  expect(screen.getByText("وجاهي")).toBeDefined();
+  expect(screen.getByText("مقاعد متاحة")).toBeDefined();
+  expect(screen.getByText("الاثنين")).toBeDefined();
+  expect(screen.getByText(/09:00 ص – 11:00 ص/)).toBeDefined();
+  expect(screen.getByText(/10 \/ 30/)).toBeDefined();
+
+  // Raw machine internals must NEVER be displayed
+  expect(screen.queryByText(/\bELIGIBLE\b/)).toBeNull();
+  expect(screen.queryByText(/\bKNOWN_OPEN\b/)).toBeNull();
+  expect(screen.queryByText(/\bIN_PERSON\b/)).toBeNull();
+  expect(screen.queryByText(/\bAsia\/Amman\b/)).toBeNull();
+  expect(screen.queryByText(/\bp10-synthetic-v1\b/)).toBeNull();
 });
