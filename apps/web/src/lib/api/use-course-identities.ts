@@ -4,7 +4,11 @@ import { useEffect, useState } from "react";
 import { useAuthenticatedApi } from "@/lib/api/use-authenticated-api";
 
 export interface CourseDisplayIdentity {
-  course_id: string; course_code: string; name_ar: string | null; name_en: string | null;
+  course_id: string;
+  course_code: string;
+  name_ar: string | null;
+  name_en: string | null;
+  aliases?: string[];
 }
 export type CourseIdentityMap = ReadonlyMap<string, CourseDisplayIdentity>;
 const EMPTY: CourseIdentityMap = new Map();

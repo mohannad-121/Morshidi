@@ -33,7 +33,8 @@ async def test_local_student_history_scope_pagination_and_browser_denials() -> N
         foreign = raw.post(
             f"{URL}/rest/v1/universities", headers=_server_headers(),
             json={"name_ar": f"Synthetic History {uuid4()}",
-                  "name_en": f"Synthetic History {uuid4()}", "country": "JO"},
+                  "name_en": f"Synthetic History {uuid4()}", "country": "JO",
+                  "tenant_key": f"history-{uuid4()}"},
         )
         foreign.raise_for_status()
         foreign_id = foreign.json()[0]["id"]

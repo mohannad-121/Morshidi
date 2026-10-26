@@ -209,13 +209,15 @@ def test_real_auth_analyst_gate_cross_tenant_and_no_synthetic_leak():
     namespace = f"p10-{marker}"
     with httpx.Client(timeout=35) as raw:
         plan, university = _plan_scope(raw)
-        plan_courses = raw.get(f"{URL}/rest/v1/study_plan_courses", headers=_server_headers(),
-                               params={"select": "course_id", "study_plan_id": f"eq.{plan}", "limit": "1"})
-        assert plan_courses.status_code == 200 and plan_courses.json()
         course_row = raw.get(f"{URL}/rest/v1/courses", headers=_server_headers(),
-                             params={"select": "course_code", "id": f"eq.{plan_courses.json()[0]['course_id']}"})
+                             params={"select": "id,course_code", "course_code": "eq.0200115",
+                                     "university_id": f"eq.{university}"})
         assert course_row.status_code == 200 and course_row.json()
         course_code = course_row.json()[0]["course_code"]
+        plan_courses = raw.get(f"{URL}/rest/v1/study_plan_courses", headers=_server_headers(),
+                               params={"select": "course_id", "study_plan_id": f"eq.{plan}",
+                                       "course_id": f"eq.{course_row.json()[0]['id']}"})
+        assert plan_courses.status_code == 200 and plan_courses.json()
         analyst, analyst_token = _create_user(raw, "p10-analyst")
         outsider, outsider_token = _create_user(raw, "p10-outsider")
         student, student_token = _create_user(raw, "p10-student")

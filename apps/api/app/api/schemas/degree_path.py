@@ -13,6 +13,7 @@ from app.degree_path.models import (
     BlockerType,
     PathReasonCode,
     PathStatus,
+    UnplacedCreditReason,
 )
 from app.explainability_graph import ExplainabilityGraph
 
@@ -101,6 +102,15 @@ class DegreePathFreeElectiveRequirementResponse(BaseModel):
     current_course_codes: list[str]
 
 
+class UnplacedCreditBreakdownResponse(BaseModel):
+    reason: UnplacedCreditReason
+    credits: Decimal
+    requirement_group_code: str
+    course_codes: list[str]
+    evidence_codes: list[str]
+    actionable: bool
+
+
 class DegreePathOptionResponse(BaseModel):
     path_id: str
     rank: int
@@ -126,6 +136,7 @@ class DegreePathOptionResponse(BaseModel):
     unplaced_course_codes: list[str]
     credit_summary: DegreePathCreditSummaryResponse
     free_elective_requirements: list[DegreePathFreeElectiveRequirementResponse]
+    unplaced_credit_breakdown: list[UnplacedCreditBreakdownResponse]
 
 
 class DegreePathResponse(BaseModel):

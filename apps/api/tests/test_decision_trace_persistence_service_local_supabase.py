@@ -296,7 +296,7 @@ async def test_p8_2b_local_rejects_all_user_supplied_authoritative_envelopes_bef
         foreign = raw.post(
             f"{URL}/rest/v1/universities",
             headers=_server_headers(),
-            json={"name_ar": f"جامعة P8 {uuid4()}", "name_en": f"P8 foreign {uuid4()}", "country": "JO"},
+            json={"name_ar": f"جامعة P8 {uuid4()}", "name_en": f"P8 foreign {uuid4()}", "country": "JO", "tenant_key": f"p8-forgery-{uuid4()}"},
         )
         foreign.raise_for_status()
         foreign_university_id = foreign.json()[0]["id"]
@@ -366,7 +366,7 @@ async def test_p8_2b_local_advisor_assignment_revocation_membership_and_cross_te
         foreign = raw.post(
             f"{URL}/rest/v1/universities",
             headers=_server_headers(),
-            json={"name_ar": f"جامعة بعيدة {uuid4()}", "name_en": f"foreign {uuid4()}", "country": "JO"},
+            json={"name_ar": f"جامعة بعيدة {uuid4()}", "name_en": f"foreign {uuid4()}", "country": "JO", "tenant_key": f"p8-assignment-{uuid4()}"},
         )
         foreign.raise_for_status()
         _membership(raw, foreign_advisor_id, foreign.json()[0]["id"], "ACADEMIC_ADVISOR")

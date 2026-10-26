@@ -286,6 +286,13 @@ def validate_degree_path_result(
             + raw_planned_credits
         )
         summary = path.credit_summary
+        if sum(
+            (item.credits for item in path.unplaced_credit_breakdown), Decimal("0")
+        ) != expected_unplaced_credits:
+            _fail(
+                DegreePathValidationErrorCode.CREDIT_TOTAL_MISMATCH,
+                "unplaced credit breakdown does not reconcile",
+            )
         if expected_unplaced_credits < 0 or (
             summary.degree_required_credits != canonical_total
             or summary.completed_credits != baseline.completed_plan_credits

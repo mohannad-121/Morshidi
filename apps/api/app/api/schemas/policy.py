@@ -158,6 +158,6 @@ class StudentPolicyAnswerResponse(BaseModel):
     answer: str | None
     language: Literal["ar", "en"] | None
     citations: list[StudentPolicyAnswerCitation]
-    retrieval_mode: Literal["hybrid"]
+    retrieval_mode: Literal["hybrid", "lexical_fallback", "lexical", "semantic"]
     abstention_reason: str | None
     handoff: StudentPolicyAnswerHandoff | None

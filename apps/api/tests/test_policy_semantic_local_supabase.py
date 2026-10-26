@@ -116,7 +116,8 @@ def test_real_semantic_rpc_filters_ranks_and_preserves_citations() -> None:
 
         try:
             other = post("universities", {"name_ar": f"جامعة اختبار {token}",
-                "name_en": f"Semantic test {token}", "country": "Jordan", "active": True})
+                "name_en": f"Semantic test {token}", "country": "Jordan", "active": True,
+                "tenant_key": f"semantic-{token}"})
             created_university = other["id"]
             verified, good = create_policy(university_a, "A", "verified", [
                 "يجوز للطالب الانسحاب من المساق وفق المواعيد المحددة.",

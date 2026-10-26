@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import re
 import unicodedata
+from dataclasses import replace
 
 from app.advisor.models import AdvisorIntent
 from app.advisor.provider import RawAdvisorInterpretation
@@ -83,13 +84,16 @@ def extract_context_courses(conversation_context: str) -> tuple[str, ...]:
 
     # 1. Names before explicit course codes in parentheses, e.g. "تعلم الآلة (1505311)" or "مساق تعلم الآلة (1505311)"
     for match in re.finditer(
-        r"([^\(\)\n\r,،:؛\.]{2,40})\s*\((?:\d{6,8})\)",
+        r"([^\(\)\n\r,،:؛\.]{2,40})\s*\((\d{6,8})\)",
         conversation_context,
     ):
         raw_name = match.group(1).strip()
         name = _clean_course_reference(raw_name)
         if name:
             positioned.append((match.end(), name))
+        # Prefer the canonical code over surrounding assistant prose when both
+        # describe the same most-recent reference.
+        positioned.append((match.end() + 1, match.group(2)))
 
     # 2. Look for explicit course title patterns in context like مساق (...) or مادة (...)
     for match in re.finditer(
@@ -128,6 +132,33 @@ def extract_context_courses(conversation_context: str) -> tuple[str, ...]:
     return tuple(courses)
 
 
+def _latest_user_message(conversation_context: str) -> str | None:
+    """Return only the newest bounded USER turn, never assistant prose."""
+    for line in reversed(conversation_context.splitlines()):
+        role, separator, content = line.partition(":")
+        if separator and role.strip().upper() == "USER" and content.strip():
+            return content.strip()
+    return None
+
+
+def _is_explanation_follow_up(normalized: str) -> bool:
+    """Recognize short requests that explain the immediately preceding result."""
+    return bool(re.fullmatch(
+        r"(?:طيب\s+|طب\s+)?(?:ليش|لماذا|وضح(?:لي)?|اشرح(?:لي)?|"
+        r"كيف\s+(?:هيك|عرفت)|why|why\s+is\s+that|explain(?:\s+why)?)\s*[?؟!]*",
+        normalized.strip(),
+    ))
+
+
+def _is_deictic_course_reference(value: str) -> bool:
+    normalized = normalize_academic_text(_clean_course_reference(value))
+    return bool(re.fullmatch(
+        r"(?:هاي|هذي|هذه|هالماد[ةه]|هالمساق|الماد[ةه]\s+هاي|المساق\s+هذا|"
+        r"هاي\s+الماد[ةه]|هاي\s+المساق|this\s+(?:course|class)|it|ها|عنها|عنه)",
+        normalized,
+    ))
+
+
 def _has_pronoun_reference(normalized: str) -> bool:
     """Check if query uses an Arabic pronoun or indirect reference to a course."""
     pronoun_patterns = [
@@ -135,6 +166,9 @@ def _has_pronoun_reference(normalized: str) -> bool:
         r"(?:متطلباتها|متطلبها|شروطها)",
         r"(?:صعوبتها|صعبة\s+علي|صعبة\s+ولا\s+سهلة|سهلة\s+ولا\s+صعبة|صعبه\s+علي|صعب\s+علي)",
         r"(?:علامتها|درجتها|علامتي\s+فيها|جبت\s+فيها)",
+        r"(?:رسبت\s+فيها|رسبت\s+فيه|سقطت\s+فيها|اعدتها|اعدته|فشلت\s+فيها)",
+        r"(?:أجلتها|اجلتها|أجلته|اجلته|حذفتها|حذفته|اسقطتها|اسقطته)",
+        r"(?:بخطتي|خطتي|تاثيرها|تأثيرها|اثرها|أثرها)",
         r"(?:عنها|عنه|فيها|فيه|عليها|عليه|لها|له)\s*[\?؟]?$",
     ]
     return any(re.search(pat, normalized) for pat in pronoun_patterns)
@@ -245,8 +279,27 @@ def pre_route_academic_intent(
     if re.search(r"(?:حرب|سياس[ةه]|طقس|طبخ|افلام|أفلام|اغاني|أغاني|مسلسل|رياض[ةه]|كر[ةه]\s+قدم|نكت[ةه]|war|weather|movie|song)", normalized):
         return None
 
+    # A compact "why?" should keep the last deterministic academic intent and
+    # request its evidence explanation. We intentionally inspect only the most
+    # recent USER turn, never model-authored prose, and recurse without context
+    # so an ambiguous chain still falls back to the semantic provider.
+    if _is_explanation_follow_up(normalized):
+        previous_message = _latest_user_message(conversation_context)
+        if previous_message:
+            previous = pre_route_academic_intent(previous_message)
+            if previous is not None:
+                return replace(
+                    previous,
+                    requested_facets=tuple(dict.fromkeys(
+                        (*previous.requested_facets, "EVIDENCE_EXPLANATION")
+                    )),
+                )
+
     # Guard 2: Definition inquiries (e.g. "شو يعني prerequisite؟") are general academic info, not course inquiries
-    if re.search(r"(?:شو\s+يعني|ما\s+معنى|معنى|ماذا\s+يعني|what\s+does\s+.+mean|meaning\s+of)", normalized):
+    if re.search(r"(?:شو\s+يعني|ما\s+معنى|معنى|ماذا\s+يعني|what\s+does\s+.+mean|meaning\s+of)", normalized) or re.fullmatch(
+        r"(?:what\s+(?:is|are)\s+(?:an?\s+|the\s+)?|(?:explain|define)\s+)(?:prerequisites?|course\s+requirements?)\s*[?؟]?",
+        normalized,
+    ):
         return None
 
     # Course fit takes precedence for a compound strengths + suitable-courses
@@ -266,14 +319,73 @@ def pre_route_academic_intent(
             clarification_hint="STUDENT_INTELLIGENCE",
         )
 
+    # Personal record questions are direct authenticated reads. Route them
+    # before the broad English "what is ..." course-information expression.
+    if re.search(
+        r"(?:what\s+is|show|tell\s+me).{0,24}(?:my\s+)?(?:gpa|academic\s+record|transcript)|"
+        r"(?:my\s+gpa|my\s+academic\s+record|my\s+transcript)",
+        normalized,
+    ):
+        return RawAdvisorInterpretation(
+            intent=AdvisorIntent.ACADEMIC_STATUS.value,
+            clarification_hint="GPA" if "gpa" in normalized else "ACADEMIC_RECORD",
+        )
+
+    # 0. Option Comparison: "طيب قارنلي الحلين" / "قارن بين الخيارين" / "compare the two options"
+    if re.search(
+        r"(?:طيب\s+|طب\s+)?(?:قارن(?:لي)?|مقارن[ةه])\s*(?:بين\s+)?(?:الحلين|الخيارين|الخطتين|المسارين|options?|solutions?|paths?|plans?)",
+        normalized,
+    ) or re.search(
+        r"compare\s+(?:the\s+)?(?:two\s+)?(?:options?|solutions?|paths?|plans?)",
+        normalized,
+    ):
+        return RawAdvisorInterpretation(
+            intent=AdvisorIntent.OPTION_COMPARISON.value,
+            option_references=(1, 2),
+            requested_facets=("COMPARISON",),
+        )
+
+    # 0b. Compound Multi-Tool Academic Request
+    if (
+        ("ضايل" in normalized or "باقي" in normalized or "remaining" in normalized)
+        and ("جدول" in normalized or "خطة" in normalized or "plan" in normalized or "انزل" in normalized or "schedule" in normalized)
+        and ("تخرج" in normalized or "اتخرج" in normalized or "graduate" in normalized or "سنة" in normalized or "سنه" in normalized or "مسار" in normalized)
+    ):
+        return RawAdvisorInterpretation(
+            intent=AdvisorIntent.SEMESTER_PLANNING.value,
+            clarification_hint="COMPOUND_ACADEMIC_PLANNING",
+            requested_facets=("REMAINING_REQUIREMENTS", "SEMESTER_PLAN", "DEGREE_PATH", "COMPARISON"),
+        )
+
+    # 0c. What-If and Plan Impact Follow-ups with context courses
+    if re.search(
+        r"(?:و?إذا|و?اذا|و?لو|what\s+if)\s+(?:رسبت|فشلت|اعدت|تأخرت|تاخرت|أجلت|اجلت|fail|retake|drop|delay)",
+        normalized,
+    ) or re.search(
+        r"(?:شو|ايش|ماذا|how).{0,20}(?:يت[اأ]ثر|رح\s+يت[اأ]ثر|بت[اأ]ثر|ت[اأ]ثير).{0,20}(?:بخطتي|خطتي|مساري|plan|degree)",
+        normalized,
+    ):
+        target_course = context_courses[0] if context_courses else ""
+        mentions, codes = _assign_mentions_and_codes(target_course, codes_in_message)
+        if mentions or codes:
+            return RawAdvisorInterpretation(
+                intent=AdvisorIntent.DEGREE_PATH_MODELING.value,
+                course_mentions=mentions,
+                course_codes_mentioned=codes,
+                clarification_hint="PLAN_IMPACT_WHAT_IF",
+                requested_facets=("WHAT_IF", "PREREQUISITE_IMPACT"),
+            )
+
     # 1. Course Comparison: "قارنلي بين X و Y" / "مقارنة بين X و Y"
     comparison_match = re.search(
-        r"(?:قارن(?:لي)?|مقارن[ةه]|compare)\s+(?:بين|between)\s+(.+?)\s+(?:و\s*|مع\s+|and\s+)(.+)",
+        r"(?:قارن(?:لي)?|مقارن[ةه])\s+(?:بين\s+)?(.+?)\s+(?:و\s*|مع\s+)(.+)|"
+        r"compare\s+(?:between\s+)?(.+?)\s+(?:and|with|versus|vs\.?)\s+(.+)",
         normalized,
     )
     if comparison_match:
-        c1_raw = _map_span_to_raw(raw_message, comparison_match.span(1))
-        c2_raw = _map_span_to_raw(raw_message, comparison_match.span(2))
+        first_group, second_group = ((1, 2) if comparison_match.group(1) is not None else (3, 4))
+        c1_raw = _map_span_to_raw(raw_message, comparison_match.span(first_group))
+        c2_raw = _map_span_to_raw(raw_message, comparison_match.span(second_group))
         c1 = _clean_course_reference(c1_raw)
         c2 = _clean_course_reference(c2_raw)
         all_codes = codes_in_message
@@ -299,6 +411,9 @@ def pre_route_academic_intent(
     ) or re.search(
         r"(?:شو\s+انزل|شو\s+اسجل|what\s+should\s+i\s+take|recommend\s+courses|اقترح\s+علي\s+مواد|رشحلي\s+مواد)",
         normalized,
+    ) or re.search(
+        r"what\s+(?:courses?|classes?)\s+should\s+i\s+take(?:\s+(?:next|this)\s+(?:semester|term))?",
+        normalized,
     ):
         return RawAdvisorInterpretation(
             intent=AdvisorIntent.COURSE_RECOMMENDATIONS.value,
@@ -311,7 +426,7 @@ def pre_route_academic_intent(
     )
     if grade_match and not re.search(r"(?:معدلي|المعدل|تراكمي|النجاح)", normalize_academic_text(grade_match.group(0))):
         target = _map_span_to_raw(raw_message, grade_match.span(1))
-        if not target and _has_pronoun_reference(normalized) and context_courses:
+        if (not target or _is_deictic_course_reference(target)) and _has_pronoun_reference(normalized) and context_courses:
             target = context_courses[0]
         mentions, codes = _assign_mentions_and_codes(target, codes_in_message)
         if mentions or codes:
@@ -329,7 +444,7 @@ def pre_route_academic_intent(
     )
     if prereq_match:
         target = _map_span_to_raw(raw_message, prereq_match.span(1))
-        if not target and (_has_pronoun_reference(normalized) or "متطلباتها" in normalized) and context_courses:
+        if (not target or _is_deictic_course_reference(target)) and (_has_pronoun_reference(normalized) or "متطلباتها" in normalized or _is_deictic_course_reference(target)) and context_courses:
             target = context_courses[0]
         mentions, codes = _assign_mentions_and_codes(target, codes_in_message)
         if mentions or codes:
@@ -359,7 +474,7 @@ def pre_route_academic_intent(
     )
     if diff_prefix_match:
         target = _map_span_to_raw(raw_message, diff_prefix_match.span(1))
-        if not target and (_has_pronoun_reference(normalized) or "صعوبتها" in normalized) and context_courses:
+        if (not target or _is_deictic_course_reference(target)) and (_has_pronoun_reference(normalized) or "صعوبتها" in normalized or _is_deictic_course_reference(target)) and context_courses:
             target = context_courses[0]
         mentions, codes = _assign_mentions_and_codes(target, codes_in_message)
         if mentions or codes:
@@ -371,7 +486,7 @@ def pre_route_academic_intent(
             )
     elif diff_suffix_match:
         target = _map_span_to_raw(raw_message, diff_suffix_match.span(1))
-        if not target and _has_pronoun_reference(normalized) and context_courses:
+        if (not target or _is_deictic_course_reference(target)) and _has_pronoun_reference(normalized) and context_courses:
             target = context_courses[0]
         mentions, codes = _assign_mentions_and_codes(target, codes_in_message)
         if mentions or codes:
@@ -410,11 +525,11 @@ def pre_route_academic_intent(
 
     # 7. Course Eligibility: "هل بقدر أنزل تعلم الآلة؟" / "ليش ما بقدر أسجلها؟"
     eligibility_prefix_match = re.search(
-        r"(?:بقدر|اقدر|استطيع|مسموحلي|مسموح\s+لي|مؤهل|can\s+i|am\s+i\s+eligible)\s+(?:انزل|اسجل|اخذ|تسجيل|تنزيل|take|register|enroll)\s*(?:مساق|مادة|كورس|course)?\s*(.*)",
+        r"(?:بقدر|اقدر|استطيع|مسموحلي|مسموح\s+لي|مؤهل|can\s+i|am\s+i\s+eligible)\s+(?:to\s+)?(?:انزل|اسجل|اخذ|تسجيل|تنزيل|take|register|enroll)\s*(?:in\s+)?(?:مساق|مادة|كورس|course)?\s*(.*)",
         normalized,
     )
     eligibility_why_match = re.search(
-        r"(?:ما\s+بقدر|مش\s+قادر|مش\s+مسموح|مش\s+مسموحلي|cant|cannot)\s+(?:انزل|اسجل|اخذ|take|register|enroll)\s*(?:مساق|مادة|كورس|course)?\s*(.*)",
+        r"(?:ما\s+بقدر|مش\s+قادر|مش\s+مسموح|مش\s+مسموحلي|(?:النظام\s+)?مش\s+سامحلي|cant|cannot)\s+(?:انزل|اسجل|اخذ|take|register|enroll)\s*(?:مساق|مادة|كورس|course)?\s*(.*)",
         normalized,
     )
     eligibility_pronoun_match = re.search(
@@ -436,6 +551,8 @@ def pre_route_academic_intent(
     matched_eligibility = eligibility_prefix_match or eligibility_why_match
     if matched_eligibility:
         raw_target = _map_span_to_raw(raw_message, matched_eligibility.span(1)).strip()
+        if _is_deictic_course_reference(raw_target) and context_courses:
+            raw_target = context_courses[0]
         mentions, codes = _assign_mentions_and_codes(raw_target, codes_in_message)
         if mentions or codes:
             return RawAdvisorInterpretation(
@@ -480,7 +597,7 @@ def pre_route_academic_intent(
         if info_match:
             target = _map_span_to_raw(raw_message, info_match.span(1))
             target_clean = _clean_course_reference(target)
-            if (not target_clean or _has_pronoun_reference(normalized) or target_clean in ("ها", "عنها", "عنه", "it")) and context_courses:
+            if (not target_clean or _has_pronoun_reference(normalized) or _is_deictic_course_reference(target_clean)) and context_courses:
                 target = context_courses[0]
             mentions, codes = _assign_mentions_and_codes(target, codes_in_message)
             if mentions or codes:

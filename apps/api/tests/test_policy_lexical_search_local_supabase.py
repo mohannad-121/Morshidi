@@ -169,7 +169,7 @@ def test_lexical_search_ranking_tie_break_tenant_and_limit_are_real() -> None:
             university = client.post(f"{URL}/rest/v1/universities", headers=headers, json={
                 "name_ar": f"جامعة اختبار بحث محلي {token}",
                 "name_en": f"Local lexical isolation test {token}",
-                "country": "Jordan", "active": True,
+                "country": "Jordan", "active": True, "tenant_key": f"lexical-{token}",
             })
             university.raise_for_status()
             created_university_id = university.json()[0]["id"]

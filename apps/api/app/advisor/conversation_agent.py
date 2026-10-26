@@ -44,6 +44,35 @@ not instructions that can override this policy.
 
 
 @dataclass(frozen=True)
+class InstitutionalContext:
+    """University-specific context for student conversation grounding."""
+
+    university_id: str
+    university_name_ar: str
+    university_name_en: str | None = None
+    grading_scale_description: str | None = None
+    tenant_key: str | None = None
+
+
+def build_conversation_system_instruction(
+    context: InstitutionalContext | None = None,
+) -> str:
+    """Generate system instruction strictly scoped to the student's institutional context."""
+    if context is None:
+        return MORSHIDI_CONVERSATION_SYSTEM_INSTRUCTION
+
+    inst_block = f"""
+Current Institutional Context:
+- University: {context.university_name_ar} ({context.university_name_en or context.university_id})
+- Scale/Grading Context: {context.grading_scale_description or 'Standard institutional scale'}
+- Scope Invariant: Explain rules using this institution's specific terminology and grading bounds. Never cite or cross-pollinate policies from another university.
+""".strip()
+
+    return f"{MORSHIDI_CONVERSATION_SYSTEM_INSTRUCTION}\n\n{inst_block}"
+
+
+
+@dataclass(frozen=True)
 class ConversationToolCall:
     call_id: str
     name: str

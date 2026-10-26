@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 from typing import Any
 
 from app.university_sync.client import UniversityContractClient
@@ -46,6 +47,40 @@ class RegistrationService:
         return await self._client.registration_request(
             "GET", "/api/integrations/morshidi/v1/student/registration/offerings", token
         )
+
+    async def offering_context(
+        self, owner_user_id: str,
+    ) -> tuple[dict[str, Any], dict[str, Any]]:
+        """Fetch current-term context and source provenance with one owner-scoped token."""
+        _, token = await self._token(owner_user_id)
+        context, manifest = await asyncio.gather(
+            self._client.registration_request(
+                "GET", "/api/integrations/morshidi/v1/student/registration/context", token
+            ),
+            self._client.source_manifest(token),
+        )
+        return context, manifest
+
+    async def offering_source(
+        self, owner_user_id: str,
+    ) -> tuple[dict[str, Any], list[Any], dict[str, Any]]:
+        """Fetch one complete, owner-scoped offerings view without mutation endpoints."""
+        _, token = await self._token(owner_user_id)
+        context, offerings_envelope, manifest = await asyncio.gather(
+            self._client.registration_request(
+                "GET", "/api/integrations/morshidi/v1/student/registration/context", token
+            ),
+            self._client.registration_request(
+                "GET", "/api/integrations/morshidi/v1/student/registration/offerings", token
+            ),
+            self._client.source_manifest(token),
+        )
+        if offerings_envelope.get("success") is not True:
+            raise RegistrationUnavailableError("UNIVERSITY_OFFERINGS_UNAVAILABLE")
+        offerings = offerings_envelope.get("offerings")
+        if not isinstance(offerings, list):
+            raise RegistrationUnavailableError("UNIVERSITY_OFFERINGS_MALFORMED")
+        return context, offerings, manifest
 
     async def preview(self, owner_user_id: str, section_ids: list[str]) -> dict[str, Any]:
         _, token = await self._token(owner_user_id)

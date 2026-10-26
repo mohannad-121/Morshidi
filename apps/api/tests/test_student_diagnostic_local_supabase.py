@@ -116,7 +116,7 @@ def local_fixtures() -> LocalFixtures:
                     continue
                 university = _post_row(client, "universities", {
                     "name_ar": f"جامعة اختبار {label} {suffix}", "name_en": f"Local Test {label} {suffix}",
-                    "country": "LOCAL_ONLY"})
+                    "country": "LOCAL_ONLY", "tenant_key": f"diagnostic-{label.lower()}-{suffix}"})
                 universities.append(university["id"]); created["universities"].append(university["id"])
                 faculty = _post_row(client, "faculties", {
                     "university_id": university["id"], "name_ar": f"كلية {label} {suffix}"})

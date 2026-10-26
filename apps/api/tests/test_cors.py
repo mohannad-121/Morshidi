@@ -88,6 +88,15 @@ def test_malicious_arbitrary_origin_is_rejected() -> None:
     assert "access-control-allow-origin" not in response.headers
 
 
+def test_production_does_not_implicitly_trust_localhost() -> None:
+    runtime_settings = Settings(
+        app_env="production",
+        frontend_url=PRODUCTION_ORIGIN,
+        cors_allowed_origins=PREVIEW_ORIGINS,
+    )
+    assert "http://127.0.0.1:3000" not in allowed_origins(runtime_settings)
+
+
 def test_advisor_preflight_succeeds_for_preview() -> None:
     with cors_client() as client:
         response = preflight(client, "/api/v1/me/advisor", BRANCH_PREVIEW_ORIGIN)

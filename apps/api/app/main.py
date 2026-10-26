@@ -1,10 +1,10 @@
 from contextlib import asynccontextmanager
+from pathlib import Path
 from uuid import NAMESPACE_URL, UUID, uuid5
 
 import httpx
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import JSONResponse
-from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.routes.eligibility import router as eligibility_router
 from app.api.routes.health import router as health_router
@@ -27,6 +27,13 @@ from app.api.routes.institutional_integrations import (
     webhook_router as integrations_webhook_router,
 )
 from app.api.routes.institutional_pilots import router as institutional_pilots_router
+from app.api.routes.learning_materials import router as learning_materials_router
+from app.learning_materials import LearningMaterialService, SupabaseLearningMaterialRepository
+from app.learning_materials.models import (
+    LearningMaterialIntegrityError,
+    LearningMaterialNotFound,
+    LearningMaterialTransportError,
+)
 from app.pilot_onboarding import PilotRepository, PilotService
 from app.sis_integration import (
     SISIntegrationError,
@@ -97,6 +104,7 @@ from app.catalog.errors import (
 )
 from app.catalog.supabase_repository import SupabaseAcademicCatalogRepository
 from app.core.config import settings
+from app.core.cors import add_cors_middleware
 from app.core.academic_compute import AcademicComputeLimiter
 from app.core.request_timing import RequestTimingMiddleware
 from app.services.eligibility import EligibilityConfigurationError, EligibilityService
@@ -137,6 +145,7 @@ from app.mock_registration_service.errors import (
 from app.mock_registration_service.institutional_service import InstitutionalDemandService
 from app.mock_registration_service.student_service import MockRegistrationStudentService
 from app.offerings.fake_provider import FakeUniversityOfferingProvider
+from app.offerings.authenticated_university_provider import AuthenticatedUniversityOfferingProvider
 from app.offerings.provider import UnavailableOfferingProvider
 from app.p11_intelligence.fake_provider import FakeP11Provider
 from app.p11_intelligence.providers import UnavailableP11Provider
@@ -260,6 +269,7 @@ async def lifespan(application: FastAPI):
     application.state.university_sync_service = None
     application.state.registration_service = None
     application.state.pilot_service = None
+    application.state.learning_material_service = None
     application.state.admin_auth_client = None
     if (settings.supabase_url and settings.supabase_url.strip()
             and settings.supabase_secret_key and settings.supabase_secret_key.get_secret_value().strip()):
@@ -286,6 +296,16 @@ async def lifespan(application: FastAPI):
             academic_compute_limiter,
             GradePolicyRegistry((FAKE_UNIVERSITY_INSTITUTION_GRADING_POLICY_V1,)),
             diagnostic_repository,
+        )
+        learning_material_repository = SupabaseLearningMaterialRepository(
+            settings.supabase_url,
+            settings.supabase_secret_key.get_secret_value(),
+            client,
+        )
+        application.state.learning_material_service = LearningMaterialService(
+            learning_material_repository,
+            application.state.student_service,
+            Path(__file__).resolve().parents[1] / "private" / "learning-materials",
         )
         application.state.diagnostic_service = DiagnosticService(
             diagnostic_repository, application.state.student_service)
@@ -474,6 +494,10 @@ async def lifespan(application: FastAPI):
                 settings.uni_university_id,
                 application.state.university_sync_service,
             )
+            application.state.course_offering_provider = AuthenticatedUniversityOfferingProvider(
+                application.state.registration_service,
+                settings.uni_university_id,
+            )
         sis_repo = SupabaseSISIntegrationRepository(
             settings.supabase_url,
             settings.supabase_secret_key.get_secret_value(),
@@ -506,13 +530,7 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=[settings.frontend_url, "http://127.0.0.1:3000"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+add_cors_middleware(app)
 app.add_middleware(RequestTimingMiddleware)
 
 app.include_router(health_router)
@@ -531,6 +549,7 @@ app.include_router(institutional_intelligence_router)
 app.include_router(institutional_analytics_router)
 app.include_router(institutional_integrations_router)
 app.include_router(institutional_pilots_router)
+app.include_router(learning_materials_router)
 app.include_router(integrations_webhook_router)
 app.include_router(p11_student_router)
 app.include_router(p11_institutional_router)
@@ -546,6 +565,33 @@ app.include_router(advisor_decision_history_router)
 app.include_router(advisor_explainability_graph_router)
 app.include_router(institutional_change_impact_router)
 app.include_router(advisor_change_impact_router)
+
+
+@app.exception_handler(LearningMaterialNotFound)
+async def handle_learning_material_not_found(
+    _: Request, __: LearningMaterialNotFound,
+) -> JSONResponse:
+    return _catalog_error_response(
+        "LEARNING_MATERIAL_NOT_FOUND", "Learning material was not found", 404,
+    )
+
+
+@app.exception_handler(LearningMaterialIntegrityError)
+async def handle_learning_material_integrity(
+    _: Request, __: LearningMaterialIntegrityError,
+) -> JSONResponse:
+    return _catalog_error_response(
+        "LEARNING_MATERIAL_INTEGRITY_ERROR", "Learning material integrity error", 500,
+    )
+
+
+@app.exception_handler(LearningMaterialTransportError)
+async def handle_learning_material_transport(
+    _: Request, __: LearningMaterialTransportError,
+) -> JSONResponse:
+    return _catalog_error_response(
+        "LEARNING_MATERIAL_SERVICE_UNAVAILABLE", "Learning materials are unavailable", 503,
+    )
 
 
 @app.exception_handler(InstitutionalAnalyticsError)

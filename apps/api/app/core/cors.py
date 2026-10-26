@@ -33,11 +33,10 @@ def _normalize_origin(value: str) -> str:
 def allowed_origins(runtime_settings: Settings = settings) -> list[str]:
     """Return a validated, de-duplicated explicit origin allowlist."""
 
-    configured = [
-        runtime_settings.frontend_url,
-        LOCAL_FRONTEND_ORIGIN,
-        *runtime_settings.cors_allowed_origins.split(","),
-    ]
+    configured = [runtime_settings.frontend_url]
+    if runtime_settings.app_env.strip().lower() not in {"production", "prod"}:
+        configured.append(LOCAL_FRONTEND_ORIGIN)
+    configured.extend(runtime_settings.cors_allowed_origins.split(","))
     origins: list[str] = []
     for value in configured:
         if not value.strip():

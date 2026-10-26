@@ -55,6 +55,13 @@ desktop.ini
 supabase/.temp/
 supabase/.branches/
 
+# Disposable local validation environments
+/.phase4d_isolated/
+/.phase4d_upgrade/
+
+# Private learning-material migration sources (never commit or deploy)
+/apps/api/private/learning-materials/
+
 # Local database files
 *.db
 *.sqlite

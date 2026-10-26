@@ -46,6 +46,14 @@ function statusDescription(path: DegreePathOptionResponse): string {
     : "أفضل تسلسل حتمي متاح ضمن القيود الحالية، وقد يحتاج بعض المتطلبات إلى مراجعة.";
 }
 
+const UNPLACED_REASON_LABELS: Record<string, string> = {
+  FREE_ELECTIVE_POLICY_REQUIRED: "سياسة الاختياري الحر غير معتمدة",
+  UNSCHEDULED_REQUIRED_CREDITS: "متطلبات إلزامية لم توزع ضمن الأفق",
+  UNSCHEDULED_ELECTIVE_CREDITS: "ساعات اختيارية لم توزع ضمن الأفق",
+  MANDATORY_ZERO_CREDIT_REQUIREMENT: "متطلب إلزامي بصفر ساعات لم يجدول",
+  UNMODELED_PLAN_CREDITS: "ساعات الخطة غير مرتبطة بمجموعة متطلبات موثقة",
+};
+
 export default function DegreePathPage() {
   const auth = useAuth();
   const client = useAuthenticatedApi();
@@ -227,6 +235,16 @@ export default function DegreePathPage() {
             يلزم اعتماد سياسة الجامعة للمواد المسموح باحتسابها قبل عرض خيارات أو إنشاء تسجيل.
           </p>}
         </section>)}
+        {(selectedPath.unplaced_credit_breakdown ?? []).length > 0 && <section className="engraved p-5" aria-label="تفصيل الساعات غير الموزعة">
+          <h3 className="text-lg">لماذا بقيت هذه المتطلبات؟</h3>
+          <ul className="mt-3 space-y-3">
+            {selectedPath.unplaced_credit_breakdown.map((item) => <li key={`${item.requirement_group_code}-${item.reason}-${item.course_codes.join("-")}`}>
+              <strong>{UNPLACED_REASON_LABELS[item.reason] ?? item.reason}</strong>
+              <span> · <bdi>{formatCreditHours(item.credits)}</bdi> ساعات</span>
+              <p className="text-xs text-muted"><bdi>{item.requirement_group_code}</bdi>{item.course_codes.length > 0 ? ` · ${item.course_codes.join("، ")}` : ""}</p>
+            </li>)}
+          </ul>
+        </section>}
         {stations.length > 0 ? <PathMap key={selectedPath.path_id} stations={stations}/> : <FriendlyState title="لا توجد فصول مستقبلية لهذا المسار."/>}
         {selectedPath.status !== "MODELED_COMPLETE" && <p className="text-xs text-copper">هذا أفضل مسار صالح ضمن القيود الآمنة، وما زالت بعض المتطلبات تحتاج إلى مراجعة.</p>}
         <details className="engraved p-5"><summary>تفاصيل مطابقة الساعات</summary>

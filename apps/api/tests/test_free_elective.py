@@ -285,6 +285,8 @@ async def test_near_graduation_scenario_only_free_elective_remaining() -> None:
     assert p1.credit_summary.current_credits == Decimal("0")
     assert p1.credit_summary.future_placed_credits == Decimal("0")
     assert p1.credit_summary.unplaced_credits == Decimal("3")
+    assert sum((item.credits for item in p1.unplaced_credit_breakdown), Decimal("0")) == Decimal("3")
+    assert p1.unplaced_credit_breakdown[0].reason.value == "FREE_ELECTIVE_POLICY_REQUIRED"
     assert p1.status is PathStatus.NO_VALID_NEXT_PLAN
     assert "FREE_ELECTIVE_POLICY_REQUIRED" in p1.unresolved_blocker_codes
 

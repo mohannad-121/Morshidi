@@ -104,6 +104,7 @@ def _get_university_id(client: httpx.Client) -> str:
             "name_ar": f"جامعة تجريبية {uuid4().hex[:6]}",
             "name_en": f"Test University {uuid4().hex[:6]}",
             "country": "Jordan",
+            "tenant_key": f"policy-test-{uuid4().hex}",
             "active": True,
         },
     )
@@ -119,6 +120,7 @@ def _create_foreign_university(client: httpx.Client) -> str:
             "name_ar": f"جامعة تجريبية {uuid4().hex[:6]}",
             "name_en": f"Foreign University {uuid4().hex[:6]}",
             "country": "Jordan",
+            "tenant_key": f"policy-foreign-{uuid4().hex}",
             "active": True,
         },
     )

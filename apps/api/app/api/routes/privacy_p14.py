@@ -12,7 +12,7 @@ from app.core.auth import CurrentUser, get_current_user
 from app.p14_privacy.domain import DataCategory, MeasureKind
 from app.p14_privacy.store import LocalPrivacyStore, PrivacyDenied
 from app.services.student import StudentService
-from app.student_conversation.store import ConversationNotFound
+from app.student_conversation.store import ConversationNotFound, ConversationUnavailable
 
 router = APIRouter(prefix="/api/v1/me/privacy", tags=["privacy-p14"])
 User = Annotated[CurrentUser, Depends(get_current_user)]
@@ -127,9 +127,12 @@ async def export_privacy_data(user: User, request: Request, response: Response):
     result = store.export(user.user_id, institution)
     chat_store = getattr(request.app.state, "student_conversation_store", None)
     if chat_store is not None and hasattr(chat_store, "export_owned_chats"):
-        result["source_sections"]["conversations"] = await chat_store.export_owned_chats(
-            user.user_id, institution)
-        result["conversation_export_status"] = "OWNER_SCOPED_BOUNDED"
+        try:
+            result["source_sections"]["conversations"] = await chat_store.export_owned_chats(
+                user.user_id, institution)
+            result["conversation_export_status"] = "OWNER_SCOPED_BOUNDED"
+        except ConversationUnavailable:
+            result["conversation_export_status"] = "CONVERSATION_STORAGE_UNAVAILABLE_NOT_INCLUDED"
     else:
         result["conversation_export_status"] = "CONVERSATION_STORAGE_UNAVAILABLE_NOT_INCLUDED"
     return result

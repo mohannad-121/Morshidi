@@ -337,11 +337,12 @@ class UniversitySyncService:
         plan_key = next(iter(plan_key_values), None)
         key_parts: tuple[str, str, str, str] | None = None
         if plan_key:
-            match = re.fullmatch(r"([A-Z0-9]+):([A-Z0-9]+):([A-Z0-9]+):P([0-9]+)", plan_key)
+            match = re.fullmatch(r"([A-Za-z0-9_-]+):([A-Za-z0-9_-]+):([A-Za-z0-9_-]+):P?([0-9]+)", plan_key)
             if not match:
                 raise UniversityProtocolError("University academic plan key is malformed")
             key_parts = match.groups()
-            if key_parts[0] != self._plan_key_institution:
+            inst_code = key_parts[0].upper()
+            if self._plan_key_institution and self._plan_key_institution != "*" and inst_code != self._plan_key_institution:
                 raise UniversityProtocolError("University academic plan key belongs to another institution")
 
         number_values: set[str] = set()

@@ -17,6 +17,25 @@ export interface OfferingView {
   sections: SectionView[];
 }
 
+export interface OfferingPeriodsView {
+  status: "AVAILABLE" | "SOURCE_UNAVAILABLE";
+  periods: Array<{
+    period_key: string; name_ar: string; name_en: string | null;
+    starts_on: string | null; ends_on: string | null;
+    source_type: "SYNTHETIC" | "INSTITUTIONAL"; provenance: string;
+    registration_open: boolean;
+  }>;
+}
+
+export interface PeriodOfferingsView {
+  operational_state: "AVAILABLE" | "NO_OFFERINGS" | "OFFERING_COVERAGE_INCOMPLETE" |
+    "PROVIDER_UNAVAILABLE" | "SNAPSHOT_STALE";
+  source_type: "SYNTHETIC" | "INSTITUTIONAL" | null;
+  source_version: string | null; fresh_until: string | null;
+  coverage_complete: boolean | null; provenance: string | null;
+  sections: SectionView[];
+}
+
 export interface CapacityView {
   status: string; observed_intent_demand: number | null;
   supplied_section_capacity: number | null; seat_gap: number | null;
@@ -71,9 +90,18 @@ async function decode<T>(response: Response): Promise<T> {
 export class P10OfferingsApi {
   constructor(private readonly client: AuthenticatedApiClient) {}
 
+  async periods(): Promise<OfferingPeriodsView> {
+    return decode<OfferingPeriodsView>(await this.client.request("/api/v1/me/offerings/periods"));
+  }
+
   async student(courseCode: string, periodKey: string): Promise<OfferingView> {
     const path = `/api/v1/me/offerings/${encodeURIComponent(courseCode)}?period_key=${encodeURIComponent(periodKey)}` as const;
     return decode<OfferingView>(await this.client.request(path));
+  }
+
+  async periodOfferings(periodKey: string): Promise<PeriodOfferingsView> {
+    return decode<PeriodOfferingsView>(await this.client.request(
+      `/api/v1/me/offerings?period_key=${encodeURIComponent(periodKey)}`));
   }
 
   async planner(periodKey: string, maxCreditHours: number): Promise<OfferingPlannerView> {

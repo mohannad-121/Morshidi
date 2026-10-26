@@ -1,4 +1,4 @@
-"""Owner-approved, plan-scoped AI project earned-credit rule (P15.5)."""
+"""Compatibility helpers for the authoritative graduation-policy registry."""
 
 from __future__ import annotations
 
@@ -6,6 +6,12 @@ from decimal import Decimal
 from typing import TYPE_CHECKING
 
 from app.rules.models import AttemptOutcome, CanTakeCatalog, StudentCourseAttempt
+from app.graduation_policy.catalog import (
+    AI_PLAN_12_ID,
+    AI_PROJECT_CODES,
+    DEFAULT_GRADUATION_POLICY_REGISTRY,
+)
+from app.graduation_policy.models import PolicyRuleKind
 
 if TYPE_CHECKING:
     from app.progress.models import AcademicProgress
@@ -13,13 +19,18 @@ if TYPE_CHECKING:
 RULE_ID = "GRADUATION_PROJECT_MIN_EARNED_CREDITS"
 RULE_VERSION = "P15_5_PROJECT_CREDITS_V1"
 RULE_PROVENANCE = "OWNER_APPROVED_PLAN12_PROJECT_REQUIREMENT"
-PLAN12_ID = "10000000-0000-0000-0000-000000000005"
-PROJECT_CODES = frozenset({"1505467", "1505468"})
+PLAN12_ID = AI_PLAN_12_ID
+PROJECT_CODES = frozenset(AI_PROJECT_CODES)
 MIN_EARNED_CREDITS = Decimal("90")
 
 
 def is_plan12_project(study_plan_id: str, course_code: str) -> bool:
-    return study_plan_id == PLAN12_ID and course_code in PROJECT_CODES
+    return any(
+        rule.kind is PolicyRuleKind.MIN_EARNED_CREDITS_FOR_COURSE
+        for rule in DEFAULT_GRADUATION_POLICY_REGISTRY.rules_for_course(
+            study_plan_id, course_code
+        )
+    )
 
 
 def passed_plan_credits(progress: AcademicProgress) -> Decimal:

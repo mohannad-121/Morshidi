@@ -480,6 +480,16 @@ export interface DegreePathOptionResponse {
     completed_course_codes: string[];
     current_course_codes: string[];
   }>;
+  unplaced_credit_breakdown: Array<{
+    reason: "FREE_ELECTIVE_POLICY_REQUIRED" | "UNSCHEDULED_REQUIRED_CREDITS" |
+      "UNSCHEDULED_ELECTIVE_CREDITS" | "MANDATORY_ZERO_CREDIT_REQUIREMENT" |
+      "UNMODELED_PLAN_CREDITS";
+    credits: number;
+    requirement_group_code: string;
+    course_codes: string[];
+    evidence_codes: string[];
+    actionable: boolean;
+  }>;
 }
 
 export interface DegreePathConstraintsResponse {

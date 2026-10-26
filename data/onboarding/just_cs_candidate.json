@@ -1,0 +1,21 @@
+{
+  "manifest_version": "1.0",
+  "status": "SOURCE_REVIEW_BLOCKED",
+  "university_external_key": "just",
+  "university_name_ar": "جامعة العلوم والتكنولوجيا الأردنية",
+  "university_name_en": "Jordan University of Science and Technology",
+  "country": "Jordan",
+  "candidate_program": "B.Sc. Computer Science",
+  "official_source": {
+    "url": "https://www.just.edu.jo/FacultiesandDepartments/it/Departments/cs/Pages/viewplan.aspx?planno=765",
+    "retrieved_on": "2026-10-22",
+    "observed_total_credit_hours": 132
+  },
+  "unresolved_items": [
+    "The live official view mixes current courses, equivalent courses, and prerequisite rows in one presentation.",
+    "An authoritative effective plan version and normalized requirement membership must be confirmed before import.",
+    "Graduation policies, learning materials, and offering-provider authority were not present in the source."
+  ],
+  "planned_writes": [],
+  "production_actions": []
+}

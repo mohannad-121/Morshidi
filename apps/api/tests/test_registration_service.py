@@ -33,7 +33,13 @@ class Client:
         self.calls.append((method, path, token, payload, idempotency_key))
         if path.endswith("/register") or path.endswith("/drop"):
             return {"success": True, "enrollments": []}
+        if path.endswith("/offerings"):
+            return {"success": True, "offerings": []}
         return {"success": True}
+
+    async def source_manifest(self, token):
+        self.calls.append(("manifest", token))
+        return {"synthetic": True}
 
 
 class Sync:
@@ -71,3 +77,21 @@ def test_missing_owner_mapping_fails_before_upstream_call():
     with pytest.raises(RegistrationUnavailableError, match="UNIVERSITY_IDENTITY_NOT_LINKED"):
         asyncio.run(service.offerings("unknown-owner"))
     assert client.calls == []
+
+
+def test_offering_source_reuses_one_owner_scoped_token_for_read_only_calls():
+    identities, client = IdentityRepo(), Client()
+    service = RegistrationService(client, identities, "university-uuid")
+
+    context, offerings, manifest = asyncio.run(service.offering_source("owner-uuid"))
+
+    assert context["success"] is True
+    assert offerings == []
+    assert manifest == {"synthetic": True}
+    assert [call for call in client.calls if call[0] == "exchange"] == [
+        ("exchange", "209900003")
+    ]
+    assert {call[1] for call in client.calls if call[0] == "GET"} == {
+        "/api/integrations/morshidi/v1/student/registration/context",
+        "/api/integrations/morshidi/v1/student/registration/offerings",
+    }

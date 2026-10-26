@@ -8,7 +8,7 @@ from uuid import UUID
 from .errors import MappingAmbiguousError, MappingMissingError
 from .models import UniversityMapping
 
-EntityType = Literal["FACULTY", "MAJOR", "PLAN", "COURSE", "TERM", "SECTION"]
+EntityType = Literal["FACULTY", "MAJOR", "PLAN", "COURSE", "TERM", "SECTION", "COURSE_ALIAS"]
 
 
 class MappingLayer:

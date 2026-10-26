@@ -179,6 +179,13 @@ class UniversityContractClient:
             raise UniversityProtocolError("University token exchange omitted access token")
         return token
 
+    async def source_manifest(self, token: str) -> dict[str, Any]:
+        """Read source classification from the same configured university origin."""
+        manifest = await self._get_authorized("/v1/manifest", token)
+        if not isinstance(manifest, dict):
+            raise UniversityProtocolError("Malformed university source manifest")
+        return manifest
+
     async def registration_request(
         self, method: str, path: str, token: str, *, payload: dict[str, Any] | None = None,
         idempotency_key: str | None = None,
