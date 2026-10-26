@@ -36,9 +36,17 @@ def _provider(request: Request) -> CourseOfferingProvider:
     return getattr(request.app.state, "course_offering_provider", UnavailableOfferingProvider())
 
 
-async def _snapshot(request: Request, university_id: str, period_key: str):
+async def _snapshot(
+    request: Request, university_id: str, period_key: str, owner_user_id: str | None = None,
+):
     try:
-        snapshot = await _provider(request).load_snapshot(university_id, period_key)
+        provider = _provider(request)
+        owner_loader = getattr(provider, "load_snapshot_for_owner", None)
+        snapshot = (
+            await owner_loader(owner_user_id, university_id, period_key)
+            if owner_user_id is not None and owner_loader is not None
+            else await provider.load_snapshot(university_id, period_key)
+        )
     except OfferingProviderUnavailable:
         return None
     if snapshot is not None and (snapshot.university_id != university_id or snapshot.period_key != period_key):
@@ -96,7 +104,12 @@ async def student_offering_periods(user: AuthenticatedUser, request: Request, re
     university_id = await service.resolve_student_university_id(user.user_id)
     provider = _provider(request)
     try:
-        periods = await provider.list_periods(university_id)
+        owner_loader = getattr(provider, "list_periods_for_owner", None)
+        periods = (
+            await owner_loader(user.user_id, university_id)
+            if owner_loader is not None
+            else await provider.list_periods(university_id)
+        )
     except (AttributeError, OfferingProviderUnavailable):
         periods = ()
     if any(period.source_type.value == "SYNTHETIC" and "SYNTHETIC" not in period.provenance
@@ -115,7 +128,9 @@ async def student_period_offerings(period_key: Annotated[str, Query(min_length=1
     """Return the authenticated tenant's student-visible period snapshot without eligibility claims."""
     service = _student(request)
     university_id = await service.resolve_student_university_id(user.user_id)
-    snapshot = _student_snapshot(await _snapshot(request, university_id, period_key))
+    snapshot = _student_snapshot(await _snapshot(
+        request, university_id, period_key, user.user_id,
+    ))
     response.headers["Cache-Control"] = "private, no-store"
     if snapshot is None:
         return {
@@ -151,7 +166,9 @@ async def student_offerings(course_code: str, period_key: Annotated[str, Query(m
     decision = await service.evaluate_can_take(user.user_id, course_code)
     if not isinstance(decision, CanTakeDecision):
         raise HTTPException(409, "Academic eligibility cannot be evaluated for this course")
-    snapshot = _student_snapshot(await _snapshot(request, university_id, period_key))
+    snapshot = _student_snapshot(await _snapshot(
+        request, university_id, period_key, user.user_id,
+    ))
     now = datetime.now(timezone.utc)
     eligible = (True if decision.decision is Decision.ELIGIBLE else
                 False if decision.decision is Decision.NOT_ELIGIBLE else None)
@@ -180,7 +197,9 @@ async def student_offering_aware_plans(body: SemesterPlanRequest,
         user.user_id, max_credit_hours=body.max_credit_hours,
         max_courses=body.max_courses, max_options=body.max_options,
     )
-    snapshot = _student_snapshot(await _snapshot(request, university_id, period_key))
+    snapshot = _student_snapshot(await _snapshot(
+        request, university_id, period_key, user.user_id,
+    ))
     now = datetime.now(timezone.utc)
     overlay = tuple({
         "academic_rank": option.rank,

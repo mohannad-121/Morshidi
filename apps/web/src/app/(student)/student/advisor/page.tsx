@@ -16,6 +16,7 @@ import { AuthenticatedApiError } from "@/lib/api/authenticated-client";
 import { StudentApiService } from "@/lib/api/student-api";
 import { useCourseIdentities } from "@/lib/api/use-course-identities";
 import { CourseIdentity } from "@/components/academic/CourseIdentity";
+import { AdvisorResultCard } from "@/components/academic/AdvisorResultCard";
 import type { AdvisorResponse, ConversationThread, ConversationMessage } from "@/lib/api/student-types";
 
 interface ChatMessage {
@@ -32,6 +33,27 @@ type HistoryStatus = "initializing" | "loading" | "ready" | "error" | "auth-erro
 type SendError = "failed" | "timeout" | null;
 
 const CHAT_RESPONSE_TIMEOUT_MS = 55_000;
+
+const ADVISOR_CARD_CACHE_PREFIX = "morshidi:advisor_card:";
+
+function getCachedAdvisorData(messageId: string): AdvisorResponse | undefined {
+  if (typeof window === "undefined" || !messageId) return undefined;
+  try {
+    const raw = window.sessionStorage.getItem(`${ADVISOR_CARD_CACHE_PREFIX}${messageId}`);
+    return raw ? (JSON.parse(raw) as AdvisorResponse) : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+function setCachedAdvisorData(messageId: string, data: AdvisorResponse): void {
+  if (typeof window === "undefined" || !messageId || !data) return;
+  try {
+    window.sessionStorage.setItem(`${ADVISOR_CARD_CACHE_PREFIX}${messageId}`, JSON.stringify(data));
+  } catch {
+    // SessionStorage quota exceeded or unavailable - ignore safely
+  }
+}
 
 const INITIAL_MESSAGES: ChatMessage[] = [];
 
@@ -81,6 +103,7 @@ export default function AdvisorPage() {
   const showHistory = (rows: ConversationMessage[]): ChatMessage[] => rows.map((row) => ({
     id: row.id, sender: row.role === "USER" ? "student" : "advisor",
     text: row.content,
+    advisorData: row.role !== "USER" ? getCachedAdvisorData(row.id) : undefined,
     timestamp: new Date(row.created_at).toLocaleTimeString("ar-JO-u-nu-latn", { hour: "2-digit", minute: "2-digit", hour12: false }),
   }));
 
@@ -197,6 +220,9 @@ export default function AdvisorPage() {
           timestamp: new Date(reply.assistant_message.created_at).toLocaleTimeString("ar-JO-u-nu-latn", { hour: "2-digit", minute: "2-digit" }),
         };
         studentMsg = showHistory([reply.user_message])[0];
+        if (reply.advisor && reply.assistant_message.id) {
+          setCachedAdvisorData(reply.assistant_message.id, reply.advisor);
+        }
       } else {
         const reply = await api.askAdvisor({ message: query }, signal);
         const timestamp = new Date().toLocaleTimeString("ar-JO-u-nu-latn", { hour: "2-digit", minute: "2-digit" });
@@ -208,6 +234,9 @@ export default function AdvisorPage() {
           advisorData: reply,
           timestamp,
         };
+        if (reply) {
+          setCachedAdvisorData(advisorMsg.id, reply);
+        }
       }
       setMessages((current) => {
         const reconciled = current.map((message) => message.id === optimisticId
@@ -248,7 +277,7 @@ export default function AdvisorPage() {
       {olderThreadsAvailable&&<button className="button-secondary" onClick={()=>{void new StudentApiService(client).listConversations(threads.length).then(older=>{setThreads(c=>[...c,...older]);setOlderThreadsAvailable(older.length===100);}).catch((error)=>setHistoryStatus(isAuthError(error)?'auth-error':'error'));}}>محادثات أقدم</button>}
     </aside>
     <section className="chat-main" aria-label="مرشدي AI">
-      <div className="chat-reading panel-scroll" role="log" aria-live="polite" aria-relevant="additions">
+      <div className="chat-reading panel-scroll" role="log" aria-live="polite" aria-relevant="additions" aria-busy={loading}>
         {(historyStatus==='initializing'||historyStatus==='loading')&&!messages.length?<LoadingSkeletonCard/>:null}
         {historyStatus==='error'&&<div className="chat-history-warning" role="alert"><span>تعذّر مزامنة السجل مؤقتًا. رسائلك الظاهرة باقية، لكن الرسائل الجديدة لن تُحفظ حتى تعود المزامنة.</span><button className="button-secondary" onClick={()=>void loadHistory()}>إعادة المحاولة</button></div>}
         {historyStatus==='auth-error'?<FriendlyState error title="انتهت صلاحية الجلسة. يرجى تسجيل الدخول مرة أخرى."/>:null}
@@ -257,7 +286,9 @@ export default function AdvisorPage() {
         {messages.map(msg=><article key={msg.id} className={`chat-message ${msg.sender==='student'?'message-user':'message-advisor'}`}>
           {msg.sender==='advisor'&&<div className="message-brand"><LogoMark/><span>مرشدي</span></div>}
           <div className="message-prose"><ReactMarkdown>{msg.text}</ReactMarkdown></div>
+          {msg.advisorData&&<AdvisorResultCard response={msg.advisorData}/>}
           {msg.advisorData&&<div className="message-sources">{label(msg.advisorData.answer_authority)&&<span>{label(msg.advisorData.answer_authority)}</span>}
+            {msg.advisorData.evidence.map((evidence,index)=><span key={`${evidence.source}-${evidence.policy_version??index}`}>{label(evidence.source,'مصدر أكاديمي موثق')}{evidence.policy_version?` · ${evidence.policy_version}`:''}</span>)}
             {msg.advisorData.clarification?.candidate_course_codes?.map(code=><button className="button-secondary" key={code} onClick={()=>void handleSendMessage(`ما هي متطلبات المادة ${code}؟`)}><CourseIdentity courseCode={code} identities={identities}/></button>)}
           </div>}
           <div className="message-meta"><time>{msg.timestamp}</time><button aria-label="نسخ الرسالة" onClick={()=>{void navigator.clipboard.writeText(msg.text).then(()=>setCopied(msg.id)).catch(()=>setCopied(null));}}>{copied===msg.id?<Check size={14}/>:<Copy size={14}/>}</button></div>

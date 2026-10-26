@@ -1,16 +1,24 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
+import { Check, Search, X } from "lucide-react";
 import { CourseIdentity, CourseReferences, localizedCourseName } from "@/components/academic/CourseIdentity";
 import { P10OfferingsApi, type OfferingPeriodsView, type OfferingPlannerView,
   type OfferingView, type PeriodOfferingsView, type SectionView } from "@/lib/api/p10-offerings";
 import { useAuthenticatedApi } from "@/lib/api/use-authenticated-api";
 import { useCourseIdentities, type CourseDisplayIdentity } from "@/lib/api/use-course-identities";
+import {
+  normalizeCourseSearch,
+  normalizeRelaxedSearch,
+  rankCourseSuggestions,
+} from "./course-search";
+
+export { normalizeCourseSearch, normalizeRelaxedSearch, rankCourseSuggestions } from "./course-search";
 
 const messages = {
   ar: {
     title: "العروض والجدول الدراسي", intro: "التحقق الأكاديمي مستقل عن توفر الشُعب والمقاعد.",
-    search: "ابحث عن مادة", searchHint: "اكتب الاسم بالعربية أو الإنجليزية أو رمز المادة",
+    search: "ابحث عن مادة", searchHint: "اكتب اسم المادة (مثال: التربية، الذكاء، البرمجة) أو رمزها",
     year: "العام الأكاديمي", semester: "الفصل الدراسي", loading: "جارٍ التحميل…",
     error: "تعذّر تحميل بيانات العروض. لا يعني ذلك عدم طرح المادة.",
     noSemesterCourses: "لا يوجد مواد لهذا الفصل", noSearchMatches: "لا توجد مواد مطابقة لبحثك",
@@ -21,10 +29,12 @@ const messages = {
     campus: "الحرم / الموقع", unknown: "غير معروف", stale: "تحذير: بيانات العروض قديمة.",
     planner: "مقارنة الخطة الأكاديمية بالعروض", credits: "الحد الأقصى للساعات",
     offeredCourses: "مواد الفصل", details: "تفاصيل المادة", openRegistration: "التسجيل مفتوح",
+    offeredThisSemester: "مطروحة هذا الفصل", inCatalog: "في الخطة الدراسية",
+    clearSearch: "مسح البحث",
   },
   en: {
     title: "Offerings / Schedule", intro: "Academic eligibility is separate from section and seat availability.",
-    search: "Search courses", searchHint: "Type an Arabic or English name, or a course code",
+    search: "Search courses", searchHint: "Type a course name (e.g. Programming, Education) or code",
     year: "Academic year", semester: "Semester", loading: "Loading…",
     error: "Offering data could not be loaded. This does not mean the course is not offered.",
     noSemesterCourses: "No courses are offered for this semester", noSearchMatches: "No courses match your search",
@@ -35,24 +45,13 @@ const messages = {
     campus: "Campus / location", unknown: "Unknown", stale: "Warning: offering snapshot is stale.",
     planner: "Overlay offerings on academic plan", credits: "Maximum credits",
     offeredCourses: "Semester courses", details: "Course details", openRegistration: "Registration open",
+    offeredThisSemester: "Offered this semester", inCatalog: "In catalog",
+    clearSearch: "Clear search",
   },
 } as const;
 
-export function normalizeCourseSearch(value: string): string {
-  return value.normalize("NFKD").replace(/[\u064B-\u065F\u0670\u06D6-\u06ED]/g, "")
-    .replace(/ـ/g, "").replace(/[أإآٱ]/g, "ا").replace(/ى/g, "ي")
-    .toLocaleLowerCase().replace(/\s+/g, " ").trim();
-}
-
 function yearFor(period: OfferingPeriodsView["periods"][number]): string {
   return period.starts_on?.slice(0, 4) || period.period_key.match(/(?:19|20)\d{2}/)?.[0] || "—";
-}
-
-function matches(identity: CourseDisplayIdentity, query: string): boolean {
-  const needle = normalizeCourseSearch(query);
-  return !needle || normalizeCourseSearch(
-    `${identity.course_code} ${identity.name_ar ?? ""} ${identity.name_en ?? ""}`,
-  ).includes(needle);
 }
 
 function SectionCard({ section, t }: { section: SectionView;
@@ -83,6 +82,8 @@ export default function OfferingsPage() {
   const [comboboxOpen, setComboboxOpen] = useState(false);
   const [activeOption, setActiveOption] = useState(0);
   const blurTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const comboboxRef = useRef<HTMLDivElement>(null);
   const [maxCredits, setMaxCredits] = useState(15);
   const [busy, setBusy] = useState(false);
   const [catalogBusy, setCatalogBusy] = useState(false);
@@ -91,15 +92,22 @@ export default function OfferingsPage() {
 
   const identityRows = useMemo(() => [...identities]
     .filter(([key, row]) => key === row.course_code).map(([, row]) => row), [identities]);
-  const suggestions = useMemo(() => query.trim() ? identityRows.filter(row => matches(row, query)).slice(0, 12) : [],
-    [identityRows, query]);
+  const offeredCodes = useMemo(() => [...new Set((catalog?.sections ?? []).map(section => section.course_code))], [catalog]);
+  const offeredCodesSet = useMemo(() => new Set(offeredCodes), [offeredCodes]);
+
+  const suggestions = useMemo(() =>
+    query.trim() ? rankCourseSuggestions(identityRows, query, language, offeredCodesSet, 12) : [],
+    [identityRows, query, language, offeredCodesSet]);
+
   const years = useMemo(() => [...new Set((periods?.periods ?? []).map(yearFor))], [periods]);
   const yearPeriods = useMemo(() => (periods?.periods ?? []).filter(item => yearFor(item) === year), [periods, year]);
-  const offeredCodes = useMemo(() => [...new Set((catalog?.sections ?? []).map(section => section.course_code))], [catalog]);
-  const shownCodes = useMemo(() => offeredCodes.filter(code => {
-    const identity = identities.get(code) ?? { course_id: code, course_code: code, name_ar: null, name_en: null };
-    return matches(identity, query);
-  }), [identities, offeredCodes, query]);
+
+  const shownCodes = useMemo(() => {
+    if (!query.trim()) return offeredCodes;
+    const matchingOffered = offeredCodes
+      .map(code => identities.get(code) ?? { course_id: code, course_code: code, name_ar: null, name_en: null });
+    return rankCourseSuggestions(matchingOffered, query, language, offeredCodesSet, 50).map(r => r.course_code);
+  }, [identities, offeredCodes, offeredCodesSet, query, language]);
 
   useEffect(() => {
     let active = true;
@@ -125,6 +133,23 @@ export default function OfferingsPage() {
     return () => { active = false; };
   }, [api, period]);
 
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (comboboxRef.current && !comboboxRef.current.contains(event.target as Node)) {
+        setComboboxOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  useEffect(() => {
+    if (comboboxOpen && suggestions.length > 0) {
+      const el = document.getElementById(`offering-option-${activeOption}`);
+      el?.scrollIntoView?.({ block: "nearest" });
+    }
+  }, [activeOption, comboboxOpen, suggestions.length]);
+
   function chooseYear(nextYear: string) {
     setYear(nextYear);
     const candidates = (periods?.periods ?? []).filter(item => yearFor(item) === nextYear);
@@ -133,21 +158,47 @@ export default function OfferingsPage() {
 
   async function chooseCourse(row: CourseDisplayIdentity) {
     if (blurTimer.current) clearTimeout(blurTimer.current);
-    setQuery(localizedCourseName(row.name_ar, row.name_en, row.course_code, language));
-    setSelectedCourse(row.course_code); setComboboxOpen(false); setResult(null); setError(false); setBusy(true);
-    try { setResult(await api.student(row.course_code, period)); }
-    catch { setError(true); }
-    finally { setBusy(false); }
+    const fullName = localizedCourseName(row.name_ar, row.name_en, row.course_code, language);
+    setQuery(fullName);
+    setSelectedCourse(row.course_code);
+    setComboboxOpen(false);
+    setResult(null);
+    setError(false);
+    setBusy(true);
+    try {
+      setResult(await api.student(row.course_code, period));
+    } catch {
+      setError(true);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  function clearSelection() {
+    setQuery("");
+    setSelectedCourse("");
+    setResult(null);
+    setError(false);
+    setComboboxOpen(false);
+    setActiveOption(0);
+    inputRef.current?.focus();
   }
 
   function onComboboxKeyDown(event: KeyboardEvent<HTMLInputElement>) {
-    if (event.key === "Escape") { setComboboxOpen(false); return; }
+    if (event.key === "Escape") {
+      setComboboxOpen(false);
+      return;
+    }
     if (!suggestions.length) return;
     if (event.key === "ArrowDown" || event.key === "ArrowUp") {
-      event.preventDefault(); setComboboxOpen(true);
-      setActiveOption(index => (index + (event.key === "ArrowDown" ? 1 : -1) + suggestions.length) % suggestions.length);
+      event.preventDefault();
+      setComboboxOpen(true);
+      setActiveOption((index) =>
+        (index + (event.key === "ArrowDown" ? 1 : -1) + suggestions.length) % suggestions.length,
+      );
     } else if (event.key === "Enter" && comboboxOpen) {
-      event.preventDefault(); void chooseCourse(suggestions[activeOption] ?? suggestions[0]);
+      event.preventDefault();
+      void chooseCourse(suggestions[activeOption] ?? suggestions[0]);
     }
   }
 
@@ -180,26 +231,107 @@ export default function OfferingsPage() {
         </select></label>
       </div>
 
-      <div className="relative">
-        <label htmlFor="offering-course-search" className="mb-1 block">{t.search}</label>
-        <input id="offering-course-search" role="combobox" aria-autocomplete="list" aria-controls="offering-course-options"
-          aria-expanded={comboboxOpen && suggestions.length > 0}
-          aria-activedescendant={comboboxOpen && suggestions.length ? `offering-option-${activeOption}` : undefined}
-          value={query} placeholder={t.searchHint} autoComplete="off"
-          onChange={event => { setQuery(event.target.value); setSelectedCourse(""); setResult(null); setActiveOption(0); setComboboxOpen(true); }}
-          onFocus={() => setComboboxOpen(true)} onKeyDown={onComboboxKeyDown}
-          onBlur={() => { blurTimer.current = setTimeout(() => setComboboxOpen(false), 120); }}
-          className="min-h-11 w-full rounded border border-border bg-background p-3 focus-visible:outline-2 focus-visible:outline-offset-2" />
-        {comboboxOpen && suggestions.length > 0 && <ul id="offering-course-options" role="listbox"
-          className="absolute z-20 mt-1 max-h-72 w-full overflow-auto rounded-lg border border-border bg-card p-1 shadow-lg">
-          {suggestions.map((row, index) => <li id={`offering-option-${index}`} role="option" aria-selected={index === activeOption}
-            key={row.course_id} onMouseDown={event => event.preventDefault()} onMouseEnter={() => setActiveOption(index)}
-            onClick={() => void chooseCourse(row)}
-            className={`cursor-pointer rounded p-3 ${index === activeOption ? "bg-muted" : ""}`}>
-            <CourseIdentity courseCode={row.course_code} nameAr={row.name_ar} nameEn={row.name_en} locale={language} />
-          </li>)}
-        </ul>}
-        {query.trim() && suggestions.length === 0 && identityRows.length > 0 && <p role="status" className="mt-2">{t.noSearchMatches}</p>}
+      <div className="relative" ref={comboboxRef}>
+        <label htmlFor="offering-course-search" className="mb-1.5 block text-sm font-medium">
+          {t.search}
+        </label>
+        <div className="relative">
+          <span className="pointer-events-none absolute start-3 top-1/2 -translate-y-1/2 text-muted-foreground">
+            <Search size={18} aria-hidden="true" />
+          </span>
+          <input
+            ref={inputRef}
+            id="offering-course-search"
+            role="combobox"
+            aria-autocomplete="list"
+            aria-controls="offering-course-options"
+            aria-expanded={comboboxOpen && suggestions.length > 0}
+            aria-activedescendant={comboboxOpen && suggestions.length ? `offering-option-${activeOption}` : undefined}
+            value={query}
+            placeholder={t.searchHint}
+            autoComplete="off"
+            onChange={event => {
+              setQuery(event.target.value);
+              setSelectedCourse("");
+              setResult(null);
+              setActiveOption(0);
+              setComboboxOpen(true);
+            }}
+            onFocus={() => setComboboxOpen(true)}
+            onKeyDown={onComboboxKeyDown}
+            onBlur={() => {
+              blurTimer.current = setTimeout(() => setComboboxOpen(false), 200);
+            }}
+            className="min-h-11 w-full rounded-lg border border-border bg-background ps-10 pe-10 py-2.5 text-foreground transition-colors placeholder:text-muted-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+          />
+          {query.trim() && (
+            <button
+              type="button"
+              aria-label={t.clearSearch}
+              onClick={clearSelection}
+              className="absolute end-3 top-1/2 -translate-y-1/2 rounded p-1 text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-primary"
+            >
+              <X size={16} aria-hidden="true" />
+            </button>
+          )}
+        </div>
+
+        {comboboxOpen && suggestions.length > 0 && (
+          <ul
+            id="offering-course-options"
+            role="listbox"
+            className="absolute z-30 mt-1.5 max-h-80 w-full overflow-y-auto rounded-xl border border-border bg-card p-1.5 shadow-xl transition-all"
+          >
+            {suggestions.map((row, index) => {
+              const isOffered = offeredCodesSet.has(row.course_code);
+              const isSelected = index === activeOption;
+              const isCurrentCourse = selectedCourse === row.course_code;
+              return (
+                <li
+                  id={`offering-option-${index}`}
+                  role="option"
+                  aria-selected={isSelected}
+                  key={row.course_id}
+                  onMouseDown={event => event.preventDefault()}
+                  onMouseEnter={() => setActiveOption(index)}
+                  onClick={() => void chooseCourse(row)}
+                  className={`flex cursor-pointer items-center justify-between gap-3 rounded-lg px-3.5 py-2.5 transition-colors ${
+                    isSelected ? "bg-muted" : "hover:bg-muted/60"
+                  } ${isCurrentCourse ? "ring-1 ring-primary/30" : ""}`}
+                >
+                  <div className="min-w-0 flex-1">
+                    <CourseIdentity
+                      courseCode={row.course_code}
+                      nameAr={row.name_ar}
+                      nameEn={row.name_en}
+                      locale={language}
+                    />
+                  </div>
+                  <div className="flex shrink-0 items-center gap-2">
+                    {isOffered ? (
+                      <span className="inline-flex items-center rounded-full border border-emerald-500/20 bg-emerald-500/10 px-2.5 py-0.5 text-xs font-medium text-emerald-700 dark:text-emerald-400">
+                        {t.offeredThisSemester}
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center rounded-full border border-border bg-muted/50 px-2 py-0.5 text-xs text-muted-foreground">
+                        {t.inCatalog}
+                      </span>
+                    )}
+                    {isCurrentCourse && (
+                      <Check size={16} className="text-primary" aria-hidden="true" />
+                    )}
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+
+        {query.trim() && suggestions.length === 0 && identityRows.length > 0 && (
+          <p role="status" className="mt-2 text-sm text-muted-foreground">
+            {t.noSearchMatches}
+          </p>
+        )}
       </div>
 
       {catalogBusy && <p role="status">{t.loading}</p>}

@@ -24,6 +24,12 @@ from app.sis_integration.models import (
     UniversityTenant,
 )
 from app.sis_integration.service import SISIntegrationService
+from app.sis_integration.onboarding import (
+    OnboardingDiagnosticsEngine,
+    OnboardingDiagnosticsReport,
+    OnboardingValidationResult,
+    UniversityOnboardingSpec,
+)
 
 router = APIRouter(
     prefix="/api/v1/institutional/integrations",
@@ -220,6 +226,46 @@ async def list_reconciliation(
 ) -> list[ReconciliationItem]:
     response.headers["Cache-Control"] = "private, no-store"
     return await service.list_reconciliation_items(university_id, status=status)
+
+
+
+# --- Onboarding Specification & Diagnostics Endpoints ---
+
+@router.post("/onboarding/validate", response_model=OnboardingValidationResult)
+async def validate_onboarding_spec(
+    spec: UniversityOnboardingSpec,
+    user: User,
+    response: Response,
+) -> OnboardingValidationResult:
+    response.headers["Cache-Control"] = "private, no-store"
+    return OnboardingDiagnosticsEngine.validate_spec(spec)
+
+
+@router.get("/onboarding/diagnostics", response_model=OnboardingDiagnosticsReport)
+async def get_onboarding_diagnostics(
+    university_id: Annotated[UUID, Query()],
+    user: User,
+    service: Service,
+    response: Response,
+) -> OnboardingDiagnosticsReport:
+    response.headers["Cache-Control"] = "private, no-store"
+    tenant = await service.get_tenant_by_id(university_id)
+    config = await service.get_config(university_id)
+    health = await service.get_health(university_id)
+    mappings = await service.list_mappings(university_id)
+
+    declared_caps = set(config.supported_capabilities) if config else set()
+    mappings_by_type: dict[str, int] = {}
+    for m in mappings:
+        mappings_by_type[m.entity_type] = mappings_by_type.get(m.entity_type, 0) + 1
+
+    return OnboardingDiagnosticsEngine.evaluate_live_readiness(
+        tenant=tenant,
+        config=config,
+        health=health,
+        declared_capabilities=declared_caps,
+        mappings_by_type=mappings_by_type,
+    )
 
 
 # --- Public / External Multi-Tenant Webhook Receiver Router ---

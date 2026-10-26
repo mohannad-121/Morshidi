@@ -47,6 +47,27 @@ async def test_real_login_response_extracts_access_token_and_verified_student_id
     assert result.student_id == "0020310001"
 
 
+@pytest.mark.anyio
+async def test_source_manifest_uses_configured_origin_and_bearer_token() -> None:
+    observed = {}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        observed["url"] = str(request.url)
+        observed["authorization"] = request.headers.get("Authorization")
+        return httpx.Response(200, json={"synthetic": True, "source": "TEST"})
+
+    async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as http_client:
+        result = await UniversityContractClient(
+            http_client, base_url="https://university.example.edu"
+        ).source_manifest("opaque-student-token")
+
+    assert result == {"synthetic": True, "source": "TEST"}
+    assert observed == {
+        "url": "https://university.example.edu/v1/manifest",
+        "authorization": "Bearer opaque-student-token",
+    }
+
+
 def _grade_course(
     *,
     course_code: str = "0200104",

@@ -1094,6 +1094,66 @@ describe('Morshidi Student Portal Pages Suite', () => {
     expect(screen.queryByText('DETERMINISTIC_RULES_ENGINE')).toBeNull();
   });
 
+  it('restores cached advisor structured card for loaded conversation messages', async () => {
+    const thread = {
+      id: 'thread-persisted-1',
+      student_id: 'student-1',
+      title: 'استفسار أكاديمي سابق',
+      status: 'ACTIVE',
+      created_at: '2026-01-01T00:00:00Z',
+      updated_at: '2026-01-01T00:00:01Z',
+    };
+    const cachedResponse: AdvisorResponse = {
+      ...mockAdvisor,
+      result: {
+        kind: 'eligibility',
+        decision: 'ELIGIBLE',
+        target_course_code: 'CS101',
+      },
+    };
+    window.sessionStorage.setItem(
+      'morshidi:advisor_card:msg-assistant-persisted',
+      JSON.stringify(cachedResponse)
+    );
+
+    const normalFetch = fetchSpy.getMockImplementation()!;
+    fetchSpy.mockImplementation((input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (url.includes('/api/v1/me/conversations') && !url.includes('/messages')) {
+        return new Response(JSON.stringify([thread]), { status: 200 });
+      }
+      if (url.includes('/api/v1/me/conversations/' + thread.id + '/messages')) {
+        return new Response(JSON.stringify([
+          {
+            id: 'msg-user-persisted',
+            thread_id: thread.id,
+            role: 'USER',
+            content: 'هل يمكنني تسجيل CS101؟',
+            message_type: 'TEXT',
+            provenance: 'STUDENT',
+            created_at: '2026-01-01T00:00:00Z',
+          },
+          {
+            id: 'msg-assistant-persisted',
+            thread_id: thread.id,
+            role: 'ASSISTANT',
+            content: 'نعم، أنت مؤهل لتسجيل المساق وفق الشروط.',
+            message_type: 'TEXT',
+            provenance: 'ADVISOR',
+            created_at: '2026-01-01T00:00:01Z',
+          },
+        ]), { status: 200 });
+      }
+      return normalFetch(input, init);
+    });
+
+    renderWithAuth(<AdvisorPage />);
+    await waitFor(() => {
+      expect(screen.getByText('قرار محرك الأهلية')).toBeDefined();
+      expect(screen.getByText('CS101')).toBeDefined();
+    });
+  });
+
   it('shows neutral advisor pending copy without claiming a backend stage completed', async () => {
     const normalFetch = fetchSpy.getMockImplementation()!;
     fetchSpy.mockImplementation((input: RequestInfo | URL, init?: RequestInit) =>

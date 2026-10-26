@@ -1,6 +1,6 @@
 """Canonical display metadata; never an academic decision or identity substitute."""
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 
 @dataclass(frozen=True)
@@ -9,3 +9,4 @@ class CourseDisplayIdentity:
     course_code: str
     name_ar: str | None
     name_en: str | None
+    aliases: tuple[str, ...] = ()

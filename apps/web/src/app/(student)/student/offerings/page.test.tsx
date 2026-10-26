@@ -132,3 +132,59 @@ test("explicit planner overlay preserves academic rank and displays typed confli
   fireEvent.click(screen.getByRole("button", { name: "مقارنة الخطة الأكاديمية بالعروض" }));
   expect((await screen.findByText(/TIME_OVERLAP/)).textContent).toContain("SYN-MATH101-A");
 });
+
+test("course-name search matches partial Arabic words, fills full name on selection, and shows status badge", async () => {
+  render(<OfferingsPage />);
+  const input = (await screen.findByRole("combobox", { name: "ابحث عن مادة" })) as HTMLInputElement;
+
+  // Search by partial word in the middle: "برمجة" matches "مُقَدِّمة البرمجة"
+  fireEvent.change(input, { target: { value: "برمجة" } });
+  const option = await screen.findByRole("option", { name: /مُقَدِّمة البرمجة/ });
+  expect(option).toBeDefined();
+
+  // Verify badge indicating offered status
+  expect(option.textContent).toContain("مطروحة هذا الفصل");
+
+  // Click suggestion
+  fireEvent.click(option);
+
+  // Input should now contain the full course name
+  expect(input.value).toBe("مُقَدِّمة البرمجة");
+
+  // Eligibility and sections should load for the canonical code CS101
+  await screen.findByText(/الأهلية الأكاديمية: ELIGIBLE/);
+  expect(api.request.mock.calls.some((call: unknown[]) => String(call[0]).includes("/offerings/CS101?"))).toBe(true);
+});
+
+test("Teh-Marbuta variation matches in autocomplete", async () => {
+  render(<OfferingsPage />);
+  const input = await screen.findByRole("combobox", { name: "ابحث عن مادة" });
+
+  // Type "مقدمه" with Heh instead of Teh Marbuta
+  fireEvent.change(input, { target: { value: "مقدمه" } });
+  expect(await screen.findByRole("option", { name: /مُقَدِّمة البرمجة/ })).toBeDefined();
+});
+
+test("clear search button resets query and selection, and Escape closes dropdown", async () => {
+  render(<OfferingsPage />);
+  const input = (await screen.findByRole("combobox", { name: "ابحث عن مادة" })) as HTMLInputElement;
+
+  fireEvent.change(input, { target: { value: "رياضيات" } });
+  expect(await screen.findByRole("option", { name: /رياضيات متقطعة/ })).toBeDefined();
+
+  // Escape dismisses dropdown
+  fireEvent.keyDown(input, { key: "Escape" });
+  await waitFor(() => {
+    expect(screen.queryByRole("option", { name: /رياضيات متقطعة/ })).toBeNull();
+  });
+
+  // Re-open on focus or down arrow
+  fireEvent.focus(input);
+  expect(await screen.findByRole("option", { name: /رياضيات متقطعة/ })).toBeDefined();
+
+  // Clear button resets search
+  const clearBtn = screen.getByRole("button", { name: "مسح البحث" });
+  fireEvent.click(clearBtn);
+  expect(input.value).toBe("");
+  expect(screen.queryByRole("option", { name: /رياضيات متقطعة/ })).toBeNull();
+});

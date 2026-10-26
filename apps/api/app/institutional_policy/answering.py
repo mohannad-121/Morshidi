@@ -122,8 +122,13 @@ def _citation(row: Mapping[str, Any]) -> PolicyAnswerCitation:
     )
 
 
-def _abstain(reason: str, language: str | None = None) -> PolicyAnswerResult:
-    return PolicyAnswerResult(status="ABSTAINED", language=language, abstention_reason=reason)
+def _abstain(
+    reason: str, language: str | None = None, retrieval_mode: str = "hybrid"
+) -> PolicyAnswerResult:
+    return PolicyAnswerResult(
+        status="ABSTAINED", language=language, abstention_reason=reason,
+        retrieval_mode=retrieval_mode,
+    )
 
 
 class PolicyAnswerService:
@@ -151,29 +156,36 @@ class PolicyAnswerService:
             # when an embedding or answer provider has not been configured.
             if not await self._policies.list_policies_for_student(university_id):
                 return _abstain("NO_VERIFIED_POLICY_EVIDENCE", language)
-            rows = await self._policies.search_policies_for_student(
-                university_id, cleaned, limit, mode="hybrid"
-            )
+            diagnostics = getattr(self._policies, "search_policies_with_diagnostics", None)
+            if diagnostics is None:
+                rows = await self._policies.search_policies_for_student(
+                    university_id, cleaned, limit, mode="hybrid"
+                )
+                retrieval_mode = "hybrid"
+            else:
+                outcome = await diagnostics(university_id, cleaned, limit, mode="hybrid")
+                rows = outcome.rows
+                retrieval_mode = outcome.retrieval_mode
         except (PolicyEmbeddingError, httpx.HTTPError):
             return _abstain("RETRIEVAL_UNAVAILABLE", language)
         if not rows:
-            return _abstain("NO_VERIFIED_POLICY_EVIDENCE", language)
+            return _abstain("NO_VERIFIED_POLICY_EVIDENCE", language, retrieval_mode)
         try:
             citations = tuple(_citation(row) for row in rows)
         except (TypeError, ValueError):
-            return _abstain("INVALID_POLICY_EVIDENCE", language)
+            return _abstain("INVALID_POLICY_EVIDENCE", language, retrieval_mode)
         ids = tuple(item.passage_id for item in citations)
         if len(ids) != len(set(ids)):
-            return _abstain("INVALID_POLICY_EVIDENCE", language)
+            return _abstain("INVALID_POLICY_EVIDENCE", language, retrieval_mode)
         if any(_PROMPT_INJECTION.search(item.passage_text) for item in citations):
-            return _abstain("UNTRUSTED_POLICY_CONTENT", language)
+            return _abstain("UNTRUSTED_POLICY_CONTENT", language, retrieval_mode)
         versions: dict[str, str] = {}
         for item in citations:
             previous = versions.setdefault(item.document_id, item.version_id)
             if previous != item.version_id:
-                return _abstain("CONFLICTING_POLICY_VERSIONS", language)
+                return _abstain("CONFLICTING_POLICY_VERSIONS", language, retrieval_mode)
         if self._provider is None:
-            return _abstain("PROVIDER_UNAVAILABLE", language)
+            return _abstain("PROVIDER_UNAVAILABLE", language, retrieval_mode)
 
         evidence = tuple(
             PolicyAnswerEvidence(
@@ -216,4 +228,5 @@ class PolicyAnswerService:
             answer=draft.answer.strip(),
             language=language,
             citations=tuple(item for item in citations if item.passage_id in cited_ids),
+            retrieval_mode=retrieval_mode,
         )

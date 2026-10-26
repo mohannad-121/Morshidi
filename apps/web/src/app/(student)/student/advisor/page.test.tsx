@@ -151,6 +151,36 @@ describe("student AI chat resilience", () => {
     expect(screen.getByText("قواعد الجامعة")).toBeDefined();
   });
 
+  it("renders verified progress as a structured card with visible evidence", async () => {
+    const grounded = advisorResponse("هذا ملخص التقدم وفق سجل الخطة.", "REMAINING_REQUIREMENTS");
+    grounded.result = {
+      kind: "progress",
+      completed_plan_credits: 84,
+      in_progress_plan_credits: 12,
+      remaining_plan_credits: 36,
+    };
+    grounded.evidence = [{
+      source: "STUDY_PLAN_RULES",
+      course_codes: [],
+      policy_version: "2026-p7",
+    }];
+    fetchSpy.mockImplementation(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (url.includes("/conversations")) return response({}, 503);
+      if (url.endsWith("/advisor") && init?.method === "POST") return response(grounded);
+      return response({}, 404);
+    });
+    renderPage();
+    await screen.findByText(/تعذّر مزامنة السجل مؤقتًا/);
+    await send("كم ساعة ضايل علي؟");
+
+    expect(await screen.findByRole("region", { name: "ملخص التقدم الأكاديمي" })).toBeDefined();
+    expect(screen.getByText("84")).toBeDefined();
+    expect(screen.getByText("36")).toBeDefined();
+    expect(screen.getByText(/2026-p7/)).toBeDefined();
+    expect(screen.queryByText("completed_plan_credits")).toBeNull();
+  });
+
   it("creates, continues, and reloads persisted conversation history when storage is available", async () => {
     let created = false;
     fetchSpy.mockImplementation(async (input: RequestInfo | URL, init?: RequestInit) => {
@@ -209,6 +239,7 @@ describe("student AI chat resilience", () => {
 
     expect(screen.getByText("رسالة فورية")).toBeDefined();
     expect(screen.getByText("يجهّز مرشدي الرد…")).toBeDefined();
+    expect(screen.getByRole("log").getAttribute("aria-busy")).toBe("true");
     expect((screen.getByRole("textbox", { name: "الاستفسار الأكاديمي" }) as HTMLTextAreaElement).value).toBe("");
 
     finishReply(response({
@@ -221,6 +252,7 @@ describe("student AI chat resilience", () => {
     expect(await screen.findByText("رد محفوظ")).toBeDefined();
     expect(screen.getAllByText("رسالة فورية")).toHaveLength(1);
     expect(screen.queryByText("يجهّز مرشدي الرد…")).toBeNull();
+    expect(screen.getByRole("log").getAttribute("aria-busy")).toBe("false");
   });
 
   it("shows an authentication-expired state and does not enable sending", async () => {

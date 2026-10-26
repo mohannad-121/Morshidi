@@ -11,6 +11,7 @@ Enforces:
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from typing import Any, Protocol, Sequence
 from uuid import UUID
 import httpx
@@ -18,6 +19,17 @@ import httpx
 from .enums import PolicyErrorCode
 from .errors import PolicyRetrievalError
 from .embeddings import PolicyEmbeddingError, PolicyEmbeddingProvider
+from .query import CONCEPTS_BY_NAME, PolicyQueryPlan, _matches, normalize_policy_query, plan_policy_query
+
+
+@dataclass(frozen=True, slots=True)
+class PolicySearchOutcome:
+    """Rows plus explicit retrieval diagnostics for grounded-answer callers."""
+
+    rows: tuple[dict[str, Any], ...]
+    retrieval_mode: str
+    query_plan: PolicyQueryPlan
+    fallback_reason: str | None = None
 
 
 class PolicyReadStorage(Protocol):
@@ -312,19 +324,131 @@ class StudentPolicyService:
         return detail
 
     async def search_policies_for_student(self, university_id: str | UUID, query: str, limit: int, category: str | None = None, document_id: str | None = None, mode: str = "lexical") -> Sequence[dict[str, Any]]:
-        lexical = await self._storage.search_verified_passages(university_id, query, limit, category, document_id)
-        if mode == "lexical":
-            return lexical
+        outcome = await self.search_policies_with_diagnostics(
+            university_id, query, limit, category, document_id, mode
+        )
+        return outcome.rows
+
+    async def search_policies_with_diagnostics(
+        self, university_id: str | UUID, query: str, limit: int,
+        category: str | None = None, document_id: str | None = None,
+        mode: str = "lexical",
+    ) -> PolicySearchOutcome:
+        if mode not in {"lexical", "semantic", "hybrid"}:
+            raise ValueError("unsupported policy retrieval mode")
+        if not 1 <= limit <= 20:
+            raise ValueError("policy retrieval limit must be between 1 and 20")
+        plan = plan_policy_query(query)
+        candidate_limit = min(20, max(limit * 2, limit))
+        lexical: list[dict[str, Any]] = []
+        if mode != "semantic":
+            lexical_lists = [
+                await self._storage.search_verified_passages(
+                    university_id, variant, candidate_limit, category, document_id
+                )
+                for variant in plan.lexical_queries
+            ]
+            lexical = _fuse_lexical_variants(lexical_lists, candidate_limit, plan)
+            if mode == "lexical":
+                return PolicySearchOutcome(tuple(lexical[:limit]), "lexical", plan)
+
         if self._embedding_provider is None:
-            raise PolicyEmbeddingError("policy.embedding.not_configured")
-        vector = await self._embedding_provider.embed_query(query)
-        semantic = await self._storage.search_semantic_passages(university_id, vector, self._embedding_provider.model.provider, self._embedding_provider.model.model, limit, category, document_id)
+            if mode == "semantic":
+                raise PolicyEmbeddingError("policy.embedding.not_configured")
+            return PolicySearchOutcome(
+                tuple(lexical[:limit]), "lexical_fallback", plan,
+                "policy.embedding.not_configured",
+            )
+        try:
+            vector = await self._embedding_provider.embed_query(plan.normalized_text)
+            semantic = await self._storage.search_semantic_passages(
+                university_id, vector, self._embedding_provider.model.provider,
+                self._embedding_provider.model.model, candidate_limit, category, document_id,
+            )
+        except (PolicyEmbeddingError, httpx.HTTPError) as exc:
+            if mode == "semantic":
+                raise
+            return PolicySearchOutcome(
+                tuple(lexical[:limit]), "lexical_fallback", plan,
+                _safe_fallback_reason(exc),
+            )
         if mode == "semantic":
-            return semantic
-        return _fuse_policy_results(lexical, semantic, limit)
+            return PolicySearchOutcome(tuple(_deduplicate_evidence(semantic)[:limit]), "semantic", plan)
+        return PolicySearchOutcome(
+            tuple(_fuse_policy_results(lexical, semantic, limit, plan)), "hybrid", plan
+        )
 
 
-def _fuse_policy_results(lexical: Sequence[dict[str, Any]], semantic: Sequence[dict[str, Any]], limit: int) -> list[dict[str, Any]]:
+def _safe_fallback_reason(error: Exception) -> str:
+    if isinstance(error, PolicyEmbeddingError) and str(error).startswith("policy.embedding."):
+        return str(error)
+    return "policy.embedding.unavailable"
+
+
+def _evidence_key(row: dict[str, Any]) -> tuple[str, ...]:
+    passage_id = str(row.get("passage_id") or "")
+    content_hash = str(row.get("passage_sha256") or "")
+    if content_hash:
+        return (
+            str(row.get("document_id") or ""), str(row.get("version_id") or ""), content_hash,
+        )
+    return ("passage", passage_id)
+
+
+def _deduplicate_evidence(rows: Sequence[dict[str, Any]]) -> list[dict[str, Any]]:
+    unique: list[dict[str, Any]] = []
+    seen_passages: set[str] = set()
+    seen_evidence: set[tuple[str, ...]] = set()
+    for row in rows:
+        passage_id = str(row.get("passage_id") or "")
+        evidence_key = _evidence_key(row)
+        if not passage_id or passage_id in seen_passages or evidence_key in seen_evidence:
+            continue
+        seen_passages.add(passage_id)
+        seen_evidence.add(evidence_key)
+        unique.append(dict(row))
+    return unique
+
+
+def _intent_score(row: dict[str, Any], plan: PolicyQueryPlan) -> float:
+    if not plan.concepts:
+        return 0.0
+    searchable = normalize_policy_query(" ".join(str(row.get(field) or "") for field in (
+        "document_title", "category", "heading", "locator_text", "passage_text",
+    )))
+    matched = 0
+    for concept_name in plan.concepts:
+        concept = CONCEPTS_BY_NAME.get(concept_name)
+        if concept is not None and any(_matches(searchable, trigger) for trigger in concept.triggers):
+            matched += 1
+    return min(1.0, matched / max(1, len(plan.concepts)))
+
+
+def _fuse_lexical_variants(
+    result_lists: Sequence[Sequence[dict[str, Any]]], limit: int, plan: PolicyQueryPlan,
+) -> list[dict[str, Any]]:
+    merged: dict[str, dict[str, Any]] = {}
+    for variant_index, rows in enumerate(result_lists):
+        variant_weight = 1.0 if variant_index == 0 else 0.75
+        for rank, row in enumerate(rows, start=1):
+            key = str(row.get("passage_id") or "")
+            if not key:
+                continue
+            item = merged.setdefault(key, dict(row))
+            item["lexical_rank"] = min(rank, int(item.get("lexical_rank") or rank))
+            item["lexical_score"] = float(item.get("lexical_score", 0.0)) + variant_weight / (60 + rank)
+    ranked = list(merged.values())
+    for item in ranked:
+        item["intent_score"] = _intent_score(item, plan)
+    ranked.sort(key=lambda row: (
+        -(float(row.get("lexical_score", 0.0)) + 0.002 * float(row.get("intent_score", 0.0))),
+        str(row.get("document_code") or ""), int(row.get("sequence_order") or 0),
+        str(row.get("passage_id") or ""),
+    ))
+    return _deduplicate_evidence(ranked)[:limit]
+
+
+def _fuse_policy_results(lexical: Sequence[dict[str, Any]], semantic: Sequence[dict[str, Any]], limit: int, plan: PolicyQueryPlan | None = None) -> list[dict[str, Any]]:
     """Deterministic RRF fusion; evidence stays verbatim and appears once."""
     merged: dict[str, dict[str, Any]] = {}
     for rank, row in enumerate(lexical, start=1):
@@ -341,4 +465,9 @@ def _fuse_policy_results(lexical: Sequence[dict[str, Any]], semantic: Sequence[d
         item["semantic_similarity"] = row.get("semantic_similarity")
         item.setdefault("lexical_rank", None)
         item["hybrid_score"] = float(item.get("hybrid_score", 0)) + 1 / (60 + rank)
-    return sorted(merged.values(), key=lambda row: (-float(row["hybrid_score"]), row["document_code"], row["sequence_order"], row["passage_id"]))[:limit]
+    if plan is not None:
+        for item in merged.values():
+            item["intent_score"] = _intent_score(item, plan)
+            item["hybrid_score"] = float(item["hybrid_score"]) + 0.002 * item["intent_score"]
+    ranked = sorted(merged.values(), key=lambda row: (-float(row.get("hybrid_score") or 0.0), str(row.get("document_code") or ""), int(row.get("sequence_order") or 0), str(row.get("passage_id") or "")))
+    return _deduplicate_evidence(ranked)[:limit]

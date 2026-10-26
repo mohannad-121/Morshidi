@@ -22,6 +22,7 @@ from app.university_sync.grading_policy import (
     FAKE_UNIVERSITY_GPA_MIN,
     FAKE_UNIVERSITY_GPA_SCALE,
     FAKE_UNIVERSITY_GRADING_POLICY_V1,
+    SUPPORTED_POLICY_VERSIONS,
     strict_decimal,
 )
 
@@ -88,6 +89,7 @@ class UniversityStudentProfile(BaseModel):
     gpa_scale: float | str | None = Field(default=None, alias="gpaScale")
     earned_credits: float | str | None = Field(default=None, alias="earnedCredits")
     raw_metadata: dict[str, Any] = Field(default_factory=dict)
+    extension_attributes: dict[str, Any] = Field(default_factory=dict)
 
     @model_validator(mode="before")
     @classmethod
@@ -103,6 +105,18 @@ class UniversityStudentProfile(BaseModel):
                 inner["studentId"] = str(sid)
             if "gpa" in inner and "cumulative_gpa" not in inner and "cumulativeGpa" not in inner:
                 inner["cumulative_gpa"] = inner["gpa"]
+            core_keys = {
+                "student_id", "studentId", "id", "university_id", "name", "fullName", "email",
+                "faculty", "major", "degree", "study_plan", "studyPlan", "plan_key", "planKey",
+                "plan_number", "planNumber", "faculty_code", "facultyCode", "major_code", "majorCode",
+                "admission_year", "admissionYear", "academic_status", "academicStatus",
+                "academic_advisor", "academicAdvisor", "cumulative_gpa", "cumulativeGpa", "gpa",
+                "gpa_scale", "gpaScale", "earned_credits", "earnedCredits", "raw_metadata",
+                "extension_attributes", "data", "student", "success"
+            }
+            unmapped = {k: v for k, v in inner.items() if k not in core_keys}
+            if unmapped and not inner.get("extension_attributes"):
+                inner["extension_attributes"] = unmapped
             return inner
         return data
 
@@ -163,6 +177,7 @@ class UniversityCourse(BaseModel):
     faculty: str | None = None
     prerequisites: list[str] = Field(default_factory=list)
     status: str | None = None
+    extension_attributes: dict[str, Any] = Field(default_factory=dict)
 
     @model_validator(mode="before")
     @classmethod
@@ -223,6 +238,7 @@ class UniversityGradeRecord(BaseModel):
     grade_points: float | None = Field(default=None, alias="gradePoints")
     credit_hours: int | float | None = Field(default=None, alias="creditHours")
     status: str = Field(default="PASSED", alias="outcome")
+    extension_attributes: dict[str, Any] = Field(default_factory=dict)
 
     @model_validator(mode="before")
     @classmethod
@@ -272,32 +288,40 @@ class UniversityCourseGradePolicy(UniversityNumericRange):
 
 
 class UniversityGradingPolicy(BaseModel):
-    """The one exact upstream policy version currently supported by Morshidi."""
+    """Authoritative upstream grading policy contract."""
 
     model_config = ConfigDict(extra="forbid", populate_by_name=True)
 
-    version: Literal["FAKE_UNIVERSITY_GRADING_POLICY_V1"]
+    version: str
     gpa: UniversityGpaPolicy
     course_grade: UniversityCourseGradePolicy = Field(alias="courseGrade")
 
     @model_validator(mode="after")
     def validate_exact_v1_semantics(self) -> "UniversityGradingPolicy":
-        actual = (
-            strict_decimal(self.gpa.numeric_min, "gradingPolicy.gpa.numericMin"),
-            strict_decimal(self.gpa.numeric_max, "gradingPolicy.gpa.numericMax"),
-            strict_decimal(self.gpa.scale, "gradingPolicy.gpa.scale"),
-            strict_decimal(self.course_grade.numeric_min, "gradingPolicy.courseGrade.numericMin"),
-            strict_decimal(self.course_grade.numeric_max, "gradingPolicy.courseGrade.numericMax"),
-        )
-        expected = (
-            FAKE_UNIVERSITY_GPA_MIN,
-            FAKE_UNIVERSITY_GPA_MAX,
-            FAKE_UNIVERSITY_GPA_SCALE,
-            FAKE_UNIVERSITY_COURSE_GRADE_MIN,
-            FAKE_UNIVERSITY_COURSE_GRADE_MAX,
-        )
-        if self.version != FAKE_UNIVERSITY_GRADING_POLICY_V1 or actual != expected:
+        if self.version not in SUPPORTED_POLICY_VERSIONS:
             raise ValueError("grading policy does not match the exact supported V1 contract")
+        gpa_min = strict_decimal(self.gpa.numeric_min, "gradingPolicy.gpa.numericMin")
+        gpa_max = strict_decimal(self.gpa.numeric_max, "gradingPolicy.gpa.numericMax")
+        gpa_scale = strict_decimal(self.gpa.scale, "gradingPolicy.gpa.scale")
+        course_min = strict_decimal(self.course_grade.numeric_min, "gradingPolicy.courseGrade.numericMin")
+        course_max = strict_decimal(self.course_grade.numeric_max, "gradingPolicy.courseGrade.numericMax")
+
+        if self.version == FAKE_UNIVERSITY_GRADING_POLICY_V1:
+            actual = (gpa_min, gpa_max, gpa_scale, course_min, course_max)
+            expected = (
+                FAKE_UNIVERSITY_GPA_MIN,
+                FAKE_UNIVERSITY_GPA_MAX,
+                FAKE_UNIVERSITY_GPA_SCALE,
+                FAKE_UNIVERSITY_COURSE_GRADE_MIN,
+                FAKE_UNIVERSITY_COURSE_GRADE_MAX,
+            )
+            if actual != expected:
+                raise ValueError("grading policy does not match the exact supported V1 contract")
+        else:
+            if gpa_min >= gpa_max or gpa_scale <= Decimal("0"):
+                raise ValueError("grading policy GPA bounds are invalid")
+            if course_min >= course_max:
+                raise ValueError("grading policy course grade bounds are invalid")
         return self
 
 
@@ -388,6 +412,7 @@ class UniversityEnrollmentRecord(BaseModel):
     credit_hours: int | float | None = Field(default=None, alias="creditHours")
     instructor: str | None = None
     schedule: list[dict[str, Any]] | str | None = None
+    extension_attributes: dict[str, Any] = Field(default_factory=dict)
 
     @model_validator(mode="before")
     @classmethod
@@ -449,6 +474,7 @@ class UniversityAcademicPlan(BaseModel):
     requirement_groups: list[dict[str, Any]] = Field(default_factory=list, alias="requirementGroups")
     courses: list[dict[str, Any]] = Field(default_factory=list)
     semesters: list[dict[str, Any]] = Field(default_factory=list)
+    extension_attributes: dict[str, Any] = Field(default_factory=dict)
 
     @model_validator(mode="before")
     @classmethod

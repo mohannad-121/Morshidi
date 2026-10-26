@@ -159,6 +159,40 @@ def test_student_period_catalog_is_owner_scoped_and_only_student_visible():
         _close(client)
 
 
+def test_student_routes_prefer_owner_scoped_provider_contract():
+    class OwnerScopedProvider:
+        def __init__(self):
+            self.calls = []
+
+        async def list_periods_for_owner(self, owner, university_id):
+            self.calls.append(("periods", owner, university_id))
+            return await FakeUniversityOfferingProvider().list_periods(university_id)
+
+        async def load_snapshot_for_owner(self, owner, university_id, period_key):
+            self.calls.append(("snapshot", owner, university_id, period_key))
+            return await FakeUniversityOfferingProvider().load_snapshot(university_id, period_key)
+
+        async def list_periods(self, university_id):
+            raise AssertionError("student route must not use an unscoped provider call")
+
+        async def load_snapshot(self, university_id, period_key):
+            raise AssertionError("student route must not use an unscoped provider call")
+
+    provider = OwnerScopedProvider()
+    client = _client()
+    app.state.course_offering_provider = provider
+    try:
+        assert client.get("/api/v1/me/offerings/periods").status_code == 200
+        response = client.get("/api/v1/me/offerings", params={"period_key": FAKE_PERIOD})
+        assert response.status_code == 200, response.text
+        assert provider.calls == [
+            ("periods", USER, FAKE_UNIVERSITY_ID),
+            ("snapshot", USER, FAKE_UNIVERSITY_ID, FAKE_PERIOD),
+        ]
+    finally:
+        _close(client)
+
+
 def test_student_period_catalog_fails_closed_for_cross_tenant_and_hidden_sections():
     client = _client(student=StudentStub(OTHER))
     try:

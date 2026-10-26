@@ -24,6 +24,7 @@ from app.university_sync.grading_policy import (
     FAKE_UNIVERSITY_COURSE_GRADE_MAX,
     FAKE_UNIVERSITY_COURSE_GRADE_MIN,
     FAKE_UNIVERSITY_GRADING_POLICY_V1 as FAKE_UNIVERSITY_GRADING_POLICY_VERSION,
+    SUPPORTED_POLICY_VERSIONS,
     parse_grading_policy_source_reference,
 )
 
@@ -87,9 +88,11 @@ class GradePolicyRegistry:
                     or not policy.numeric_max.is_finite()
                     or policy.numeric_max <= policy.numeric_min):
                 raise ValueError(f"Invalid grade policy contract: {scope!r}")
-            if (policy.version != FAKE_UNIVERSITY_GRADING_POLICY_VERSION
-                    or policy.numeric_min != FAKE_UNIVERSITY_COURSE_GRADE_MIN
-                    or policy.numeric_max != FAKE_UNIVERSITY_COURSE_GRADE_MAX):
+            if policy.version not in SUPPORTED_POLICY_VERSIONS:
+                raise ValueError(f"Unsupported grade policy contract: {scope!r}")
+            if (policy.version == FAKE_UNIVERSITY_GRADING_POLICY_VERSION
+                    and (policy.numeric_min != FAKE_UNIVERSITY_COURSE_GRADE_MIN
+                         or policy.numeric_max != FAKE_UNIVERSITY_COURSE_GRADE_MAX)):
                 raise ValueError(f"Unsupported grade policy contract: {scope!r}")
             scopes.add(scope)
 

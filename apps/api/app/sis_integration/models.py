@@ -31,6 +31,7 @@ class NormalizedStudent(BaseModel):
     gpa_scale: Decimal | None = None
     earned_credit_hours: Decimal | None = None
     registered_credit_hours: Decimal | None = None
+    extension_attributes: dict[str, Any] = Field(default_factory=dict)
     raw_payload: dict[str, Any] = Field(default_factory=dict)
 
 
@@ -44,6 +45,7 @@ class NormalizedCourse(BaseModel):
     faculty_code: str | None = None
     department_code: str | None = None
     prerequisite_codes: list[str] = Field(default_factory=list)
+    extension_attributes: dict[str, Any] = Field(default_factory=dict)
     raw_payload: dict[str, Any] = Field(default_factory=dict)
 
 
@@ -58,6 +60,7 @@ class NormalizedGradeAttempt(BaseModel):
     credit_hours: Decimal | None = None
     is_official: bool = True
     attempt_sequence: int = 1
+    extension_attributes: dict[str, Any] = Field(default_factory=dict)
     raw_payload: dict[str, Any] = Field(default_factory=dict)
 
 
@@ -70,6 +73,7 @@ class NormalizedEnrollment(BaseModel):
     status: Literal["ENROLLED", "WAITLISTED", "DROPPED"] = "ENROLLED"
     credit_hours: Decimal = Field(default=Decimal("3"))
     enrolled_at: datetime | None = None
+    extension_attributes: dict[str, Any] = Field(default_factory=dict)
     raw_payload: dict[str, Any] = Field(default_factory=dict)
 
 
@@ -82,6 +86,7 @@ class NormalizedStudyPlan(BaseModel):
     major_code: str | None = None
     total_credit_hours: Decimal
     required_courses: list[str] = Field(default_factory=list)
+    extension_attributes: dict[str, Any] = Field(default_factory=dict)
     raw_payload: dict[str, Any] = Field(default_factory=dict)
 
 
@@ -98,6 +103,7 @@ class NormalizedOffering(BaseModel):
     available: int = 30
     status: str = "OPEN"
     schedule_summary: str | None = None
+    extension_attributes: dict[str, Any] = Field(default_factory=dict)
     raw_payload: dict[str, Any] = Field(default_factory=dict)
 
 
@@ -183,7 +189,7 @@ class UniversityMapping(BaseModel):
     model_config = ConfigDict(extra="forbid")
     id: UUID | None = None
     university_id: UUID
-    entity_type: Literal["FACULTY", "MAJOR", "PLAN", "COURSE", "TERM", "SECTION"]
+    entity_type: Literal["FACULTY", "MAJOR", "PLAN", "COURSE", "TERM", "SECTION", "COURSE_ALIAS"]
     external_code: str
     canonical_id: str
     canonical_code: str | None = None

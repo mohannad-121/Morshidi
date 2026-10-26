@@ -145,6 +145,7 @@ from app.mock_registration_service.errors import (
 from app.mock_registration_service.institutional_service import InstitutionalDemandService
 from app.mock_registration_service.student_service import MockRegistrationStudentService
 from app.offerings.fake_provider import FakeUniversityOfferingProvider
+from app.offerings.authenticated_university_provider import AuthenticatedUniversityOfferingProvider
 from app.offerings.provider import UnavailableOfferingProvider
 from app.p11_intelligence.fake_provider import FakeP11Provider
 from app.p11_intelligence.providers import UnavailableP11Provider
@@ -492,6 +493,10 @@ async def lifespan(application: FastAPI):
                 uni_identity_repo,
                 settings.uni_university_id,
                 application.state.university_sync_service,
+            )
+            application.state.course_offering_provider = AuthenticatedUniversityOfferingProvider(
+                application.state.registration_service,
+                settings.uni_university_id,
             )
         sis_repo = SupabaseSISIntegrationRepository(
             settings.supabase_url,

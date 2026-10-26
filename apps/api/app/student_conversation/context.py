@@ -312,7 +312,9 @@ def bounded_conversation_context(
                 if not _contains_academic_facts(str(v)):
                     safe[str(k)] = str(v)
 
-    preference_summary = "; ".join(f"{key}={safe[key]}" for key in sorted(safe))
+    preference_summary = "; ".join(
+        f"{key}={safe[key]}" for key in sorted(safe)
+    )[:400]
 
     snippets: list[str] = []
     for item in recent[-20:]:
@@ -323,7 +325,25 @@ def bounded_conversation_context(
         else:
             snippets.append(str(item).replace("\n", " ")[:180])
 
-    safe_summary = (summary or "").replace("\n", " ")[:800]
-    return (f"USER_STATED planning preferences: {preference_summary or 'none'}\n"
-            f"CHAT_DERIVED bounded summary (not academic facts): {safe_summary or 'none'}\n"
-            f"CHAT_DERIVED recent turns (not academic facts):\n" + "\n".join(snippets))[:1600]
+    safe_summary = (summary or "").replace("\n", " ")[:400]
+    prefix = (
+        f"USER_STATED planning preferences: {preference_summary or 'none'}\n"
+        f"CHAT_DERIVED bounded summary (not academic facts): {safe_summary or 'none'}\n"
+        "CHAT_DERIVED recent turns (not academic facts):\n"
+    )
+    # Preserve the newest complete turns when the bounded context is full.
+    # Keeping the oldest prefix and slicing the final string used to discard the
+    # latest question/answer pair, which made pronouns and short follow-ups point
+    # at stale courses. Return retained turns in chronological order so provider
+    # and deterministic parsers still see a natural transcript.
+    available = max(0, 1600 - len(prefix))
+    retained_reversed: list[str] = []
+    used = 0
+    for snippet in reversed(snippets):
+        separator = 1 if retained_reversed else 0
+        if used + separator + len(snippet) > available:
+            break
+        retained_reversed.append(snippet)
+        used += separator + len(snippet)
+    retained = list(reversed(retained_reversed))
+    return prefix + "\n".join(retained)

@@ -17,14 +17,21 @@ from urllib.parse import quote, urlsplit
 
 import httpx
 
+try:
+    from apps.api.scripts.provision_learning_material_bucket import (
+        BUCKET,
+        EXPECTED_FILE_SIZE_LIMIT,
+        EXPECTED_MIME_TYPES,
+    )
+except ModuleNotFoundError:  # Direct script execution from outside the repository root.
+    from provision_learning_material_bucket import (  # type: ignore[no-redef]
+        BUCKET,
+        EXPECTED_FILE_SIZE_LIMIT,
+        EXPECTED_MIME_TYPES,
+    )
 
-BUCKET = "learning-materials"
+
 ROOT = Path(__file__).resolve().parents[1] / "private" / "learning-materials"
-EXPECTED_FILE_SIZE_LIMIT = 50 * 1024 * 1024
-EXPECTED_MIME_TYPES = frozenset({
-    "application/pdf",
-    "application/vnd.openxmlformats-officedocument.presentationml.presentation",
-})
 
 
 def _headers(key: str, *, prefer: str | None = None) -> dict[str, str]:
@@ -49,7 +56,7 @@ def _validate_bucket(bucket: object) -> None:
     if bucket.get("file_size_limit") != EXPECTED_FILE_SIZE_LIMIT:
         raise RuntimeError("learning-materials bucket has an unexpected file-size limit")
     allowed = bucket.get("allowed_mime_types")
-    if not isinstance(allowed, list) or not EXPECTED_MIME_TYPES.issubset(allowed):
+    if not isinstance(allowed, list) or set(allowed) != EXPECTED_MIME_TYPES:
         raise RuntimeError("learning-materials bucket has unexpected MIME restrictions")
 
 

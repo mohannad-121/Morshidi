@@ -93,14 +93,6 @@ class AdvisorToolExecutor:
                     if getattr(attempt.outcome, "value", str(attempt.outcome)) == "IN_PROGRESS"
                 }
             )
-
-        if name == "run_academic_what_if":
-            if self._run_what_if is None:
-                return ExecutedTool(name, _tool_error("TOOL_NOT_AVAILABLE"))
-            output = await self._run_what_if(
-                self._owner_user_id, arguments.model_dump(mode="json")
-            )
-            return ExecutedTool(name, {"ok": True, "result": output})
             return ExecutedTool(
                 name,
                 {
@@ -109,6 +101,14 @@ class AdvisorToolExecutor:
                     "limitations": ["Only authoritative in-progress attempt records are included."],
                 },
             )
+
+        if name == "run_academic_what_if":
+            if self._run_what_if is None:
+                return ExecutedTool(name, _tool_error("TOOL_NOT_AVAILABLE"))
+            output = await self._run_what_if(
+                self._owner_user_id, arguments.model_dump(mode="json")
+            )
+            return ExecutedTool(name, {"ok": True, "result": output})
 
         raw, synthetic_message = _legacy_request(name, arguments.model_dump())
         if raw is None:

@@ -23,6 +23,8 @@ from uuid import uuid4
 import httpx
 import pytest
 
+from apps.api.scripts.provision_learning_material_bucket import provision
+
 
 pytestmark = pytest.mark.skipif(
     os.getenv("MORSHIDI_RUN_LOCAL_SUPABASE") != "1",
@@ -64,6 +66,18 @@ def _local_env() -> dict[str, str]:
     if values["API_URL"] != "http://127.0.0.1:54321":
         raise AssertionError("integration test refuses a non-local Supabase URL")
     return values
+
+
+@pytest.fixture(scope="session", autouse=True)
+def _provision_local_learning_material_bucket() -> None:
+    """Model the separate release step after migrations have been reset locally."""
+    local = _local_env()
+    provision(
+        local["API_URL"],
+        local["SERVICE_ROLE_KEY"],
+        apply=True,
+        allow_hosted=False,
+    )
 
 
 def _psql(sql: str) -> str:

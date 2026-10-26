@@ -227,5 +227,6 @@ def test_migration_has_fail_closed_scope_and_no_public_chapter_binaries():
     assert "profile.owner_user_id = (select auth.uid())" in migration
     assert "material_auth.authorization_status = 'published'" in migration
     assert "USER_CONFIRMED_AI_PLAN_12_LEGACY_UPLOAD_2026-10-22" in migration
+    assert "insert into storage.buckets" not in migration.lower()
     assert not list((root / "apps/web/public/chapters").glob("**/*.pdf"))
     assert not list((root / "apps/web/public/chapters").glob("**/*.pptx"))

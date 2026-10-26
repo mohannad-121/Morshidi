@@ -144,47 +144,6 @@ for each row execute function public.set_updated_at();
 revoke all on function public.validate_learning_material_authorization_scope()
 from public, anon, authenticated;
 
--- Create metadata for durable private object storage without exposing any object policy.
--- Objects are uploaded and verified by the release migration command before rows are
--- switched from the backward-compatible local_private provider.
-insert into storage.buckets (
-  id, name, public, file_size_limit, allowed_mime_types
-) values (
-  'learning-materials',
-  'learning-materials',
-  false,
-  52428800,
-  array[
-    'application/pdf',
-    'application/vnd.ms-powerpoint',
-    'application/vnd.openxmlformats-officedocument.presentationml.presentation',
-    'application/msword',
-    'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
-  ]::text[]
-)
-on conflict (id) do nothing;
-
-do $$
-begin
-  if not exists (
-    select 1 from storage.buckets b
-    where b.id = 'learning-materials'
-      and b.name = 'learning-materials'
-      and b.public is false
-      and b.file_size_limit = 52428800
-      and b.allowed_mime_types @> array[
-        'application/pdf',
-        'application/vnd.ms-powerpoint',
-        'application/vnd.openxmlformats-officedocument.presentationml.presentation',
-        'application/msword',
-        'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
-      ]::text[]
-  ) then
-    raise exception 'learning-materials bucket exists with unsafe or incompatible settings';
-  end if;
-end;
-$$;
-
 alter table public.learning_materials enable row level security;
 alter table public.learning_material_authorizations enable row level security;
 alter table public.learning_material_import_reviews enable row level security;

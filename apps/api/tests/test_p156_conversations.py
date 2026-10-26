@@ -245,6 +245,37 @@ def test_preference_correction_is_explicit_and_context_is_bounded():
     assert len(context) <= 1600 and "gpa" not in context and "regular_load=12" in context
 
 
+def test_bounded_context_preserves_newest_complete_turns_not_stale_oldest_turns():
+    recent = [
+        {"role": "USER", "content": f"old course question {index} " + "x" * 150}
+        for index in range(18)
+    ] + [
+        {"role": "USER", "content": "احكيلي عن تعلم الآلة (1505311)"},
+        {"role": "ASSISTANT", "content": "آخر رد موثق عن تعلم الآلة (1505311)"},
+    ]
+    context = bounded_conversation_context({}, recent)
+    assert len(context) <= 1600
+    assert "USER: احكيلي عن تعلم الآلة (1505311)" in context
+    assert "ASSISTANT: آخر رد موثق عن تعلم الآلة (1505311)" in context
+    assert "old course question 0" not in context
+    assert context.index("USER: احكيلي") < context.index("ASSISTANT: آخر رد")
+
+
+def test_bounded_context_caps_untrusted_summary_and_memory_values():
+    context = bounded_conversation_context(
+        {},
+        [{"role": "USER", "content": "latest safe turn"}],
+        summary="s" * 5000,
+        memories=[{
+            "memory_category": "ACADEMIC_INTEREST",
+            "memory_key": "academic_interest",
+            "memory_value": "interest " * 1000,
+        }],
+    )
+    assert len(context) <= 1600
+    assert "USER: latest safe turn" in context
+
+
 def test_retry_reuses_persisted_user_message_without_duplication():
     class FailOnceAdvisor(Advisor):
         def __init__(self):

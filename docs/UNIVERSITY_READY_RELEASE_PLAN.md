@@ -86,7 +86,7 @@ Validate presence and scope without printing values:
 - `UNI_BASE_URL`
 - `UNI_CLIENT_ID`
 - `UNI_CLIENT_SECRET` when the upstream contract requires it
-- `UNI_SERVICE_KEY`
+- `UNI_SERVICE_KEY` only when the legacy `X-Uni-Api-Key` compatibility path or institutional offering enrichment is intentionally enabled; it is not used by token-authenticated registration offerings
 - `UNI_WEBHOOK_SECRET`
 - `UNI_INTERNAL_AUTH_SECRET`
 - `UNI_UNIVERSITY_ID`
@@ -98,7 +98,17 @@ Validate presence and scope without printing values:
 - `NEXT_PUBLIC_SUPABASE_URL`
 - `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`
 
-Only the publishable Supabase key belongs in browser configuration. Local process inspection found no production values and therefore cannot attest to hosted configuration; a human/operator must verify names and environment scoping in Render/Vercel without copying values into tickets, logs, or this repository.
+Only the publishable Supabase key belongs in browser configuration. Production Render name presence was reconciled on 2026-10-25: every currently required/enabled-feature name is visible, while conditional `UNI_SERVICE_KEY` is absent; `APP_NAME` and `APP_VERSION` are additional valid metadata. Names do not attest values or effective runtime configuration. An authorized operator must still verify exact project/university IDs, origins, secret counterpart pairing, linked-group precedence, and that the active deployment received the saved configuration, without copying values into tickets, logs, or this repository.
+
+### Offerings credential boundary
+
+`UNI_CLIENT_ID` and `UNI_CLIENT_SECRET` authenticate student login/token exchange; registration offerings then use the short-lived student bearer token. The revised local release wiring uses that existing owner-scoped path for student period/course offerings. It validates the configured tenant, current academic term, initialized source manifest, explicit synthetic/institutional classification, canonical course codes, section identities, schedule facts, status/capacity consistency, and complete-empty semantics. Invalid, cross-tenant, uninitialized, or incomplete facts fail closed. No new secret or provider-selection variable is required.
+
+The currently authorized university manifest identifies the source as synthetic. Those results must remain visibly `SYNTHETIC`; they are useful for end-to-end integration but are not real institutional evidence. A source may be labeled `INSTITUTIONAL` only when the same authorized manifest explicitly says `synthetic=false`. The existing course catalog remains responsible for Arabic/English course discovery and canonical identity; the adapter does not replace deterministic academic eligibility or planning rules.
+
+`UNI_SERVICE_KEY` remains confined to the older `X-Uni-Api-Key` compatibility methods. The institutional analytics adapter calls those methods but safely degrades to incomplete offering enrichment when the key/source is unavailable.
+
+If compatibility enrichment is required, the authorized university-integration operator must issue or rotate the shared credential under the university service's policy, store the same secret server-side on both services, and coordinate deployment in a separately approved change window. Never generate it ad hoc, expose it, or place it in browser configuration. It is not a prerequisite for the owner-scoped student offering adapter.
 
 ## 5. Backups and baseline capture
 
@@ -120,7 +130,8 @@ Approval gate B is required before connecting to production. The preflight must 
 - Verify legacy academic counts and a sample of identity/profile/progress/notification counts against the backup record.
 - Verify the scoped notification RPC exists and the legacy unscoped RPC is revoked before its removal.
 - Verify the deployed backend already calls `ingest_university_event_scoped`.
-- Verify target `APP_ENV`, frontend/CORS origins, Supabase server credential, university scope, and webhook secret are present without revealing values.
+- Verify target `APP_ENV`, frontend/CORS origins, Supabase project/server credential, university base/client/scope, and webhook/internal secrets are present, correctly paired, and active without revealing values.
+- Review and make immutable the owner-scoped student offering adapter; accept visibly synthetic results for the current source or defer the feature until manifest-backed institutional data exists. Do not relabel synthetic data. Decide separately whether optional institutional analytics enrichment justifies a university-issued compatibility key.
 - Confirm there is no active registration-state operation or webhook replay window overlapping the release.
 
 Any mismatch stops the rollout. Do not edit production data to make a preflight pass.
@@ -135,9 +146,21 @@ Apply one migration at a time in lexical order and inspect the result before pro
 2. `20261022141020_add_versioned_graduation_policies.sql`
 3. `20261024083357_drop_legacy_unscoped_university_event_rpc.sql`
 
-The first migration creates private metadata/authorization and the private bucket but keeps all eight rows at `local_private`. The second adds empty governed policy structures and does not publish invented policy. The third drops only the already-revoked unscoped event RPC; the supported scoped RPC remains.
+The first migration creates private metadata/authorization and keeps all eight rows at `local_private`; it does not write Supabase-owned Storage tables. The second adds empty governed policy structures and does not publish invented policy. The third drops only the already-revoked unscoped event RPC; the supported scoped RPC remains.
 
-After each migration, verify migration history, transaction completion, grants, RLS, trigger-function execution privileges, counts, bucket privacy/restrictions, and unchanged legacy academic/identity/notification counts. Stop on any discrepancy. Do not manually mark a failed migration applied.
+After each migration, verify migration history, transaction completion, grants, RLS, trigger-function execution privileges, counts, and unchanged legacy academic/identity/notification counts. Stop on any discrepancy. Do not manually mark a failed migration applied.
+
+### Separate private-bucket provisioning gate
+
+The `learning-materials` bucket is a separate Supabase Storage API operation after database migration acceptance and before object upload. It requires explicit Storage-write approval; Gate C database-migration approval does not authorize it.
+
+Run a dry check first with server-only credentials on the secured operator workstation:
+
+```powershell
+apps/api/.venv311/Scripts/python.exe apps/api/scripts/provision_learning_material_bucket.py --allow-hosted
+```
+
+If absent, the expected result is `creation required`. After separate approval, add `--apply`. The operation is idempotent and fails closed if an existing bucket differs from the exact contract: private, 50 MiB, and the approved PDF/PowerPoint/Word MIME allowlist. It creates no browser object policy and re-reads the bucket after creation. Never place the server key in arguments, logs, Git, or browser configuration.
 
 ## 8. Backend deployment
 
@@ -159,7 +182,7 @@ $env:SUPABASE_SERVICE_ROLE_KEY = '<server key supplied securely>'
 apps/api/.venv311/Scripts/python.exe apps/api/scripts/migrate_learning_materials_to_storage.py --allow-hosted
 ```
 
-Expected: `verified=8 migrated=0 already_migrated=0` before the first upload. The command verifies local path containment, local byte sizes/hashes, non-public bucket state, 50 MiB limit, and PDF/PPTX MIME restrictions. A dry run does not upload or patch metadata.
+Expected: `verified=8 migrated=0 already_migrated=0` before the first upload. The command verifies local path containment, local byte sizes/hashes, non-public bucket state, 50 MiB limit, and the exact approved PDF/PowerPoint/Word MIME restrictions. A dry run does not upload or patch metadata.
 
 Approval gate F separately permits the write:
 
