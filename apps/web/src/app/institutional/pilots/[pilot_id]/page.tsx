@@ -837,7 +837,7 @@ export default function PilotDetailsPage() {
         <div className="rounded-2xl border border-border bg-surface p-6 max-w-2xl">
           <h3 className="text-base font-bold text-foreground mb-1">تحديد نطاق الدفعة التجريبية (Cohort Scope)</h3>
           <p className="text-xs text-muted mb-4">
-            وفق مبدأ "البدء بعينة منضبطة"، يحدد نطاق الإطلاق كليات وتخصصات معينة لضمان التحقق الدقيق قبل التوسع.
+            وفق مبدأ &quot;البدء بعينة منضبطة&quot;، يحدد نطاق الإطلاق كليات وتخصصات معينة لضمان التحقق الدقيق قبل التوسع.
           </p>
 
           <form onSubmit={handleSaveScope} className="space-y-4">
