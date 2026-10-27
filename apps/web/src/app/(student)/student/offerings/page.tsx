@@ -166,7 +166,7 @@ function SectionCard({
       : "bg-muted text-muted-foreground border-border";
 
   return (
-    <li className="rounded-xl border border-border/80 bg-card p-4 sm:p-5 shadow-xs transition-shadow hover:shadow-md">
+    <li className="rounded-xl border border-border/80 bg-card p-4 sm:p-5 shadow-xs transition-shadow hover:shadow-md" style={{ backgroundColor: "#121212" }}>
       {/* Header: Section Code + Modality + Capacity badge */}
       <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border/60 pb-3">
         <div className="flex items-center gap-2">
@@ -462,7 +462,7 @@ export default function OfferingsPage() {
           </label>
         </div>
 
-        <div className="relative" ref={comboboxRef}>
+        <div className="relative z-30 isolate" ref={comboboxRef}>
           <label htmlFor="offering-course-search" className="mb-1.5 block text-sm font-medium">
             {t.search}
           </label>
@@ -511,7 +511,8 @@ export default function OfferingsPage() {
             <ul
               id="offering-course-options"
               role="listbox"
-              className="absolute z-30 mt-1.5 max-h-80 w-full overflow-y-auto rounded-xl border border-border bg-card p-1.5 shadow-xl transition-all"
+              style={{ backgroundColor: "#141414", opacity: 1 }}
+              className="absolute start-0 end-0 z-50 mt-2 max-h-84 w-full overflow-y-auto rounded-2xl border border-border-strong/40 bg-[#141414] p-2 shadow-2xl shadow-black/95 focus:outline-none divide-y divide-border/30"
             >
               {suggestions.map((row, index) => {
                 const isOffered = offeredCodesSet.has(row.course_code);
@@ -526,30 +527,43 @@ export default function OfferingsPage() {
                     onMouseDown={(event) => event.preventDefault()}
                     onMouseEnter={() => setActiveOption(index)}
                     onClick={() => void chooseCourse(row)}
-                    className={`flex cursor-pointer items-center justify-between gap-3 rounded-lg px-3.5 py-2.5 transition-colors ${
-                      isSelected ? "bg-muted" : "hover:bg-muted/60"
-                    } ${isCurrentCourse ? "ring-1 ring-primary/30" : ""}`}
+                    className={`group flex cursor-pointer items-start justify-between gap-3 rounded-xl px-4 py-3 transition-colors ${
+                      isSelected ? "bg-white/[0.1] text-foreground" : "hover:bg-white/[0.05] text-foreground/90"
+                    } ${isCurrentCourse ? "ring-1 ring-primary/40 bg-primary/10" : ""}`}
                   >
-                    <div className="min-w-0 flex-1">
-                      <CourseIdentity
-                        courseCode={row.course_code}
-                        nameAr={row.name_ar}
-                        nameEn={row.name_en}
-                        locale={language}
-                      />
+                    <div className="min-w-0 flex-1 space-y-1">
+                      <div className="flex flex-wrap items-baseline gap-2">
+                        <span className="text-sm font-semibold text-foreground leading-snug">
+                          {localizedCourseName(row.name_ar, row.name_en, row.course_code, language)}
+                        </span>
+                        <span className="inline-flex items-center rounded bg-muted/80 px-2 py-0.5 font-mono text-xs font-medium text-muted-foreground border border-border/50" dir="ltr">
+                          <bdi>{row.course_code}</bdi>
+                        </span>
+                      </div>
+                      {language === "ar" && row.name_en && (
+                        <p className="text-xs text-muted-foreground/75 font-normal truncate" dir="ltr">
+                          {row.name_en}
+                        </p>
+                      )}
+                      {language === "en" && row.name_ar && (
+                        <p className="text-xs text-muted-foreground/75 font-normal truncate" dir="rtl">
+                          {row.name_ar}
+                        </p>
+                      )}
                     </div>
-                    <div className="flex shrink-0 items-center gap-2">
+                    <div className="flex shrink-0 items-center gap-2 pt-0.5">
                       {isOffered ? (
-                        <span className="inline-flex items-center rounded-full border border-emerald-500/20 bg-emerald-500/10 px-2.5 py-0.5 text-xs font-medium text-emerald-700 dark:text-emerald-400">
+                        <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-500/30 bg-emerald-500/15 px-2.5 py-0.5 text-xs font-semibold text-emerald-400">
+                          <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
                           {t.offeredThisSemester}
                         </span>
                       ) : (
-                        <span className="inline-flex items-center rounded-full border border-border bg-muted/50 px-2 py-0.5 text-xs text-muted-foreground">
+                        <span className="inline-flex items-center rounded-full border border-border/80 bg-muted/50 px-2 py-0.5 text-xs font-medium text-muted-foreground">
                           {t.inCatalog}
                         </span>
                       )}
                       {isCurrentCourse && (
-                        <Check size={16} className="text-primary" aria-hidden="true" />
+                        <Check size={16} className="text-primary shrink-0" aria-hidden="true" />
                       )}
                     </div>
                   </li>
@@ -587,7 +601,7 @@ export default function OfferingsPage() {
                 return (
                   <article
                     key={code}
-                    className="flex flex-col justify-between rounded-xl border border-border bg-card p-4 shadow-xs transition-shadow hover:shadow-md"
+                    className="flex flex-col justify-between rounded-xl border border-border bg-card p-4 shadow-xs transition-shadow hover:shadow-md" style={{ backgroundColor: "#121212" }}
                   >
                     <div>
                       <h3 className="font-semibold">

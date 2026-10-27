@@ -1,5 +1,39 @@
 # Morshidi — Codex Progress Record
 
+## Course Offerings Opaque Autocomplete & Layering Fix (2026-10-27; completed and verified locally)
+
+**Phase/slice, objective, and starting state:** Fixed visual defects in the Course Offerings (`/student/offerings`) autocomplete dropdown and section cards on branch `release/university-ready-20261024` at starting HEAD `736d9bcbccd61ec65cc25bfea96dfaf8e8ec6b5a`. The primary defects were dropdown translucency (underlying course cards and text showing through the dropdown), text collisions between long course titles and badges, lack of stacking context isolation, and missing `--color-card` mapping in Tailwind CSS v4 theme.
+
+**Implementation details:**
+1. *Solid Opaque Surface & Stacking Context (`apps/web/src/app/globals.css`, `offerings/page.tsx`):*
+   - Root cause of transparency: In `apps/web/src/app/globals.css`, `@theme inline` defined `--color-surface` and `--color-background`, but `--color-card` and `--card` were missing. The class `bg-card` had no background color definition, rendering transparently.
+   - Added `--card: var(--bg-surface-raised)` and `--card-foreground: var(--text-primary)` in `:root`.
+   - Added `--color-card: var(--card)` and `--color-card-foreground: var(--card-foreground)` in `@theme inline`.
+   - In `apps/web/src/app/(student)/student/offerings/page.tsx`, added `relative z-30 isolate` to the combobox wrapper to establish a dedicated stacking context.
+   - Styled the autocomplete dropdown listbox (`#offering-course-options`) with explicit solid `#141414` background (`style={{ backgroundColor: "#141414", opacity: 1 }}`), `z-50`, `start-0 end-0`, `rounded-2xl`, border `border-border-strong/40`, and deep shadow `shadow-2xl shadow-black/95`.
+   - Added solid `#121212` backgrounds to `SectionCard` and offered course articles, guaranteeing zero transparency bleed-through.
+2. *Suggestion Layout, Typography & Badge Alignment (`offerings/page.tsx`):*
+   - Redesigned suggestion item layout into a clean, spacious two-tier hierarchy:
+     - Top line: Prominent localized course title in bold font (`text-sm font-semibold text-foreground`), paired with canonical code in a discrete monospace pill (`<bdi>{row.course_code}</bdi>`).
+     - Subtitle: Subtle secondary language title (e.g. English title in Arabic mode, Arabic title in English mode) with truncation.
+     - Status badges: Pinned to the end with fixed flex alignment (`pt-0.5`), preventing badges from wrapping or squeezing course names on mobile/narrow viewports.
+   - Hover and active states: `bg-white/[0.1]` for keyboard-selected options, `hover:bg-white/[0.05]` on mouseover, and gold checkmark for current course.
+3. *Automated Verification (`offerings/page.test.tsx`):*
+   - Added automated tests verifying that the dropdown listbox has a solid opaque surface (`background-color: rgb(20, 20, 20)`), high z-index (`z-50`), and that title, code, and badges render cleanly without colliding.
+
+**Test results and verification metrics:**
+- *Offerings Suite:* 3 test files / 47 tests passed in 3.52s (`npm --prefix apps/web test -- "src/app/(student)/student/offerings"`).
+- *TypeScript:* `tsc --noEmit` passed with 0 errors.
+- *Git Diff Check:* `git diff --check` passed with 0 errors.
+
+**Files changed and verified from disk:**
+- `apps/web/src/app/globals.css` (67,233 bytes)
+- `apps/web/src/app/(student)/student/offerings/page.tsx` (38,433 bytes)
+- `apps/web/src/app/(student)/student/offerings/page.test.tsx` (14,037 bytes)
+- `docs/CODEX_PROGRESS.md` (updated)
+
+**Acceptance and next steps:** Autocomplete dropdown is now completely solid and opaque, stacking context is isolated, suggestion typography and badge alignments are clean and responsive. Ready to commit to `release/university-ready-20261024` and diagnose production deployment delivery.
+
 ## Premium Arabic Course Offerings UI Polish & Schedule Formatting (2026-10-27; completed and verified locally)
 
 **Phase/slice, objective, and starting state:** Implemented Arabic-first UI polish and natural schedule formatting for the Course Offerings (`/student/offerings`) page on branch `release/university-ready-20261024` at starting HEAD `8181c6d5761a78c8c0afc54f8559a9187c567f87`. The objective was to replace all raw machine enums (`ELIGIBLE`, `SECTION_OPEN`, `KNOWN_OPEN`, `KNOWN_FULL`, `UNKNOWN`, `PROVIDER_UNAVAILABLE`, `SNAPSHOT_STALE`), raw ISO weekday numbers (1-7), raw seconds (`11:00:00`), raw timezone identifiers (`Asia/Amman`), and technical debug dumps (`p10-synthetic-v1`, `2027-09-01`) with natural, elegant Arabic typography, status badges, and human-readable 12-hour AM/PM schedules with LTR-isolated numerical times. Preserved all prior AI transformation, course-name autocomplete, and deterministic academic decision engines.

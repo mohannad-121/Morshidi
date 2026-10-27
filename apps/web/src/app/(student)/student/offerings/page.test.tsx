@@ -217,3 +217,19 @@ test("renders polished Arabic section cards and suppresses raw technical metadat
   expect(screen.queryByText(/\bAsia\/Amman\b/)).toBeNull();
   expect(screen.queryByText(/\bp10-synthetic-v1\b/)).toBeNull();
 });
+
+
+test("autocomplete dropdown has an opaque surface, high z-index, and clear suggestion hierarchy", async () => {
+  render(<OfferingsPage />);
+  const input = await screen.findByRole("combobox", { name: "ابحث عن مادة" });
+  fireEvent.change(input, { target: { value: "برمجة" } });
+
+  const listbox = await screen.findByRole("listbox");
+  expect(listbox.getAttribute("style")).toContain("background-color: rgb(20, 20, 20)");
+  expect(listbox.className).toContain("z-50");
+
+  const option = await screen.findByRole("option", { name: /مُقَدِّمة البرمجة/ });
+  expect(option.textContent).toContain("Programming Introduction");
+  expect(option.textContent).toContain("CS101");
+  expect(option.textContent).toContain("مطروحة هذا الفصل");
+});

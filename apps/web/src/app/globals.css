@@ -45,6 +45,8 @@
   --surface: var(--bg-surface);
   --surface-muted: var(--bg-surface-soft);
   --surface-elevated: var(--bg-surface-raised);
+  --card: var(--bg-surface-raised);
+  --card-foreground: var(--text-primary);
   --text-tertiary: var(--text-muted);
   --accent: #ffc21a;
   --accent-hover: var(--gold-hover);
@@ -76,6 +78,8 @@ body:not(:has(.app-shell)) { --accent: var(--gold-primary); }
   --color-surface: var(--surface);
   --color-surface-muted: var(--surface-muted);
   --color-surface-elevated: var(--surface-elevated);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
   --color-muted: var(--text-secondary);
   --color-tertiary: var(--text-tertiary);
   --color-accent: var(--accent);
