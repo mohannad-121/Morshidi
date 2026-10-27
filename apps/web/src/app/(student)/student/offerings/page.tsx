@@ -149,37 +149,46 @@ function SectionCard({
 
   const capacityBadgeClass =
     section.capacity_state === "KNOWN_OPEN" || section.capacity_state === "SECTION_OPEN"
-      ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/20"
+      ? "bg-emerald-950/80 text-emerald-300 border-emerald-500/40"
       : section.capacity_state === "KNOWN_FULL" || section.capacity_state === "SECTION_FULL"
-      ? "bg-rose-500/10 text-rose-700 dark:text-rose-400 border-rose-500/20"
+      ? "bg-rose-950/80 text-rose-200 border-rose-500/40"
       : section.capacity_state === "WAITLIST_AVAILABLE"
-      ? "bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/20"
-      : "bg-muted text-muted-foreground border-border";
+      ? "bg-amber-950/80 text-amber-200 border-amber-500/40"
+      : "bg-[#252936] text-[#f3f4f6] border-[#3b4254]";
+
+  const capacityDotClass =
+    section.capacity_state === "KNOWN_OPEN" || section.capacity_state === "SECTION_OPEN"
+      ? "bg-emerald-400"
+      : section.capacity_state === "KNOWN_FULL" || section.capacity_state === "SECTION_FULL"
+      ? "bg-rose-400"
+      : section.capacity_state === "WAITLIST_AVAILABLE"
+      ? "bg-amber-400"
+      : "bg-slate-400";
 
   const modalityBadgeClass =
     section.modality === "IN_PERSON"
-      ? "bg-sky-500/10 text-sky-700 dark:text-sky-400 border-sky-500/20"
+      ? "bg-blue-950/80 text-blue-200 border-blue-500/40"
       : section.modality === "ONLINE"
-      ? "bg-purple-500/10 text-purple-700 dark:text-purple-400 border-purple-500/20"
+      ? "bg-purple-950/80 text-purple-200 border-purple-500/40"
       : section.modality === "HYBRID"
-      ? "bg-teal-500/10 text-teal-700 dark:text-teal-400 border-teal-500/20"
-      : "bg-muted text-muted-foreground border-border";
+      ? "bg-teal-950/80 text-teal-200 border-teal-500/40"
+      : "bg-[#252936] text-[#f3f4f6] border-[#3b4254]";
 
   return (
-    <li className="rounded-xl border border-border/80 bg-card p-4 sm:p-5 shadow-xs transition-shadow hover:shadow-md" style={{ backgroundColor: "#121212" }}>
+    <li className="rounded-xl border border-white/[0.08] bg-card p-4 sm:p-5 shadow-xs transition-shadow hover:shadow-md" style={{ backgroundColor: "#121212" }}>
       {/* Header: Section Code + Modality + Capacity badge */}
-      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border/60 pb-3">
-        <div className="flex items-center gap-2">
-          <span className="rounded-md bg-muted px-2.5 py-1 text-xs sm:text-sm font-bold font-mono tracking-tight text-foreground">
-            <bdi>{section.section_id}</bdi>
+      <div className="flex flex-wrap items-center justify-between gap-2.5 border-b border-white/[0.08] pb-3">
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="inline-flex items-center rounded-lg border border-[#3b4254] bg-[#252936] px-2.5 py-1 text-xs sm:text-sm font-bold font-mono tracking-tight text-[#f3f4f6] max-w-full">
+            <bdi dir="ltr" className="select-all break-all sm:break-normal">{section.section_id}</bdi>
           </span>
-          <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium ${modalityBadgeClass}`}>
+          <span className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold ${modalityBadgeClass}`}>
             {modalityLabel}
           </span>
         </div>
 
         <span className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-semibold ${capacityBadgeClass}`}>
-          <span className="h-1.5 w-1.5 rounded-full bg-current opacity-80" />
+          <span className={`h-1.5 w-1.5 rounded-full ${capacityDotClass} shrink-0`} />
           {capacityLabel}
         </span>
       </div>
@@ -190,68 +199,56 @@ function SectionCard({
         <div className="space-y-1.5">
           {section.meetings && section.meetings.length > 0 ? (
             section.meetings.map((meeting, index) => (
-              <div key={index} className="flex items-center gap-2 text-xs sm:text-sm text-foreground/90">
-                <Clock3 size={15} className="shrink-0 text-muted-foreground" aria-hidden="true" />
-                <span className="font-medium text-foreground">{formatWeekday(meeting.day, language)}</span>
-                <span className="text-muted-foreground/60">·</span>
-                <bdi dir="ltr" className="font-tabular-nums text-foreground/90">
+              <div key={index} className="flex items-center gap-2 text-xs sm:text-sm text-slate-200">
+                <Clock3 size={15} className="shrink-0 text-slate-400" aria-hidden="true" />
+                <span className="font-semibold text-white">{formatWeekday(meeting.day, language)}</span>
+                <span className="text-slate-500 font-bold">·</span>
+                <bdi dir="ltr" className="font-tabular-nums text-slate-200 font-medium">
                   {formatTime12h(meeting.starts_at, language)} – {formatTime12h(meeting.ends_at, language)}
                 </bdi>
               </div>
             ))
           ) : (
-            <div className="flex items-center gap-2 text-xs sm:text-sm text-muted-foreground">
-              <Clock3 size={15} className="shrink-0 text-muted-foreground/70" aria-hidden="true" />
+            <div className="flex items-center gap-2 text-xs sm:text-sm text-slate-400">
+              <Clock3 size={15} className="shrink-0 text-slate-500" aria-hidden="true" />
               <span>{t.noScheduledMeetings}</span>
             </div>
           )}
         </div>
 
         {/* Location / Campus */}
-        <div className="flex items-center gap-2 text-xs sm:text-sm text-muted-foreground">
-          <MapPin size={15} className="shrink-0 text-muted-foreground" aria-hidden="true" />
+        <div className="flex items-center gap-2 text-xs sm:text-sm text-slate-300">
+          <MapPin size={15} className="shrink-0 text-slate-400" aria-hidden="true" />
           <span>
             {section.campus || section.location ? (
               <>
-                {section.campus ? <span className="font-medium text-foreground/80">{section.campus}</span> : null}
-                {section.campus && section.location ? <span className="mx-1 text-muted-foreground/50">·</span> : null}
-                {section.location ? <span>{section.location}</span> : null}
+                {section.campus ? <span className="font-semibold text-white">{section.campus}</span> : null}
+                {section.campus && section.location ? <span className="mx-1 text-slate-500">·</span> : null}
+                {section.location ? <span className="text-slate-300 font-medium">{section.location}</span> : null}
               </>
             ) : (
-              <span>{t.locationUnspecified}</span>
+              <span className="text-slate-400">{t.locationUnspecified}</span>
             )}
           </span>
         </div>
 
         {/* Seats and Enrollment breakdown */}
         {(section.capacity != null || section.enrolled != null || section.available != null) && (
-          <div className="flex items-center gap-2 border-t border-border/50 pt-2 text-xs sm:text-sm text-muted-foreground">
-            <UsersRound size={15} className="shrink-0 text-muted-foreground" aria-hidden="true" />
+          <div className="flex flex-wrap items-center gap-2 border-t border-white/[0.08] pt-2.5 text-xs sm:text-sm text-slate-300">
+            <UsersRound size={15} className="shrink-0 text-slate-400" aria-hidden="true" />
             <span>
               {section.enrolled != null && section.capacity != null ? (
-                language === "ar" ? (
-                  <span>
-                    <bdi className="font-semibold text-foreground">{section.enrolled} / {section.capacity}</bdi> {t.enrolledSeats}
-                  </span>
-                ) : (
-                  <span>
-                    <bdi className="font-semibold text-foreground">{section.enrolled} / {section.capacity}</bdi> {t.enrolledSeats}
-                  </span>
-                )
+                <span>
+                  <bdi className="font-bold text-white">{section.enrolled} / {section.capacity}</bdi> {t.enrolledSeats}
+                </span>
               ) : section.capacity != null ? (
-                language === "ar" ? (
-                  <span>
-                    {t.totalCapacity}: <bdi className="font-semibold text-foreground">{section.capacity}</bdi> مقعد
-                  </span>
-                ) : (
-                  <span>
-                    {t.totalCapacity}: <bdi className="font-semibold text-foreground">{section.capacity}</bdi> seats
-                  </span>
-                )
+                <span>
+                  {t.totalCapacity}: <bdi className="font-bold text-white">{section.capacity}</bdi> {language === "ar" ? "مقعد" : "seats"}
+                </span>
               ) : null}
               {section.available != null && (
-                <span className="ms-2 font-medium text-emerald-600 dark:text-emerald-400">
-                  ({language === "ar" ? `${section.available} ${t.seatsAvailable}` : `${section.available} ${t.seatsAvailable}`})
+                <span className="ms-2 font-medium">
+                  (<bdi className="font-bold text-emerald-400">{section.available}</bdi> {t.seatsAvailable})
                 </span>
               )}
             </span>
@@ -536,29 +533,29 @@ export default function OfferingsPage() {
                         <span className="text-sm font-semibold text-foreground leading-snug">
                           {localizedCourseName(row.name_ar, row.name_en, row.course_code, language)}
                         </span>
-                        <span className="inline-flex items-center rounded bg-muted/80 px-2 py-0.5 font-mono text-xs font-medium text-muted-foreground border border-border/50" dir="ltr">
+                        <span className="inline-flex items-center rounded-md border border-[#3b4254] bg-[#252936] px-2 py-0.5 font-mono text-xs font-bold text-[#f3f4f6]" dir="ltr">
                           <bdi>{row.course_code}</bdi>
                         </span>
                       </div>
                       {language === "ar" && row.name_en && (
-                        <p className="text-xs text-muted-foreground/75 font-normal truncate" dir="ltr">
+                        <p className="text-xs text-slate-400 font-normal truncate" dir="ltr">
                           {row.name_en}
                         </p>
                       )}
                       {language === "en" && row.name_ar && (
-                        <p className="text-xs text-muted-foreground/75 font-normal truncate" dir="rtl">
+                        <p className="text-xs text-slate-400 font-normal truncate" dir="rtl">
                           {row.name_ar}
                         </p>
                       )}
                     </div>
                     <div className="flex shrink-0 items-center gap-2 pt-0.5">
                       {isOffered ? (
-                        <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-500/30 bg-emerald-500/15 px-2.5 py-0.5 text-xs font-semibold text-emerald-400">
-                          <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
+                        <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-500/40 bg-emerald-950/80 px-2.5 py-0.5 text-xs font-semibold text-emerald-300">
+                          <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 shrink-0" />
                           {t.offeredThisSemester}
                         </span>
                       ) : (
-                        <span className="inline-flex items-center rounded-full border border-border/80 bg-muted/50 px-2 py-0.5 text-xs font-medium text-muted-foreground">
+                        <span className="inline-flex items-center rounded-full border border-[#3b4254] bg-[#252936] px-2.5 py-0.5 text-xs font-semibold text-[#cbd5e1]">
                           {t.inCatalog}
                         </span>
                       )}
@@ -601,13 +598,13 @@ export default function OfferingsPage() {
                 return (
                   <article
                     key={code}
-                    className="flex flex-col justify-between rounded-xl border border-border bg-card p-4 shadow-xs transition-shadow hover:shadow-md" style={{ backgroundColor: "#121212" }}
+                    className="flex flex-col justify-between rounded-xl border border-white/[0.08] bg-card p-4 shadow-xs transition-shadow hover:shadow-md" style={{ backgroundColor: "#121212" }}
                   >
                     <div>
-                      <h3 className="font-semibold">
+                      <h3 className="font-semibold text-white">
                         <CourseIdentity courseCode={code} identities={identities} locale={language} />
                       </h3>
-                      <p className="mt-2 text-xs sm:text-sm text-muted-foreground">
+                      <p className="mt-2 text-xs sm:text-sm font-medium text-slate-300">
                         {language === "ar"
                           ? `${sectionCount} ${sectionCount === 1 ? "شعبة مطروحة" : sectionCount === 2 ? "شعبتان مطروحتان" : "شُعب مطروحة"}`
                           : `${sectionCount} ${sectionCount === 1 ? "section offered" : "sections offered"}`}
@@ -619,7 +616,7 @@ export default function OfferingsPage() {
                         const row = identities.get(code) ?? { course_id: code, course_code: code, name_ar: null, name_en: null };
                         void chooseCourse(row);
                       }}
-                      className="mt-4 inline-flex min-h-11 items-center justify-center rounded-lg bg-amber-800 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-amber-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-800"
+                      className="mt-4 inline-flex min-h-11 items-center justify-center rounded-lg bg-amber-700 hover:bg-amber-600 px-4 py-2 text-sm font-bold text-white transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-600"
                     >
                       {t.details}
                     </button>
@@ -645,15 +642,15 @@ export default function OfferingsPage() {
 
             {/* Academic decision and operational state badges */}
             <div className="flex flex-wrap items-center gap-2">
-              <div className="inline-flex items-center gap-1.5 rounded-full border border-border bg-background px-3 py-1 text-xs">
-                <span className="text-muted-foreground">{t.academic}:</span>
+              <div className="inline-flex items-center gap-1.5 rounded-full border border-[#3b4254] bg-[#1e2230] px-3 py-1 text-xs">
+                <span className="text-slate-400 font-medium">{t.academic}:</span>
                 <span
-                  className={`inline-flex items-center gap-1 font-semibold ${
+                  className={`inline-flex items-center gap-1 font-bold ${
                     result.academic_decision === "ELIGIBLE"
-                      ? "text-emerald-700 dark:text-emerald-400"
+                      ? "text-emerald-400"
                       : result.academic_decision === "NOT_ELIGIBLE"
-                      ? "text-rose-700 dark:text-rose-400"
-                      : "text-foreground"
+                      ? "text-rose-400"
+                      : "text-[#f3f4f6]"
                   }`}
                 >
                   {result.academic_decision === "ELIGIBLE" && <CheckCircle2 size={13} aria-hidden="true" />}
@@ -662,9 +659,9 @@ export default function OfferingsPage() {
                 </span>
               </div>
 
-              <div className="inline-flex items-center gap-1.5 rounded-full border border-border bg-background px-3 py-1 text-xs">
-                <span className="text-muted-foreground">{t.operational}:</span>
-                <span className="font-semibold text-foreground">
+              <div className="inline-flex items-center gap-1.5 rounded-full border border-[#3b4254] bg-[#1e2230] px-3 py-1 text-xs">
+                <span className="text-slate-400 font-medium">{t.operational}:</span>
+                <span className="font-bold text-[#f3f4f6]">
                   {getOperationalStateLabel(result.operational_state, language)}
                 </span>
               </div>
@@ -733,15 +730,15 @@ export default function OfferingsPage() {
                     </span>
                     <CourseReferences codes={option.course_codes} identities={identities} locale={language} />
                   </div>
-                  <span className="inline-flex items-center rounded-full bg-muted px-2.5 py-0.5 text-xs font-medium text-foreground">
+                  <span className="inline-flex items-center rounded-full border border-[#3b4254] bg-[#252936] px-2.5 py-0.5 text-xs font-semibold text-[#f3f4f6]">
                     {getPlannerStatusLabel(option.operational_status, language)}
                   </span>
                 </div>
 
                 {option.selected_section_ids && option.selected_section_ids.length > 0 && (
-                  <p className="text-xs text-muted-foreground">
-                    <span className="font-medium text-foreground">{t.selectedSections}</span>{" "}
-                    <bdi className="font-mono">{option.selected_section_ids.join(", ")}</bdi>
+                  <p className="text-xs text-slate-300">
+                    <span className="font-medium text-white">{t.selectedSections}</span>{" "}
+                    <bdi className="font-mono font-bold text-[#f3f4f6]">{option.selected_section_ids.join(", ")}</bdi>
                   </p>
                 )}
 
@@ -751,19 +748,19 @@ export default function OfferingsPage() {
                       {t.conflictWarning}
                     </p>
                     {option.possible_pair_conflicts.map((item, index) => (
-                      <div key={index} className="flex flex-wrap items-center gap-1.5 text-muted-foreground">
-                        <span className="font-medium text-foreground">{getConflictReasonLabel(item.reason, language)}:</span>
+                      <div key={index} className="flex flex-wrap items-center gap-1.5 text-slate-300">
+                        <span className="font-semibold text-white">{getConflictReasonLabel(item.reason, language)}:</span>
                         <span>
-                          <bdi className="font-mono font-medium text-foreground">{item.first_section_id}</bdi>{" "}
+                          <bdi className="font-mono font-bold text-[#f3f4f6]">{item.first_section_id}</bdi>{" "}
                           {language === "ar" ? "مع" : "with"}{" "}
-                          <bdi className="font-mono font-medium text-foreground">{item.second_section_id}</bdi>
+                          <bdi className="font-mono font-bold text-[#f3f4f6]">{item.second_section_id}</bdi>
                         </span>
-                        <span className="text-muted-foreground/60">·</span>
-                        <span>{formatWeekday(item.day, language)}</span>
+                        <span className="text-slate-500 font-bold">·</span>
+                        <span className="font-medium text-slate-200">{formatWeekday(item.day, language)}</span>
                         {item.starts_at && item.ends_at && (
                           <>
-                            <span className="text-muted-foreground/60">·</span>
-                            <bdi dir="ltr" className="font-tabular-nums text-foreground">
+                            <span className="text-slate-500 font-bold">·</span>
+                            <bdi dir="ltr" className="font-tabular-nums font-semibold text-white">
                               {formatTime12h(item.starts_at, language)} – {formatTime12h(item.ends_at, language)}
                             </bdi>
                           </>

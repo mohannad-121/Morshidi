@@ -17,7 +17,7 @@ export function CourseIdentity({ courseCode, nameAr, nameEn, identities, locale 
   const name = localizedCourseName(nameAr ?? identity?.name_ar, nameEn ?? identity?.name_en, code, locale);
   return <span className={compact ? "inline-flex flex-wrap items-baseline gap-1" : "flex flex-col"}>
     <span className="font-semibold">{name}</span>
-    {name !== code ? <span className="text-xs font-normal opacity-70" dir="ltr"><bdi>{code}</bdi></span> : null}
+    {name !== code ? <span className="text-xs font-medium text-slate-400" dir="ltr"><bdi>{code}</bdi></span> : null}
   </span>;
 }
 

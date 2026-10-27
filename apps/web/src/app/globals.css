@@ -65,8 +65,23 @@
   --copper-deep: var(--accent-strong);
   --gold: var(--gold-primary);
   --cream: var(--text-primary);
-  --muted: var(--text-secondary);
+  --muted: #1e2230;
+  --muted-foreground: #94a3b8;
+  --badge-neutral-bg: #252936;
+  --badge-neutral-text: #f3f4f6;
+  --badge-neutral-secondary: #cbd5e1;
+  --badge-neutral-border: #3b4254;
   --line: var(--border);
+}
+
+@media (prefers-color-scheme: light) {
+  :root {
+    --badge-neutral-bg: #f1f5f9;
+    --badge-neutral-text: #0f172a;
+    --badge-neutral-secondary: #475569;
+    --badge-neutral-border: #cbd5e1;
+    --text-muted-foreground: #64748b;
+  }
 }
 
 /* Preserve the existing product accent outside the student workspace. */
@@ -80,7 +95,12 @@ body:not(:has(.app-shell)) { --accent: var(--gold-primary); }
   --color-surface-elevated: var(--surface-elevated);
   --color-card: var(--card);
   --color-card-foreground: var(--card-foreground);
-  --color-muted: var(--text-secondary);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-badge-neutral-bg: var(--badge-neutral-bg);
+  --color-badge-neutral-text: var(--badge-neutral-text);
+  --color-badge-neutral-secondary: var(--badge-neutral-secondary);
+  --color-badge-neutral-border: var(--badge-neutral-border);
   --color-tertiary: var(--text-tertiary);
   --color-accent: var(--accent);
   --color-accent-hover: var(--accent-hover);
