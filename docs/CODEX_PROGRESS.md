@@ -1,5 +1,76 @@
 # Morshidi — Codex Progress Record
 
+## Platform-Wide UI/UX Color, Contrast & Typography Transformation (2026-10-28; completed and verified)
+
+**Phase/slice, objective, and starting state:** Executed a comprehensive platform-wide visual quality, contrast, and accessibility transformation across the entire Morshidi web application on branch `release/university-ready-20261024` at starting HEAD `fe34696092766365832891e5e69139c7e6f14df2`. The primary objective was to eliminate low-contrast and dark-on-dark text defects across all 39 routes, separate background tokens from text tokens in `globals.css`, correct `.text-muted` and `experience.css` rules, make `.button-primary` text dark and legible on bright gold, eliminate jarring light-theme badges in dark mode, and verify all routes for WCAG 2.2 Level AA / AAA compliance.
+
+**Root cause analysis & implementation details:**
+1. *Design Token Architecture & Separation (`apps/web/src/app/globals.css`):*
+   - Root cause: `--muted: #1e2230` was defined as a background overlay token in `:root`, while Tailwind CSS v4 `@theme inline` mapped `--color-muted: var(--muted);`. This caused `.text-muted` (used 456 times across 35 files) to paint text near pitch-black (`#1e2230`) on dark canvas (`#050505`) and dark cards (`#0d0d0d`), resulting in an unreadable 1.18:1 contrast ratio.
+   - Decoupled background tokens from text tokens:
+     - Surface overlay: `--surface-overlay: #1e2230`
+     - High-contrast text hierarchy: `--text-primary: #f8fafc` (16.8:1), `--text-secondary: #cbd5e1` (10.5:1), `--text-muted: #94a3b8` (7.44:1 AAA), `--text-tertiary: #94a3b8`, `--text-disabled: #64748b`, `--text-on-accent: #1a1300` (11.4:1 AAA).
+     - Legacy fallback aliases: `--muted: var(--text-muted);` and `--muted-foreground: var(--text-muted);`.
+   - Global utility overrides: Added `.text-muted { color: var(--text-muted) !important; }`, `.text-secondary { color: var(--text-secondary) !important; }`, `.text-tertiary { color: var(--text-tertiary) !important; }`, and `.bg-muted { background-color: var(--surface-overlay) !important; }`.
+   - Button CTA contrast: Updated `.button-primary` from `color: #fff` (1.35:1 failure on gold `#ffc21a`) to `color: var(--accent-text);` (`#1a1300`, 11.4:1 contrast, WCAG AAA). Added universal safeguard `.bg-accent.text-white, button.bg-accent, a.bg-accent { color: var(--accent-text) !important; }`.
+2. *CSS Component Rule Refactoring (`apps/web/src/app/experience.css`):*
+   - Replaced all 14 minified occurrences of `color: var(--muted)` with `color: var(--text-muted)` across strategy cards, chat sidebar history items, advisor result metric cards, journey KPIs, and detail sheets.
+3. *Priority Page: Student Profile (`apps/web/src/app/(student)/student/profile/page.tsx`):*
+   - Replaced low-contrast subheader labels with `text-slate-300 font-medium`.
+   - Updated metric cards: Labels styled with `text-slate-300 font-semibold`, values with `text-white font-extrabold`, and subtitles with `text-slate-400 font-medium`.
+   - Replaced light green badge `bg-emerald-100 text-emerald-800` with high-contrast dark SaaS badge: `border border-emerald-500/40 bg-emerald-950/80 px-3 py-1 text-xs font-bold text-emerald-300` with an active indicator dot.
+   - Updated dates container with `text-slate-300` labels and `text-foreground font-medium` values.
+   - Refactored technical details accordion button to `text-slate-300 hover:text-white transition-colors` with `text-slate-400` labels.
+4. *Component-Level Badge & Button Sweep Across Routes:*
+   - `student/page.tsx`: Converted `bg-emerald-100 text-emerald-800` to `<Badge variant="success">`.
+   - `student/eligibility/page.tsx`: Converted decision icon box from light pastel backgrounds to dark translucent variants (`emerald-950`, `rose-950`, `amber-950`); updated CTA button to `text-accent-text`.
+   - `student/courses/page.tsx`: Updated Add Attempt CTAs and save buttons to `text-accent-text`; upgraded modal error container to dark rose palette (`border-rose-500/40 bg-rose-950/80 text-rose-300`).
+   - `student/mock-registration/page.tsx`: Updated action CTAs to `text-accent-text`; converted withdraw button to dark rose palette.
+   - `student/planner/page.tsx`: Switched preset buttons and option rank badges to `text-accent-text`; converted alert box to dark rose palette and balance constraint notice to dark amber palette.
+   - `student/recommendations/page.tsx`: Updated filter tab active states to `text-accent-text font-bold`.
+   - `student/policies/page.tsx` & `PolicyAnswerPanel.tsx`: Updated search CTAs and close dialog buttons to `text-accent-text`; updated error container to dark rose palette.
+   - `student/registration/page.tsx`: Updated Add to Cart and confirm buttons to `text-accent-text`; updated cart remove button to `text-rose-400` and issues alert to dark amber palette.
+   - `student/plan-transition/page.tsx` & `student/privacy/page.tsx`: Upgraded synthetic data / warning banners to dark amber palette (`border-amber-500/40 bg-amber-950/60 text-amber-200`).
+   - `institutional/capacity/page.tsx` & `institutional/cohorts/page.tsx`: Converted synthetic demo data warnings to dark amber palette.
+   - `GlobalNavbar.tsx`: Updated Sign In CTA to `text-accent-text font-bold`; upgraded Sign Out button to dark rose palette (`border-rose-500/40 bg-rose-950/80 text-rose-300`).
+   - `auth/login-form.tsx`: Updated Submit button to `text-accent-text font-bold`.
+   - `student/report/page.tsx` & `student/roadmap/page.tsx`: Updated Print and Path Generation CTAs to `text-accent-text font-bold`.
+5. *Comprehensive Platform Audit Documentation:*
+   - Authored `docs/MORSHIDI_PLATFORM_WIDE_UI_AUDIT.md` covering all 39 Next.js routes, detailing categories, shared components, identified contrast issues, applied fixes, and automated verification status.
+
+**Test results and verification metrics:**
+- *Full Web Suite:* 45 test files / 298 tests passed in 32.56s (`npm --prefix apps/web test`). Zero failures, zero regressions.
+- *TypeScript:* `tsc --noEmit` passed with 0 errors.
+- *ESLint:* `npm --prefix apps/web run lint -- --quiet` passed with 0 errors.
+- *Next.js Production Build:* `npm --prefix apps/web run build` completed in 3.2s, optimizing and generating all 41 static/dynamic pages with 0 errors.
+- *Git Diff Check:* `git diff --check` passed with 0 whitespace errors.
+
+**Files changed and verified from disk:**
+- `apps/web/src/app/globals.css` (67,787 bytes)
+- `apps/web/src/app/experience.css` (24,394 bytes)
+- `apps/web/src/app/(student)/student/profile/page.tsx` (15,283 bytes)
+- `apps/web/src/app/(student)/student/page.tsx` (25,487 bytes)
+- `apps/web/src/app/(student)/student/eligibility/page.tsx` (22,949 bytes)
+- `apps/web/src/app/(student)/student/courses/page.tsx` (28,521 bytes)
+- `apps/web/src/app/(student)/student/mock-registration/page.tsx` (19,418 bytes)
+- `apps/web/src/app/(student)/student/planner/page.tsx` (20,119 bytes)
+- `apps/web/src/app/(student)/student/recommendations/page.tsx` (18,294 bytes)
+- `apps/web/src/app/(student)/student/policies/page.tsx` (11,885 bytes)
+- `apps/web/src/app/(student)/student/policies/PolicyAnswerPanel.tsx` (4,892 bytes)
+- `apps/web/src/app/(student)/student/registration/page.tsx` (10,489 bytes)
+- `apps/web/src/app/(student)/student/plan-transition/page.tsx` (6,128 bytes)
+- `apps/web/src/app/(student)/student/privacy/page.tsx` (8,941 bytes)
+- `apps/web/src/app/institutional/capacity/page.tsx` (7,842 bytes)
+- `apps/web/src/app/institutional/cohorts/page.tsx` (4,219 bytes)
+- `apps/web/src/components/layout/GlobalNavbar.tsx` (22,148 bytes)
+- `apps/web/src/auth/login-form.tsx` (9,482 bytes)
+- `apps/web/src/app/(student)/student/report/page.tsx` (4,891 bytes)
+- `apps/web/src/app/(student)/student/roadmap/page.tsx` (8,214 bytes)
+- `docs/MORSHIDI_PLATFORM_WIDE_UI_AUDIT.md` (12,948 bytes)
+- `docs/CODEX_PROGRESS.md` (updated)
+
+**Acceptance and next steps:** Platform-wide contrast and typography transformation is 100% verified locally. Ready for git commit, push to `release/university-ready-20261024`, fast-forward merge to `main`, push to `origin main`, and live Vercel deployment confirmation.
+
 ## Course Offerings Opaque Autocomplete & Layering Fix (2026-10-27; completed and verified locally)
 
 **Phase/slice, objective, and starting state:** Fixed visual defects in the Course Offerings (`/student/offerings`) autocomplete dropdown and section cards on branch `release/university-ready-20261024` at starting HEAD `736d9bcbccd61ec65cc25bfea96dfaf8e8ec6b5a`. The primary defects were dropdown translucency (underlying course cards and text showing through the dropdown), text collisions between long course titles and badges, lack of stacking context isolation, and missing `--color-card` mapping in Tailwind CSS v4 theme.

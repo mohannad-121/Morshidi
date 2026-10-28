@@ -128,12 +128,12 @@ export default function ProfilePage() {
             <span className="rounded-full bg-accent/10 px-2.5 py-0.5 text-xs font-bold text-accent">
               بيانات الطالب
             </span>
-            <span className="text-xs text-muted">السجل الأكاديمي الرقمي</span>
+            <span className="text-xs text-slate-300 font-medium">السجل الأكاديمي الرقمي</span>
           </div>
           <h1 className="mt-1 text-2xl font-bold tracking-tight text-foreground">
             ملفي الأكاديمي
           </h1>
-          <p className="text-xs text-muted">
+          <p className="text-xs text-slate-300 leading-relaxed">
             استعراض البيانات الأكاديمية الرسمية والخطة المعتمدة في النظام.
           </p>
         </div>
@@ -204,7 +204,7 @@ export default function ProfilePage() {
                   {displayName}
                 </h2>
                 {auth.user?.user_metadata?.university_student_id ? (
-                  <p className="font-mono text-xs text-muted" dir="ltr">
+                  <p className="font-mono text-xs text-slate-300 font-medium" dir="ltr">
                     {String(auth.user.user_metadata.university_student_id)}
                   </p>
                 ) : null}
@@ -223,37 +223,38 @@ export default function ProfilePage() {
 
             <div className="mt-6 grid grid-cols-1 gap-6 sm:grid-cols-3">
               <div className="rounded-2xl border border-border bg-surface-muted p-5 text-center">
-                <span className="block text-xs font-semibold text-muted">
+                <span className="block text-xs font-semibold text-slate-300">
                   المعدل التراكمي
                 </span>
                 <span className="mt-2 block font-mono text-3xl font-extrabold text-foreground">
                   {displayValue(profile.reported_cumulative_gpa)}
                 </span>
-                <span className="mt-1 block text-[11px] text-muted">
+                <span className="mt-1 block text-[11px] text-slate-400 font-medium">
                   من أصل {displayValue(profile.reported_gpa_scale)}
                 </span>
               </div>
 
               <div className="rounded-2xl border border-border bg-surface-muted p-5 text-center">
-                <span className="block text-xs font-semibold text-muted">
+                <span className="block text-xs font-semibold text-slate-300">
                   الساعات المكتسبة المسجلة
                 </span>
                 <span className="mt-2 block font-mono text-3xl font-extrabold text-foreground">
                   {displayValue(profile.reported_earned_credit_hours)}
                 </span>
-                <span className="mt-1 block text-[11px] text-muted">
+                <span className="mt-1 block text-[11px] text-slate-400 font-medium">
                   ساعة معتمدة
                 </span>
               </div>
 
               <div className="rounded-2xl border border-border bg-surface-muted p-5 text-center">
-                <span className="block text-xs font-semibold text-muted">
+                <span className="block text-xs font-semibold text-slate-300">
                   حالة الملف
                 </span>
-                <span className="mt-3 inline-flex items-center gap-1 rounded-full bg-emerald-100 px-3 py-1 text-xs font-bold text-emerald-800">
+                <span className="mt-3 inline-flex items-center gap-1.5 rounded-full border border-emerald-500/40 bg-emerald-950/80 px-3 py-1 text-xs font-bold text-emerald-300">
+                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
                   نشط ومعتمد
                 </span>
-                <span className="mt-2 block text-[11px] text-muted">
+                <span className="mt-2 block text-[11px] text-slate-400 font-medium">
                   مربوط بالخطة الدراسية
                 </span>
               </div>
@@ -262,14 +263,14 @@ export default function ProfilePage() {
             <div className="mt-6 rounded-2xl bg-background p-5 border border-border/70 text-xs">
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <div>
-                  <span className="font-semibold text-muted">تاريخ إنشاء السجل: </span>
-                  <span className="font-mono text-foreground">
+                  <span className="font-semibold text-slate-300">تاريخ إنشاء السجل: </span>
+                  <span className="font-mono text-foreground font-medium">
                     {profile.created_at ? new Date(profile.created_at).toLocaleDateString("ar-SA") : "غير متوفر"}
                   </span>
                 </div>
                 <div>
-                  <span className="font-semibold text-muted">آخر تحديث: </span>
-                  <span className="font-mono text-foreground">
+                  <span className="font-semibold text-slate-300">آخر تحديث: </span>
+                  <span className="font-mono text-foreground font-medium">
                     {profile.updated_at ? new Date(profile.updated_at).toLocaleDateString("ar-SA") : "غير متوفر"}
                   </span>
                 </div>
@@ -282,7 +283,7 @@ export default function ProfilePage() {
             <button
               type="button"
               onClick={() => setShowTechnicalDetails((prev) => !prev)}
-              className="flex w-full items-center justify-between text-xs font-bold text-muted hover:text-foreground"
+              className="flex w-full items-center justify-between text-xs font-bold text-slate-300 hover:text-white transition-colors"
             >
               <div className="flex items-center gap-2">
                 <SparklesIcon className="h-4 w-4 text-accent" />
@@ -298,7 +299,7 @@ export default function ProfilePage() {
             {showTechnicalDetails ? (
               <div className="mt-4 space-y-3 border-t border-border/60 pt-4 text-xs font-mono">
                 <div>
-                  <span className="block text-[10px] font-sans font-bold text-muted">
+                  <span className="block text-[10px] font-sans font-bold text-slate-400">
                     معرّف الملف الأكاديمي (Profile UUID):
                   </span>
                   <span className="text-foreground break-all select-all" dir="ltr">
@@ -306,7 +307,7 @@ export default function ProfilePage() {
                   </span>
                 </div>
                 <div>
-                  <span className="block text-[10px] font-sans font-bold text-muted">
+                  <span className="block text-[10px] font-sans font-bold text-slate-400">
                     معرّف الخطة الدراسية (Study Plan UUID):
                   </span>
                   <span className="text-foreground break-all select-all" dir="ltr">

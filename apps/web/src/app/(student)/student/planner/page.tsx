@@ -174,8 +174,8 @@ export default function PlannerPage() {
                     onClick={() => setMaxCreditHours(preset)}
                     className={`rounded-xl px-3 py-1.5 font-mono text-xs font-bold transition-colors ${
                       maxCreditHours === preset
-                        ? "bg-accent text-white shadow-xs"
-                        : "bg-surface-muted text-muted border border-border hover:bg-accent-soft"
+                        ? "bg-accent text-accent-text font-bold shadow-xs"
+                        : "bg-surface-muted text-secondary border border-border hover:bg-accent-soft"
                     }`}
                   >
                     {preset} س
@@ -233,7 +233,7 @@ export default function PlannerPage() {
             <button
               type="submit"
               disabled={loading}
-              className="button-primary inline-flex items-center justify-center gap-2 rounded-2xl bg-accent px-7 py-3 text-xs font-bold text-white shadow-xs hover:bg-accent-hover transition-all disabled:opacity-50"
+              className="button-primary inline-flex items-center justify-center gap-2 rounded-2xl bg-accent px-7 py-3 text-xs font-bold text-accent-text shadow-xs hover:bg-accent-hover transition-all disabled:opacity-50"
             >
               <SparklesIcon className="h-4 w-4" />
               <span>{loading ? "جاري احتساب الخيارات الفصلية..." : "توليد خيارات الفصل الدراسي"}</span>
@@ -244,7 +244,7 @@ export default function PlannerPage() {
 
       {/* Error State */}
       {errorMessage ? (
-        <div role="alert" className="rounded-2xl border border-red-200 bg-red-50 p-5 text-xs text-red-800">
+        <div role="alert" className="rounded-2xl border border-rose-500/40 bg-rose-950/80 p-5 text-xs font-medium text-rose-300">
           <p className="font-bold">{errorMessage}</p>
         </div>
       ) : null}
@@ -269,7 +269,7 @@ export default function PlannerPage() {
       {/* Results */}
       {!loading && result && result.plan_options.length > 0 ? (
         <div className="space-y-6">
-          {result.balance_relaxation_required ? <p role="status" className="rounded-xl border border-amber-300 bg-amber-50 p-3 text-xs text-amber-900">BALANCE_CONSTRAINT_RELAXATION_REQUIRED: قد يتطلب بلوغ حمل الساعات المختار أكثر من مادتين ثقيلتين حفظياً. الخيارات المتوازنة معروضة افتراضياً؛ يمكنك الموافقة صراحةً على عرض الخيارات الأثقل.</p> : null}
+          {result.balance_relaxation_required ? <p role="status" className="rounded-xl border border-amber-500/40 bg-amber-950/60 p-3 text-xs font-medium text-amber-200">BALANCE_CONSTRAINT_RELAXATION_REQUIRED: قد يتطلب بلوغ حمل الساعات المختار أكثر من مادتين ثقيلتين حفظياً. الخيارات المتوازنة معروضة افتراضياً؛ يمكنك الموافقة صراحةً على عرض الخيارات الأثقل.</p> : null}
           {/* Options Selection Header */}
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex flex-wrap items-center gap-2">
@@ -281,8 +281,8 @@ export default function PlannerPage() {
                   onClick={() => setSelectedOptionIndex(idx)}
                   className={`rounded-2xl px-4 py-2 text-xs font-bold transition-all ${
                     selectedOptionIndex === idx
-                      ? "bg-accent text-white shadow-xs font-extrabold"
-                      : "bg-surface text-muted border border-border hover:bg-surface-muted"
+                      ? "bg-accent text-accent-text shadow-xs font-extrabold"
+                      : "bg-surface text-secondary border border-border hover:bg-surface-muted"
                   }`}
                 >
                   الخيار #{option.rank} {idx === 0 ? "(الأفضل تقييماً)" : ""}

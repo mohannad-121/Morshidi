@@ -84,7 +84,7 @@ export default function CapacityPage() {
     {error && <p role="alert">{error}</p>}
     {result && <section aria-live="polite" className="rounded border p-4">
       <h2 className="font-semibold">{ar ? "المقارنة الفعلية" : "Factual comparison"}</h2>
-      {result.source_type === "SYNTHETIC" && <p className="rounded bg-amber-100 p-2 font-semibold">SANDBOX / SYNTHETIC DATA — {ar ? "غير رسمية" : "not official"}</p>}
+      {result.source_type === "SYNTHETIC" && <p className="rounded-xl border border-amber-500/40 bg-amber-950/60 p-2 text-amber-200 font-semibold">SANDBOX / SYNTHETIC DATA — {ar ? "غير رسمية" : "not official"}</p>}
       {result.freshness_status === "STALE" && <p role="alert">{ar ? "تحذير: مصدر المقاعد قديم." : "Warning: capacity source is stale."}</p>}
       {result.coverage_complete === false && <p role="status">{ar ? "تغطية العروض غير مكتملة." : "Offering coverage is incomplete."}</p>}
       <p>{result.status} · {result.source_version ?? (ar ? "المصدر غير متاح" : "Source unavailable")}</p>
@@ -106,7 +106,7 @@ export default function CapacityPage() {
       <button type="button" disabled={busy || !university || !period || !course || !section} onClick={() => void model()}
         className="button-primary rounded bg-stone-800 px-4 py-2 text-white disabled:opacity-50">{ar ? "شغّل المحاكاة" : "Run simulation"}</button>
       {scenario && <div aria-live="polite"><p className="font-semibold">{scenario.label}</p>
-        {scenario.source_type === "SYNTHETIC" && <p className="rounded bg-amber-100 p-2 font-semibold">SANDBOX / SYNTHETIC DATA — {ar ? "غير رسمية" : "not official"}</p>}
+        {scenario.source_type === "SYNTHETIC" && <p className="rounded-xl border border-amber-500/40 bg-amber-950/60 p-2 text-amber-200 font-semibold">SANDBOX / SYNTHETIC DATA — {ar ? "غير رسمية" : "not official"}</p>}
         {scenario.freshness_status === "STALE" && <p role="alert">{ar ? "أساس المحاكاة قديم." : "Scenario base snapshot is stale."}</p>}
         {scenario.observed_only && <p>{ar ? "افتراض الطلب مبني على النوايا المرصودة فقط." : "Demand assumption uses observed intents only."}</p>}
         <p>{ar ? "تغير مقاعد المادة" : "Course seat delta"}: {scenario.modeled_course_seat_delta ?? "UNKNOWN"}; {ar ? "تغير الشُعب" : "Section delta"}: {scenario.section_delta}</p>

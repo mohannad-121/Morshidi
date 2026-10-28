@@ -55,7 +55,7 @@ export default function CohortsPage() {
       {busy && <p role="status">{ar ? "جارٍ التحميل…" : "Loading…"}</p>}
       {error && <p role="alert">{ar ? "تعذر تحميل الإجماليات أو رُفضت الصلاحية." : "Aggregates unavailable or access denied."}</p>}
       {view && <section aria-live="polite" className="space-y-2 rounded border p-4">
-        {view.synthetic && <p className="rounded bg-amber-100 p-2 font-semibold">{ar ? "بيانات اصطناعية تجريبية — غير رسمية" : "SYNTHETIC DEMO DATA — not official"}</p>}
+        {view.synthetic && <p className="rounded-xl border border-amber-500/40 bg-amber-950/60 p-2 text-amber-200 font-semibold">{ar ? "بيانات اصطناعية تجريبية — غير رسمية" : "SYNTHETIC DEMO DATA — not official"}</p>}
         <h2 className="font-semibold">{view.status}</h2>
         {view.status === "SUPPRESSED" && <p role="status">{ar ? "حُجبت الخلية لحماية الخصوصية." : "Small cell suppressed for privacy."}</p>}
         {view.status === "UNAVAILABLE" && <p role="status">{ar ? "لا تتوفر بيانات لهذه المجموعة." : "No cohort data available."}</p>}

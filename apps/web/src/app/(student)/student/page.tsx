@@ -424,9 +424,7 @@ export default function StudentPage({ client: injectedClient }: StudentPageProps
               <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border/60 pb-4">
                 <h2 className="text-xl font-bold text-foreground">التقدم الأكاديمي</h2>
                 {progress.all_modeled_plan_requirements_satisfied ? (
-                  <span className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-bold text-emerald-800">
-                    مستوفاة بالكامل
-                  </span>
+                  <Badge variant="success">مستوفاة بالكامل</Badge>
                 ) : (
                   <Badge variant="warning">قيد الإنجاز</Badge>
                 )}

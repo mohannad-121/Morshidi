@@ -188,7 +188,7 @@ export default function EligibilityPage() {
               <button
                 type="submit"
                 disabled={loading || !courseCodeInput.trim()}
-                className="button-primary inline-flex items-center justify-center gap-2 rounded-2xl bg-accent px-7 py-3 text-xs font-bold text-white shadow-xs hover:bg-accent-hover transition-all disabled:opacity-50"
+                className="button-primary inline-flex items-center justify-center gap-2 rounded-2xl bg-accent px-7 py-3 text-xs font-bold text-accent-text shadow-xs hover:bg-accent-hover transition-all disabled:opacity-50"
               >
                 <EligibilityIcon className="h-4 w-4" />
                 <span>{loading ? "جاري الفحص..." : "فحص الأهلية"}</span>
@@ -224,10 +224,10 @@ export default function EligibilityPage() {
           <div
             className={`rounded-3xl border p-7 shadow-xs ${
               result.decision === "ELIGIBLE"
-                ? "border-emerald-200 bg-emerald-50/50"
+                ? "border-emerald-500/30 bg-emerald-950/20"
                 : result.decision === "NOT_ELIGIBLE"
-                ? "border-red-200 bg-red-50/40"
-                : "border-amber-300 bg-amber-50/50"
+                ? "border-rose-500/30 bg-rose-950/20"
+                : "border-amber-500/30 bg-amber-950/20"
             }`}
           >
             <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -235,10 +235,10 @@ export default function EligibilityPage() {
                 <div
                   className={`flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl shadow-xs ${
                     result.decision === "ELIGIBLE"
-                      ? "bg-emerald-100 text-emerald-800"
+                      ? "border border-emerald-500/40 bg-emerald-950/80 text-emerald-300"
                       : result.decision === "NOT_ELIGIBLE"
-                      ? "bg-red-100 text-red-800"
-                      : "bg-amber-100 text-amber-900"
+                      ? "border border-rose-500/40 bg-rose-950/80 text-rose-300"
+                      : "border border-amber-500/40 bg-amber-950/80 text-amber-300"
                   }`}
                 >
                   {result.decision === "ELIGIBLE" ? (

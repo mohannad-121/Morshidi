@@ -222,8 +222,8 @@ export default function RecommendationsPage() {
                 onClick={() => setFilterType(tab.key as typeof filterType)}
                 className={`rounded-xl px-3.5 py-1.5 text-xs font-bold transition-colors ${
                   filterType === tab.key
-                    ? "bg-accent text-white shadow-xs"
-                    : "bg-surface text-muted border border-border hover:bg-surface-muted"
+                    ? "bg-accent text-accent-text font-bold shadow-xs"
+                    : "bg-surface text-secondary border border-border hover:bg-surface-muted"
                 }`}
               >
                 {tab.label}

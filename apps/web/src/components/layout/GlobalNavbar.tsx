@@ -369,7 +369,7 @@ export function GlobalNavbar() {
                   <div className="my-1 border-t border-border/60" />
                   <div className="px-1 py-0.5">
                     <SignOutButton
-                      className="flex w-full items-center justify-center gap-2 rounded-xl border border-red-200 bg-red-50/80 px-3 py-1.5 text-xs font-semibold text-red-800 hover:bg-red-100 transition-colors"
+                      className="flex w-full items-center justify-center gap-2 rounded-xl border border-rose-500/40 bg-rose-950/80 px-3 py-1.5 text-xs font-semibold text-rose-300 hover:bg-rose-900/80 transition-colors"
                     />
                   </div>
                 </div>
@@ -378,7 +378,7 @@ export function GlobalNavbar() {
           ) : (
             <Link
               href="/login"
-              className="button-primary inline-flex min-h-9 items-center justify-center gap-2 rounded-xl bg-accent px-4 py-1.5 text-xs font-semibold text-white shadow-xs transition-colors hover:bg-accent-hover"
+              className="button-primary inline-flex min-h-9 items-center justify-center gap-2 rounded-xl bg-accent px-4 py-1.5 text-xs font-bold text-accent-text shadow-xs transition-colors hover:bg-accent-hover"
             >
               <span>دخول الطالب</span>
             </Link>
