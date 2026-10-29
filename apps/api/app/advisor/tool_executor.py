@@ -16,7 +16,7 @@ from app.advisor.student_intelligence_context import (
     project_course_fit,
     project_student_intelligence,
 )
-from app.advisor.tool_registry import TOOL_ARGUMENT_MODELS
+from app.advisor.tool_registry import ALL_TOOL_ARGUMENT_MODELS, TOOL_ARGUMENT_MODELS
 from app.student.models import StudentAcademicState
 from app.student_intelligence.adaptive import AdaptiveCourseResult
 from app.student_intelligence.curriculum_mapping import UnsupportedCurriculumIntelligenceError
@@ -45,6 +45,8 @@ class AdvisorToolExecutor:
         load_intelligence: IntelligenceLoader | None,
         load_adaptive: AdaptiveLoader | None = None,
         run_what_if: WhatIfRunner | None = None,
+        policy_answer_service: Any = None,
+        university_id: str | None = None,
     ) -> None:
         self._owner_user_id = owner_user_id
         self._run_legacy = run_legacy
@@ -52,9 +54,11 @@ class AdvisorToolExecutor:
         self._load_intelligence = load_intelligence
         self._load_adaptive = load_adaptive
         self._run_what_if = run_what_if
+        self._policy_answer_service = policy_answer_service
+        self._university_id = university_id
 
     async def execute(self, name: str, raw_arguments: str) -> ExecutedTool:
-        model = TOOL_ARGUMENT_MODELS.get(name)
+        model = ALL_TOOL_ARGUMENT_MODELS.get(name) or TOOL_ARGUMENT_MODELS.get(name)
         if model is None:
             return ExecutedTool(name, _tool_error("UNKNOWN_TOOL"))
         try:
@@ -109,6 +113,38 @@ class AdvisorToolExecutor:
                 self._owner_user_id, arguments.model_dump(mode="json")
             )
             return ExecutedTool(name, {"ok": True, "result": output})
+
+        if name == "search_university_policies":
+            if self._policy_answer_service is None or self._university_id is None:
+                return ExecutedTool(name, _tool_error("POLICY_SERVICE_UNAVAILABLE"))
+            try:
+                result = await self._policy_answer_service.answer(self._university_id, arguments.query)
+                evidence_list = []
+                if hasattr(result, "evidence_passages"):
+                    for e in result.evidence_passages:
+                        evidence_list.append(_json_safe(asdict(e) if is_dataclass(e) else e))
+                return ExecutedTool(
+                    name,
+                    {
+                        "ok": True,
+                        "question": arguments.query,
+                        "answer": getattr(result, "answer_text", str(result)),
+                        "has_answer": getattr(result, "has_answer", True),
+                        "evidence": evidence_list,
+                    },
+                )
+            except Exception:
+                return ExecutedTool(name, _tool_error("POLICY_RETRIEVAL_FAILED"))
+
+        if name == "switch_dialect":
+            return ExecutedTool(
+                name,
+                {
+                    "ok": True,
+                    "dialect": getattr(arguments, "dialect", "msa"),
+                    "message": f"Spoken dialect switched to {getattr(arguments, 'dialect', 'msa')}",
+                },
+            )
 
         raw, synthetic_message = _legacy_request(name, arguments.model_dump())
         if raw is None:

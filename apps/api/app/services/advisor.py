@@ -395,6 +395,44 @@ class AdvisorService:
         logger.info("advisor_timing route=%s routing_ms=%s student_context_ms=%.1f catalog_ms=%.1f deterministic_ms=%.1f total_structured_ms=%.1f", "ACADEMIC_DEEP" if request.intent in (AdvisorIntent.COURSE_RECOMMENDATIONS, AdvisorIntent.SEMESTER_PLANNING, AdvisorIntent.DEGREE_PATH_MODELING) else "ACADEMIC_DIRECT", routing_ms, student_context_ms, catalog_ms, deterministic_ms, (perf_counter() - started) * 1000)
         return replace(result, response_facets=response_facets), None
 
+    def build_tool_executor(
+        self,
+        owner_user_id: str,
+        *,
+        university_id: str | None = None,
+        policy_answer_service: Any = None,
+    ) -> AdvisorToolExecutor:
+        """Build a bounded read-only tool executor for the authenticated student."""
+
+        async def run_legacy(
+            interpretation: RawAdvisorInterpretation, synthetic_message: str
+        ) -> StructuredAdvisorResult:
+            service = AdvisorService(
+                self._student_repository,
+                self._catalog_repository,
+                _FixedInterpretationProvider(interpretation),
+                None,
+                self._academic_compute_limiter,
+                self._intelligence_loader,
+                self._adaptive_loader,
+                self._what_if_runner,
+            )
+            structured, _ = await service._advise_interpreted(
+                owner_user_id, synthetic_message
+            )
+            return structured
+
+        return AdvisorToolExecutor(
+            owner_user_id=owner_user_id,
+            run_legacy=run_legacy,
+            load_state=self._student_repository.load_student_academic_state,
+            load_intelligence=self._intelligence_loader,
+            load_adaptive=self._adaptive_loader,
+            run_what_if=self._what_if_runner,
+            policy_answer_service=policy_answer_service,
+            university_id=university_id,
+        )
+
     async def _advise_conversational(
         self,
         owner_user_id: str,

@@ -44,6 +44,14 @@ class WhatIfArguments(_StrictArguments):
     max_courses: int | None = Field(default=None, ge=1, le=10)
 
 
+class SearchPoliciesArguments(_StrictArguments):
+    query: str = Field(min_length=1, max_length=240)
+
+
+class SwitchDialectArguments(_StrictArguments):
+    dialect: Literal["msa", "jordanian", "english"]
+
+
 TOOL_ARGUMENT_MODELS: dict[str, type[_StrictArguments]] = {
     "get_student_academic_summary": NoArguments,
     "get_student_intelligence": NoArguments,
@@ -58,6 +66,16 @@ TOOL_ARGUMENT_MODELS: dict[str, type[_StrictArguments]] = {
     "run_academic_what_if": WhatIfArguments,
     "get_current_enrollments": NoArguments,
     "get_student_progress": NoArguments,
+}
+
+VOICE_EXTENSION_TOOL_ARGUMENT_MODELS: dict[str, type[_StrictArguments]] = {
+    "search_university_policies": SearchPoliciesArguments,
+    "switch_dialect": SwitchDialectArguments,
+}
+
+ALL_TOOL_ARGUMENT_MODELS: dict[str, type[_StrictArguments]] = {
+    **TOOL_ARGUMENT_MODELS,
+    **VOICE_EXTENSION_TOOL_ARGUMENT_MODELS,
 }
 
 
@@ -75,6 +93,8 @@ _DESCRIPTIONS = {
     "run_academic_what_if": "Run an existing deterministic, ephemeral What-If operation. This never persists or changes the student's record.",
     "get_current_enrollments": "Get bounded current in-progress course codes from the authenticated student's official record.",
     "get_student_progress": "Get deterministic degree progress and requirement completion facts.",
+    "search_university_policies": "Search official university regulations and verified institutional policies for the student's university. Use to answer questions about graduation honors, probation, retake limits, drop/add deadlines, or grading rules.",
+    "switch_dialect": "Switch the spoken language/dialect mode of the voice assistant. Use when the student explicitly asks to speak in Jordanian Arabic ('احكي أردني'), Modern Standard Arabic ('احكي فصحى'), or English.",
 }
 
 
@@ -107,18 +127,24 @@ def _remove_unsupported_provider_keywords(value: object) -> None:
             _remove_unsupported_provider_keywords(nested)
 
 
-def advisor_tool_definitions(*, include_what_if: bool = False) -> tuple[dict[str, Any], ...]:
+def advisor_tool_definitions(
+    *,
+    include_what_if: bool = False,
+    include_voice_extensions: bool = False,
+) -> tuple[dict[str, Any], ...]:
     """Return OpenAI function definitions without identity or tenant arguments."""
 
-    names = tuple(TOOL_ARGUMENT_MODELS)
+    names = list(TOOL_ARGUMENT_MODELS)
     if not include_what_if:
-        names = tuple(name for name in names if name != "run_academic_what_if")
+        names = [name for name in names if name != "run_academic_what_if"]
+    if include_voice_extensions:
+        names.extend(VOICE_EXTENSION_TOOL_ARGUMENT_MODELS)
     return tuple(
         {
             "type": "function",
             "name": name,
             "description": _DESCRIPTIONS[name],
-            "parameters": _strict_schema(TOOL_ARGUMENT_MODELS[name]),
+            "parameters": _strict_schema(ALL_TOOL_ARGUMENT_MODELS[name]),
             "strict": True,
         }
         for name in names

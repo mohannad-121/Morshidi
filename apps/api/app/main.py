@@ -50,6 +50,9 @@ from app.api.routes.privacy_p14 import router as privacy_p14_router
 from app.api.routes.institutional_ai_query import router as institutional_ai_query_router
 from app.api.routes.advisor_copilot import router as advisor_copilot_router
 from app.api.routes.policies import router as policies_router
+from app.api.routes.voice import router as voice_router
+from app.voice.service import VoiceService
+from app.voice.session_manager import VoiceSessionManager
 from app.api.routes.decision_history import router as decision_history_router
 from app.api.routes.advisor_decision_history import router as advisor_decision_history_router
 from app.api.routes.advisor_explainability_graph import router as advisor_explainability_graph_router
@@ -246,6 +249,8 @@ async def lifespan(application: FastAPI):
     application.state.advisor_copilot_service = None
     application.state.policy_service = None
     application.state.policy_answer_service = None
+    application.state.voice_service = None
+    application.state.voice_session_manager = None
     application.state.decision_trace_service = None
     application.state.advisor_authorization_service = None
     application.state.change_impact_service = None
@@ -517,6 +522,25 @@ async def lifespan(application: FastAPI):
             pilot_repo,
             sis_service=application.state.sis_integration_service,
         )
+        voice_session_manager = VoiceSessionManager(
+            max_duration_seconds=settings.morshidi_voice_max_duration_seconds,
+            max_daily_sessions_per_student=settings.morshidi_voice_max_daily_sessions_per_student,
+            max_daily_seconds_per_student=settings.morshidi_voice_max_daily_minutes_per_student * 60,
+        )
+        application.state.voice_session_manager = voice_session_manager
+        application.state.voice_service = VoiceService(
+            http_client=client,
+            advisor_service=application.state.advisor_service,
+            student_service=application.state.student_service,
+            session_manager=voice_session_manager,
+            conversation_store=application.state.student_conversation_store,
+            policy_answer_service=getattr(application.state, "policy_answer_service", None),
+            api_key=settings.advisor_llm_api_key.get_secret_value() if settings.advisor_llm_api_key else None,
+            model=settings.morshidi_voice_model,
+            voice_name=settings.morshidi_voice_name,
+            max_duration_seconds=settings.morshidi_voice_max_duration_seconds,
+            enabled=settings.morshidi_live_voice_enabled,
+        )
     try:
         yield
     finally:
@@ -560,6 +584,7 @@ app.include_router(privacy_p14_router)
 app.include_router(institutional_ai_query_router)
 app.include_router(advisor_copilot_router)
 app.include_router(policies_router)
+app.include_router(voice_router)
 app.include_router(decision_history_router)
 app.include_router(advisor_decision_history_router)
 app.include_router(advisor_explainability_graph_router)

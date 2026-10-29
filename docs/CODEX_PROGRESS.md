@@ -1,5 +1,72 @@
 # Morshidi — Codex Progress Record
 
+## Morshidi Realtime Live Voice Agent (GPT-Live / WebRTC Native Speech-to-Speech) (2026-10-29; completed and verified locally)
+
+**Phase/slice, objective, and starting state:** Implemented and rigorously verified a genuine, real-time, bidirectional speech-to-speech live voice agent inside Morshidi Academic Intelligence OS on branch `release/university-ready-20261024` at starting HEAD `2553c27a4d531b6e2a86b6a762a934eebb5533e9`. The primary objective was to deliver a native ChatGPT Voice Mode-style experience with official OpenAI `gpt-live-1` (and `gpt-realtime-2.1` fallback), native Modern Standard Arabic (العربية الفصحى) speech-to-speech, dynamic in-session Jordanian dialect switching, WebRTC transport, Client Delegation protocol to Morshidi's existing deterministic academic advisor tools, and complete multi-worker cost safeguards and quota governance.
+
+**Root cause analysis & architectural implementation details:**
+1. *Official GPT-Live Architecture & Server-Mediated WebRTC SDP Handshake (`apps/api/app/voice/`, `apps/api/app/api/routes/voice.py`, `apps/web/src/lib/voice/webrtc-voice-session.ts`):*
+   - Rather than an inaccurate, high-latency STT -> Chat -> TTS chain or deprecated preview models (e.g. `gpt-4o-realtime-preview-2024-12-17`, shut down May 7, 2026), adopted the official OpenAI Live API with primary model `gpt-live-1` and fallback `gpt-realtime-2.1`.
+   - Implemented the official server-mediated SDP offer/answer handshake:
+     1. Browser creates `RTCPeerConnection`, adds microphone audio track, creates `oai-events` data channel, and creates local SDP offer.
+     2. Browser sends SDP offer to authenticated Morshidi backend (`POST /api/v1/me/voice/session` with `sdp_offer`).
+     3. Backend calls `POST https://api.openai.com/v1/live/sessions` using server-side master API key with `transport: { type: "webrtc", sdp: offer }` and session config.
+     4. Backend returns provider's `transport.sdp` answer (`sdp_answer`) and authorized session metadata to browser.
+     5. Browser applies SDP answer directly via `pc.setRemoteDescription({ type: "answer", sdp })`.
+   - Security boundary: The master OpenAI API key never touches the browser, and no undocumented ephemeral tokens are used for GPT-Live.
+2. *Dual-Protocol Client Tool Delegation & Deterministic Academic Authority (`apps/web/src/lib/voice/webrtc-voice-session.ts`, `apps/api/app/voice/service.py`):*
+   - Architectural invariant strictly enforced: **"AI EXPLAINS — DETERMINISTIC RULES DECIDE."** The voice model is strictly prohibited from fabricating academic requirements, degree eligibility, or prerequisite status.
+   - Dual Client Delegation Protocol:
+     - For `gpt-live-1`: Handled data channel event `session.delegation.created` with `delegation_id` and metadata. Forwarded `delegation_id` and recent `user_transcript` to backend `POST /api/v1/me/voice/delegate`. Backend resolved student intent, executed deterministic `AdvisorToolExecutor` scoped to the student's `university_id`, and generated concise Arabic commentary (< 800 chars). Browser returned verified result to model via `session.commentary.append` on the WebRTC data channel.
+     - For `gpt-realtime-2.1`: Handled `response.output_item.done` (`function_call`) and replied with `conversation.item.create` (`function_call_output`) followed by `response.create`.
+   - Registered 15 authorized tools (12 base advisor tools, 1 what-if tool, plus `search_university_policies` and `switch_dialect` voice extensions).
+3. *Language & Dialect Intelligence (`apps/api/app/voice/instructions.py`, `apps/api/app/voice/session_manager.py`):*
+   - Default Spoken Language: Modern Standard Arabic (العربية الفصحى) with warm, authoritative academic advisor tone and clear pronunciation of academic terms, credit hours, and GPA numbers.
+   - Dynamic In-Session Jordanian Dialect Switching: Embedded dialect triggers (احكي معي بالأردني, احكي أردني, من هسا احكي زي أهل الأردن, بدي إياك تحكي أردني) into system instructions and provided the `switch_dialect` tool. Enables switching immediately during the live session without disconnects or audio stream restarts, and switching back upon ارجع احكي فصحى or switching to English upon explicit request.
+4. *Multi-Worker Concurrency & Multi-Dimension Quota Safeguards (`apps/api/app/voice/session_manager.py`):*
+   - Concurrency & Multi-Worker Coordination: Implemented an atomic SQLite WAL-mode coordinator (`PRAGMA journal_mode = WAL; PRAGMA busy_timeout = 5000;`) in `.runtime/voice_coordination.db`. Coordinates processes on a single shared host across multiple Uvicorn workers. (Note: Multi-node horizontally-scaled deployments across independent Render instances will transition to a shared PostgreSQL or Redis-backed atomic coordinator).
+   - Multi-Dimension Quota Governance: Enforces both maximum daily session count (`morshidi_voice_max_daily_sessions_per_student = 25`), maximum daily voice minutes (`morshidi_voice_max_daily_minutes_per_student = 60`), and maximum session duration (`morshidi_voice_max_duration_seconds = 900`).
+   - Actual Duration Accounting: Browser tracks actual wall-clock session duration from connection start to finish, and reports `actual_duration_seconds` to `POST /api/v1/me/voice/end-session` to reconcile exact consumed quota minutes server-side.
+   - Feature Flag: Left disabled by default (`MORSHIDI_LIVE_VOICE_ENABLED = False`) until university configuration and billing activation are officially approved.
+5. *Premium Voice UI & Web Audio Visualization (`apps/web/src/components/voice/`, `apps/web/src/lib/voice/`):*
+   - Created `LiveVoiceButton` with distinctive waveform icon and Arabic label (محادثة صوتية).
+   - Created `LiveVoiceSession` modal dialog with real-time responsive avatar, reactive glowing aura, dialect selector pill, collapsible live transcript drawer, and robust error recovery.
+   - Created `VoiceVisualizer` using HTML5 Canvas and Web Audio API (`AnalyserNode`) measuring real acoustic energy (RMS & frequency FFT bins) with 60fps smoothing, avoiding fake looping animations.
+   - Handled keyboard accessibility (Escape to end), microphone permission states, mute/unmute, and barge-in / speech interruption with immediate `response.cancel` emission.
+
+**Test results and verification metrics:**
+- *Backend Unit & Protocol Suite:* 13 passed in 2.80s (`apps/api/.venv311/Scripts/python.exe -m pytest apps/api/tests/test_voice_service.py -v`).
+- *Full Backend Advisor Regression:* 72 passed, 0 failed in 2.83s across voice and advisor services (`apps/api/.venv311/Scripts/python.exe -m pytest apps/api/tests/test_voice_service.py apps/api/tests/test_advisor_service.py -q`).
+- *Web Voice Tests:* 3 test files / 16 passed in 2.92s (`npm --prefix apps/web test -- "voice"`).
+- *TypeScript Validation:* `npm --prefix apps/web run typecheck` (`tsc --noEmit`) passed with 0 errors.
+- *Next.js Production Build:* `npm --prefix apps/web run build` passed with Turbopack, generating all 41 routes including `/student/advisor` in 2.2s compilation / 41 static & dynamic pages in 1.1s with 0 errors.
+- *Live Audio Status:* Implemented and verified via automated protocol and transport mocks. Real end-to-end paid audio session is pending live API key provisioning and human activation approval.
+
+**Files changed and verified from disk:**
+- `apps/api/app/core/config.py` (3,852 bytes)
+- `apps/api/app/advisor/tool_registry.py` (6,995 bytes)
+- `apps/api/app/advisor/tool_executor.py` (10,430 bytes)
+- `apps/api/app/services/advisor.py` (35,808 bytes)
+- `apps/api/app/api/routes/voice.py` (5,873 bytes)
+- `apps/api/app/voice/instructions.py` (10,296 bytes)
+- `apps/api/app/voice/session_manager.py` (22,751 bytes)
+- `apps/api/app/voice/service.py` (24,476 bytes)
+- `apps/api/app/main.py` (41,382 bytes)
+- `apps/api/tests/test_voice_service.py` (19,235 bytes)
+- `apps/web/src/lib/api/voice-api.ts` (3,791 bytes)
+- `apps/web/src/lib/api/voice-api.test.ts` (5,080 bytes)
+- `apps/web/src/lib/voice/webrtc-voice-session.ts` (19,726 bytes)
+- `apps/web/src/lib/voice/webrtc-voice-session.test.ts` (7,999 bytes)
+- `apps/web/src/components/voice/VoiceVisualizer.tsx` (3,395 bytes)
+- `apps/web/src/components/voice/LiveVoiceButton.tsx` (2,203 bytes)
+- `apps/web/src/components/voice/LiveVoiceSession.tsx` (18,688 bytes)
+- `apps/web/src/components/voice/LiveVoiceSession.test.tsx` (4,380 bytes)
+- `apps/web/src/app/(student)/student/advisor/page.tsx` (17,321 bytes)
+- `docs/CODEX_PROGRESS.md` (updated)
+
+**Acceptance and next steps:** Realtime Live Voice Agent implementation, official `gpt-live-1` server-mediated SDP flow, client delegation with concise commentary appending, actual wall-clock quota tracking, and multi-worker safeguards are 100% complete and verified locally. In accordance with project governance ("Never automatically stage, commit, push, merge, or create a pull request. Human approval is required before each of those actions"), awaiting human approval before staging or committing changes to `release/university-ready-20261024`.
+
+
 ## Platform-Wide UI/UX Color, Contrast & Typography Transformation (2026-10-28; completed and verified)
 
 **Phase/slice, objective, and starting state:** Executed a comprehensive platform-wide visual quality, contrast, and accessibility transformation across the entire Morshidi web application on branch `release/university-ready-20261024` at starting HEAD `fe34696092766365832891e5e69139c7e6f14df2`. The primary objective was to eliminate low-contrast and dark-on-dark text defects across all 39 routes, separate background tokens from text tokens in `globals.css`, correct `.text-muted` and `experience.css` rules, make `.button-primary` text dark and legible on bright gold, eliminate jarring light-theme badges in dark mode, and verify all routes for WCAG 2.2 Level AA / AAA compliance.
@@ -3848,3 +3915,11 @@ Vercel Git integration created production deployment `dpl_JDKEn43TCcyAuDA1dxPgn9
 **Security and architecture review:** Frontend-only changes. No backend/API source, Supabase migration, database schema, RLS/RPC policy, production resource, environment variable, credential, private student record, AI reasoning/prompt/orchestration contract, academic rule, registration behavior, or network request was added or modified. Authentication and authorization boundaries remain unchanged. `AI EXPLAINS — DETERMINISTIC RULES DECIDE` is now more visible in AI and institutional presentation, while calculations continue to come only from existing deterministic data.
 
 **Acceptance and remaining limitations:** Local implementation and automated validation PASS for this coherent visual slice. Public/login desktop and 390px mobile layout PASS; reduced-motion login layout PASS. Remaining visual limitations: authenticated student/AI/institutional routes still require a future authorized browser session for screenshot-level inspection at 390/768/1024/1440 widths and keyboard interaction; the very large pre-existing `globals.css` still contains older and newer style eras and would benefit from a separately scoped CSS-module/design-token consolidation rather than a risky bulk rewrite; no production URL was changed or deployed. `docs/CODEX_PROGRESS.md` itself is `0914845` bytes after this entry. No staging, commit, push, merge, pull request, Vercel deployment, production verification, database change, or other production operation occurred. Exact next point: review the 16 frontend files and this progress entry, optionally perform an authorized authenticated visual pass, then request separate human approval before staging/committing; after that, request separate approval before pushing and only then use the established Vercel deployment workflow and verify the exact deployed commit.
+
+### 2026-10-29: Approved premium UI branch push
+
+Re-read the UI implementation record and verified the branch, HEAD, dirty worktree, staged boundary, and current remote before release. Fetched `origin/release/university-ready-20261024` and confirmed it remained exactly at the reviewed base `dfa1646799a0cd73c2cc73cea4ab2b26b994aafd` with local divergence `0/0`. Staged exactly the 16 reviewed frontend source/test files plus this progress record; the pre-existing modified platform audit, untracked Gate/backup/recovery documents, and untracked backup/release script trees remained unstaged. The cached diff passed whitespace validation with only the known LF-to-CRLF notices for the two institutional files, contained exactly 17 files, and the added-line credential scan found zero credential patterns.
+
+Created commit `2553c27a4d531b6e2a86b6a762a934eebb5533e9` (`feat(ui): elevate Morshidi premium visual experience`), containing 301 insertions and 55 deletions. `git show --check` passed and the commit contained only the reviewed frontend/progress files. Immediately before the write, `git ls-remote` reconfirmed the remote branch at the expected base. Pushed the exact commit with a non-force SHA-to-ref refspec to `refs/heads/release/university-ready-20261024`; GitHub accepted the fast-forward `dfa1646..2553c27`. A fresh `git ls-remote` confirmed the remote branch at the exact 40-character SHA, and local/remote divergence is now `0/0`.
+
+No merge, pull request, force push, Vercel deployment, production alias change, backend/Render action, database/API operation, migration, registration action, environment change, or secret change occurred. The branch push may be observed by any pre-existing Git integration, but no deployment status is claimed. This release evidence is a new local progress-only modification after the pushed commit and is intentionally not staged or committed without another explicit approval. `docs/CODEX_PROGRESS.md` is now `0917114` bytes. Exact next point: if deployment is desired, separately inspect the hosting provider's branch/deployment state and obtain explicit approval before any manual production promotion; if the release evidence itself should be versioned, separately approve a progress-only commit and push.

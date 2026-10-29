@@ -1,4 +1,4 @@
-﻿from pathlib import Path
+from pathlib import Path
 
 from pydantic import AliasChoices, Field, SecretStr, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -25,8 +25,72 @@ class Settings(BaseSettings):
         ),
     )
 
-    advisor_llm_api_key: SecretStr | None = None
-    advisor_llm_model: str | None = None
+    advisor_llm_api_key: SecretStr | None = Field(
+        default=None,
+        validation_alias=AliasChoices(
+            "advisor_llm_api_key",
+            "openai_api_key",
+            "OPENAI_API_KEY",
+        ),
+    )
+    advisor_llm_model: str | None = Field(
+        default=None,
+        validation_alias=AliasChoices(
+            "advisor_llm_model",
+            "ADVISOR_LLM_MODEL",
+        ),
+    )
+
+    # Realtime Live Voice Configuration
+    morshidi_live_voice_enabled: bool = Field(
+        default=False,
+        validation_alias=AliasChoices(
+            "morshidi_live_voice_enabled",
+            "MORSHIDI_LIVE_VOICE_ENABLED",
+        ),
+    )
+    morshidi_voice_model: str = Field(
+        default="gpt-live-1",
+        validation_alias=AliasChoices(
+            "morshidi_voice_model",
+            "MORSHIDI_VOICE_MODEL",
+        ),
+    )
+    morshidi_voice_fallback_model: str = Field(
+        default="gpt-realtime-2.1",
+        validation_alias=AliasChoices(
+            "morshidi_voice_fallback_model",
+            "MORSHIDI_VOICE_FALLBACK_MODEL",
+        ),
+    )
+    morshidi_voice_name: str = Field(
+        default="alloy",
+        validation_alias=AliasChoices(
+            "morshidi_voice_name",
+            "MORSHIDI_VOICE_NAME",
+        ),
+    )
+    morshidi_voice_max_duration_seconds: int = Field(
+        default=900,
+        validation_alias=AliasChoices(
+            "morshidi_voice_max_duration_seconds",
+            "MORSHIDI_VOICE_MAX_DURATION_SECONDS",
+        ),
+    )
+    morshidi_voice_max_daily_sessions_per_student: int = Field(
+        default=25,
+        validation_alias=AliasChoices(
+            "morshidi_voice_max_daily_sessions_per_student",
+            "MORSHIDI_VOICE_MAX_DAILY_SESSIONS_PER_STUDENT",
+        ),
+    )
+    morshidi_voice_max_daily_minutes_per_student: int = Field(
+        default=60,
+        validation_alias=AliasChoices(
+            "morshidi_voice_max_daily_minutes_per_student",
+            "MORSHIDI_VOICE_MAX_DAILY_MINUTES_PER_STUDENT",
+        ),
+    )
 
     policy_embedding_api_key: SecretStr | None = None
     policy_embedding_model: str = "text-embedding-3-large"
