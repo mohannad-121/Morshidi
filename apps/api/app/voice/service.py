@@ -401,6 +401,18 @@ class VoiceService:
 
         Deterministic academic engines decide — the model only explains the verified output.
         """
+        # Enforce server-authoritative session validity: expired sessions cannot execute academic delegation
+        active_session = self._session_manager.get_active_session(student_user_id)
+        if active_session is None:
+            logger.warning("voice_delegation_rejected_expired student=%s call_id=%s", student_user_id, call_id)
+            return {
+                "call_id": call_id,
+                "tool_name": tool_name or "unknown",
+                "output": {"ok": False, "error": "SESSION_EXPIRED", "detail": "انتهت صلاحية الجلسة الصوتية المعتمدة."},
+                "summary_text": "انتهت مدة الجلسة الصوتية المعتمدة. يرجى بدء محادثة صوتية جديدة أو متابعة استفسارك نصياً.",
+                "ok": False,
+            }
+
         try:
             university_id = await self._student_service.resolve_student_university_id(student_user_id)
         except Exception:
@@ -518,12 +530,10 @@ class VoiceService:
                         source_thread_id=str(thread_id),
                     )
 
-            # Record estimated audio duration into multi-worker daily quota
-            estimated_seconds = max(3.0, (len(user_text.split()) + len(assistant_text.split())) / 2.5)
-            self._session_manager.record_duration(student_user_id, estimated_seconds)
+            # Update session activity timestamp (prevents abandonment timeout)
             self._session_manager.touch_activity(student_user_id)
 
-            logger.info("voice_turn_synced student=%s thread=%s turn=%s duration=%.1fs", student_user_id, thread_id, client_turn_id, estimated_seconds)
+            logger.info("voice_turn_synced student=%s thread=%s turn=%s", student_user_id, thread_id, client_turn_id)
             return {
                 "synced": True,
                 "user_message_id": user_row.get("id"),

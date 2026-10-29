@@ -30,6 +30,7 @@ export interface VoiceSessionCallbacks {
   onTurnConfirmed?: (turn: ConfirmedSpeechTurn) => void;
   onError?: (errorMessage: string) => void;
   onAudioLevels?: (levels: { micLevel: number; assistantLevel: number }) => void;
+  onSessionExpired?: () => void;
 }
 
 const TOOL_NAMES_AR: Record<string, string> = {
@@ -69,6 +70,11 @@ export class WebRTCVoiceSession {
 
   private lastUserText: string = "";
   private currentAssistantText: string = "";
+  private expirationTimer: ReturnType<typeof setTimeout> | null = null;
+
+  private handleBeforeUnload = () => {
+    this.stop();
+  };
 
   constructor(
     private readonly voiceApi: VoiceApiService,
@@ -219,6 +225,19 @@ export class WebRTCVoiceSession {
           type: "answer",
           sdp: answerSdp,
         });
+      }
+
+      // 9. Enforce server-authoritative session expiration deadline
+      const maxDurationSec = session.max_duration_seconds || 900;
+      if (this.expirationTimer) {
+        clearTimeout(this.expirationTimer);
+      }
+      this.expirationTimer = setTimeout(() => {
+        this.handleSessionExpired();
+      }, maxDurationSec * 1000);
+
+      if (typeof window !== "undefined") {
+        window.addEventListener("beforeunload", this.handleBeforeUnload);
       }
 
     } catch (err: unknown) {
@@ -529,7 +548,21 @@ export class WebRTCVoiceSession {
     return this.isMuted;
   }
 
+  private handleSessionExpired(): void {
+    if (this.status === "ended") return;
+    this.setStatus("ended");
+    this.callbacks.onSessionExpired?.();
+    const actualDurationSeconds = this.startTime ? (Date.now() - this.startTime) / 1000 : undefined;
+    if (this.sessionData?.session_id) {
+      void this.voiceApi.endSession(this.sessionData.session_id, actualDurationSeconds);
+    }
+    this.cleanup();
+  }
+
   stop(): void {
+    if (this.status === "ended") {
+      return;
+    }
     this.setStatus("ended");
     const actualDurationSeconds = this.startTime ? (Date.now() - this.startTime) / 1000 : undefined;
     if (this.sessionData?.session_id) {
@@ -540,6 +573,15 @@ export class WebRTCVoiceSession {
 
   private cleanup(): void {
     this.startTime = null;
+    if (this.expirationTimer !== null) {
+      clearTimeout(this.expirationTimer);
+      this.expirationTimer = null;
+    }
+
+    if (typeof window !== "undefined") {
+      window.removeEventListener("beforeunload", this.handleBeforeUnload);
+    }
+
     if (this.animFrameId !== null) {
       cancelAnimationFrame(this.animFrameId);
       this.animFrameId = null;
@@ -551,16 +593,29 @@ export class WebRTCVoiceSession {
     }
 
     if (this.dc) {
-      this.dc.close();
+      try {
+        this.dc.close();
+      } catch {
+        // ignore
+      }
       this.dc = null;
     }
 
     if (this.pc) {
-      this.pc.close();
+      try {
+        this.pc.close();
+      } catch {
+        // ignore
+      }
       this.pc = null;
     }
 
     if (this.audioEl) {
+      try {
+        this.audioEl.pause();
+      } catch {
+        // ignore
+      }
       this.audioEl.srcObject = null;
       this.audioEl = null;
     }

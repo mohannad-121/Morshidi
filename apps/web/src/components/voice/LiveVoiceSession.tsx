@@ -88,12 +88,23 @@ export function LiveVoiceSession({
     }
   }, [turns, interimText, showTranscript]);
 
-  // Session duration timer
+  // Session duration timer & hard deadline enforcement
   useEffect(() => {
     if (process.env.NODE_ENV === "test") return;
     if (status !== "listening" && status !== "speaking" && status !== "delegating") return;
     const interval = setInterval(() => {
-      setSecondsElapsed((prev) => prev + 1);
+      setSecondsElapsed((prev) => {
+        const next = prev + 1;
+        if (next >= 900) {
+          if (sessionRef.current) {
+            sessionRef.current.stop();
+          }
+          setStatus("ended");
+          setErrorMessage("انتهى الحد الأقصى للجلسة الصوتية المعتمدة (15 دقيقة). تم حفظ المحادثة بنجاح، ويمكنك متابعة استفسارك نصياً.");
+          return 900;
+        }
+        return next;
+      });
     }, 1000);
     return () => clearInterval(interval);
   }, [status]);
@@ -126,6 +137,10 @@ export function LiveVoiceSession({
       },
       onError: (err) => {
         setErrorMessage(err);
+      },
+      onSessionExpired: () => {
+        setStatus("ended");
+        setErrorMessage("انتهى الحد الأقصى للجلسة الصوتية المعتمدة (15 دقيقة). تم حفظ المحادثة بنجاح، ويمكنك متابعة استفسارك نصياً.");
       },
     });
 
@@ -355,19 +370,29 @@ export function LiveVoiceSession({
             />
           </div>
 
-          {/* Error Banner */}
+          {/* Error / Session Notification Banner */}
           {errorMessage && (
-            <div className="mt-4 px-4 py-2.5 rounded-2xl bg-rose-950/80 border border-rose-500/40 text-rose-300 text-xs flex items-center justify-between gap-3 max-w-md w-full z-20">
+            <div
+              className={`mt-4 px-4 py-2.5 rounded-2xl border text-xs flex items-center justify-between gap-3 max-w-md w-full z-20 ${
+                status === "ended"
+                  ? "bg-amber-950/80 border-amber-500/40 text-amber-200"
+                  : "bg-rose-950/80 border-rose-500/40 text-rose-300"
+              }`}
+            >
               <div className="flex items-center gap-2">
-                <AlertCircle size={16} className="text-rose-400 shrink-0" />
+                <AlertCircle size={16} className={status === "ended" ? "text-amber-400 shrink-0" : "text-rose-400 shrink-0"} />
                 <span>{errorMessage}</span>
               </div>
               <button
                 onClick={() => void handleStartSession()}
-                className="px-2.5 py-1 rounded-lg bg-rose-900/60 hover:bg-rose-900 border border-rose-500/40 text-white font-medium flex items-center gap-1 shrink-0"
+                className={`px-2.5 py-1 rounded-lg border font-medium flex items-center gap-1 shrink-0 ${
+                  status === "ended"
+                    ? "bg-amber-900/60 hover:bg-amber-900 border-amber-500/40 text-amber-100"
+                    : "bg-rose-900/60 hover:bg-rose-900 border-rose-500/40 text-white"
+                }`}
               >
                 <RefreshCw size={12} />
-                <span>إعادة المحاولة</span>
+                <span>{status === "ended" ? "بدء محادثة جديدة" : "إعادة المحاولة"}</span>
               </button>
             </div>
           )}

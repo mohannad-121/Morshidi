@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 from datetime import datetime, timezone
 import json
+import time
 from types import SimpleNamespace
 from typing import Any
 from uuid import uuid4
@@ -418,6 +419,7 @@ async def test_gpt_live_delegation_payload_and_fallback_model_support():
 @pytest.mark.anyio
 async def test_client_delegation_executes_academic_tool_deterministically():
     voice_svc, advisor_svc, _ = _build_test_voice_service()
+    await voice_svc.create_realtime_session(OWNER_A, thread_id="test-thread-id")
 
     # Delegate get_remaining_requirements
     result = await voice_svc.execute_delegated_tool(
@@ -425,6 +427,7 @@ async def test_client_delegation_executes_academic_tool_deterministically():
         call_id="call_req_123",
         tool_name="get_remaining_requirements",
         arguments="{}",
+        thread_id="test-thread-id",
     )
 
     assert result["call_id"] == "call_req_123"
@@ -551,4 +554,159 @@ def test_api_route_session_establishment_and_delegation_flow():
         assert end_res.json() == {"ok": True}
     finally:
         app.dependency_overrides.clear()
+
+
+@pytest.mark.anyio
+async def test_sync_completed_turn_does_not_double_count_duration():
+    """Verify that syncing speech turns does not record duration into quota,
+    leaving session termination wall-clock duration as the single authoritative source.
+    """
+    voice_svc, _, store = _build_test_voice_service()
+    session = await voice_svc.create_realtime_session(OWNER_A, thread_id="test-thread-id")
+    manager = voice_svc._session_manager
+
+    # Sync multiple conversational turns with large text
+    for _ in range(4):
+        await voice_svc.sync_completed_turn(
+            student_user_id=OWNER_A,
+            thread_id="test-thread-id",
+            user_transcript="هذا سؤال طويل جداً يستغرق وقتاً طويلاً في التحدث " * 5,
+            assistant_transcript="وهذه إجابة مفصلة جداً تستغرق وقتاً طويلاً أيضاً " * 5,
+            client_turn_id=uuid4(),
+        )
+
+    # Prior to ending the session, total_seconds in usage table should be 0 (no turn estimates billed!)
+    today = manager._today_utc()
+    conn = manager._get_connection()
+    try:
+        row = conn.execute(
+            "SELECT total_seconds FROM voice_daily_usage WHERE student_user_id = ? AND date_str_utc = ?",
+            (OWNER_A, today),
+        ).fetchone()
+        persisted_usage_seconds = float(row["total_seconds"]) if row else 0.0
+        assert persisted_usage_seconds == 0.0, "Completed turns must NOT insert estimated durations into daily usage table"
+    finally:
+        manager._close_connection(conn)
+
+    # Simulate 25 seconds elapsed on server
+    with manager._lock:
+        conn = manager._get_connection()
+        conn.execute(
+            "UPDATE voice_active_sessions SET created_at = created_at - 25.0 WHERE session_id = ?",
+            (session["session_id"],),
+        )
+
+    # Now end session with 25.0 seconds actual duration
+    recorded = manager.end_session(OWNER_A, session_id=session["session_id"], actual_duration_seconds=25.0)
+    assert recorded == pytest.approx(25.0, abs=2.0)
+
+    # Final daily duration should equal exactly the single authoritative session duration (~25s)
+    daily_duration = manager.get_daily_duration_seconds(OWNER_A)
+    assert daily_duration == pytest.approx(25.0, abs=2.0)
+    assert daily_duration < 50.0, "Turn estimates must not double-count on top of session duration"
+
+
+@pytest.mark.anyio
+async def test_delegation_rejected_when_session_expired():
+    """Verify that once a voice session is expired or closed, academic delegation is strictly rejected."""
+    voice_svc, advisor_svc, _ = _build_test_voice_service()
+
+    # 1. No active session at all
+    res_no_sess = await voice_svc.execute_delegated_tool(
+        student_user_id=OWNER_A,
+        call_id="call_no_sess_1",
+        tool_name="get_remaining_requirements",
+        arguments="{}",
+    )
+    assert res_no_sess["ok"] is False
+    assert res_no_sess["output"]["error"] == "SESSION_EXPIRED"
+    assert "انتهت" in res_no_sess["summary_text"]
+
+    # 2. Session created and then ended
+    session = await voice_svc.create_realtime_session(OWNER_A, thread_id="test-thread-id")
+    voice_svc._session_manager.end_session(OWNER_A, session_id=session["session_id"], actual_duration_seconds=10.0)
+
+    res_ended = await voice_svc.execute_delegated_tool(
+        student_user_id=OWNER_A,
+        call_id="call_ended_2",
+        tool_name="get_remaining_requirements",
+        arguments="{}",
+    )
+    assert res_ended["ok"] is False
+    assert res_ended["output"]["error"] == "SESSION_EXPIRED"
+
+
+@pytest.mark.anyio
+async def test_end_session_is_idempotent_and_protects_against_duplicate_accounting():
+    """Verify that multiple or redundant calls to end_session do not bill duration multiple times."""
+    manager = VoiceSessionManager(db_path=":memory:", min_seconds_between_starts=0.01)
+    manager.register_session(
+        session_id="sess_idemp_1",
+        student_user_id=OWNER_A,
+        university_id=INST_A,
+        thread_id="t-1",
+        duration_seconds=900,
+    )
+
+    # Simulate 40 seconds elapsed on server
+    with manager._lock:
+        conn = manager._get_connection()
+        conn.execute(
+            "UPDATE voice_active_sessions SET created_at = created_at - 40.0 WHERE session_id = 'sess_idemp_1'"
+        )
+
+    # First termination
+    dur1 = manager.end_session(OWNER_A, session_id="sess_idemp_1", actual_duration_seconds=40.0)
+    assert dur1 == pytest.approx(40.0, abs=1.0)
+    assert manager.get_daily_duration_seconds(OWNER_A) == pytest.approx(40.0, abs=1.0)
+
+    # Redundant second termination
+    dur2 = manager.end_session(OWNER_A, session_id="sess_idemp_1", actual_duration_seconds=40.0)
+    assert dur2 == 0.0, "Subsequent termination of already-ended session must return 0 duration"
+
+    # Redundant third termination without session_id
+    dur3 = manager.end_session(OWNER_A, actual_duration_seconds=40.0)
+    assert dur3 == 0.0
+
+    # Total recorded seconds must remain unchanged at 40.0s (not 80s or 120s!)
+    assert manager.get_daily_duration_seconds(OWNER_A) == pytest.approx(40.0, abs=1.0)
+
+
+@pytest.mark.anyio
+async def test_cleanup_expired_and_inactivity_abandonment():
+    """Verify server-side cleanup of sessions that reach deadline or are abandoned without activity."""
+    manager = VoiceSessionManager(
+        db_path=":memory:",
+        max_duration_seconds=10,
+        inactivity_timeout_seconds=5,
+        min_seconds_between_starts=0.01,
+    )
+    # Register session
+    manager.register_session(
+        session_id="sess_stale_1",
+        student_user_id=OWNER_A,
+        university_id=INST_A,
+        thread_id="t-1",
+        duration_seconds=10,
+    )
+    assert manager.get_active_session(OWNER_A) is not None
+
+    # Simulate passing of time by manipulating created_at and last_activity_at in DB
+    past_time = time.time() - 20.0
+    conn = manager._get_connection()
+    try:
+        with conn:
+            conn.execute(
+                "UPDATE voice_active_sessions SET created_at = ?, last_activity_at = ?, expires_at = ? WHERE student_user_id = ?",
+                (past_time, past_time, past_time + 10.0, OWNER_A),
+            )
+    finally:
+        manager._close_connection(conn)
+
+    # Calling cleanup_expired should reap the session and record up to max_duration (10s)
+    cleaned = manager.cleanup_expired()
+    assert cleaned == 1
+    assert manager.get_active_session(OWNER_A) is None
+    assert manager.get_daily_duration_seconds(OWNER_A) == pytest.approx(10.0, abs=1.0)
+
 

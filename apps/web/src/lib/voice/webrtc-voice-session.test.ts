@@ -249,4 +249,53 @@ describe("WebRTCVoiceSession", () => {
     expect(session.getStatus()).toBe("ended");
     expect(mockTrack.stop).toHaveBeenCalled();
   });
+
+  it("ensures stop() is idempotent and avoids redundant endSession calls", async () => {
+    const session = new WebRTCVoiceSession(mockVoiceApi as unknown as VoiceApiService);
+    await session.start();
+
+    session.stop();
+    session.stop();
+    session.stop();
+
+    expect(mockVoiceApi.endSession).toHaveBeenCalledTimes(1);
+    expect(session.getStatus()).toBe("ended");
+  });
+
+  it("enforces session expiration at the deadline, cleans up resources, and notifies callbacks", async () => {
+    vi.useFakeTimers();
+    try {
+      const onSessionExpired = vi.fn();
+      const onStatusChange = vi.fn();
+      const session = new WebRTCVoiceSession(mockVoiceApi as unknown as VoiceApiService, {
+        onSessionExpired,
+        onStatusChange,
+      });
+
+      // Override session max_duration_seconds to 60s for testing
+      mockVoiceApi.createSession.mockResolvedValueOnce({
+        session_id: "sess_live_expire_test",
+        sdp_answer: "v=0\r\no=OpenAI ...",
+        endpoint_type: "live",
+        max_duration_seconds: 60,
+      });
+
+      await session.start();
+      expect(session.getStatus()).toBe("connecting");
+
+      // Advance time by 60 seconds
+      vi.advanceTimersByTime(60 * 1000);
+
+      expect(onSessionExpired).toHaveBeenCalledTimes(1);
+      expect(session.getStatus()).toBe("ended");
+      expect(mockVoiceApi.endSession).toHaveBeenCalledWith(
+        "sess_live_expire_test",
+        expect.any(Number)
+      );
+      expect(mockTrack.stop).toHaveBeenCalled();
+      expect(mockPeerConnection.close).toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
 });

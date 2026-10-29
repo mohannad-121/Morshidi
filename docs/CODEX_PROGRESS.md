@@ -1,5 +1,52 @@
 # Morshidi — Codex Progress Record
 
+## Morshidi Realtime Live Voice Agent — Single Duration Accounting & Session Expiration Hardening (2026-10-29; completed and verified)
+
+**Phase/slice, objective, and starting state:** Hardened the Live Voice Agent on branch `release/university-ready-20261024` at starting HEAD `1edab5f76a5b846d2c194684697f517b7882fa7b`. The objective was to eliminate duration double-counting between turn synchronization and session termination, enforce hard client and server session expiration deadlines (15 minutes), reject academic delegation on expired sessions, and ensure idempotent session termination and stale-session cleanup.
+
+**Root cause analysis & architectural implementation details:**
+1. *Single Authoritative Duration Accounting (`apps/api/app/voice/service.py`, `apps/api/app/voice/session_manager.py`):*
+   - Root cause: `service.py` was computing `estimated_seconds` from word count in `sync_completed_turn` and incrementing `voice_daily_usage.total_seconds`, while `session_manager.end_session()` was also recording server wall-clock session duration into the same ledger, causing duplicate quota consumption.
+   - Fix: Removed `record_duration` from `sync_completed_turn` completely. Wall-clock session duration recorded during `end_session()` or server-side expiration cleanup is now the single authoritative accounting source.
+   - Maintained `touch_activity(student_user_id)` during turn synchronization and delegation calls to prevent premature abandonment cleanup of actively conversing sessions.
+   - Guaranteed full idempotency in `end_session()`: if an active session is already inactive, returns 0.0 seconds and performs no duplicate database writes.
+2. *Strict Session Expiration & Client Teardown (`apps/web/src/lib/voice/webrtc-voice-session.ts`, `apps/web/src/components/voice/LiveVoiceSession.tsx`):*
+   - At the configured session deadline (`max_duration_seconds`, default 900s / 15m), client-side expiration timer triggers `handleSessionExpired()`:
+     - Immediately pauses and clears remote audio playback (`audioEl.pause()`, `audioEl.srcObject = null`).
+     - Closes the WebRTC data channel (`dc.close()`) and peer connection (`pc.close()`).
+     - Stops all local microphone capture tracks (`localStream.getTracks().forEach(t => t.stop())`).
+     - Releases Web Audio API resources (`audioContext.close()`) and animation frames.
+     - Calls backend `endSession(sessionId, actualDuration)` to finalize server quota accounting.
+     - Displays a clear, friendly Arabic notice informing the student that the 15-minute approved session has ended, their conversation has been saved, and they can continue text-based advising.
+   - Added window `beforeunload` listener to ensure clean resource release and session termination if the student navigates away or closes the browser tab.
+3. *Server-Side Delegation Rejection for Expired Sessions (`apps/api/app/voice/service.py`):*
+   - In `execute_delegated_tool`: Verifies `self._session_manager.get_active_session(student_user_id)` before invoking academic tools. If the session has expired or is inactive, delegation is immediately rejected with `SESSION_EXPIRED` and an Arabic error notice, upholding the invariant **"AI EXPLAINS — DETERMINISTIC RULES DECIDE."**
+4. *Stale-Session & Inactivity Concurrency Release (`apps/api/app/voice/session_manager.py`):*
+   - Added `_cleanup_expired_locked()` evaluating both hard deadlines (`expires_at <= now`) and inactivity timeouts (`now - last_activity_at > inactivity_timeout`), auto-terminating abandoned sessions and accounting for elapsed active time.
+
+**Test results and verification metrics:**
+- *Voice Backend Tests:* 19 passed, 0 failed in 2.67s (`apps/api/.venv311/Scripts/python.exe -m pytest apps/api/tests/test_voice_service.py -v`).
+  - Added regression test `test_sync_completed_turn_does_not_double_count_duration` verifying multiple turns do not double-bill quota.
+  - Added regression test `test_delegation_rejected_when_session_expired` verifying delegation rejection on expired/closed sessions.
+  - Added regression test `test_end_session_is_idempotent_and_protects_against_duplicate_accounting` verifying idempotent termination.
+  - Added regression test `test_cleanup_expired_and_inactivity_abandonment` verifying server-side stale cleanup.
+- *Advisor Backend Regression:* 59 passed in 1.16s (`apps/api/.venv311/Scripts/python.exe -m pytest apps/api/tests/test_advisor_service.py -q`).
+- *Frontend Voice Suite:* 18 passed in 3.20s across 3 test files (`npm --prefix apps/web test -- "voice"`).
+  - Added test verifying client expiration timer stops tracks, closes peer connection, and notifies callbacks.
+  - Added test verifying `stop()` is idempotent against repeated invocations.
+- *Full Web Test Suite:* 48 test files / 317 tests passed in 27.93s (`npm --prefix apps/web test`).
+- *Web Typecheck:* `npm --prefix apps/web run typecheck` passed with 0 errors.
+- *Next.js Production Build:* `npm --prefix apps/web run build` passed with Turbopack, compiling all 41 routes in 2.5s with 0 errors.
+
+**Files changed and verified from disk:**
+- `apps/api/app/voice/service.py` (24,785 bytes)
+- `apps/api/app/voice/session_manager.py` (22,751 bytes)
+- `apps/api/tests/test_voice_service.py` (26,458 bytes)
+- `apps/web/src/lib/voice/webrtc-voice-session.ts` (20,774 bytes)
+- `apps/web/src/lib/voice/webrtc-voice-session.test.ts` (9,564 bytes)
+- `apps/web/src/components/voice/LiveVoiceSession.tsx` (19,431 bytes)
+- `docs/CODEX_PROGRESS.md` (updated)
+
 ## Morshidi Realtime Live Voice Agent (GPT-Live / WebRTC Native Speech-to-Speech) (2026-10-29; completed and verified locally)
 
 **Phase/slice, objective, and starting state:** Implemented and rigorously verified a genuine, real-time, bidirectional speech-to-speech live voice agent inside Morshidi Academic Intelligence OS on branch `release/university-ready-20261024` at starting HEAD `2553c27a4d531b6e2a86b6a762a934eebb5533e9`. The primary objective was to deliver a native ChatGPT Voice Mode-style experience with official OpenAI `gpt-live-1` (and `gpt-realtime-2.1` fallback), native Modern Standard Arabic (العربية الفصحى) speech-to-speech, dynamic in-session Jordanian dialect switching, WebRTC transport, Client Delegation protocol to Morshidi's existing deterministic academic advisor tools, and complete multi-worker cost safeguards and quota governance.
