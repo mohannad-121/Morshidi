@@ -18,14 +18,8 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { ErrorAlert, isRetryableError } from "@/components/ui/ErrorAlert";
 import { LoadingSkeletonCard } from "@/components/ui/LoadingSkeleton";
 import { ProgressBar } from "@/components/ui/ProgressBar";
-import { StatCard } from "@/components/ui/StatCard";
 import {
-  CheckCircleIcon,
-  ClockIcon,
-  CoursesIcon,
-  ProgressIcon,
   SearchIcon,
-  SparklesIcon,
 } from "@/components/ui/Icons";
 
 import type { BadgeVariant } from "@/components/ui/Badge";
@@ -156,7 +150,7 @@ export default function ProgressPage() {
       {!loading && !error && progress ? (
         <div className="space-y-8">
           {/* Top Progress Overview Card */}
-          <div className="rounded-3xl border border-border bg-surface p-7 shadow-xs">
+          <div className="progress-overview surface-feature rounded-3xl border border-border p-7">
             <div className="grid grid-cols-1 items-center gap-8 md:grid-cols-12">
               <div className="flex flex-col items-center justify-center text-center md:col-span-4 md:border-l md:border-border/60 md:pl-8">
                 <CircularProgress
@@ -187,7 +181,7 @@ export default function ProgressPage() {
                 </div>
 
                 <div className="grid grid-cols-2 gap-4 sm:grid-cols-4 pt-2">
-                  <div className="rounded-2xl border border-border bg-surface-muted p-4 text-center">
+                  <div className="progress-metric rounded-2xl border border-border bg-surface-muted p-4 text-center">
                     <span className="block text-[11px] font-semibold text-muted">إجمالي الخطة</span>
                     <span className="mt-1 block font-mono text-xl font-bold text-foreground">
                       {progress.plan_total_required_credits}
@@ -195,7 +189,7 @@ export default function ProgressPage() {
                     <span className="text-[10px] text-muted">ساعة مطلوبة</span>
                   </div>
 
-                  <div className="rounded-2xl border border-border bg-surface-muted p-4 text-center">
+                  <div className="progress-metric rounded-2xl border border-border bg-surface-muted p-4 text-center">
                     <span className="block text-[11px] font-semibold text-muted">ساعات منجزة</span>
                     <span className="mt-1 block font-mono text-xl font-bold text-emerald-800">
                       {progress.completed_plan_credits}
@@ -203,7 +197,7 @@ export default function ProgressPage() {
                     <span className="text-[10px] text-muted">ساعة محتسبة</span>
                   </div>
 
-                  <div className="rounded-2xl border border-border bg-surface-muted p-4 text-center">
+                  <div className="progress-metric rounded-2xl border border-border bg-surface-muted p-4 text-center">
                     <span className="block text-[11px] font-semibold text-muted">قيد الدراسة</span>
                     <span className="mt-1 block font-mono text-xl font-bold text-accent">
                       {progress.in_progress_plan_credits}
@@ -211,7 +205,7 @@ export default function ProgressPage() {
                     <span className="text-[10px] text-muted">ساعة حالية</span>
                   </div>
 
-                  <div className="rounded-2xl border border-border bg-surface-muted p-4 text-center">
+                  <div className="progress-metric rounded-2xl border border-border bg-surface-muted p-4 text-center">
                     <span className="block text-[11px] font-semibold text-muted">ساعات متبقية</span>
                     <span className="mt-1 block font-mono text-xl font-bold text-accent">
                       {progress.remaining_plan_credits}
@@ -259,7 +253,7 @@ export default function ProgressPage() {
                 return (
                   <div
                     key={group.group_id}
-                    className="flex flex-col justify-between rounded-3xl border border-border bg-surface p-6 shadow-xs"
+                    className="requirement-card surface-interactive flex flex-col justify-between rounded-3xl border border-border p-6"
                   >
                     <div>
                       <div className="flex items-start justify-between gap-3">
@@ -276,7 +270,7 @@ export default function ProgressPage() {
                                   : "اختياري"}
                             </span>
                           </div>
-                          <h3 className="mt-1 truncate text-base font-bold text-foreground">
+                          <h3 className="mt-1 break-words text-base font-bold text-foreground">
                             {group.name_ar}
                           </h3>
                         </div>
@@ -360,7 +354,8 @@ export default function ProgressPage() {
                     key={tab.key}
                     type="button"
                     onClick={() => setSelectedStateFilter(tab.key)}
-                    className={`rounded-xl px-3 py-1.5 font-semibold transition-colors ${
+                    aria-pressed={selectedStateFilter === tab.key}
+                    className={`min-h-11 rounded-xl px-3 py-1.5 font-semibold transition-colors ${
                       selectedStateFilter === tab.key
                         ? "bg-surface text-accent shadow-xs"
                         : "text-muted hover:text-foreground"

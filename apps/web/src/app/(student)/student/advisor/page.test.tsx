@@ -84,7 +84,10 @@ describe("student AI chat resilience", () => {
     renderPage();
 
     await screen.findByText("كيف نرسم خطوتك القادمة؟");
-    expect((screen.getByRole("textbox", { name: "الاستفسار الأكاديمي" }) as HTMLTextAreaElement).disabled).toBe(false);
+    const textbox = screen.getByRole("textbox", { name: "الاستفسار الأكاديمي" }) as HTMLTextAreaElement;
+    expect(textbox.disabled).toBe(false);
+    expect(textbox.getAttribute("aria-describedby")).toBe("advisor-composer-assurance");
+    expect(screen.getByText("مرشدي يشرح النتائج؛ القواعد الأكاديمية الحتمية هي التي تقرر.")).toBeDefined();
     expect(fetchSpy).toHaveBeenCalledWith(
       "https://api.morshidi.test/api/v1/me/conversations?offset=0",
       expect.objectContaining({ cache: "no-store" }),

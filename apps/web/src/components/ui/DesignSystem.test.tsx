@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { Badge } from './Badge';
 import { Button, Card } from './DesignSystem';
 import { StatCard } from './StatCard';
+import { ProgressBar } from './ProgressBar';
 
 describe('luxury design-system primitives', () => {
   it('exposes reusable button variants without changing native button behavior', () => {
@@ -50,5 +51,15 @@ describe('luxury design-system primitives', () => {
     render(<StatCard title="Official evidence" value={0} />);
 
     expect(screen.getByText('0').closest('.metric-value')).not.toBeNull();
+  });
+
+  it('animates progress with a clamped transform scale instead of layout-changing width', () => {
+    render(<ProgressBar completed={75} total={100} label="الخطة" />);
+
+    const progress = screen.getByRole('progressbar', { name: 'الخطة' });
+    const fill = progress.firstElementChild as HTMLElement;
+    expect(fill.style.getPropertyValue('--progress-scale')).toBe('0.75');
+    expect(fill.style.width).toBe('');
+    expect(screen.getByText('75%')).toBeDefined();
   });
 });

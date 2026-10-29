@@ -283,7 +283,7 @@ export default function AdvisorPage() {
         {historyStatus==='auth-error'?<FriendlyState error title="انتهت صلاحية الجلسة. يرجى تسجيل الدخول مرة أخرى."/>:null}
         {historyStatus!=='auth-error'&&!messages.length&&historyStatus!=='initializing'&&historyStatus!=='loading'&&<div className="chat-welcome"><div className="chat-mascot"><Image src="/brand/morshidi-guide-cutout.png" alt="" width={160} height={240}/></div><h1>كيف نرسم خطوتك القادمة؟</h1><div className="chat-suggestions">{SUGGESTED_QUESTIONS.map((q,i)=><button key={q} onClick={()=>setInputPrompt(q)}><span className="suggestion-number">0{i+1}</span><span>{q}</span><span aria-hidden="true">↖</span></button>)}</div></div>}
         {olderAvailable&&<button className="button-secondary" onClick={()=>void loadOlder()}>رسائل أقدم</button>}
-        {messages.map(msg=><article key={msg.id} className={`chat-message ${msg.sender==='student'?'message-user':'message-advisor'}`}>
+        {messages.map(msg=><article key={msg.id} data-sender={msg.sender} className={`chat-message ${msg.sender==='student'?'message-user':'message-advisor'}`}>
           {msg.sender==='advisor'&&<div className="message-brand"><LogoMark/><span>مرشدي</span></div>}
           <div className="message-prose"><ReactMarkdown>{msg.text}</ReactMarkdown></div>
           {msg.advisorData&&<AdvisorResultCard response={msg.advisorData}/>}
@@ -294,7 +294,7 @@ export default function AdvisorPage() {
           <div className="message-meta"><time>{msg.timestamp}</time><button aria-label="نسخ الرسالة" onClick={()=>{void navigator.clipboard.writeText(msg.text).then(()=>setCopied(msg.id)).catch(()=>setCopied(null));}}>{copied===msg.id?<Check size={14}/>:<Copy size={14}/>}</button></div>
           {msg.delivery==='failed'&&<div className="message-retry" role="alert"><span>{sendError==='timeout'?'استغرق الرد وقتًا أطول من المتوقع.':'تعذّر إرسال الرسالة.'}</span><button className="button-secondary" onClick={()=>void handleSendMessage(msg.text,msg.id,msg.clientMessageId)}>إعادة المحاولة</button></div>}
         </article>)}
-        {loading&&<div className="chat-pending" role="status"><Compass className="needle-loading" size={22}/><span>يجهّز مرشدي الرد…</span></div>}
+        {loading&&<div className="chat-pending" role="status"><Compass className="needle-loading" size={22} aria-hidden="true"/><span>يجهّز مرشدي الرد…</span></div>}
         <div ref={messagesEndRef}/>
       </div>
       <div className="chat-composer-wrap">{messages.length>4&&<button className="latest-message" onClick={scrollToBottom}><ArrowDown size={13}/>آخر الرسائل</button>}{archived&&<p className="text-xs text-muted">محادثة مؤرشفة</p>}<ChatComposer value={inputPrompt} onChange={setInputPrompt} onSend={()=>void handleSendMessage()} loading={loading} disabled={historyStatus==='initializing'||historyStatus==='loading'||historyStatus==='auth-error'||archived}/></div>

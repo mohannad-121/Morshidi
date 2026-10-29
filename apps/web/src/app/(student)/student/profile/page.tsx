@@ -120,7 +120,7 @@ export default function ProfilePage() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="profile-page space-y-6">
       {/* Page Header */}
       <div className="flex flex-col gap-2 border-b border-border pb-5 sm:flex-row sm:items-center sm:justify-between">
         <div>
@@ -163,7 +163,7 @@ export default function ProfilePage() {
       {!loading && !error && profile ? (
         <div className="space-y-6">
           {/* Main Info Card */}
-          <div className="rounded-3xl border border-border bg-surface p-7 shadow-xs">
+          <div className="profile-identity-card surface-feature rounded-3xl border border-border p-7">
             <div className="flex items-center gap-4 border-b border-border/60 pb-6">
               <div className="shrink-0">
                 <button
@@ -184,10 +184,10 @@ export default function ProfilePage() {
                       unoptimized
                     />
                   ) : (
-                    <ProfileIcon className="h-7 w-7" />
+                    <ProfileIcon className="h-7 w-7" aria-hidden="true" />
                   )}
                   <span className="absolute inset-x-0 bottom-0 z-10 flex h-6 items-center justify-center bg-black/70 text-champagne opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100">
-                    {avatarUploading ? <LoaderCircle className="h-3.5 w-3.5 animate-spin" /> : <Camera className="h-3.5 w-3.5" />}
+                    {avatarUploading ? <LoaderCircle className="h-3.5 w-3.5 animate-spin motion-reduce:animate-none" aria-hidden="true" /> : <Camera className="h-3.5 w-3.5" aria-hidden="true" />}
                   </span>
                 </button>
                 <input
@@ -222,7 +222,7 @@ export default function ProfilePage() {
             </div>
 
             <div className="mt-6 grid grid-cols-1 gap-6 sm:grid-cols-3">
-              <div className="rounded-2xl border border-border bg-surface-muted p-5 text-center">
+              <div className="profile-metric rounded-2xl border border-border bg-surface-muted p-5 text-center">
                 <span className="block text-xs font-semibold text-slate-300">
                   المعدل التراكمي
                 </span>
@@ -234,7 +234,7 @@ export default function ProfilePage() {
                 </span>
               </div>
 
-              <div className="rounded-2xl border border-border bg-surface-muted p-5 text-center">
+              <div className="profile-metric rounded-2xl border border-border bg-surface-muted p-5 text-center">
                 <span className="block text-xs font-semibold text-slate-300">
                   الساعات المكتسبة المسجلة
                 </span>
@@ -246,7 +246,7 @@ export default function ProfilePage() {
                 </span>
               </div>
 
-              <div className="rounded-2xl border border-border bg-surface-muted p-5 text-center">
+              <div className="profile-metric rounded-2xl border border-border bg-surface-muted p-5 text-center">
                 <span className="block text-xs font-semibold text-slate-300">
                   حالة الملف
                 </span>
@@ -279,17 +279,20 @@ export default function ProfilePage() {
           </div>
 
           {/* Secondary Expandable Technical Details */}
-          <div className="rounded-2xl border border-border bg-surface p-5 shadow-xs">
+          <div className="profile-technical-card surface-raised rounded-2xl border border-border p-5">
             <button
               type="button"
               onClick={() => setShowTechnicalDetails((prev) => !prev)}
+              aria-expanded={showTechnicalDetails}
+              aria-controls="profile-technical-details"
               className="flex w-full items-center justify-between text-xs font-bold text-slate-300 hover:text-white transition-colors"
             >
               <div className="flex items-center gap-2">
-                <SparklesIcon className="h-4 w-4 text-accent" />
+                <SparklesIcon className="h-4 w-4 text-accent" aria-hidden="true" />
                 <span>المعرفات الفنية والتقنية (لأغراض التدقيق والمطابقة)</span>
               </div>
               <ChevronDownIcon
+                aria-hidden="true"
                 className={`h-4 w-4 transition-transform duration-200 ${
                   showTechnicalDetails ? "rotate-180" : ""
                 }`}
@@ -297,7 +300,7 @@ export default function ProfilePage() {
             </button>
 
             {showTechnicalDetails ? (
-              <div className="mt-4 space-y-3 border-t border-border/60 pt-4 text-xs font-mono">
+              <div id="profile-technical-details" className="mt-4 space-y-3 border-t border-border/60 pt-4 text-xs font-mono">
                 <div>
                   <span className="block text-[10px] font-sans font-bold text-slate-400">
                     معرّف الملف الأكاديمي (Profile UUID):

@@ -76,6 +76,7 @@ beforeEach(() => {
 test("Arabic overview renders authoritative KPIs and all 17 composite programs", async () => {
   render(<InstitutionalDashboard initialView="overview"/>);
   expect(await screen.findByText("ما الذي يحدث أكاديميًا، ولماذا؟")).toBeTruthy();
+  expect(screen.getByText("الذكاء الاصطناعي يشرح؛ القواعد الحتمية تقرر.")).toBeTruthy();
   expect(screen.getByText("الطلبة النشطون")).toBeTruthy();
   expect(screen.getByText("17")).toBeTruthy();
   fireEvent.change(screen.getByLabelText("الكلية"), { target: { value: "IT" } });
