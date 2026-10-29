@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
+import { BadgeCheck, BookOpenCheck, Clock3, Gauge, RefreshCw, Sparkles } from "lucide-react";
 import { SignOutButton } from "@/auth/sign-out-button";
 import { useAuth } from "@/auth/auth-provider";
 import {
@@ -17,6 +18,7 @@ import type {
 import { Badge } from "@/components/ui/Badge";
 import { StatCard } from "@/components/ui/StatCard";
 import { ProgressBar } from "@/components/ui/ProgressBar";
+import { LoadingSkeletonGrid } from "@/components/ui/LoadingSkeleton";
 import { Emoji } from "@/components/ui/Emoji";
 import { getArabicGreeting, getStudentDisplayName } from "@/lib/student-identity";
 import {
@@ -256,7 +258,7 @@ export default function StudentPage({ client: injectedClient }: StudentPageProps
               className="glass dashboard-refresh"
               aria-label="تحديث البيانات"
             >
-              <span aria-hidden="true" className={loading ? "animate-spin" : ""}><Emoji emoji="🔄" decorative /></span>
+              <RefreshCw aria-hidden="true" className={loading ? "animate-spin motion-reduce:animate-none" : ""} size={17} />
               <span className="refresh-label">تحديث البيانات</span>
             </button>
             <SignOutButton className="glass dashboard-signout" />
@@ -301,10 +303,11 @@ export default function StudentPage({ client: injectedClient }: StudentPageProps
 
       {/* Loading state */}
       {loading ? (
-        <section className="glass dashboard-state" role="status">
-          <p className="text-sm font-semibold text-accent animate-pulse">
+        <section className="dashboard-state space-y-4" role="status" aria-label="جاري تحميل البيانات الأكاديمية">
+          <p className="text-sm font-semibold text-accent">
             جاري تحميل البيانات الأكاديمية…
           </p>
+          <div aria-hidden="true"><LoadingSkeletonGrid count={4} /></div>
         </section>
       ) : null}
 
@@ -334,25 +337,27 @@ export default function StudentPage({ client: injectedClient }: StudentPageProps
         <div className="dashboard-loaded">
           {intelligence ? <section className="glass diagnostic-banner">
             <div className="diagnostic-banner-content">
-              <div><p>بصمتي الأكاديمية</p><h2>{intelligence.diagnostic_recommended ? <>ساعد مرشدي يتعرّف عليك بشكل أفضل <Emoji emoji="💡" decorative /></> : `مرشدي يعرف أداءك من ${intelligence.verified_grade_count} علامة أكاديمية موثقة`}</h2><p>تخصيص مفسّر لا يغيّر الأهلية أو المتطلبات الأكاديمية.</p></div>
-              <Link href={intelligence.diagnostic_recommended ? "/student/diagnostic" : "/student/intelligence"} className="diagnostic-cta">{intelligence.diagnostic_recommended ? <>ابدأ الاختبار السريع <Emoji emoji="⚡" decorative /></> : "عرض بصمتي"}</Link>
+              <div><p><Sparkles size={14} aria-hidden="true" /> بصمتي الأكاديمية</p><h2>{intelligence.diagnostic_recommended ? "ساعد مرشدي يتعرّف عليك بشكل أفضل" : `مرشدي يعرف أداءك من ${intelligence.verified_grade_count} علامة أكاديمية موثقة`}</h2><p>تخصيص مفسّر لا يغيّر الأهلية أو المتطلبات الأكاديمية.</p></div>
+              <Link href={intelligence.diagnostic_recommended ? "/student/diagnostic" : "/student/intelligence"} className="diagnostic-cta">{intelligence.diagnostic_recommended ? "ابدأ الاختبار السريع" : "عرض بصمتي"}</Link>
             </div>
           </section> : null}
           {/* Quick Stats Grid */}
           <div className="dashboard-journey" aria-label="ملخص الرحلة الأكاديمية">
             <StatCard
-              title="⏳ إجمالي ساعات الخطة"
+              title="إجمالي ساعات الخطة"
               value={<>{displayValue(progress.plan_total_required_credits)} <small>ساعة</small></>}
               subtitle="ساعة معتمدة مطلوبة للتخرج"
+              icon={<Gauge size={20} />}
               variant="warm"
               className="dashboard-hero-stat glass"
             >
               <ProgressBar completed={Number(reportedEarnedCredits) || 0} total={progress.plan_total_required_credits} showPercent={false} />
             </StatCard>
             <StatCard
-              title="✅ الساعات المكتسبة (سجل الجامعة)"
+              title="الساعات المكتسبة (سجل الجامعة)"
               value={displayValue(reportedEarnedCredits)}
               subtitle="سجل الجامعة الرسمي"
+              icon={<BadgeCheck size={19} />}
               className="glass"
               badge={
                 universityProgressPercent !== null ? (
@@ -363,22 +368,25 @@ export default function StudentPage({ client: injectedClient }: StudentPageProps
               }
             />
             <StatCard
-              title="📖 الساعات المتبقية (حسب سجل الجامعة)"
+              title="الساعات المتبقية (حسب سجل الجامعة)"
               value={displayValue(reportedRemainingCredits)}
               subtitle="متبقية حسب سجل الجامعة"
+              icon={<BookOpenCheck size={19} />}
               variant="gold"
               className="glass"
             />
             <StatCard
-              title="🕒 الساعات قيد التسجيل"
+              title="الساعات قيد التسجيل"
               value={displayValue(progress.in_progress_plan_credits)}
               subtitle="مسجلة في الفصل الحالي"
+              icon={<Clock3 size={19} />}
               className="glass"
             />
             <StatCard
-              title="📊 نسبة الإنجاز (سجل الجامعة)"
+              title="نسبة الإنجاز (سجل الجامعة)"
               value={universityProgressPercent !== null ? `${universityProgressPercent}%` : "غير متوفر"}
               subtitle="نسبة الساعات المكتسبة إلى الخطة"
+              icon={<Gauge size={19} />}
               className="glass"
             />
           </div>

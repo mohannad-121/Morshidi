@@ -118,7 +118,7 @@ export function LoginForm() {
             name="studentId"
             type="text"
             inputMode="numeric"
-            autoComplete="off"
+            autoComplete="username"
             placeholder="202310001"
             required
             disabled={isSubmitting || auth.isLoading}
@@ -152,7 +152,7 @@ export function LoginForm() {
             <button
               type="button"
               onClick={() => setShowPassword((prev) => !prev)}
-              className="absolute left-3 top-1/2 -translate-y-1/2 text-muted hover:text-foreground transition-colors p-1"
+              className="login-password-toggle absolute left-1 top-1/2 -translate-y-1/2 text-muted transition-colors hover:text-foreground"
               aria-label={
                 showPassword
                   ? "\u0625\u062e\u0641\u0627\u0621 \u0643\u0644\u0645\u0629 \u0627\u0644\u0645\u0631\u0648\u0631"
@@ -161,9 +161,9 @@ export function LoginForm() {
               tabIndex={0}
             >
               {showPassword ? (
-                <EyeOffIcon className="h-5 w-5" />
+                <EyeOffIcon className="h-5 w-5" aria-hidden="true" />
               ) : (
-                <EyeIcon className="h-5 w-5" />
+                <EyeIcon className="h-5 w-5" aria-hidden="true" />
               )}
             </button>
           </div>

@@ -1,3 +1,5 @@
+import type { CSSProperties } from "react";
+
 interface ProgressBarProps {
   completed: number;
   total: number;
@@ -36,8 +38,8 @@ export function ProgressBar({
         aria-label={label ?? "مؤشر التقدم"}
       >
         <div
-          className={`progress-fill h-full rounded-full transition-all duration-500 ease-out ${barColor}`}
-          style={{ width: `${percent}%` }}
+          className={`progress-fill h-full w-full rounded-full ${barColor}`}
+          style={{ "--progress-scale": percent / 100 } as CSSProperties}
         />
       </div>
     </div>

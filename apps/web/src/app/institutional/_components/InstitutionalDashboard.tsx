@@ -25,7 +25,7 @@ function value(metric: Metric) {
 
 function Kpi({ label, metric, icon: Icon }: { label: string; metric: Metric;
   icon: typeof UsersRound }) {
-  return <article className="surface-raised rounded-2xl border border-border p-4 shadow-sm">
+  return <article className="institutional-kpi surface-interactive rounded-2xl border border-border p-4">
     <div className="flex items-start justify-between gap-3">
       <div><p className="text-xs text-muted">{label}</p><strong className="mt-2 block text-2xl font-semibold tabular-nums">{value(metric)}</strong></div>
       <span className="grid size-10 place-items-center rounded-xl border border-amber-500/20 bg-amber-500/10 text-amber-300"><Icon className="size-5" aria-hidden="true"/></span>
@@ -43,8 +43,9 @@ function StateBadge({ state }: { state: string }) {
 }
 
 function CoursesTable({ courses }: { courses: CourseMetric[] }) {
-  return <div className="overflow-x-auto rounded-2xl border border-border bg-surface">
+  return <div className="institutional-table panel-scroll overflow-x-auto rounded-2xl border border-border bg-surface" tabIndex={0} aria-label="جدول مؤشرات المواد؛ يمكن تمريره أفقياً على الشاشات الصغيرة">
     <table className="w-full min-w-[980px] text-right text-sm">
+      <caption className="sr-only">مؤشرات الطلب والطاقة والاختناقات للمواد الأكاديمية</caption>
       <thead><tr><th className="p-3">المادة</th><th className="p-3">المؤهلون</th><th className="p-3">الحاجة المخططة</th><th className="p-3">الطلب المتوقع</th><th className="p-3">المقاعد</th><th className="p-3">الفجوة</th><th className="p-3">الطاقة</th><th className="p-3">الاختناق</th><th className="p-3">البرامج</th></tr></thead>
       <tbody>{courses.map(course => <tr key={course.course_code} className="border-t border-border align-top">
         <td className="p-3"><strong dir="ltr" className="font-mono text-amber-200">{course.course_code}</strong><span className="mt-1 block max-w-56">{course.name_ar ?? course.name_en ?? "—"}</span><small className="text-muted">ثقة الإسقاط: {statusArabic[course.projection_confidence] ?? course.projection_confidence}</small></td>
@@ -114,17 +115,18 @@ export function InstitutionalDashboard({ initialView = "overview" }: { initialVi
     catch { setError("unavailable"); }
   }
 
-  return <main className="mx-auto max-w-[1360px] space-y-6 p-4 sm:p-6 lg:p-8">
+  return <main className="institutional-dashboard mx-auto max-w-[1360px] space-y-6 p-4 sm:p-6 lg:p-8">
     <header className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
       <div className="max-w-3xl">
         <span className="inline-flex items-center gap-2 text-xs font-semibold text-amber-300"><Sparkles className="size-4" aria-hidden="true"/> طبقة القرار الأكاديمي المؤسسي</span>
         <h1 className="mt-2 text-balance text-3xl font-bold tracking-tight sm:text-4xl">ما الذي يحدث أكاديميًا، ولماذا؟</h1>
         <p className="mt-2 text-sm leading-7 text-muted">مؤشرات حتمية قابلة للتدقيق عبر البرامج والمواد والتسجيل. لا تُستخدم نماذج اللغة لحساب أي رقم.</p>
+        <p className="institutional-assurance"><ShieldCheck className="size-4" aria-hidden="true"/> الذكاء الاصطناعي يشرح؛ القواعد الحتمية تقرر.</p>
       </div>
       {data && <div className="flex flex-wrap items-center gap-2 text-xs"><StateBadge state={data.role_scope}/><span className="rounded-full border border-border px-3 py-1.5 text-muted">إصدار العقد {data.contract_version}</span></div>}
     </header>
 
-    <form onSubmit={event => { event.preventDefault(); void load(university); }} className="surface-raised grid gap-3 rounded-2xl border border-border p-4 sm:grid-cols-2 xl:grid-cols-[1fr_1fr_1fr_auto]" aria-label="مرشحات لوحة الذكاء المؤسسي">
+    <form onSubmit={event => { event.preventDefault(); void load(university); }} className="institutional-filter-panel surface-feature grid gap-3 rounded-2xl border border-border p-4 sm:grid-cols-2 xl:grid-cols-[1fr_1fr_1fr_auto]" aria-label="مرشحات لوحة الذكاء المؤسسي">
       <label className="grid gap-1.5 text-xs text-muted">الفصل الأكاديمي<input value={term} onChange={event => setTerm(event.target.value)} className="min-h-11 rounded-xl border border-border bg-background px-3 text-sm text-foreground"/></label>
       <label className="grid gap-1.5 text-xs text-muted">الكلية<select value={faculty} onChange={event => { setFaculty(event.target.value); setMajor(""); }} className="min-h-11 rounded-xl border border-border bg-background px-3 text-sm text-foreground"><option value="">كل الكليات</option>{faculties.map(([code, name]) => <option key={code} value={code}>{name}</option>)}</select></label>
       <label className="grid gap-1.5 text-xs text-muted">التخصص<select value={major} onChange={event => setMajor(event.target.value)} className="min-h-11 rounded-xl border border-border bg-background px-3 text-sm text-foreground"><option value="">كل التخصصات</option>{majors.map(item => <option key={item.plan_key} value={item.major_code}>{item.major_name_ar}</option>)}</select></label>
@@ -137,7 +139,7 @@ export function InstitutionalDashboard({ initialView = "overview" }: { initialVi
 
     {data && <>
       {initialView === "overview" && <>
-        <section aria-label="المؤشرات الرئيسية" className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <section aria-label="المؤشرات الرئيسية" className="institutional-kpi-grid grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
           <Kpi label="الطلبة النشطون" metric={data.overview.total_active_students} icon={UsersRound}/>
           <Kpi label="التسجيلات الحالية" metric={data.overview.current_registrations} icon={BookOpenCheck}/>
           <Kpi label="فرص المواد المؤهلة" metric={data.overview.eligible_course_opportunities} icon={CheckCircle2}/>

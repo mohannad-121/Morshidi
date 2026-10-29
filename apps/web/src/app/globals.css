@@ -45,6 +45,13 @@
   --warning: #e5a94e;
   --danger: #ef8176;
   --info: #79aee8;
+  --intelligence: #b7a0ff;
+  --intelligence-soft: rgb(139 92 246 / .11);
+  --intelligence-border: rgb(167 139 250 / .28);
+  --motion-fast: 150ms;
+  --motion-base: 220ms;
+  --motion-slow: 420ms;
+  --ease-emphasized: cubic-bezier(.2, .8, .2, 1);
   --background: var(--bg-canvas);
   --surface: var(--bg-surface);
   --surface-muted: var(--bg-surface-soft);
@@ -907,4 +914,192 @@ button.bg-accent,
 a.bg-accent,
 .bg-accent.text-white {
   color: var(--accent-text) !important;
+}
+
+/* Premium experience layer — shared across student, AI, and institutional surfaces. */
+.progress-fill {
+  transform: scaleX(var(--progress-scale, 0));
+  transform-origin: right center;
+  transition: transform var(--motion-slow) var(--ease-emphasized);
+  will-change: transform;
+}
+[dir="ltr"] .progress-fill { transform-origin:left center; }
+
+.stat-plate,
+.profile-metric,
+.progress-metric,
+.institutional-kpi,
+.requirement-card {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+}
+.stat-plate::before,
+.profile-metric::before,
+.progress-metric::before,
+.institutional-kpi::before,
+.requirement-card::before {
+  position: absolute;
+  inset: 0 0 auto;
+  height: 1px;
+  pointer-events: none;
+  background: linear-gradient(90deg, transparent, rgb(232 213 163 / .45), transparent);
+  content: "";
+  opacity: .55;
+}
+.profile-metric,
+.progress-metric {
+  background: linear-gradient(155deg, rgb(25 23 19 / .92), rgb(11 11 11 / .94));
+  box-shadow: inset 0 1px rgb(255 255 255 / .025), 0 14px 34px rgb(0 0 0 / .24);
+  transition: border-color var(--motion-base) var(--ease), transform var(--motion-base) var(--ease), box-shadow var(--motion-base) var(--ease);
+}
+.profile-identity-card,
+.progress-overview {
+  background:
+    radial-gradient(circle at 88% 6%, rgb(212 175 55 / .12), transparent 22rem),
+    radial-gradient(circle at 8% 95%, rgb(139 92 246 / .07), transparent 20rem),
+    linear-gradient(145deg, #15130f, #090909 68%);
+}
+.profile-technical-card { box-shadow:0 16px 42px rgb(0 0 0 / .26), inset 0 1px rgb(255 255 255 / .025); }
+.requirement-card { background:linear-gradient(150deg, rgb(19 19 19 / .96), rgb(9 9 9 / .98)); }
+
+.dashboard-journey .stat-plate-title > span {
+  display: inline-grid;
+  width: 34px;
+  height: 34px;
+  place-items: center;
+  border: 1px solid rgb(255 215 130 / .22);
+  border-radius: 11px;
+  background: rgb(255 194 26 / .08);
+  color: var(--gold-champagne);
+}
+.diagnostic-banner-content > div > p:first-child { display:flex; align-items:center; gap:6px; }
+
+.chat-workspace { position:relative; isolation:isolate; }
+.chat-workspace::before {
+  position:absolute;
+  inset:-24px -24px auto auto;
+  z-index:-1;
+  width:min(440px,70vw);
+  height:260px;
+  pointer-events:none;
+  border-radius:50%;
+  background:radial-gradient(circle, rgb(139 92 246 / .1), transparent 68%);
+  content:"";
+  filter:blur(18px);
+}
+.message-advisor {
+  border-color:var(--intelligence-border);
+  background:
+    radial-gradient(circle at 100% 0%, var(--intelligence-soft), transparent 18rem),
+    linear-gradient(150deg, rgb(19 17 25 / .92), rgb(10 10 11 / .96));
+  box-shadow:0 18px 45px rgb(0 0 0 / .28), inset 0 1px rgb(255 255 255 / .025);
+}
+.message-advisor .message-brand { color:var(--intelligence); }
+.message-user { border-color:rgb(212 175 55 / .24); }
+.chat-composer-cluster { width:100%; }
+.composer-assurance {
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:6px;
+  margin:7px 14px 0;
+  color:var(--text-muted);
+  font-size:10px;
+  line-height:1.6;
+  text-align:center;
+}
+.composer-assurance svg { flex:0 0 auto; color:var(--intelligence); }
+.chat-composer {
+  border-color:color-mix(in srgb, var(--intelligence) 26%, var(--border-strong));
+  background:linear-gradient(145deg, rgb(24 21 31 / .9), rgb(13 13 15 / .96));
+  box-shadow:0 16px 44px rgb(0 0 0 / .38), inset 0 1px rgb(255 255 255 / .035);
+}
+.chat-composer:focus-within {
+  border-color:color-mix(in srgb, var(--intelligence) 48%, var(--gold-primary));
+  box-shadow:0 0 0 3px rgb(167 139 250 / .1), 0 18px 48px rgb(0 0 0 / .42);
+}
+.chat-composer > button { background:linear-gradient(145deg, var(--gold-primary), var(--gold-rich)); color:var(--accent-text); box-shadow:0 8px 20px rgb(199 149 45 / .22); }
+
+.institutional-dashboard { position:relative; isolation:isolate; }
+.institutional-dashboard::before {
+  position:absolute;
+  inset:-80px 38% auto -12%;
+  z-index:-1;
+  height:420px;
+  pointer-events:none;
+  background:radial-gradient(ellipse, rgb(139 92 246 / .065), transparent 68%);
+  content:"";
+}
+.institutional-assurance {
+  display:inline-flex;
+  align-items:center;
+  gap:7px;
+  margin-top:12px;
+  padding:7px 11px;
+  border:1px solid var(--intelligence-border);
+  border-radius:999px;
+  background:var(--intelligence-soft);
+  color:#d8ccff;
+  font-size:11px;
+  font-weight:650;
+}
+.institutional-filter-panel { border-color:rgb(212 175 55 / .28); }
+.institutional-kpi { background:linear-gradient(150deg, rgb(19 19 19 / .96), rgb(10 10 10 / .98)); box-shadow:0 16px 42px rgb(0 0 0 / .3), inset 0 1px rgb(255 255 255 / .025); }
+.institutional-kpi strong { color:var(--gold-soft); }
+.institutional-table { scrollbar-gutter:stable; box-shadow:inset 0 1px rgb(255 255 255 / .025); }
+.institutional-table:focus-visible { outline:3px solid rgb(212 175 55 / .32); outline-offset:3px; }
+.institutional-table thead { background:linear-gradient(180deg, rgb(212 175 55 / .075), rgb(255 255 255 / .012)); }
+.institutional-table tbody tr:hover { background:rgb(212 175 55 / .045); }
+
+.login-page > * { min-width:0; }
+.login-password-toggle {
+  display:grid;
+  width:44px;
+  height:44px;
+  place-items:center;
+  border-radius:10px;
+}
+.login-password-toggle:hover { background:rgb(212 175 55 / .07); }
+.login-access :where(form, form > div, input, button) { max-width:100%; }
+
+@media (hover:hover) {
+  .profile-metric:hover,
+  .progress-metric:hover,
+  .institutional-kpi:hover {
+    border-color:var(--border-gold);
+    box-shadow:0 20px 50px rgb(0 0 0 / .36), 0 0 24px rgb(212 175 55 / .035);
+    transform:translateY(-2px);
+  }
+}
+
+@media (max-width:768px) {
+  .login-access-inner,
+  .login-access-inner > *,
+  .login-access form,
+  .login-access form > div { min-width:0; max-width:100%; }
+  .login-access input { width:100%; }
+  .login-mobile-logo .brand { max-width:100%; }
+  .profile-identity-card,
+  .progress-overview { padding:20px; }
+  .profile-metric,
+  .progress-metric { min-height:132px; padding:16px; }
+  .institutional-kpi { min-height:124px; }
+  .composer-assurance { align-items:flex-start; margin-inline:8px; text-align:start; }
+}
+
+@media (prefers-reduced-motion:reduce) {
+  html { scroll-behavior:auto; }
+  *, *::before, *::after {
+    animation-duration:.01ms!important;
+    animation-iteration-count:1!important;
+    scroll-behavior:auto!important;
+    transition-duration:.01ms!important;
+  }
+  .progress-fill { will-change:auto; }
+  .surface-interactive:hover,
+  .engraved:is(a,button):hover,
+  .profile-metric:hover,
+  .progress-metric:hover,
+  .institutional-kpi:hover { transform:none; }
 }
