@@ -1094,67 +1094,41 @@ a.bg-accent,
     transform: translateY(0px) scale(1);
   }
   50% {
-    transform: translateY(-4px) scale(1.015);
+    transform: translateY(-3px) scale(1.012);
   }
 }
 
-@keyframes mascot-gesture-left {
+@keyframes mascot-speaking {
   0%, 100% {
-    transform: translate(0px, 0px) rotate(0deg);
+    transform: translateY(0px) scale(1) rotate(0deg);
   }
-  20% {
-    transform: translate(-3px, -8px) rotate(-2.8deg);
+  25% {
+    transform: translateY(-3px) scale(1.014) rotate(0.4deg);
   }
-  38% {
-    transform: translate(-4px, -11px) rotate(-3.6deg);
+  50% {
+    transform: translateY(-1.5px) scale(1.008) rotate(0deg);
   }
-  58% {
-    transform: translate(-2px, -5px) rotate(-1.6deg);
-  }
-  78% {
-    transform: translate(-3.5px, -9px) rotate(-3deg);
-  }
-  92% {
-    transform: translate(-1px, -2px) rotate(-0.6deg);
-  }
-}
-
-@keyframes mascot-gesture-right {
-  0%, 100% {
-    transform: translate(0px, 0px) rotate(0deg);
-  }
-  18% {
-    transform: translate(1px, -2px) rotate(0.6deg);
-  }
-  38% {
-    transform: translate(4px, -10px) rotate(3.4deg);
-  }
-  58% {
-    transform: translate(2px, -5px) rotate(1.5deg);
-  }
-  78% {
-    transform: translate(3.5px, -8px) rotate(2.8deg);
-  }
-  92% {
-    transform: translate(1px, -2px) rotate(0.8deg);
+  75% {
+    transform: translateY(-3.5px) scale(1.016) rotate(-0.4deg);
   }
 }
 
 .animate-mascot-breathe {
   animation: mascot-breathe 3.8s ease-in-out infinite;
+  transform-origin: center bottom;
   will-change: transform;
 }
 
-.animate-mascot-gesture-left {
-  animation: mascot-gesture-left 4.8s ease-in-out infinite;
-  transform-origin: 28% 42%;
+.animate-mascot-speaking {
+  animation: mascot-speaking 2.4s ease-in-out infinite;
+  transform-origin: center bottom;
   will-change: transform;
 }
 
+/* Backward-compatible utility aliases */
+.animate-mascot-gesture-left,
 .animate-mascot-gesture-right {
-  animation: mascot-gesture-right 5.6s ease-in-out infinite;
-  transform-origin: 72% 42%;
-  will-change: transform;
+  transform: none;
 }
 
 @media (prefers-reduced-motion:reduce) {

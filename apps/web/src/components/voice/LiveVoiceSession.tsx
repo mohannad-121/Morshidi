@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, useCallback } from "react";
+import { createPortal } from "react-dom";
 import { AnimatedMorshidiMascot } from "./AnimatedMorshidiMascot";
 import {
   Mic,
@@ -63,6 +64,11 @@ export function LiveVoiceSession({
   useEffect(() => {
     onTurnsUpdatedRef.current = onTurnsUpdated;
   }, [onTurnsUpdated]);
+
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const [status, setStatus] = useState<VoiceSessionStatus>("idle");
   const [dialect, setDialect] = useState<SpokenDialect>("msa");
@@ -202,13 +208,14 @@ export function LiveVoiceSession({
   const isSpeaking = status === "speaking";
   const isDelegating = status === "delegating";
 
-  return (
+  const modalContent = (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-black/85 backdrop-blur-xl animate-fade-in"
+      className="fixed inset-0 z-[100] isolate flex items-center justify-center p-4 sm:p-6 bg-black/85 backdrop-blur-xl animate-fade-in"
       role="dialog"
       aria-modal="true"
       aria-label="محادثة صوتية مباشرة مع مرشدي"
       dir="rtl"
+      style={{ isolation: "isolate" }}
     >
       <div className="relative w-full max-w-2xl bg-[#0d0d0d] border border-amber-500/20 rounded-3xl shadow-2xl shadow-black/90 overflow-hidden flex flex-col max-h-[92vh]">
         {/* Header Bar */}
@@ -456,4 +463,10 @@ export function LiveVoiceSession({
       </div>
     </div>
   );
+
+  if (mounted && typeof document !== "undefined") {
+    return createPortal(modalContent, document.body);
+  }
+
+  return modalContent;
 }

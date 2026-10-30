@@ -1,5 +1,41 @@
 # Morshidi — Codex Progress Record
 
+## Morshidi Realtime Live Voice Agent — Official Mascot Visual Integrity Restoration & Modal Stacking Context Fix (2026-10-30; completed and verified)
+
+**Phase/slice, objective, and starting state:** Restored pristine visual integrity to the official Morshidi mascot and resolved the application navigation overlap on the Live Voice modal on branch `main` at starting HEAD `669850a165ef6d2f1c051ab388cf60a2ef0f55cf`. Production review identified: (1) ugly dark/white patch distortion across lips and beard from multi-frame mouth patching; (2) triangular shoulder gaps and unnatural detached limbs caused by rotating cut arm layers; and (3) the fixed application navigation (`.topbar` / `.sidebar`) overlapping above the Live Voice modal due to container stacking context trapping inside `.route-reveal`.
+
+**Root cause analysis & architectural implementation details:**
+1. *Pristine Unified Mascot Silhouette (`apps/web/public/brand/mascot/morshidi-mascot.png`):*
+   - Replaced multi-layer composite slicing with a single, authentic, mathematically centered 975x800 upper-body silhouette sliced directly from official source artwork `apps/web/public/brand/morshidi-guide-cutout.png`.
+   - Perfectly centered with 13px equal padding on both sides, 0 pixels clipped, and 100% untouched authentic facial features (glasses, styled dark hair, neat beard, friendly smile, cream suit with gold trim).
+   - Synchronized `torso-closed.png`, `torso-half.png`, and `torso-open.png` to the pristine unified artwork, guaranteeing zero mouth patches, zero facial blotches, zero shoulder gaps, and zero detached limbs.
+2. *Natural Subtle Whole-Body Cadence & Motion (`apps/web/src/components/voice/AnimatedMorshidiMascot.tsx`, `apps/web/src/app/globals.css`):*
+   - Configured gentle continuous idle breathing `translateY(-3px) scale(1.012)` on a 3.8s ease-in-out cycle.
+   - When assistant speaks (`isSpeaking` or `assistantAudioLevel >= 0.035`), smoothly transitions into subtle academic conversational sway `translateY(-3.5px) scale(1.016) rotate(±0.4deg)` with `transform-origin: center bottom`, giving life and engagement to the whole character as a single cohesive human figure without any limb detachment.
+   - Preserved reactive ambient aura (gold for speaking, cyan for academic tools, purple for listening) scaling with audio energy.
+   - Full `@media (prefers-reduced-motion: reduce)` accessibility compliance.
+3. *Modal Layering & Stacking Context Resolution (`apps/web/src/components/voice/LiveVoiceSession.tsx`):*
+   - Identified that `.app-content > .route-reveal` creates a local CSS stacking context due to `will-change: opacity, transform` and `animation: route-enter`, trapping `fixed` descendants behind root-level navigation elements (`.topbar` at z-45).
+   - Implemented React Portal mounting (`createPortal(modalContent, document.body)`) with `z-[100]` and `isolation: isolate`.
+   - The Live Voice modal now mounts directly to `document.body` in the root viewport stacking context, completely escaping parent containers and rendering strictly above all headers, sidebars, and drawers.
+
+**Test results and verification metrics:**
+- *Voice Frontend Tests:* 27 passed in 3.00s across 4 test files (`npm --prefix apps/web test -- "voice"`).
+- *Frontend Typecheck:* `npm --prefix apps/web run typecheck` passed with 0 errors.
+- *Next.js Production Build:* `npm --prefix apps/web run build` passed with Turbopack, compiling all 41 routes with 0 errors.
+- *Backend Regression:* 82 passed in 3.22s (`apps/api/.venv311/Scripts/python.exe -m pytest apps/api/tests/test_voice_service.py apps/api/tests/test_advisor_service.py -q`).
+
+**Files changed and verified from disk:**
+- `apps/web/public/brand/mascot/morshidi-mascot.png` (780,457 bytes)
+- `apps/web/public/brand/mascot/torso-closed.png` (780,457 bytes)
+- `apps/web/public/brand/mascot/torso-half.png` (780,457 bytes)
+- `apps/web/public/brand/mascot/torso-open.png` (780,457 bytes)
+- `apps/web/src/app/globals.css` (75,378 bytes)
+- `apps/web/src/components/voice/AnimatedMorshidiMascot.tsx` (4,482 bytes)
+- `apps/web/src/components/voice/AnimatedMorshidiMascot.test.tsx` (4,585 bytes)
+- `apps/web/src/components/voice/LiveVoiceSession.tsx` (19,075 bytes)
+- `docs/CODEX_PROGRESS.md` (updated)
+
 ## Morshidi Realtime Live Voice Agent — GPT-Live Event Contract & Web Audio Mascot Reactivity Fix (2026-10-30; completed and verified)
 
 **Phase/slice, objective, and starting state:** Resolved the production defect where the official Morshidi mascot was visually static during live speech conversations on branch `main` at starting HEAD `e5a125ba35d74ed34d907cfab3b9db17961ee7ab`. The root causes identified were: (1) `WebRTCVoiceSession` only handled legacy Realtime API events (`response.audio_transcript.delta`) rather than official GPT-Live event schema (`session.output_transcript.delta`), preventing status from entering `speaking`; (2) Web Audio API `AudioContext` could initialize in a suspended state and lacked an active destination pull-graph, leading to zeroed-out RMS/frequency bins; (3) animation keyframe displacements were too subtle to be visible at standard viewing distances; and (4) `AnimatedMorshidiMascot.tsx` stacked the torso layer over the left arm, obscuring movement.
