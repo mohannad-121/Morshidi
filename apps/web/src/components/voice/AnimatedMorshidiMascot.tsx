@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import type { VoiceSessionStatus } from "@/lib/voice/webrtc-voice-session";
 import { ASSISTANT_SPEECH_START_LEVEL } from "@/lib/voice/voice-activity";
@@ -26,15 +27,42 @@ const MOUTH_OPEN_LEVEL = 0.14;
 const RIG_ROOT = "/brand/mascot/rig";
 const OFFICIAL_MASCOT = "/brand/mascot/morshidi-mascot.png";
 
+/**
+ * Natural speech cadence controller for the 2D Morshidi mascot.
+ * Alternates mouth aperture across a multi-beat syllabic rhythm (~4 syllables/sec)
+ * driven by remote assistant audio energy. Attack is immediate; closures during pauses are crisp.
+ */
 export function getMascotMouthState(
   assistantAudioLevel: number,
   canAnimateSpeech: boolean,
+  elapsedMs = 0,
 ): MascotMouthState {
   if (!canAnimateSpeech || assistantAudioLevel < ASSISTANT_SPEECH_START_LEVEL) {
     return "closed";
   }
 
-  return assistantAudioLevel >= MOUTH_OPEN_LEVEL ? "open" : "half";
+  // 4-beat syllabic cycle with organic timing (150ms, 120ms, 170ms, 140ms = 580ms total)
+  const PHRASE_DURATION = 580;
+  const phraseTime = Math.max(0, elapsedMs) % PHRASE_DURATION;
+
+  let beatProgress = 0;
+  if (phraseTime < 150) {
+    beatProgress = phraseTime / 150;
+  } else if (phraseTime < 270) {
+    beatProgress = (phraseTime - 150) / 120;
+  } else if (phraseTime < 440) {
+    beatProgress = (phraseTime - 270) / 170;
+  } else {
+    beatProgress = (phraseTime - 440) / 140;
+  }
+
+  if (assistantAudioLevel >= MOUTH_OPEN_LEVEL) {
+    if (beatProgress < 0.60) return "open";
+    if (beatProgress < 0.85) return "half";
+    return "closed";
+  }
+
+  return beatProgress < 0.70 ? "half" : "closed";
 }
 
 /**
@@ -58,7 +86,57 @@ export function AnimatedMorshidiMascot({
     status !== "delegating" &&
     status !== "ended" &&
     status !== "error";
-  const mouthState = getMascotMouthState(assistantAudioLevel, canAnimateSpeech);
+
+  const [prefersReducedMotion, setPrefersReducedMotion] = useState(false);
+  const speechStartTimeRef = useRef<number | null>(null);
+  const [speechElapsedMs, setSpeechElapsedMs] = useState(0);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const mediaQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
+    setPrefersReducedMotion(mediaQuery.matches);
+    const handler = (e: MediaQueryListEvent) => setPrefersReducedMotion(e.matches);
+    mediaQuery.addEventListener("change", handler);
+    return () => mediaQuery.removeEventListener("change", handler);
+  }, []);
+
+  useEffect(() => {
+    if (prefersReducedMotion || !canAnimateSpeech || !isAudioActive) {
+      speechStartTimeRef.current = null;
+      setSpeechElapsedMs(0);
+      return;
+    }
+
+    if (speechStartTimeRef.current === null) {
+      speechStartTimeRef.current = performance.now();
+    }
+
+    let animationFrameId: number;
+    let lastUpdate = performance.now();
+
+    const updateCadence = (now: number) => {
+      // ~25fps cadence update rate for mouth frames
+      if (now - lastUpdate >= 40) {
+        lastUpdate = now;
+        if (speechStartTimeRef.current !== null) {
+          setSpeechElapsedMs(now - speechStartTimeRef.current);
+        }
+      }
+      animationFrameId = requestAnimationFrame(updateCadence);
+    };
+
+    animationFrameId = requestAnimationFrame(updateCadence);
+    return () => {
+      cancelAnimationFrame(animationFrameId);
+    };
+  }, [canAnimateSpeech, isAudioActive, prefersReducedMotion]);
+
+  const effectiveElapsedMs =
+    !prefersReducedMotion && canAnimateSpeech && isAudioActive && speechStartTimeRef.current !== null
+      ? Math.max(speechElapsedMs, performance.now() - speechStartTimeRef.current)
+      : 0;
+
+  const mouthState = getMascotMouthState(assistantAudioLevel, canAnimateSpeech, effectiveElapsedMs);
   const isDelegating = status === "delegating";
   const isListening = status === "listening" && !isAudioActive;
 

@@ -1,5 +1,41 @@
 # Morshidi — Codex Progress Record
 
+## Morshidi Realtime Live Voice Agent — Ultra-Smooth Syllabic Mouth Cadence & Visible Conversational Hand Gestures (2026-10-30; local implementation completed and verified)
+
+**Phase/slice, objective, and starting state:** Implemented ultra-smooth, responsive mouth articulation and noticeable, natural hand gestures for the official 2D Morshidi mascot on branch `main` at starting HEAD `f241c85f0bd0ea4c5021c4f8f378e26b03cc3eb9`. The objective was to directly address real user feedback: *"The mouth moves, but it feels slow and heavy. The hands do not visibly move at all. I want the character to feel extremely smooth, natural and alive."* All strict invariants are preserved: (1) torso remains 100% stationary (`transform: none`); (2) authentic character artwork, face, glasses, beard, and cream suit remain 100% intact from source `/brand/mascot/morshidi-mascot.png`; (3) student microphone energy never drives speech motion; and (4) zero backend/API/database/billing changes.
+
+**Actual root cause and runtime findings:**
+1. *Mouth Cadence Bottleneck:* Previous logic mapped instantaneous audio energy to static states (`>=0.14 -> "open"`). During continuous conversational speech sentences, audio energy remains steadily above 0.14, causing the mouth to freeze wide open for multiple seconds, giving the appearance of a locked jaw and slow, heavy chewing. Replaced with an audio-envelope-driven syllabic cadence controller in `AnimatedMorshidiMascot.tsx` (~4 syllables/sec, 580ms multi-beat organic phrase) that articulates between `open`, `half`, and consonant closures (`closed`), while preserving instant 0ms attack on speech start, instant release to `closed` on silence (<0.035), mic audio isolation, and discrete state retention under `prefers-reduced-motion`.
+2. *Hand Gestures Invisibility:* The previous 8-second CSS animation delayed the right hand until 51% (4.08 seconds), which meant in typical 2–3s conversational responses, the right hand never began moving. Furthermore, keyframe rotation was only 2.2°–3.2° (~2.5px rendered displacement), which was imperceptible at 245px size. Replaced with a 6.4s conversational gesture schedule where the right hand moves early (starts at 0.4s, reaches apex -6.0° at 1.1s for ~12px visible hand travel), holds, returns at 2.4s, followed by an alternating left-hand gesture at 3.2s (+5.8°), with natural rest pauses in between. When speech ends or is interrupted, CSS transition smoothly returns arms to rest in 380ms without snapping.
+3. *Suit Flank Continuity:* Expanded `shoulder-restoration-mask.svg` to seamlessly fill the suit flank when arms rotate up to 6°, eliminating any suit notch or dark void.
+
+**Verification commands and actual results:**
+- Playwright mascot e2e: `npm --prefix apps/web run test:e2e:mascot` -> 7/7 passed (17.8s) in real Edge/Chromium:
+  - Stable torso, mouth states, connected shoulder pivots, manual & automatic gestures, return to idle, audio interruption (Test 1).
+  - Occasional automatic gestures and shoulder pivot stability (Test 2).
+  - Reduced motion freezes both arms while preserving discrete audio mouth state (Test 3).
+  - Real voice modal shell portals above navigation with z-index >= 100 (Test 4).
+  - Test A: mouth articulates across syllables during speech, closes on silence, and ignores mic.
+  - Test B: right hand gestures early (>= 6px displacement within 1.5s; actual ~12px) during spoken response.
+  - Test C: longer speech alternates gestures with natural rest pauses and no simultaneous flailing.
+- Vitest voice suite: `npm --prefix apps/web test -- "voice"` -> 5 files / 32 passed in 3.27s.
+- Vitest full suite: `npm --prefix apps/web test` -> 50 files / 331 passed in 29.25s.
+- TypeScript verification: `npm --prefix apps/web run typecheck` -> passed with 0 errors.
+- Next.js production build: `npm --prefix apps/web run build` -> Next.js 16.3.5 Turbopack compiled 42 routes with 0 errors.
+- Backend regression: `apps/api/.venv311/Scripts/python.exe -m pytest apps/api/tests/test_voice_service.py apps/api/tests/test_advisor_service.py -q` -> 82 passed in 3.19s.
+- Visual frame proof: High-resolution screenshots captured from real Chromium for all 6 states (`ultra-smooth-01-idle-closed.png`, `ultra-smooth-02-speaking-open.png`, `ultra-smooth-03-speaking-half.png`, `ultra-smooth-04-right-early-gesture.png`, `ultra-smooth-05-left-alternating-gesture.png`, `ultra-smooth-06-rest-pause.png`).
+
+**Files changed and verified from disk:**
+- `apps/web/e2e/voice-mascot-animation.pw.ts` (17,302 bytes)
+- `apps/web/public/brand/mascot/rig/shoulder-restoration-mask.svg` (171 bytes)
+- `apps/web/src/app/globals.css` (77,169 bytes)
+- `apps/web/src/components/voice/AnimatedMorshidiMascot.test.tsx` (5,949 bytes)
+- `apps/web/src/components/voice/AnimatedMorshidiMascot.tsx` (9,796 bytes)
+
+**Security, acceptance, and exact next point:**
+Local implementation and visual verification PASS. Zero secrets exposed. No changes made to production resources, database, authentication, GPT-Live backend, or API credentials. In accordance with user rules and instructions, NO code has been staged, committed, pushed, or deployed to production. Deployment remains on hold pending user visual review and explicit human authorization.
+
+
 ## Morshidi Realtime Live Voice Agent — 2D Articulated Character Rig, Independent Audio Mouth & Hand Gestures Verification (2026-10-30; local continuation completed and verified)
 
 **Phase/slice, objective, and starting state:** Continued and verified OpenAI Codex's in-progress 2D articulated character rig for the official Morshidi mascot on branch `main` at starting HEAD `ca71484fc4d4724a7c7a06ffb4efc1c81bf98ef2`. The objective was to satisfy all architectural, visual, and operational requirements without restarting from scratch: (1) torso/body base remains 100% stationary with zero whole-body swaying or bouncing; (2) discrete mouth frames open/close driven purely by remote assistant audio energy without facial distortion, dark patches, or white halos; (3) arms/hands independently gesture with subtle academic rotations (2.2° to 3.2°) around fixed shoulder pivots (33.3%, 40.5% and 66.7%, 40.5%) without detached joints, voids, or tears in the suit; (4) original official character face, glasses, beard, and cream suit remain 100% intact from source `/brand/mascot/morshidi-mascot.png`; and (5) comprehensive Playwright real-browser verification, Vitest tests, TypeScript, and Next.js production build pass cleanly.

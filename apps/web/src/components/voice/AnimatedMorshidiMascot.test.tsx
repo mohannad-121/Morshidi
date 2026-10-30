@@ -24,6 +24,28 @@ describe("AnimatedMorshidiMascot", () => {
     expect(getMascotMouthState(0.8, false)).toBe("closed");
   });
 
+  it("articulates mouth through natural syllabic cadence during continuous speech", () => {
+    // Over a 580ms phrase at high audio volume (0.25):
+    // Beat 1 (0..150ms): open at 0ms, half at 100ms, closed at 140ms
+    expect(getMascotMouthState(0.25, true, 0)).toBe("open");
+    expect(getMascotMouthState(0.25, true, 100)).toBe("half");
+    expect(getMascotMouthState(0.25, true, 140)).toBe("closed");
+
+    // Beat 2 (150..270ms): open at 160ms, half at 240ms, closed at 260ms
+    expect(getMascotMouthState(0.25, true, 160)).toBe("open");
+    expect(getMascotMouthState(0.25, true, 240)).toBe("half");
+    expect(getMascotMouthState(0.25, true, 260)).toBe("closed");
+
+    // Soft speech (0.08) articulates between half and closed
+    expect(getMascotMouthState(0.08, true, 0)).toBe("half");
+    expect(getMascotMouthState(0.08, true, 120)).toBe("closed");
+    expect(getMascotMouthState(0.08, true, 160)).toBe("half");
+
+    // Immediate silence return to closed regardless of elapsed time
+    expect(getMascotMouthState(0.01, true, 50)).toBe("closed");
+    expect(getMascotMouthState(0.3, false, 50)).toBe("closed");
+  });
+
   it("renders the source-faithful layered rig with a stationary body", () => {
     const { container } = render(<AnimatedMorshidiMascot status="idle" />);
     const sources = Array.from(container.querySelectorAll("img")).map((image) =>

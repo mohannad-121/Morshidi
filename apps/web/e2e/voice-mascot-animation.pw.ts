@@ -189,7 +189,7 @@ test("automatic gestures are occasional and keep the shoulder joints fixed", asy
     const animation = element.getAnimations()[0];
     if (!animation) return [];
     animation.pause();
-    return [0, 800, 1520, 2400, 4000, 7200].map((time) => {
+    return [0, 1500, 3200, 3900, 4400, 5600].map((time) => {
       animation.currentTime = time;
       return getComputedStyle(element).transform;
     });
@@ -248,4 +248,141 @@ test("real voice modal shell portals above navigation without starting a voice s
   expect(evidence.bounds.y).toBe(0);
   expect(evidence.bounds.width).toBe(evidence.viewport.width);
   expect(evidence.bounds.height).toBe(evidence.viewport.height);
+});
+
+test("Test A: mouth articulates across syllables during speech, closes on silence, and ignores mic", async ({ page }, testInfo) => {
+  await page.goto("/dev/voice-mascot-preview");
+  const mascot = page.getByTestId("animated-morshidi-mascot");
+  const rig = page.getByTestId("mascot-body-container");
+
+  // 1. Idle is closed
+  await expect(mascot).toHaveAttribute("data-mouth-state", "closed");
+
+  // 2. Student mic alone does not trigger speech mouth
+  await page.getByRole("button", { name: "listening" }).click();
+  await page.getByTestId("microphone-audio-level").fill("0.8");
+  await expect(mascot).toHaveAttribute("data-mouth-state", "closed");
+  await expect(mascot).toHaveAttribute("data-speaking", "false");
+
+  // 3. Start speech
+  await page.getByRole("button", { name: "speaking" }).click();
+  await setAssistantLevel(page, 0.25);
+  await expect(mascot).toHaveAttribute("data-speaking", "true");
+
+  // Verify multiple mouth state transitions occur over continuous speech
+  const observedStates = new Set<string>();
+  const deadline = Date.now() + 800;
+  while (Date.now() < deadline) {
+    const state = await mascot.getAttribute("data-mouth-state");
+    if (state) observedStates.add(state);
+    if (observedStates.size >= 3) break;
+    await page.waitForTimeout(30);
+  }
+  expect(observedStates.has("open")).toBe(true);
+  expect(observedStates.has("half")).toBe(true);
+  expect(observedStates.has("closed")).toBe(true);
+  expect(observedStates.size).toBeGreaterThanOrEqual(3);
+  await attachStateScreenshot(rig, "test-a-speaking-cadence", testInfo);
+
+  // 4. Return to silence closes immediately
+  await setAssistantLevel(page, 0);
+  await expect(mascot).toHaveAttribute("data-mouth-state", "closed");
+});
+
+test("Test B: right hand gestures early (>= 6px displacement within 1.5s) during spoken response", async ({ page }, testInfo) => {
+  await page.goto("/dev/voice-mascot-preview");
+  const mascot = page.getByTestId("animated-morshidi-mascot");
+  const rig = page.getByTestId("mascot-body-container");
+  const rightArm = page.getByTestId("mascot-arm-right");
+  const body = page.getByTestId("mascot-body-base");
+
+  // Verify initial rest
+  await expect(mascot).toHaveAttribute("data-mouth-state", "closed");
+  await expect(rightArm).toHaveCSS("transform", "none");
+
+  // Start speaking without overrides (gesture="auto")
+  await page.getByRole("button", { name: "speaking" }).click();
+  await setAssistantLevel(page, 0.3);
+
+  // Measure right arm animation during the first 1.5s (apex is at 1.1s = 1100ms)
+  const maxDisplacement = await rightArm.evaluate((element) => {
+    const animation = element.getAnimations()[0];
+    if (!animation) return 0;
+    animation.pause();
+    const bounds = [0, 400, 800, 1100, 1500].map((t) => {
+      animation.currentTime = t;
+      return element.getBoundingClientRect();
+    });
+    const rest = bounds[0];
+    return Math.max(...bounds.map((b) => Math.hypot(b.x - rest.x, b.y - rest.y)));
+  });
+
+  // Must displace visibly by >= 6px at standard desktop rendering (natural visible motion)
+  expect(maxDisplacement).toBeGreaterThanOrEqual(6);
+
+  // Torso remains stationary
+  await expect(body).toHaveCSS("transform", "none");
+  await expectJointConnected(page.getByTestId("body-joint-right"), page.getByTestId("arm-joint-right"));
+  await attachStateScreenshot(rig, "test-b-early-right-gesture", testInfo);
+});
+
+test("Test C: longer speech alternates gestures with natural rest pauses and no simultaneous flailing", async ({ page }, testInfo) => {
+  await page.goto("/dev/voice-mascot-preview");
+  await page.getByRole("button", { name: "speaking" }).click();
+  await setAssistantLevel(page, 0.3);
+
+  const leftArm = page.getByTestId("mascot-arm-left");
+  const rightArm = page.getByTestId("mascot-arm-right");
+  const rig = page.getByTestId("mascot-body-container");
+
+  // Sample both arms over a full cycle (6.4s = 6400ms)
+  const timeline = await Promise.all([
+    leftArm.evaluate((element) => {
+      const anim = element.getAnimations()[0];
+      if (!anim) return [];
+      anim.pause();
+      // Sample times: 0, 1100 (right apex), 2700 (rest pause), 3900 (left apex), 5600 (rest pause)
+      return [0, 1100, 2700, 3900, 5600].map((t) => {
+        anim.currentTime = t;
+        return getComputedStyle(element).transform;
+      });
+    }),
+    rightArm.evaluate((element) => {
+      const anim = element.getAnimations()[0];
+      if (!anim) return [];
+      anim.pause();
+      return [0, 1100, 2700, 3900, 5600].map((t) => {
+        anim.currentTime = t;
+        return getComputedStyle(element).transform;
+      });
+    }),
+  ]);
+
+  const [leftTransforms, rightTransforms] = timeline;
+  const isRest = (tf: string) => tf === "none" || tf === "matrix(1, 0, 0, 1, 0, 0)";
+
+  // At t=0: both at rest
+  expect(isRest(leftTransforms[0])).toBe(true);
+  expect(isRest(rightTransforms[0])).toBe(true);
+
+  // At t=1100ms: right arm gestures, left arm remains at rest
+  expect(!isRest(rightTransforms[1])).toBe(true);
+  expect(isRest(leftTransforms[1])).toBe(true);
+
+  // At t=2700ms: both arms in natural rest pause
+  expect(isRest(leftTransforms[2])).toBe(true);
+  expect(isRest(rightTransforms[2])).toBe(true);
+
+  // At t=3900ms: left arm gestures, right arm remains at rest
+  expect(!isRest(leftTransforms[3])).toBe(true);
+  expect(isRest(rightTransforms[3])).toBe(true);
+
+  // At t=5600ms: both arms in natural rest pause
+  expect(isRest(leftTransforms[4])).toBe(true);
+  expect(isRest(rightTransforms[4])).toBe(true);
+
+  // Joints remain connected
+  await expectJointConnected(page.getByTestId("body-joint-left"), page.getByTestId("arm-joint-left"));
+  await expectJointConnected(page.getByTestId("body-joint-right"), page.getByTestId("arm-joint-right"));
+  await attachStateScreenshot(rig, "test-c-alternating-gestures", testInfo);
 });
