@@ -16,7 +16,7 @@ describe("WebRTCVoiceSession", () => {
     readyState: string;
     onopen: (() => void) | null;
     onclose: (() => void) | null;
-    onerror: ((e: any) => void) | null;
+    onerror: ((e: unknown) => void) | null;
     onmessage: ((e: { data: string }) => void) | null;
   };
 
@@ -28,7 +28,7 @@ describe("WebRTCVoiceSession", () => {
     createDataChannel: ReturnType<typeof vi.fn>;
     close: ReturnType<typeof vi.fn>;
     connectionState: string;
-    ontrack: ((event: any) => void) | null;
+    ontrack: ((event: { streams: MediaStream[] }) => void) | null;
     onconnectionstatechange: (() => void) | null;
   };
 
@@ -97,7 +97,10 @@ describe("WebRTCVoiceSession", () => {
       ontrack = null;
       onconnectionstatechange = null;
     }
-    (global as any).RTCPeerConnection = MockPeerConnectionClass;
+    Object.defineProperty(globalThis, "RTCPeerConnection", {
+      value: MockPeerConnectionClass,
+      configurable: true,
+    });
 
     // Mock Audio global with proper constructible class
     class MockAudioClass {
@@ -107,7 +110,10 @@ describe("WebRTCVoiceSession", () => {
       srcObject = null;
       currentTime = 0;
     }
-    (global as any).Audio = MockAudioClass;
+    Object.defineProperty(globalThis, "Audio", {
+      value: MockAudioClass,
+      configurable: true,
+    });
 
     mockVoiceApi = {
       createSession: vi.fn().mockResolvedValue({
@@ -224,6 +230,63 @@ describe("WebRTCVoiceSession", () => {
     });
 
     expect(session.getStatus()).toBe("listening");
+  });
+
+  it("uses remote analyser audio to leave delegation, holds short pauses, and returns to listening", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(1_000);
+
+    let nextFrame: FrameRequestCallback | undefined;
+    vi.stubGlobal(
+      "requestAnimationFrame",
+      vi.fn((callback: FrameRequestCallback) => {
+        nextFrame = callback;
+        return 1;
+      }),
+    );
+    vi.stubGlobal("cancelAnimationFrame", vi.fn());
+
+    let assistantIsAudible = true;
+    const assistantAnalyser = {
+      getByteFrequencyData: (data: Uint8Array) => data.fill(0),
+      getByteTimeDomainData: (data: Uint8Array) => {
+        data.forEach((_, index) => {
+          data[index] = assistantIsAudible
+            ? index % 2 === 0
+              ? 136
+              : 120
+            : 128;
+        });
+      },
+    };
+
+    const onStatusChange = vi.fn();
+    const session = new WebRTCVoiceSession(mockVoiceApi as unknown as VoiceApiService, {
+      onStatusChange,
+    });
+
+    const testableSession = session as unknown as {
+      status: string;
+      assistantAnalyser: typeof assistantAnalyser;
+      startLevelMonitoring: () => void;
+    };
+    testableSession.status = "delegating";
+    testableSession.assistantAnalyser = assistantAnalyser;
+    testableSession.startLevelMonitoring();
+
+    nextFrame?.(0);
+    expect(session.getStatus()).toBe("speaking");
+    expect(onStatusChange).toHaveBeenCalledWith("speaking");
+
+    assistantIsAudible = false;
+    nextFrame?.(16);
+    expect(session.getStatus()).toBe("speaking");
+
+    vi.advanceTimersByTime(500);
+    nextFrame?.(516);
+    expect(session.getStatus()).toBe("listening");
+
+    vi.useRealTimers();
   });
 
   it("handles GPT-Live client delegation with session.delegation.created and replies with session.commentary.append", async () => {

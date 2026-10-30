@@ -1,10 +1,11 @@
 import { render, screen, cleanup } from "@testing-library/react";
 import { describe, expect, it, vi, afterEach } from "vitest";
+import type { ComponentProps } from "react";
 import { AnimatedMorshidiMascot } from "./AnimatedMorshidiMascot";
 
 vi.mock("next/image", () => ({
   __esModule: true,
-  default: (props: any) => <img {...props} />,
+  default: (props: ComponentProps<"img">) => <img {...props} />,
 }));
 
 afterEach(() => {
@@ -20,6 +21,7 @@ describe("AnimatedMorshidiMascot", () => {
     expect(mascot.getAttribute("role")).toBe("img");
     expect(mascot.getAttribute("aria-label")).toContain("مرشدي");
     expect(mascot.getAttribute("data-status")).toBe("idle");
+    expect(mascot.getAttribute("data-motion")).toBe("breathing");
     expect(mascot.getAttribute("data-mouth-state")).toBe("closed");
   });
 
@@ -47,6 +49,7 @@ describe("AnimatedMorshidiMascot", () => {
     rerender(<AnimatedMorshidiMascot status="speaking" assistantAudioLevel={0.15} />);
     expect(bodyContainer.classList.contains("animate-mascot-speaking")).toBe(true);
     expect(bodyContainer.classList.contains("animate-mascot-breathe")).toBe(false);
+    expect(screen.getByTestId("animated-morshidi-mascot").getAttribute("data-motion")).toBe("speaking");
 
     // Assistant returns to listening
     rerender(<AnimatedMorshidiMascot status="listening" assistantAudioLevel={0.0} />);

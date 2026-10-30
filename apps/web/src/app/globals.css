@@ -1093,8 +1093,8 @@ a.bg-accent,
   0%, 100% {
     transform: translateY(0px) scale(1);
   }
-  50% {
-    transform: translateY(-3px) scale(1.012);
+  48% {
+    transform: translateY(calc(-1 * var(--mascot-idle-rise))) scale(1.008) rotate(0.18deg);
   }
 }
 
@@ -1102,26 +1102,35 @@ a.bg-accent,
   0%, 100% {
     transform: translateY(0px) scale(1) rotate(0deg);
   }
-  25% {
-    transform: translateY(-3px) scale(1.014) rotate(0.4deg);
+  18% {
+    transform: translate3d(calc(-1 * var(--mascot-sway)), calc(-0.72 * var(--mascot-speaking-rise)), 0) scale(1.01) rotate(-0.7deg);
   }
-  50% {
-    transform: translateY(-1.5px) scale(1.008) rotate(0deg);
+  39% {
+    transform: translate3d(calc(-0.35 * var(--mascot-sway)), calc(-1 * var(--mascot-speaking-rise)), 0) scale(1.013) rotate(-0.25deg);
   }
-  75% {
-    transform: translateY(-3.5px) scale(1.016) rotate(-0.4deg);
+  61% {
+    transform: translate3d(var(--mascot-sway), calc(-0.62 * var(--mascot-speaking-rise)), 0) scale(1.009) rotate(0.75deg);
+  }
+  82% {
+    transform: translate3d(calc(0.4 * var(--mascot-sway)), calc(-0.9 * var(--mascot-speaking-rise)), 0) scale(1.012) rotate(0.3deg);
   }
 }
 
-.animate-mascot-breathe {
-  animation: mascot-breathe 3.8s ease-in-out infinite;
+.mascot-motion {
+  --mascot-idle-rise: clamp(5px, 1.4vw, 6px);
+  --mascot-speaking-rise: clamp(6px, 1.8vw, 8px);
+  --mascot-sway: clamp(2px, 0.8vw, 4px);
   transform-origin: center bottom;
+  backface-visibility: hidden;
+}
+
+.animate-mascot-breathe {
+  animation: mascot-breathe 3.4s cubic-bezier(0.37, 0, 0.63, 1) infinite;
   will-change: transform;
 }
 
 .animate-mascot-speaking {
-  animation: mascot-speaking 2.4s ease-in-out infinite;
-  transform-origin: center bottom;
+  animation: mascot-speaking 2.7s cubic-bezier(0.45, 0, 0.55, 1) infinite;
   will-change: transform;
 }
 
@@ -1140,6 +1149,12 @@ a.bg-accent,
     transition-duration:.01ms!important;
   }
   .progress-fill { will-change:auto; }
+  .animate-mascot-breathe,
+  .animate-mascot-speaking {
+    animation:none!important;
+    transform:none!important;
+    will-change:auto;
+  }
   .surface-interactive:hover,
   .engraved:is(a,button):hover,
   .profile-metric:hover,

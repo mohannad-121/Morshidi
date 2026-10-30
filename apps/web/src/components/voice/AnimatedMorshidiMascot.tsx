@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import type { VoiceSessionStatus } from "@/lib/voice/webrtc-voice-session";
+import { ASSISTANT_SPEECH_START_LEVEL } from "@/lib/voice/voice-activity";
 
 export interface AnimatedMorshidiMascotProps {
   /** Current voice session status */
@@ -37,7 +38,7 @@ export function AnimatedMorshidiMascot({
   sizePreset = "standard",
 }: AnimatedMorshidiMascotProps) {
   // Real assistant audio energy presence
-  const isAudioActive = assistantAudioLevel >= 0.035;
+  const isAudioActive = assistantAudioLevel >= ASSISTANT_SPEECH_START_LEVEL;
 
   // Assistant is actively speaking if status is explicitly "speaking" OR if speech audio energy is playing
   const isActuallySpeaking =
@@ -74,6 +75,8 @@ export function AnimatedMorshidiMascot({
       data-testid="animated-morshidi-mascot"
       data-status={status}
       data-speaking={isActuallySpeaking}
+      data-motion={isActuallySpeaking ? "speaking" : "breathing"}
+      data-size-preset={sizePreset}
       data-mouth-state="closed"
     >
       {/* Dynamic Atmospheric Aura behind Mascot */}
@@ -90,9 +93,9 @@ export function AnimatedMorshidiMascot({
 
       {/* Main Mascot Container with Unified Silhouette & Motion */}
       <div
-        className={`relative ${sizeClasses} ${
+        className={`relative mascot-motion ${sizeClasses} ${
           isActuallySpeaking ? "animate-mascot-speaking" : "animate-mascot-breathe"
-        } transition-transform duration-500 overflow-visible`}
+        } overflow-visible`}
         style={{
           WebkitMaskImage:
             "linear-gradient(to bottom, black 0%, black 86%, transparent 100%)",
@@ -111,6 +114,7 @@ export function AnimatedMorshidiMascot({
             alt="مرشدي"
             width={777}
             height={759}
+            loading="eager"
             className="w-full h-full object-contain pointer-events-none"
           />
         </div>

@@ -1,6 +1,7 @@
 "use client";
 
 import { VoiceApiService, VoiceSessionResponse } from "@/lib/api/voice-api";
+import { AssistantSpeechGate, measureAudioLevel } from "./voice-activity";
 
 export type VoiceSessionStatus =
   | "idle"
@@ -71,7 +72,7 @@ export class WebRTCVoiceSession {
   private lastUserText: string = "";
   private currentAssistantText: string = "";
   private expirationTimer: ReturnType<typeof setTimeout> | null = null;
-  private lastAssistantAudioTime: number = 0;
+  private assistantSpeechGate = new AssistantSpeechGate();
 
   private handleBeforeUnload = () => {
     this.stop();
@@ -301,7 +302,9 @@ export class WebRTCVoiceSession {
 
   private startLevelMonitoring() {
     const micData = new Uint8Array(128);
+    const micTimeData = new Uint8Array(128);
     const assistantData = new Uint8Array(128);
+    const assistantTimeData = new Uint8Array(128);
 
     const update = () => {
       if (this.status === "ended" || this.status === "error" || this.status === "idle") {
@@ -312,28 +315,27 @@ export class WebRTCVoiceSession {
       let assistantLevel = 0;
 
       if (this.micAnalyser && !this.isMuted) {
-        this.micAnalyser.getByteFrequencyData(micData);
-        let sum = 0;
-        for (let i = 0; i < micData.length; i++) sum += micData[i];
-        micLevel = Math.min(1, (sum / micData.length) / 100);
+        micLevel = measureAudioLevel(this.micAnalyser, micData, micTimeData);
       }
 
       if (this.assistantAnalyser) {
-        this.assistantAnalyser.getByteFrequencyData(assistantData);
-        let sum = 0;
-        for (let i = 0; i < assistantData.length; i++) sum += assistantData[i];
-        assistantLevel = Math.min(1, (sum / assistantData.length) / 100);
+        assistantLevel = measureAudioLevel(
+          this.assistantAnalyser,
+          assistantData,
+          assistantTimeData,
+        );
 
         // Primary Audio-Driven Speaking Detection:
-        // Physical audio output is the primary source of truth for speaking.
+        // Physical remote output is the source of truth. Separate start/release
+        // thresholds plus a short hold prevent flicker during natural pauses.
         const now = Date.now();
-        if (assistantLevel >= 0.035) {
-          this.lastAssistantAudioTime = now;
-          if (this.status === "listening") {
+        const wasAudioActive = this.assistantSpeechGate.isActive();
+        const isAudioActive = this.assistantSpeechGate.update(assistantLevel, now);
+        if (isAudioActive) {
+          if (this.status === "listening" || this.status === "delegating") {
             this.setStatus("speaking");
           }
-        } else if (this.status === "speaking" && now - this.lastAssistantAudioTime > 450) {
-          // If no assistant audio for > 450ms, return to listening
+        } else if (wasAudioActive && this.status === "speaking") {
           this.setStatus("listening");
         }
       }
@@ -364,6 +366,7 @@ export class WebRTCVoiceSession {
             this.audioEl.currentTime = 0;
           }
           this.sendRealtimeEvent({ type: "response.cancel" });
+          this.assistantSpeechGate.reset();
           this.setStatus("listening");
           this.currentAssistantText = "";
           break;
@@ -403,7 +406,6 @@ export class WebRTCVoiceSession {
         case "session.output_transcript.delta":
         case "response.audio_transcript.delta": {
           this.setStatus("speaking");
-          this.lastAssistantAudioTime = Date.now();
           const delta = event.delta || event.transcript || "";
           if (delta) {
             this.currentAssistantText += delta;
@@ -415,11 +417,11 @@ export class WebRTCVoiceSession {
         case "output_audio_buffer.started":
         case "response.audio.started":
           this.setStatus("speaking");
-          this.lastAssistantAudioTime = Date.now();
           break;
 
         case "output_audio_buffer.stopped":
         case "response.audio.done":
+          this.assistantSpeechGate.reset();
           if (this.status === "speaking") {
             this.setStatus("listening");
           }
@@ -447,7 +449,9 @@ export class WebRTCVoiceSession {
               this.lastUserText = "";
             }
           }
-          this.setStatus("listening");
+          if (!this.assistantSpeechGate.isActive()) {
+            this.setStatus("listening");
+          }
           break;
 
         // Client Delegation: GPT-Live protocol (session.delegation.created)
@@ -632,6 +636,7 @@ export class WebRTCVoiceSession {
 
   private cleanup(): void {
     this.startTime = null;
+    this.assistantSpeechGate.reset();
     if (this.expirationTimer !== null) {
       clearTimeout(this.expirationTimer);
       this.expirationTimer = null;
