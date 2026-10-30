@@ -1,5 +1,30 @@
 # Morshidi — Codex Progress Record
 
+## Morshidi Realtime Live Voice Agent — Official GPT-Live Session Payload Fix (2026-10-30; completed and verified)
+
+**Phase/slice, objective, and starting state:** Fixed the GPT-Live voice session creation error on branch `main` at starting HEAD `0c781d4f1f1393da6d0b8b4208463c38170579c7`. On Render production, OpenAI returned `HTTP 400: Unknown parameter: session.voice` because the payload sent `voice`, `modalities`, and `turn_detection` directly inside `session`. The objective was to align `POST /v1/live/sessions` with the official Live API schema by placing the voice configuration under `session.audio.output.voice` and removing unsupported legacy Realtime parameters, while preserving WebRTC SDP exchange, client delegation, and existing text chat configurations.
+
+**Root cause analysis & architectural implementation details:**
+1. *Official Live API Schema Alignment (`apps/api/app/voice/service.py`):*
+   - In `VoiceService.create_realtime_session()`, migrated the GPT-Live payload from legacy Realtime API structure to official Live API specification (`developers.openai.com/api/reference/resources/live/methods/create`):
+     - Voice placement: Configured under `session.audio.output.voice = self._voice_name` (e.g., `alloy`).
+     - Legacy field removal: Removed `session.voice`, `session.modalities = ["audio", "text"]`, and `session.turn_detection = {"type": "server_vad", ...}`, which are unsupported in `POST /v1/live/sessions`.
+     - Preserved `session.model = self._model` (`gpt-live-1`), `session.instructions`, and `session.delegation = {"type": "client"}`.
+     - Preserved `transport = {"type": "webrtc", "sdp": sdp_offer}`.
+   - For `is_live == False` (`gpt-realtime-2.1` fallback), preserved the separate `POST /v1/realtime/sessions` payload structure intact.
+2. *Regression Assertions (`apps/api/tests/test_voice_service.py`):*
+   - Updated `test_gpt_live_delegation_payload_and_fallback_model_support()` to assert `session.audio == {"output": {"voice": "alloy"}}`.
+   - Added negative assertions rejecting legacy field placement: `"voice" not in payload["session"]`, `"modalities" not in payload["session"]`, and `"turn_detection" not in payload["session"]`.
+
+**Test results and verification metrics:**
+- *Voice Backend Tests:* 23 passed in 3.42s (`apps/api/.venv311/Scripts/python.exe -m pytest apps/api/tests/test_voice_service.py -v`).
+- *Advisor Backend Regression:* 59 passed in 0.99s (`apps/api/.venv311/Scripts/python.exe -m pytest apps/api/tests/test_advisor_service.py -q`).
+
+**Files changed and verified from disk:**
+- `apps/api/app/voice/service.py` (28,188 bytes)
+- `apps/api/tests/test_voice_service.py` (34,892 bytes)
+- `docs/CODEX_PROGRESS.md` (updated)
+
 ## Morshidi Realtime Live Voice Agent — Production Owner-Only Allowlist & Deployment Readiness (2026-10-30; completed and verified)
 
 **Phase/slice, objective, and starting state:** Prepared Live Voice for controlled production deployment to Vercel (`https://morshidi.vercel.app`) and Render (`https://morshidi.onrender.com`) on branch `release/university-ready-20261024` at starting HEAD `98bafc020c72aea6672c612c3173ac6f174f86d9`. The objective was to enforce strict server-side owner-only access gating via authenticated Supabase User UUID (`MORSHIDI_VOICE_ALLOWED_USER_IDS`), completely conceal voice buttons from unauthorized students, preserve existing text chat (`ADVISOR_LLM_MODEL=gpt-5.6-luna`), and verify complete test suite integrity.

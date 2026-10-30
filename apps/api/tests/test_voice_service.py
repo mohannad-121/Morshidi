@@ -402,6 +402,11 @@ async def test_gpt_live_delegation_payload_and_fallback_model_support():
     assert path == "/v1/live/sessions"
     assert payload["session"]["model"] == "gpt-live-1"
     assert payload["session"]["delegation"] == {"type": "client"}
+    assert payload["session"]["audio"] == {"output": {"voice": "alloy"}}
+    # Strict assertion: legacy Realtime fields must NOT be present in GPT-Live session payload
+    assert "voice" not in payload["session"], "session.voice is unsupported; must be audio.output.voice"
+    assert "modalities" not in payload["session"], "session.modalities is unsupported in Live API"
+    assert "turn_detection" not in payload["session"], "session.turn_detection is unsupported in Live API"
     assert payload["transport"]["sdp"] == "v=0\r\no=Browser ..."
     assert session["endpoint_type"] == "live"
     assert session["sdp_answer"] == "v=0\r\no=OpenAI ..."

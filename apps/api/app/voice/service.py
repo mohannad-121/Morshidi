@@ -217,16 +217,14 @@ class VoiceService:
             payload = {
                 "session": {
                     "model": self._model,
-                    "voice": self._voice_name,
                     "instructions": instructions,
-                    "delegation": {"type": "client"},
-                    "modalities": ["audio", "text"],
-                    "turn_detection": {
-                        "type": "server_vad",
-                        "threshold": 0.5,
-                        "prefix_padding_ms": 300,
-                        "silence_duration_ms": 500,
-                        "create_response": True,
+                    "audio": {
+                        "output": {
+                            "voice": self._voice_name,
+                        },
+                    },
+                    "delegation": {
+                        "type": "client",
                     },
                 },
                 "transport": {
