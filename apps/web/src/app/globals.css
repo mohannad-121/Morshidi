@@ -1088,6 +1088,66 @@ a.bg-accent,
   .composer-assurance { align-items:flex-start; margin-inline:8px; text-align:start; }
 }
 
+/* Animated Morshidi Mascot Keyframes & Utilities */
+@keyframes mascot-breathe {
+  0%, 100% {
+    transform: translateY(0px) scale(1);
+  }
+  50% {
+    transform: translateY(-2px) scale(1.008);
+  }
+}
+
+@keyframes mascot-gesture-left {
+  0%, 100% {
+    transform: translate(0px, 0px) rotate(0deg);
+  }
+  24% {
+    transform: translate(-1px, -3px) rotate(-1deg);
+  }
+  50% {
+    transform: translate(0px, -1px) rotate(-0.3deg);
+  }
+  75% {
+    transform: translate(-1.5px, -3.5px) rotate(-1.2deg);
+  }
+}
+
+@keyframes mascot-gesture-right {
+  0%, 100% {
+    transform: translate(0px, 0px) rotate(0deg);
+  }
+  20% {
+    transform: translate(0px, -1px) rotate(0.4deg);
+  }
+  46% {
+    transform: translate(1.5px, -3px) rotate(1.2deg);
+  }
+  70% {
+    transform: translate(0.5px, -1.2px) rotate(0.4deg);
+  }
+  90% {
+    transform: translate(1.2px, -2.8px) rotate(0.9deg);
+  }
+}
+
+.animate-mascot-breathe {
+  animation: mascot-breathe 4s ease-in-out infinite;
+  will-change: transform;
+}
+
+.animate-mascot-gesture-left {
+  animation: mascot-gesture-left 4.8s ease-in-out infinite;
+  transform-origin: 32% 40%;
+  will-change: transform;
+}
+
+.animate-mascot-gesture-right {
+  animation: mascot-gesture-right 5.2s ease-in-out infinite;
+  transform-origin: 68% 40%;
+  will-change: transform;
+}
+
 @media (prefers-reduced-motion:reduce) {
   html { scroll-behavior:auto; }
   *, *::before, *::after {

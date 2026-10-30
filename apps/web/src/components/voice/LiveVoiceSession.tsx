@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, useCallback } from "react";
-import Image from "next/image";
+import { AnimatedMorshidiMascot } from "./AnimatedMorshidiMascot";
 import {
   Mic,
   MicOff,
@@ -300,39 +300,13 @@ export function LiveVoiceSession({
             }}
           />
 
-          {/* Central Avatar with Animated Ring */}
-          <div className="relative z-10 flex flex-col items-center gap-6">
-            <div className="relative">
-              <div
-                className="w-32 h-32 rounded-full bg-gradient-to-b from-[#1c1c1c] to-[#0d0d0d] border border-amber-500/30 flex items-center justify-center shadow-2xl p-4 transition-transform duration-150"
-                style={{
-                  transform: `scale(${1 + Math.max(audioLevels.micLevel, audioLevels.assistantLevel) * 0.15})`,
-                }}
-              >
-                <div className="relative w-20 h-20 overflow-hidden rounded-2xl flex items-center justify-center">
-                  <Image
-                    src="/brand/morshidi-guide-cutout.png"
-                    alt="مرشدي"
-                    width={80}
-                    height={80}
-                    className="object-cover object-top"
-                  />
-                </div>
-              </div>
-
-              {/* Pulsing ring indicator */}
-              <div
-                className={`absolute inset-0 rounded-full border-2 transition-opacity duration-300 pointer-events-none ${
-                  isSpeaking
-                    ? "border-amber-400 animate-pulse opacity-80"
-                    : isDelegating
-                    ? "border-cyan-400 animate-spin opacity-70"
-                    : audioLevels.micLevel > 0.05
-                    ? "border-purple-400 opacity-80"
-                    : "border-white/10 opacity-30"
-                }`}
-              />
-            </div>
+          {/* Central Animated Mascot Experience */}
+          <div className="relative z-10 flex flex-col items-center gap-5">
+            <AnimatedMorshidiMascot
+              status={status}
+              assistantAudioLevel={audioLevels.assistantLevel}
+              micAudioLevel={audioLevels.micLevel}
+            />
 
             {/* Live Status Text */}
             <div className="text-center space-y-1.5 z-10">

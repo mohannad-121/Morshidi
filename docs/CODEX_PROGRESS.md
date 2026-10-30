@@ -1,5 +1,50 @@
 # Morshidi — Codex Progress Record
 
+## Morshidi Realtime Live Voice Agent — Official Mascot 2D Animation & Speech Lip-Sync Integration (2026-10-30; completed and verified)
+
+**Phase/slice, objective, and starting state:** Integrated authentic 2D animation for the official Morshidi academic advisor mascot inside the Live Voice experience (`LiveVoiceSession.tsx`) on branch `main` at starting HEAD `f0f4750bed598b87042a40f93877810572187022`. The objective was to replace the static 80x80 circular avatar with an enlarged, expressive 2D character (Desktop 245x239px, Mobile 185x180px) adhering strictly to the official character design (styled brown hair, glasses, beard, cream suit with gold trim), animated with continuous idle breathing, speech-synchronized mouth animation (closed, half, open) driven solely by assistant output volume, subtle explanatory hand gestures during explanations, and full accessibility/reduced-motion compliance.
+
+**Root cause analysis & architectural implementation details:**
+1. *Official Asset Slicing & Zero-Seam Layer Assembly (`apps/web/public/brand/mascot/`):*
+   - Extracted authentic upper-body layers directly from official character artwork (`apps/web/public/brand/morshidi-guide-cutout.png` and `morshidi-logo.jpg`) onto a standardized 777x759 transparent canvas:
+     - `torso-closed.png` (328,003 bytes): Resting closed smiling mouth.
+     - `torso-half.png` (328,105 bytes): Parted lips for soft/intermediate syllables.
+     - `torso-open.png` (328,641 bytes): Expressive open smile with teeth for speech peaks and vowel emphasis.
+     - `arm-left.png` (176,392 bytes): Viewer's left arm cleanly segmented along natural tailoring seams with generous overlap buffers.
+     - `arm-right.png` (200,973 bytes): Viewer's right arm cleanly segmented along natural tailoring seams with generous overlap buffers.
+   - Guaranteed 100% pixel-perfect reconstitution at rest with 0px offset and zero transparent seam artifacts during movement.
+2. *Animated Component Architecture (`apps/web/src/components/voice/AnimatedMorshidiMascot.tsx`):*
+   - Speech-synchronized mouth animation: Driven strictly by `assistantAudioLevel` (>=0.18 -> open, >=0.04 -> half, <0.04 -> closed). Snaps open immediately on syllable onset; applies a 75ms minimum frame hold on closing to eliminate 60Hz flicker and simulate natural phonemes.
+   - Strict student mic isolation: When `status !== "speaking"`, the mouth is strictly locked to closed resting state regardless of student microphone energy.
+   - Subtle explanatory hand gestures: Activates `animate-mascot-gesture-left` and `animate-mascot-gesture-right` on arm layers during speech; smoothly transitions back to relaxed resting pose when Morshidi stops talking.
+   - Soft waist vignette: Applied `-webkit-mask-image: linear-gradient(to bottom, black 0%, black 86%, transparent 100%)` eliminating harsh bottom boundaries and floating seamlessly above the waveform visualizer.
+   - Atmospheric aura: Reactive ambient backlight shifting between gold (explaining), cyan (delegating academic tools), and purple (listening to student).
+3. *CSS Animations & Motion Accessibility (`apps/web/src/app/globals.css`):*
+   - Added `@keyframes mascot-breathe` (subtle 4s ease-in-out breathing cycle).
+   - Added `@keyframes mascot-gesture-left` and `@keyframes mascot-gesture-right` with shoulder/elbow pivot origins (`32% 40%` and `68% 40%`).
+   - Obeyed system accessibility via `@media (prefers-reduced-motion: reduce)` instantly neutralizing translation, rotation, and breathing animations for motion-sensitive users.
+4. *Live Voice Modal Integration (`apps/web/src/components/voice/LiveVoiceSession.tsx`):*
+   - Substituted legacy 80x80 circular crop with `<AnimatedMorshidiMascot status={status} assistantAudioLevel={audioLevels.assistantLevel} micAudioLevel={audioLevels.micLevel} />`.
+
+**Test results and verification metrics:**
+- *Mascot & Voice Frontend Tests:* 24 passed in 4.18s across 4 test files (`npm --prefix apps/web test -- "voice"`).
+- *Full Web Test Suite:* 49 test files / 323 passed in 30.08s (`npm --prefix apps/web test`).
+- *Frontend Typecheck:* `npm --prefix apps/web run typecheck` passed with 0 errors.
+- *Next.js Production Build:* `npm --prefix apps/web run build` passed with Turbopack, compiling all 41 routes with 0 errors.
+- *Backend Regression:* 82 passed in 3.56s (`apps/api/.venv311/Scripts/python.exe -m pytest apps/api/tests/test_voice_service.py apps/api/tests/test_advisor_service.py -q`).
+
+**Files changed and verified from disk:**
+- `apps/web/public/brand/mascot/torso-closed.png` (328,003 bytes)
+- `apps/web/public/brand/mascot/torso-half.png` (328,105 bytes)
+- `apps/web/public/brand/mascot/torso-open.png` (328,641 bytes)
+- `apps/web/public/brand/mascot/arm-left.png` (176,392 bytes)
+- `apps/web/public/brand/mascot/arm-right.png` (200,973 bytes)
+- `apps/web/src/components/voice/AnimatedMorshidiMascot.tsx` (7,499 bytes)
+- `apps/web/src/components/voice/AnimatedMorshidiMascot.test.tsx` (4,175 bytes)
+- `apps/web/src/components/voice/LiveVoiceSession.tsx` (19,191 bytes)
+- `apps/web/src/app/globals.css` (76,878 bytes)
+- `docs/CODEX_PROGRESS.md` (updated)
+
 ## Morshidi Realtime Live Voice Agent — Official GPT-Live Session Payload Fix (2026-10-30; completed and verified)
 
 **Phase/slice, objective, and starting state:** Fixed the GPT-Live voice session creation error on branch `main` at starting HEAD `0c781d4f1f1393da6d0b8b4208463c38170579c7`. On Render production, OpenAI returned `HTTP 400: Unknown parameter: session.voice` because the payload sent `voice`, `modalities`, and `turn_detection` directly inside `session`. The objective was to align `POST /v1/live/sessions` with the official Live API schema by placing the voice configuration under `session.audio.output.voice` and removing unsupported legacy Realtime parameters, while preserving WebRTC SDP exchange, client delegation, and existing text chat configurations.
