@@ -1,5 +1,42 @@
 # Morshidi — Codex Progress Record
 
+## Morshidi Realtime Live Voice Agent — 2D Articulated Character Rig, Independent Audio Mouth & Hand Gestures Verification (2026-10-30; local continuation completed and verified)
+
+**Phase/slice, objective, and starting state:** Continued and verified OpenAI Codex's in-progress 2D articulated character rig for the official Morshidi mascot on branch `main` at starting HEAD `ca71484fc4d4724a7c7a06ffb4efc1c81bf98ef2`. The objective was to satisfy all architectural, visual, and operational requirements without restarting from scratch: (1) torso/body base remains 100% stationary with zero whole-body swaying or bouncing; (2) discrete mouth frames open/close driven purely by remote assistant audio energy without facial distortion, dark patches, or white halos; (3) arms/hands independently gesture with subtle academic rotations (2.2° to 3.2°) around fixed shoulder pivots (33.3%, 40.5% and 66.7%, 40.5%) without detached joints, voids, or tears in the suit; (4) original official character face, glasses, beard, and cream suit remain 100% intact from source `/brand/mascot/morshidi-mascot.png`; and (5) comprehensive Playwright real-browser verification, Vitest tests, TypeScript, and Next.js production build pass cleanly.
+
+**Actual root cause and runtime findings:**
+1. *Mouth alignment & artifacts:* Initial rig assets had mouth SVGs offset ~30px to the right (`x=465` to `505`), placing teeth over the cheek/beard, while `mouth-closed.svg` overlaid a redundant line on top of the original smile. Replaced with mathematically centered vector coordinates: `x=435` (left corner), `x=465` (center dip), `x=495` (right corner), `y=200-222`. `mouth-closed.svg` is transparent, preserving the authentic original smile; `mouth-half.svg` and `mouth-open.svg` provide crisp, natural teeth and inner-lip geometry without patches or halos.
+2. *Arm mask tearing & sleeve spikes:* The original masks cut across the sleeve at `y=622` or ran down to `y=800` through the torso jacket. Since the arms naturally end at `y=595` and `y=585`, extending arm masks to `y=800` caused lower jacket/trouser fabric to rotate with the arms, leaving a black void at the waist. Refined `arm-left-mask.svg` and `arm-right-mask.svg` to traverse the empty space between the arms and torso and terminate cleanly at `y=605` and `y=590`, preserving 100% of sleeve/hand pixels while keeping 100% of the lower torso on `mascot-body-base`.
+3. *Torso stationarity verification:* In Playwright e2e test 1, `expect(body.screenshot().equals(idleBody)).toBe(true)` failed because taking a composite element screenshot of transparent `mascot-body-base` captured the background aura changing from faint ambient white to gold glow and the mouth overlay on top. Created `captureIsolatedBodyScreenshot` which temporarily sets aura, mouth, underlay, and arms to `display: none` during body capture. Verified that `mascot-body-base` is 100% bitwise identical across all speech states.
+
+**Verification commands and actual results:**
+- Playwright mascot e2e: `npm --prefix apps/web run test:e2e:mascot` -> 4/4 passed (14.8s). Verified stable torso, mouth states, connected shoulder pivots, manual & automatic gestures, return to idle, audio interruption, reduced-motion freezing, and portal z-index=100.
+- Vitest voice suite: `npm --prefix apps/web test -- "voice"` -> 5 files / 31 tests passed in 4.31s.
+- Vitest full suite: `npm --prefix apps/web test` -> 50 files / 330 tests passed in 33.21s.
+- TypeScript verification: `npm --prefix apps/web run typecheck` -> passed with 0 errors.
+- Production build: `npm --prefix apps/web run build` -> Next.js 16.3.5 Turbopack compiled 42 routes with 0 errors.
+- Backend regression: `apps/api/.venv311/Scripts/python.exe -m pytest apps/api/tests/test_voice_service.py apps/api/tests/test_advisor_service.py -q` -> 82 passed in 4.61s.
+- Visual frame proof: High-resolution screenshots captured from real Chromium for all 5 states (`state-01-idle-closed.png`, `state-02-speaking-half.png`, `state-03-speaking-open.png`, `state-04-left-gesture.png`, `state-05-right-gesture.png`).
+
+**Files changed and verified from disk:**
+- `apps/web/e2e/voice-mascot-animation.pw.ts` (11,499 bytes)
+- `apps/web/src/app/globals.css` (77,119 bytes)
+- `apps/web/src/components/voice/AnimatedMorshidiMascot.tsx` (7,060 bytes)
+- `apps/web/src/components/voice/AnimatedMorshidiMascot.test.tsx` (4,819 bytes)
+- `apps/web/src/components/voice/dev/VoiceMascotPreview.tsx` (6,336 bytes)
+- `apps/web/public/brand/mascot/rig/arm-left-mask.svg` (152 bytes)
+- `apps/web/public/brand/mascot/rig/arm-right-mask.svg` (158 bytes)
+- `apps/web/public/brand/mascot/rig/body-base-mask.svg` (192 bytes)
+- `apps/web/public/brand/mascot/rig/mouth-closed.svg` (83 bytes)
+- `apps/web/public/brand/mascot/rig/mouth-half.svg` (612 bytes)
+- `apps/web/public/brand/mascot/rig/mouth-open.svg` (730 bytes)
+- `apps/web/public/brand/mascot/rig/shoulder-restoration-mask.svg` (170 bytes)
+- `apps/web/public/brand/mascot/rig/shoulder-restoration.png` (812,996 bytes)
+- `apps/web/public/brand/mascot/rig/README.md` (1,059 bytes)
+
+**Security, acceptance, and exact next point:**
+Local implementation and visual verification PASS. Zero secrets exposed. No changes made to production resources, database, authentication, GPT-Live backend, or API credentials. In accordance with user rules and instructions, NO code has been staged, committed, pushed, or deployed to production. Deployment remains on hold pending user visual review and explicit human authorization.
+
 ## Morshidi Realtime Live Voice Agent — Visibly Animated Official Mascot & Rendered-Browser Proof (2026-10-30; local implementation completed and verified)
 
 **Phase/slice, objective, and starting state:** Implemented the smallest coherent frontend-only repair for the reported production-static Live Voice mascot on branch `main` at starting/current HEAD `14cd165a8f9378e4fb900ef1704a362e042041e1` (also `origin/main`). The objective was to make the existing pristine official mascot visibly move in idle/listening and speaking states, drive speaking from real remote assistant audio with hysteresis, and add real Chromium frame verification without changing the character, voice backend, API credentials, authentication, academic rules, database, or production resources. Initial `git status --short` contained only pre-existing untracked governance/backup/release documents and directories; they were preserved untouched. The production URL redirected the unauthenticated advisor request to login, but its deployed CSS bundle was inspected read-only and contained both mascot keyframes, while `/brand/mascot/morshidi-mascot.png` served the correct 780,457-byte asset.
@@ -27,6 +64,14 @@
 The user explicitly approved staging, committing, pushing to `origin/main`, and verifying the resulting Vercel production deployment with commit message `fix(voice-ui): verify and deliver visible mascot animation`. Fetched `origin/main` and confirmed local `main`, `HEAD`, and `origin/main` all remained exactly `14cd165a8f9378e4fb900ef1704a362e042041e1` with divergence `0/0`. Re-reviewed the complete tracked diff and every intended untracked preview/test file. The release boundary is the 15 verified frontend/config/test files plus this progress record; the official mascot PNG hash still matches HEAD, and all pre-existing governance/backup/release files remain outside the boundary.
 
 Repeated the exact release gates after the fetch: voice Vitest passed `5 files / 31 tests`; TypeScript passed; the real Edge/Chromium suite passed `4/4` with 7.53 px idle travel, 11.34 px speaking vertical travel, and 10.86 px speaking bounding-box lateral travel; Next.js 16.3.5 production build passed all 42 routes. No paid voice session, backend request, database action, or production mutation was used. This progress record was 957,238 bytes before this delivery-preflight entry. Exact next point: stage only the reviewed boundary, inspect the cached diff and credential scan, create the approved commit without amending unrelated history, then re-check the remote ref immediately before a non-force push.
+
+### 2026-10-30: Verified production delivery result
+
+Staged exactly the reviewed 15-file boundary and verified zero unexpected/missing paths, zero unstaged tracked changes, zero staged mascot assets, zero staged backend/Supabase paths, zero added-line credential matches, and a clean cached whitespace check. Created commit `ca71484fc4d4724a7c7a06ffb4efc1c81bf98ef2` with the approved message `fix(voice-ui): verify and deliver visible mascot animation`; `git show --check` passed. Re-queried `origin/main` immediately before the push and confirmed it still matched the approved base `14cd165a8f9378e4fb900ef1704a362e042041e1`. Pushed the exact 40-character commit using a normal non-force SHA-to-`refs/heads/main` refspec; GitHub accepted fast-forward `14cd165..ca71484`, and a fresh remote query plus local divergence check confirmed `origin/main` equals the new commit with divergence `0/0`.
+
+GitHub's Vercel integration created Production deployment `7435149230` for the exact commit SHA and reported status `success` / `Deployment has completed` at `2026-10-30T09:37:37Z`; unique deployment URL `https://morshidi-5u0jk81hf-mohannad-121s-projects.vercel.app` is protected by Vercel SSO as expected. The public production alias `https://morshidi.vercel.app` is serving the new build-specific CSS containing `--mascot-idle-rise`, `--mascot-speaking-rise`, and the explicit reduced-motion animation disable. `/student/advisor` returns a Vercel HTTP 307 to `/login?returnTo=%2Fstudent%2Fadvisor` for an unauthenticated request; the development-only `/dev/voice-mascot-preview` returns HTTP 404. The production mascot asset returns HTTP 200, 780,457 bytes, and SHA-256 `E9AD01F5B791992EA50EB627351130D2CDF7D55FF4767FB801C8651F4149A795`, exactly matching the unchanged local/committed official PNG. The first in-memory hash-formatting attempt used an unavailable PowerShell/.NET `Convert.ToHexString` helper and produced no hash; it was immediately rerun with `BitConverter`, which produced the matching value above.
+
+The connected Vercel MCP identity can see the account team but lacks access to the `morshidi` project: deployment listing and bounded runtime-error queries returned 403, so no post-deploy runtime-log/error-scan claim is made. Exact-commit deployment status instead comes from the Vercel-authored GitHub commit/deployment status, and live-alias verification comes from the code-specific production CSS, route responses, and asset hash. No manual Vercel mutation, promotion, rollback, backend/Render action, Supabase/database change, authentication/billing change, mascot artwork change, or paid GPT-Live session occurred. Per the user's instruction, the actual live voice animation is not claimed as visually verified; the user will test that personally. This progress record was 958,697 bytes before this post-deployment entry. The delivery commit remains unchanged; this new evidence is a local progress-only modification and is not staged or committed without another explicit approval.
 
 ## Morshidi Realtime Live Voice Agent — Official Mascot Visual Integrity Restoration & Modal Stacking Context Fix (2026-10-30; completed and verified)
 

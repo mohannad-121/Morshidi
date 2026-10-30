@@ -2,7 +2,10 @@
 
 import { useState } from "react";
 import type { VoiceSessionStatus } from "@/lib/voice/webrtc-voice-session";
-import { AnimatedMorshidiMascot } from "../AnimatedMorshidiMascot";
+import {
+  AnimatedMorshidiMascot,
+  type MascotGestureOverride,
+} from "../AnimatedMorshidiMascot";
 import { LiveVoiceSession } from "../LiveVoiceSession";
 
 const PREVIEW_STATUSES: VoiceSessionStatus[] = [
@@ -17,6 +20,8 @@ export function VoiceMascotPreview() {
   const [status, setStatus] = useState<VoiceSessionStatus>("idle");
   const [assistantAudioLevel, setAssistantAudioLevel] = useState(0);
   const [micAudioLevel, setMicAudioLevel] = useState(0);
+  const [gestureOverride, setGestureOverride] =
+    useState<MascotGestureOverride>("auto");
   const [showProductionModal, setShowProductionModal] = useState(false);
 
   return (
@@ -30,6 +35,7 @@ export function VoiceMascotPreview() {
             status={status}
             assistantAudioLevel={assistantAudioLevel}
             micAudioLevel={micAudioLevel}
+            gestureOverride={gestureOverride}
           />
         </section>
 
@@ -92,11 +98,34 @@ export function VoiceMascotPreview() {
             />
           </label>
 
+          <fieldset className="mt-6">
+            <legend className="text-sm font-medium text-slate-200">Gesture verification</legend>
+            <div className="mt-3 grid grid-cols-2 gap-2">
+              {(["auto", "none", "left", "right"] as const).map((gesture) => (
+                <button
+                  key={gesture}
+                  type="button"
+                  aria-pressed={gestureOverride === gesture}
+                  onClick={() => setGestureOverride(gesture)}
+                  className="min-h-11 rounded-xl border border-white/10 px-3 py-2 text-sm font-medium capitalize text-slate-300 transition-colors hover:border-[#ffc21a]/50 hover:text-white aria-pressed:border-[#ffc21a]/60 aria-pressed:bg-[#ffc21a]/15 aria-pressed:text-[#ffd45a]"
+                >
+                  {gesture}
+                </button>
+              ))}
+            </div>
+          </fieldset>
+
           <dl className="mt-7 grid gap-2 rounded-2xl border border-white/[0.07] bg-black/30 p-4 text-xs">
             <div className="flex justify-between gap-3">
               <dt className="text-slate-500">Status</dt>
               <dd data-testid="preview-status" className="font-semibold text-slate-200">
                 {status}
+              </dd>
+            </div>
+            <div className="flex justify-between gap-3">
+              <dt className="text-slate-500">Gesture</dt>
+              <dd data-testid="preview-gesture" className="font-semibold text-slate-200">
+                {gestureOverride}
               </dd>
             </div>
             <div className="flex justify-between gap-3">

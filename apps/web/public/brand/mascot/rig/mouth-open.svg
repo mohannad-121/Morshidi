@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 975 800" role="presentation">
+  <!-- Inner mouth cavity -->
+  <path d="M440 205 C452 202 478 202 490 205 C485 222 445 222 440 205 Z" fill="#2c0e0e"/>
+  <!-- Upper teeth -->
+  <path d="M448 204.5 C456 203 474 203 482 204.5 C480 209.5 450 209.5 448 204.5 Z" fill="#f7eee7"/>
+  <!-- Tongue curve -->
+  <path d="M449 216 C457 212.5 473 212.5 481 216 C477 221 453 221 449 216 Z" fill="#be5f58"/>
+  <!-- Lower lip curve -->
+  <path d="M438 208 C452 223 478 223 492 208 C483 226 447 226 438 208 Z" fill="#cb776b"/>
+  <!-- Upper lip contour -->
+  <path d="M435 204 C448 201.5 482 201.5 495 204" fill="none" stroke="#7a241b" stroke-width="1.3" stroke-linecap="round"/>
+</svg>

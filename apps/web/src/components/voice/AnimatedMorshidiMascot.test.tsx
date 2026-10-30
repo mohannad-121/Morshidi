@@ -1,119 +1,123 @@
-import { render, screen, cleanup } from "@testing-library/react";
-import { describe, expect, it, vi, afterEach } from "vitest";
+import { cleanup, render, screen } from "@testing-library/react";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import type { ComponentProps } from "react";
-import { AnimatedMorshidiMascot } from "./AnimatedMorshidiMascot";
+import {
+  AnimatedMorshidiMascot,
+  getMascotMouthState,
+} from "./AnimatedMorshidiMascot";
 
 vi.mock("next/image", () => ({
   __esModule: true,
-  default: (props: ComponentProps<"img">) => <img {...props} />,
+  default: ({ unoptimized: _unoptimized, ...props }: ComponentProps<"img"> & { unoptimized?: boolean }) => (
+    <img {...props} />
+  ),
 }));
 
-afterEach(() => {
-  cleanup();
-});
+afterEach(cleanup);
 
 describe("AnimatedMorshidiMascot", () => {
-  it("renders accessible container with Arabic aria-label and status attributes", () => {
-    render(<AnimatedMorshidiMascot status="idle" />);
+  it("maps only eligible remote assistant energy to closed, half, and open mouth states", () => {
+    expect(getMascotMouthState(0, true)).toBe("closed");
+    expect(getMascotMouthState(0.034, true)).toBe("closed");
+    expect(getMascotMouthState(0.08, true)).toBe("half");
+    expect(getMascotMouthState(0.14, true)).toBe("open");
+    expect(getMascotMouthState(0.8, false)).toBe("closed");
+  });
 
+  it("renders the source-faithful layered rig with a stationary body", () => {
+    const { container } = render(<AnimatedMorshidiMascot status="idle" />);
+    const sources = Array.from(container.querySelectorAll("img")).map((image) =>
+      image.getAttribute("src"),
+    );
+
+    expect(sources).toEqual(
+      expect.arrayContaining([
+        "/brand/mascot/morshidi-mascot.png",
+        "/brand/mascot/rig/mouth-closed.svg",
+        "/brand/mascot/rig/mouth-half.svg",
+        "/brand/mascot/rig/mouth-open.svg",
+      ]),
+    );
+    expect(screen.getByTestId("mascot-body-base").classList.contains("animate-mascot-breathe")).toBe(false);
+    expect(screen.getByTestId("animated-morshidi-mascot").getAttribute("data-motion")).toBe(
+      "still-body",
+    );
+  });
+
+  it("opens and closes the mouth with assistant audio without transforming the torso", () => {
+    const { rerender } = render(
+      <AnimatedMorshidiMascot status="listening" assistantAudioLevel={0} />,
+    );
     const mascot = screen.getByTestId("animated-morshidi-mascot");
-    expect(mascot).toBeDefined();
-    expect(mascot.getAttribute("role")).toBe("img");
-    expect(mascot.getAttribute("aria-label")).toContain("مرشدي");
-    expect(mascot.getAttribute("data-status")).toBe("idle");
-    expect(mascot.getAttribute("data-motion")).toBe("breathing");
+    const body = screen.getByTestId("mascot-body-base");
+
+    expect(mascot.getAttribute("data-mouth-state")).toBe("closed");
+    expect(body.className).toContain("mascot-rig-body");
+
+    rerender(<AnimatedMorshidiMascot status="listening" assistantAudioLevel={0.08} />);
+    expect(mascot.getAttribute("data-mouth-state")).toBe("half");
+
+    rerender(<AnimatedMorshidiMascot status="speaking" assistantAudioLevel={0.3} />);
+    expect(mascot.getAttribute("data-mouth-state")).toBe("open");
+    expect(mascot.getAttribute("data-motion")).toBe("mouth-and-hands");
+
+    rerender(<AnimatedMorshidiMascot status="listening" assistantAudioLevel={0} />);
     expect(mascot.getAttribute("data-mouth-state")).toBe("closed");
   });
 
-  it("renders pristine official character artwork from /brand/mascot/morshidi-mascot.png as a unified silhouette", () => {
-    const { container } = render(<AnimatedMorshidiMascot status="listening" />);
+  it("does not let student microphone energy trigger mouth or arm speech motion", () => {
+    render(
+      <AnimatedMorshidiMascot
+        status="listening"
+        micAudioLevel={0.9}
+        assistantAudioLevel={0}
+      />,
+    );
 
-    const images = Array.from(container.querySelectorAll("img"));
-    const imageSources = images.map((img) => img.getAttribute("src"));
-
-    expect(imageSources).toContain("/brand/mascot/morshidi-mascot.png");
-    // Seamless single character silhouette with zero facial distortion and zero detached limbs
-    expect(screen.getByTestId("morshidi-mascot-unified")).toBeDefined();
+    const mascot = screen.getByTestId("animated-morshidi-mascot");
+    expect(mascot.getAttribute("data-speaking")).toBe("false");
+    expect(mascot.getAttribute("data-mouth-state")).toBe("closed");
+    expect(screen.getByTestId("mascot-arm-left").getAttribute("data-speaking")).toBe("false");
+    expect(screen.getByTestId("mascot-arm-right").getAttribute("data-speaking")).toBe("false");
   });
 
-  it("switches from idle breathing to speaking cadence when assistant speaks", () => {
+  it("keeps delegation closed and still even if an audio level is supplied", () => {
+    render(<AnimatedMorshidiMascot status="delegating" assistantAudioLevel={0.3} />);
+
+    const mascot = screen.getByTestId("animated-morshidi-mascot");
+    expect(mascot.getAttribute("data-speaking")).toBe("false");
+    expect(mascot.getAttribute("data-mouth-state")).toBe("closed");
+  });
+
+  it("supports deterministic left and right gesture verification without moving the body", () => {
     const { rerender } = render(
-      <AnimatedMorshidiMascot status="listening" assistantAudioLevel={0.0} />
-    );
-
-    const bodyContainer = screen.getByTestId("mascot-body-container");
-    expect(bodyContainer.classList.contains("animate-mascot-breathe")).toBe(true);
-    expect(bodyContainer.classList.contains("animate-mascot-speaking")).toBe(false);
-
-    // Assistant starts speaking
-    rerender(<AnimatedMorshidiMascot status="speaking" assistantAudioLevel={0.15} />);
-    expect(bodyContainer.classList.contains("animate-mascot-speaking")).toBe(true);
-    expect(bodyContainer.classList.contains("animate-mascot-breathe")).toBe(false);
-    expect(screen.getByTestId("animated-morshidi-mascot").getAttribute("data-motion")).toBe("speaking");
-
-    // Assistant returns to listening
-    rerender(<AnimatedMorshidiMascot status="listening" assistantAudioLevel={0.0} />);
-    expect(bodyContainer.classList.contains("animate-mascot-breathe")).toBe(true);
-    expect(bodyContainer.classList.contains("animate-mascot-speaking")).toBe(false);
-  });
-
-  it("reacts directly to remote assistant audio energy even if status is still listening (audio-driven speaking)", () => {
-    render(
-      <AnimatedMorshidiMascot
-        status="listening"
-        assistantAudioLevel={0.22}
-      />
-    );
-
-    const mascot = screen.getByTestId("animated-morshidi-mascot");
-    expect(mascot.getAttribute("data-speaking")).toBe("true");
-
-    const bodyContainer = screen.getByTestId("mascot-body-container");
-    expect(bodyContainer.classList.contains("animate-mascot-speaking")).toBe(true);
-  });
-
-  it("isolates student microphone so student voice does not trigger speaking animation", () => {
-    render(
-      <AnimatedMorshidiMascot
-        status="listening"
-        micAudioLevel={0.85}
-        assistantAudioLevel={0.0}
-      />
-    );
-
-    const mascot = screen.getByTestId("animated-morshidi-mascot");
-    expect(mascot.getAttribute("data-speaking")).toBe("false");
-
-    const bodyContainer = screen.getByTestId("mascot-body-container");
-    expect(bodyContainer.classList.contains("animate-mascot-breathe")).toBe(true);
-    expect(bodyContainer.classList.contains("animate-mascot-speaking")).toBe(false);
-  });
-
-  it("keeps mascot attentive and not speaking during academic delegation", () => {
-    render(
-      <AnimatedMorshidiMascot
-        status="delegating"
-        assistantAudioLevel={0.1}
-      />
-    );
-
-    const mascot = screen.getByTestId("animated-morshidi-mascot");
-    expect(mascot.getAttribute("data-speaking")).toBe("false");
-
-    const bodyContainer = screen.getByTestId("mascot-body-container");
-    expect(bodyContainer.classList.contains("animate-mascot-breathe")).toBe(true);
-  });
-
-  it("renders dynamic atmospheric aura that scales with audio activity", () => {
-    const { container } = render(
       <AnimatedMorshidiMascot
         status="speaking"
-        assistantAudioLevel={0.3}
-      />
+        assistantAudioLevel={0.2}
+        gestureOverride="left"
+      />,
     );
 
-    const aura = container.querySelector(".filter.blur-2xl");
-    expect(aura).toBeDefined();
-    expect((aura as HTMLElement)?.style.backgroundColor).toContain("rgba(255, 194, 26");
+    expect(screen.getByTestId("mascot-arm-left").getAttribute("data-gesture")).toBe("left");
+    expect(screen.getByTestId("mascot-body-base").className).toContain("mascot-rig-body");
+
+    rerender(
+      <AnimatedMorshidiMascot
+        status="speaking"
+        assistantAudioLevel={0.2}
+        gestureOverride="right"
+      />,
+    );
+    expect(screen.getByTestId("mascot-arm-right").getAttribute("data-gesture")).toBe("right");
+  });
+
+  it("retains the state-aware aura independently from rig transforms", () => {
+    const { container } = render(
+      <AnimatedMorshidiMascot status="speaking" assistantAudioLevel={0.3} />,
+    );
+    const aura = container.querySelector(".blur-2xl") as HTMLElement;
+
+    expect(aura.style.backgroundColor).toContain("255, 194, 26");
+    expect(aura.style.transform).toBe("scale(1.135)");
   });
 });

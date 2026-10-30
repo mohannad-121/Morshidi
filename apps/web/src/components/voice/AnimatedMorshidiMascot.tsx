@@ -4,31 +4,45 @@ import Image from "next/image";
 import type { VoiceSessionStatus } from "@/lib/voice/webrtc-voice-session";
 import { ASSISTANT_SPEECH_START_LEVEL } from "@/lib/voice/voice-activity";
 
+export type MascotMouthState = "closed" | "half" | "open";
+export type MascotGestureOverride = "auto" | "none" | "left" | "right";
+
 export interface AnimatedMorshidiMascotProps {
-  /** Current voice session status */
+  /** Current voice session status. */
   status: VoiceSessionStatus;
-  /** Normalized assistant speech volume (0.0 to 1.0) */
+  /** Normalized remote assistant audio energy (0.0 to 1.0). */
   assistantAudioLevel?: number;
-  /** Normalized student microphone volume (0.0 to 1.0) */
+  /** Normalized student microphone energy (0.0 to 1.0). */
   micAudioLevel?: number;
-  /** Optional custom container CSS classes */
+  /** Optional custom container CSS classes. */
   className?: string;
-  /** Optional size preset: "compact" (mobile header/floating), "standard" (modal desktop/mobile) */
+  /** Compact floating size or standard Live Voice modal size. */
   sizePreset?: "compact" | "standard";
+  /** Development/verification control; production callers leave this as auto. */
+  gestureOverride?: MascotGestureOverride;
 }
 
-export type MascotMouthState = "closed" | "half" | "open";
+const MOUTH_OPEN_LEVEL = 0.14;
+const RIG_ROOT = "/brand/mascot/rig";
+const OFFICIAL_MASCOT = "/brand/mascot/morshidi-mascot.png";
+
+export function getMascotMouthState(
+  assistantAudioLevel: number,
+  canAnimateSpeech: boolean,
+): MascotMouthState {
+  if (!canAnimateSpeech || assistantAudioLevel < ASSISTANT_SPEECH_START_LEVEL) {
+    return "closed";
+  }
+
+  return assistantAudioLevel >= MOUTH_OPEN_LEVEL ? "open" : "half";
+}
 
 /**
- * AnimatedMorshidiMascot
+ * Source-faithful 2D puppet for the official Morshidi mascot.
  *
- * Renders the official Morshidi academic advisor mascot with:
- * 1. 100% authentic, untouched official character artwork (glasses, hair, beard, cream suit).
- * 2. Pristine unified silhouette with zero shoulder gaps, zero detached limbs, and zero facial distortion.
- * 3. Gentle continuous idle breathing while resting or listening.
- * 4. Subtle, natural academic speaking cadence/sway when actively speaking.
- * 5. Reactive atmospheric aura reflecting operational state (explaining, delegating, listening).
- * 6. Full prefers-reduced-motion accessibility compliance.
+ * The body/base never transforms. Remote assistant audio selects one of three
+ * mouth-only drawings, while occasional arm transforms pivot around fixed
+ * shoulder joints. Student microphone energy affects only the ambient aura.
  */
 export function AnimatedMorshidiMascot({
   status,
@@ -36,52 +50,47 @@ export function AnimatedMorshidiMascot({
   micAudioLevel = 0,
   className = "",
   sizePreset = "standard",
+  gestureOverride = "auto",
 }: AnimatedMorshidiMascotProps) {
-  // Real assistant audio energy presence
   const isAudioActive = assistantAudioLevel >= ASSISTANT_SPEECH_START_LEVEL;
-
-  // Assistant is actively speaking if status is explicitly "speaking" OR if speech audio energy is playing
-  const isActuallySpeaking =
+  const canAnimateSpeech =
     (status === "speaking" || isAudioActive) &&
     status !== "delegating" &&
     status !== "ended" &&
     status !== "error";
-
+  const mouthState = getMascotMouthState(assistantAudioLevel, canAnimateSpeech);
   const isDelegating = status === "delegating";
   const isListening = status === "listening" && !isAudioActive;
 
-  // Size styling: Desktop 220–260px, Mobile 170–200px (standard modal)
   const sizeClasses =
     sizePreset === "compact"
-      ? "w-[120px] h-[117px] sm:w-[140px] sm:h-[136px]"
-      : "w-[185px] h-[180px] sm:w-[245px] sm:h-[239px]";
+      ? "h-[117px] w-[120px] sm:h-[136px] sm:w-[140px]"
+      : "h-[180px] w-[185px] sm:h-[239px] sm:w-[245px]";
 
-  // Reactive glow color based on operational state
-  const auraGlowColor = isActuallySpeaking
-    ? "rgba(255, 194, 26, 0.25)" // Rich Gold when explaining
+  const auraGlowColor = canAnimateSpeech
+    ? "rgba(255, 194, 26, 0.25)"
     : isDelegating
-    ? "rgba(56, 189, 248, 0.28)" // Bright Cyan when verifying academic rules
-    : isListening && micAudioLevel > 0.05
-    ? "rgba(168, 85, 247, 0.25)" // Purple when actively listening to student
-    : "rgba(255, 255, 255, 0.05)"; // Gentle ambient
-
+      ? "rgba(56, 189, 248, 0.28)"
+      : isListening && micAudioLevel > 0.05
+        ? "rgba(168, 85, 247, 0.25)"
+        : "rgba(255, 255, 255, 0.05)";
   const auraScale = 1 + Math.max(assistantAudioLevel, micAudioLevel) * 0.45;
 
   return (
     <div
-      className={`relative flex items-center justify-center select-none ${className}`}
+      className={`relative flex select-none items-center justify-center ${className}`}
       role="img"
       aria-label="مرشدي — المرشد الأكاديمي الذكي"
       data-testid="animated-morshidi-mascot"
       data-status={status}
-      data-speaking={isActuallySpeaking}
-      data-motion={isActuallySpeaking ? "speaking" : "breathing"}
+      data-speaking={canAnimateSpeech}
+      data-motion={canAnimateSpeech ? "mouth-and-hands" : "still-body"}
       data-size-preset={sizePreset}
-      data-mouth-state="closed"
+      data-mouth-state={mouthState}
+      data-gesture={gestureOverride}
     >
-      {/* Dynamic Atmospheric Aura behind Mascot */}
       <div
-        className="absolute rounded-full filter blur-2xl pointer-events-none transition-all duration-300 -z-10"
+        className="pointer-events-none absolute -z-10 rounded-full blur-2xl transition-all duration-300"
         style={{
           width: "85%",
           height: "85%",
@@ -89,13 +98,11 @@ export function AnimatedMorshidiMascot({
           transform: `scale(${auraScale})`,
         }}
         aria-hidden="true"
+        data-testid="mascot-aura"
       />
 
-      {/* Main Mascot Container with Unified Silhouette & Motion */}
       <div
-        className={`relative mascot-motion ${sizeClasses} ${
-          isActuallySpeaking ? "animate-mascot-speaking" : "animate-mascot-breathe"
-        } overflow-visible`}
+        className={`relative overflow-visible ${sizeClasses}`}
         style={{
           WebkitMaskImage:
             "linear-gradient(to bottom, black 0%, black 86%, transparent 100%)",
@@ -104,19 +111,91 @@ export function AnimatedMorshidiMascot({
         }}
         data-testid="mascot-body-container"
       >
-        {/* Authentic Official Morshidi Mascot — Pristine Unified Silhouette */}
+        <div className="pointer-events-none absolute inset-0" data-testid="mascot-shoulder-underlay">
+          <Image
+            src={`${RIG_ROOT}/shoulder-restoration.png`}
+            alt=""
+            aria-hidden="true"
+            width={975}
+            height={800}
+            loading="eager"
+            unoptimized
+            className="mascot-rig-shoulder-restoration h-full w-full object-contain"
+          />
+        </div>
+
         <div
-          className="relative w-full h-full pointer-events-none"
-          data-testid="morshidi-mascot-unified"
+          className="mascot-rig-body pointer-events-none absolute inset-0"
+          data-testid="mascot-body-base"
         >
           <Image
-            src="/brand/mascot/morshidi-mascot.png"
-            alt="مرشدي"
-            width={777}
-            height={759}
+            src={OFFICIAL_MASCOT}
+            alt=""
+            aria-hidden="true"
+            width={975}
+            height={800}
             loading="eager"
-            className="w-full h-full object-contain pointer-events-none"
+            unoptimized
+            className="mascot-rig-body-image h-full w-full object-contain"
           />
+          <span className="mascot-joint-anchor mascot-joint-left" data-testid="body-joint-left" />
+          <span className="mascot-joint-anchor mascot-joint-right" data-testid="body-joint-right" />
+        </div>
+
+        <div
+          className="mascot-rig-arm mascot-rig-arm-left pointer-events-none absolute inset-0"
+          data-speaking={canAnimateSpeech}
+          data-gesture={gestureOverride}
+          data-testid="mascot-arm-left"
+        >
+          <Image
+            src={OFFICIAL_MASCOT}
+            alt=""
+            aria-hidden="true"
+            width={975}
+            height={800}
+            loading="eager"
+            unoptimized
+            className="mascot-rig-left-image h-full w-full object-contain"
+          />
+          <span className="mascot-joint-anchor mascot-joint-left" data-testid="arm-joint-left" />
+        </div>
+
+        <div
+          className="mascot-rig-arm mascot-rig-arm-right pointer-events-none absolute inset-0"
+          data-speaking={canAnimateSpeech}
+          data-gesture={gestureOverride}
+          data-testid="mascot-arm-right"
+        >
+          <Image
+            src={OFFICIAL_MASCOT}
+            alt=""
+            aria-hidden="true"
+            width={975}
+            height={800}
+            loading="eager"
+            unoptimized
+            className="mascot-rig-right-image h-full w-full object-contain"
+          />
+          <span className="mascot-joint-anchor mascot-joint-right" data-testid="arm-joint-right" />
+        </div>
+
+        <div className="pointer-events-none absolute inset-0" data-testid="mascot-mouth-layer">
+          {(["closed", "half", "open"] as const).map((state) => (
+            <Image
+              key={state}
+              src={`${RIG_ROOT}/mouth-${state}.svg`}
+              alt=""
+              aria-hidden="true"
+              width={975}
+              height={800}
+              loading="eager"
+              unoptimized
+              className="mascot-mouth-frame absolute inset-0 h-full w-full object-contain"
+              data-mouth-frame={state}
+              data-active={mouthState === state}
+            />
+          ))}
         </div>
       </div>
     </div>

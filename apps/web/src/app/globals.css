@@ -1088,56 +1088,115 @@ a.bg-accent,
   .composer-assurance { align-items:flex-start; margin-inline:8px; text-align:start; }
 }
 
-/* Animated Morshidi Mascot Keyframes & Utilities */
-@keyframes mascot-breathe {
-  0%, 100% {
-    transform: translateY(0px) scale(1);
-  }
-  48% {
-    transform: translateY(calc(-1 * var(--mascot-idle-rise))) scale(1.008) rotate(0.18deg);
-  }
+/* Layered Morshidi voice rig. The torso never transforms. */
+@keyframes mascot-gesture-left {
+  0%, 11%, 31%, 100% { transform: rotate(0deg); }
+  19% { transform: rotate(3.2deg); }
+  25% { transform: rotate(2.2deg); }
 }
 
-@keyframes mascot-speaking {
-  0%, 100% {
-    transform: translateY(0px) scale(1) rotate(0deg);
-  }
-  18% {
-    transform: translate3d(calc(-1 * var(--mascot-sway)), calc(-0.72 * var(--mascot-speaking-rise)), 0) scale(1.01) rotate(-0.7deg);
-  }
-  39% {
-    transform: translate3d(calc(-0.35 * var(--mascot-sway)), calc(-1 * var(--mascot-speaking-rise)), 0) scale(1.013) rotate(-0.25deg);
-  }
-  61% {
-    transform: translate3d(var(--mascot-sway), calc(-0.62 * var(--mascot-speaking-rise)), 0) scale(1.009) rotate(0.75deg);
-  }
-  82% {
-    transform: translate3d(calc(0.4 * var(--mascot-sway)), calc(-0.9 * var(--mascot-speaking-rise)), 0) scale(1.012) rotate(0.3deg);
-  }
+@keyframes mascot-gesture-right {
+  0%, 51%, 81%, 100% { transform: rotate(0deg); }
+  61% { transform: rotate(-3.2deg); }
+  71% { transform: rotate(-2.2deg); }
 }
 
-.mascot-motion {
-  --mascot-idle-rise: clamp(5px, 1.4vw, 6px);
-  --mascot-speaking-rise: clamp(6px, 1.8vw, 8px);
-  --mascot-sway: clamp(2px, 0.8vw, 4px);
-  transform-origin: center bottom;
-  backface-visibility: hidden;
-}
-
-.animate-mascot-breathe {
-  animation: mascot-breathe 3.4s cubic-bezier(0.37, 0, 0.63, 1) infinite;
-  will-change: transform;
-}
-
-.animate-mascot-speaking {
-  animation: mascot-speaking 2.7s cubic-bezier(0.45, 0, 0.55, 1) infinite;
-  will-change: transform;
-}
-
-/* Backward-compatible utility aliases */
-.animate-mascot-gesture-left,
-.animate-mascot-gesture-right {
+.mascot-rig-body {
   transform: none;
+}
+
+.mascot-rig-body-image,
+.mascot-rig-left-image,
+.mascot-rig-right-image {
+  -webkit-mask-position: center;
+  mask-position: center;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  -webkit-mask-size: 100% 100%;
+  mask-size: 100% 100%;
+}
+
+.mascot-rig-body-image {
+  -webkit-mask-image: url("/brand/mascot/rig/body-base-mask.svg");
+  mask-image: url("/brand/mascot/rig/body-base-mask.svg");
+}
+
+.mascot-rig-left-image {
+  -webkit-mask-image: url("/brand/mascot/rig/arm-left-mask.svg");
+  mask-image: url("/brand/mascot/rig/arm-left-mask.svg");
+}
+
+.mascot-rig-right-image {
+  -webkit-mask-image: url("/brand/mascot/rig/arm-right-mask.svg");
+  mask-image: url("/brand/mascot/rig/arm-right-mask.svg");
+}
+
+.mascot-rig-shoulder-restoration {
+  -webkit-mask-image: url("/brand/mascot/rig/shoulder-restoration-mask.svg");
+  mask-image: url("/brand/mascot/rig/shoulder-restoration-mask.svg");
+  -webkit-mask-position: center;
+  mask-position: center;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  -webkit-mask-size: 100% 100%;
+  mask-size: 100% 100%;
+}
+
+.mascot-rig-arm {
+  backface-visibility: hidden;
+  transform: none;
+  transition: transform 220ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.mascot-rig-arm-left {
+  transform-origin: 33.3% 40.5%;
+}
+
+.mascot-rig-arm-right {
+  transform-origin: 66.7% 40.5%;
+}
+
+.mascot-rig-arm-left[data-speaking="true"][data-gesture="auto"] {
+  animation: mascot-gesture-left 8s cubic-bezier(0.45, 0, 0.55, 1) infinite;
+  will-change: transform;
+}
+
+.mascot-rig-arm-right[data-speaking="true"][data-gesture="auto"] {
+  animation: mascot-gesture-right 8s cubic-bezier(0.45, 0, 0.55, 1) infinite;
+  will-change: transform;
+}
+
+.mascot-rig-arm-left[data-gesture="left"] {
+  transform: rotate(3.2deg);
+}
+
+.mascot-rig-arm-right[data-gesture="right"] {
+  transform: rotate(-3.2deg);
+}
+
+.mascot-mouth-frame {
+  opacity: 0;
+}
+
+.mascot-mouth-frame[data-active="true"] {
+  opacity: 1;
+}
+
+.mascot-joint-anchor {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+}
+
+.mascot-joint-left {
+  left: 33.3%;
+  top: 40.5%;
+}
+
+.mascot-joint-right {
+  left: 66.7%;
+  top: 40.5%;
 }
 
 @media (prefers-reduced-motion:reduce) {
@@ -1149,10 +1208,10 @@ a.bg-accent,
     transition-duration:.01ms!important;
   }
   .progress-fill { will-change:auto; }
-  .animate-mascot-breathe,
-  .animate-mascot-speaking {
+  .mascot-rig-arm {
     animation:none!important;
     transform:none!important;
+    transition:none!important;
     will-change:auto;
   }
   .surface-interactive:hover,
