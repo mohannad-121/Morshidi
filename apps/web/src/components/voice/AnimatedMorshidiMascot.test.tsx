@@ -12,7 +12,7 @@ afterEach(() => {
 });
 
 describe("AnimatedMorshidiMascot", () => {
-  it("renders accessible container with Arabic aria-label", () => {
+  it("renders accessible container with Arabic aria-label and status attributes", () => {
     render(<AnimatedMorshidiMascot status="idle" />);
 
     const mascot = screen.getByTestId("animated-morshidi-mascot");
@@ -23,26 +23,34 @@ describe("AnimatedMorshidiMascot", () => {
     expect(mascot.getAttribute("data-mouth-state")).toBe("closed");
   });
 
-  it("renders all 5 official character layers from /brand/mascot/", () => {
+  it("renders all 5 official character layers from /brand/mascot/ with correct stacking order", () => {
     const { container } = render(<AnimatedMorshidiMascot status="listening" />);
 
     const images = Array.from(container.querySelectorAll("img"));
     const imageSources = images.map((img) => img.getAttribute("src"));
 
-    expect(imageSources).toContain("/brand/mascot/arm-left.png");
     expect(imageSources).toContain("/brand/mascot/torso-closed.png");
     expect(imageSources).toContain("/brand/mascot/torso-half.png");
     expect(imageSources).toContain("/brand/mascot/torso-open.png");
+    expect(imageSources).toContain("/brand/mascot/arm-left.png");
     expect(imageSources).toContain("/brand/mascot/arm-right.png");
     expect(images.length).toBe(5);
+
+    // Verify arms are placed after torso layers in DOM order so moving arms are never occluded by torso
+    const torsoIndex = images.findIndex((img) => img.getAttribute("src")?.includes("torso"));
+    const armLeftIndex = images.findIndex((img) => img.getAttribute("src")?.includes("arm-left"));
+    const armRightIndex = images.findIndex((img) => img.getAttribute("src")?.includes("arm-right"));
+
+    expect(armLeftIndex).toBeGreaterThan(torsoIndex);
+    expect(armRightIndex).toBeGreaterThan(torsoIndex);
   });
 
-  it("keeps mouth closed during listening state even if background noise exists", () => {
+  it("keeps mouth strictly closed when only student microphone is active", () => {
     render(
       <AnimatedMorshidiMascot
         status="listening"
-        assistantAudioLevel={0.45}
-        micAudioLevel={0.8}
+        micAudioLevel={0.85}
+        assistantAudioLevel={0.0}
       />
     );
 
@@ -58,48 +66,49 @@ describe("AnimatedMorshidiMascot", () => {
     expect(open.style.opacity).toBe("0");
   });
 
-  it("synchronizes mouth to half-open on moderate assistant speech audio", () => {
+  it("reacts directly to remote assistant audio energy even if status is still listening (audio-driven speaking)", () => {
     render(
       <AnimatedMorshidiMascot
-        status="speaking"
-        assistantAudioLevel={0.12}
+        status="listening"
+        assistantAudioLevel={0.22}
       />
     );
 
     const mascot = screen.getByTestId("animated-morshidi-mascot");
-    expect(mascot.getAttribute("data-mouth-state")).toBe("half");
-
-    const closed = screen.getByTestId("torso-closed");
-    const half = screen.getByTestId("torso-half");
-    const open = screen.getByTestId("torso-open");
-
-    expect(closed.style.opacity).toBe("0");
-    expect(half.style.opacity).toBe("1");
-    expect(open.style.opacity).toBe("0");
-  });
-
-  it("synchronizes mouth to full-open on peak assistant speech audio", () => {
-    render(
-      <AnimatedMorshidiMascot
-        status="speaking"
-        assistantAudioLevel={0.35}
-      />
-    );
-
-    const mascot = screen.getByTestId("animated-morshidi-mascot");
+    expect(mascot.getAttribute("data-speaking")).toBe("true");
     expect(mascot.getAttribute("data-mouth-state")).toBe("open");
 
-    const closed = screen.getByTestId("torso-closed");
-    const half = screen.getByTestId("torso-half");
     const open = screen.getByTestId("torso-open");
-
-    expect(closed.style.opacity).toBe("0");
-    expect(half.style.opacity).toBe("0");
     expect(open.style.opacity).toBe("1");
   });
 
-  it("activates explanatory hand gestures only when speaking", () => {
-    const { rerender } = render(<AnimatedMorshidiMascot status="listening" />);
+  it("transitions mouth: closed -> half -> open -> closed across speech intensity cycle", () => {
+    const { rerender } = render(
+      <AnimatedMorshidiMascot status="speaking" assistantAudioLevel={0.0} />
+    );
+
+    // Initial silent speaking state
+    let mascot = screen.getByTestId("animated-morshidi-mascot");
+    expect(mascot.getAttribute("data-mouth-state")).toBe("closed");
+
+    // Moderate audio: half mouth
+    rerender(<AnimatedMorshidiMascot status="speaking" assistantAudioLevel={0.08} />);
+    mascot = screen.getByTestId("animated-morshidi-mascot");
+    expect(mascot.getAttribute("data-mouth-state")).toBe("half");
+
+    // Peak audio: full open mouth
+    rerender(<AnimatedMorshidiMascot status="speaking" assistantAudioLevel={0.25} />);
+    mascot = screen.getByTestId("animated-morshidi-mascot");
+    expect(mascot.getAttribute("data-mouth-state")).toBe("open");
+
+    // Speech completed: closed mouth
+    rerender(<AnimatedMorshidiMascot status="listening" assistantAudioLevel={0.0} />);
+    mascot = screen.getByTestId("animated-morshidi-mascot");
+    expect(mascot.getAttribute("data-mouth-state")).toBe("closed");
+  });
+
+  it("activates explanatory hand gestures during speech and terminates gestures after speech", () => {
+    const { rerender } = render(<AnimatedMorshidiMascot status="listening" assistantAudioLevel={0} />);
 
     const armLeft = screen.getByTestId("arm-left-container");
     const armRight = screen.getByTestId("arm-right-container");
@@ -107,9 +116,27 @@ describe("AnimatedMorshidiMascot", () => {
     expect(armLeft.classList.contains("animate-mascot-gesture-left")).toBe(false);
     expect(armRight.classList.contains("animate-mascot-gesture-right")).toBe(false);
 
-    rerender(<AnimatedMorshidiMascot status="speaking" assistantAudioLevel={0.2} />);
-
+    // Assistant speaks
+    rerender(<AnimatedMorshidiMascot status="speaking" assistantAudioLevel={0.15} />);
     expect(armLeft.classList.contains("animate-mascot-gesture-left")).toBe(true);
     expect(armRight.classList.contains("animate-mascot-gesture-right")).toBe(true);
+
+    // Assistant stops speaking
+    rerender(<AnimatedMorshidiMascot status="listening" assistantAudioLevel={0} />);
+    expect(armLeft.classList.contains("animate-mascot-gesture-left")).toBe(false);
+    expect(armRight.classList.contains("animate-mascot-gesture-right")).toBe(false);
+  });
+
+  it("keeps mouth closed during academic delegation state", () => {
+    render(
+      <AnimatedMorshidiMascot
+        status="delegating"
+        assistantAudioLevel={0.1}
+      />
+    );
+
+    const mascot = screen.getByTestId("animated-morshidi-mascot");
+    expect(mascot.getAttribute("data-mouth-state")).toBe("closed");
+    expect(mascot.getAttribute("data-speaking")).toBe("false");
   });
 });

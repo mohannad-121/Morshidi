@@ -1,5 +1,36 @@
 # Morshidi — Codex Progress Record
 
+## Morshidi Realtime Live Voice Agent — GPT-Live Event Contract & Web Audio Mascot Reactivity Fix (2026-10-30; completed and verified)
+
+**Phase/slice, objective, and starting state:** Resolved the production defect where the official Morshidi mascot was visually static during live speech conversations on branch `main` at starting HEAD `e5a125ba35d74ed34d907cfab3b9db17961ee7ab`. The root causes identified were: (1) `WebRTCVoiceSession` only handled legacy Realtime API events (`response.audio_transcript.delta`) rather than official GPT-Live event schema (`session.output_transcript.delta`), preventing status from entering `speaking`; (2) Web Audio API `AudioContext` could initialize in a suspended state and lacked an active destination pull-graph, leading to zeroed-out RMS/frequency bins; (3) animation keyframe displacements were too subtle to be visible at standard viewing distances; and (4) `AnimatedMorshidiMascot.tsx` stacked the torso layer over the left arm, obscuring movement.
+
+**Root cause analysis & architectural implementation details:**
+1. *Official GPT-Live Event Contract & Audio-Driven Fallback (`apps/web/src/lib/voice/webrtc-voice-session.ts`):*
+   - Added support for `session.output_transcript.delta`, `session.output_transcript.done`, `output_audio_buffer.started`, `output_audio_buffer.stopped`, `session.input_transcript.delta`, and `session.input_transcript.done`, while maintaining full backward-compatibility for legacy Realtime events.
+   - Enforced spoken audio playback as the primary source of truth: In `startLevelMonitoring()`, when `assistantLevel >= 0.035`, session status automatically transitions to `speaking` in real-time, independent of data channel transcript latency.
+2. *Web Audio API Graph & Analyser Connectivity (`apps/web/src/lib/voice/webrtc-voice-session.ts`):*
+   - Added auto-resume guards (`if (ctx.state === "suspended") ctx.resume()`) during setup and when connecting remote streams.
+   - Connected `remoteSource -> assistantAnalyser -> silenceGain (gain=0) -> audioContext.destination`. This ensures Chromium's Web Audio thread continuously pulls audio buffers through `assistantAnalyser` without introducing duplicate playback or echo.
+3. *Expressive, Natural Animations & Stacking Order (`apps/web/src/components/voice/AnimatedMorshidiMascot.tsx`, `apps/web/src/app/globals.css`):*
+   - In `AnimatedMorshidiMascot.tsx`: Swapped stacking order so that the torso forms the base layer (Layer 1), and `arm-left` (Layer 2) and `arm-right` (Layer 3) sit completely unobstructed in front.
+   - Replaced status-only gating with dual-trigger speaking: `isActuallySpeaking = (status === "speaking" || assistantAudioLevel >= 0.035) && !delegating && !ended`.
+   - Updated `globals.css`: Increased breathing cycle to 4px vertical rise (`scale(1.015) translateY(-4px)`) on a 3.8s ease-in-out period. Enhanced hand gestures with natural 15–20px displacement and 3.5° rotation, smoothly returning to rest via 0.6s transitions.
+   - Preserved `@media (prefers-reduced-motion: reduce)` accessibility behavior.
+
+**Test results and verification metrics:**
+- *Voice Frontend Tests:* 27 passed in 3.66s across 4 test files (`npm --prefix apps/web test -- "voice"`).
+- *Frontend Typecheck:* `npm --prefix apps/web run typecheck` passed with 0 errors.
+- *Next.js Production Build:* `npm --prefix apps/web run build` passed with Turbopack, compiling all 41 routes with 0 errors.
+- *Backend Regression:* 82 passed in 3.15s (`apps/api/.venv311/Scripts/python.exe -m pytest apps/api/tests/test_voice_service.py apps/api/tests/test_advisor_service.py -q`).
+
+**Files changed and verified from disk:**
+- `apps/web/src/lib/voice/webrtc-voice-session.ts` (26,380 bytes)
+- `apps/web/src/lib/voice/webrtc-voice-session.test.ts` (11,870 bytes)
+- `apps/web/src/components/voice/AnimatedMorshidiMascot.tsx` (7,725 bytes)
+- `apps/web/src/components/voice/AnimatedMorshidiMascot.test.tsx` (5,120 bytes)
+- `apps/web/src/app/globals.css` (77,150 bytes)
+- `docs/CODEX_PROGRESS.md` (updated)
+
 ## Morshidi Realtime Live Voice Agent — Official Mascot 2D Animation & Speech Lip-Sync Integration (2026-10-30; completed and verified)
 
 **Phase/slice, objective, and starting state:** Integrated authentic 2D animation for the official Morshidi academic advisor mascot inside the Live Voice experience (`LiveVoiceSession.tsx`) on branch `main` at starting HEAD `f0f4750bed598b87042a40f93877810572187022`. The objective was to replace the static 80x80 circular avatar with an enlarged, expressive 2D character (Desktop 245x239px, Mobile 185x180px) adhering strictly to the official character design (styled brown hair, glasses, beard, cream suit with gold trim), animated with continuous idle breathing, speech-synchronized mouth animation (closed, half, open) driven solely by assistant output volume, subtle explanatory hand gestures during explanations, and full accessibility/reduced-motion compliance.

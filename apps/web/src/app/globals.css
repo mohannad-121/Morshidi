@@ -1094,7 +1094,7 @@ a.bg-accent,
     transform: translateY(0px) scale(1);
   }
   50% {
-    transform: translateY(-2px) scale(1.008);
+    transform: translateY(-4px) scale(1.015);
   }
 }
 
@@ -1102,14 +1102,20 @@ a.bg-accent,
   0%, 100% {
     transform: translate(0px, 0px) rotate(0deg);
   }
-  24% {
-    transform: translate(-1px, -3px) rotate(-1deg);
+  20% {
+    transform: translate(-3px, -8px) rotate(-2.8deg);
   }
-  50% {
-    transform: translate(0px, -1px) rotate(-0.3deg);
+  38% {
+    transform: translate(-4px, -11px) rotate(-3.6deg);
   }
-  75% {
-    transform: translate(-1.5px, -3.5px) rotate(-1.2deg);
+  58% {
+    transform: translate(-2px, -5px) rotate(-1.6deg);
+  }
+  78% {
+    transform: translate(-3.5px, -9px) rotate(-3deg);
+  }
+  92% {
+    transform: translate(-1px, -2px) rotate(-0.6deg);
   }
 }
 
@@ -1117,34 +1123,37 @@ a.bg-accent,
   0%, 100% {
     transform: translate(0px, 0px) rotate(0deg);
   }
-  20% {
-    transform: translate(0px, -1px) rotate(0.4deg);
+  18% {
+    transform: translate(1px, -2px) rotate(0.6deg);
   }
-  46% {
-    transform: translate(1.5px, -3px) rotate(1.2deg);
+  38% {
+    transform: translate(4px, -10px) rotate(3.4deg);
   }
-  70% {
-    transform: translate(0.5px, -1.2px) rotate(0.4deg);
+  58% {
+    transform: translate(2px, -5px) rotate(1.5deg);
   }
-  90% {
-    transform: translate(1.2px, -2.8px) rotate(0.9deg);
+  78% {
+    transform: translate(3.5px, -8px) rotate(2.8deg);
+  }
+  92% {
+    transform: translate(1px, -2px) rotate(0.8deg);
   }
 }
 
 .animate-mascot-breathe {
-  animation: mascot-breathe 4s ease-in-out infinite;
+  animation: mascot-breathe 3.8s ease-in-out infinite;
   will-change: transform;
 }
 
 .animate-mascot-gesture-left {
   animation: mascot-gesture-left 4.8s ease-in-out infinite;
-  transform-origin: 32% 40%;
+  transform-origin: 28% 42%;
   will-change: transform;
 }
 
 .animate-mascot-gesture-right {
-  animation: mascot-gesture-right 5.2s ease-in-out infinite;
-  transform-origin: 68% 40%;
+  animation: mascot-gesture-right 5.6s ease-in-out infinite;
+  transform-origin: 72% 42%;
   will-change: transform;
 }
 

@@ -71,6 +71,7 @@ export class WebRTCVoiceSession {
   private lastUserText: string = "";
   private currentAssistantText: string = "";
   private expirationTimer: ReturnType<typeof setTimeout> | null = null;
+  private lastAssistantAudioTime: number = 0;
 
   private handleBeforeUnload = () => {
     this.stop();
@@ -255,6 +256,9 @@ export class WebRTCVoiceSession {
       if (!AudioCtx) return;
       const ctx = new AudioCtx();
       this.audioContext = ctx;
+      if (ctx.state === "suspended") {
+        void ctx.resume().catch(() => {});
+      }
 
       // Microphone analyser
       const micSource = ctx.createMediaStreamSource(micStream);
@@ -275,8 +279,21 @@ export class WebRTCVoiceSession {
   private connectRemoteAudioToAnalyser(remoteStream: MediaStream) {
     if (!this.audioContext || !this.assistantAnalyser) return;
     try {
+      if (this.audioContext.state === "suspended") {
+        void this.audioContext.resume().catch(() => {});
+      }
       const remoteSource = this.audioContext.createMediaStreamSource(remoteStream);
       remoteSource.connect(this.assistantAnalyser);
+
+      // Connect to audioContext.destination via gain=0.
+      // This is crucial: Chrome's Web Audio thread will only continuously pull
+      // audio samples from a MediaStreamSource through an AnalyserNode if the graph
+      // terminates at destination. The gain of 0 ensures no duplicate audio / echo,
+      // while guaranteeing that getByteFrequencyData receives live audio frames.
+      const silenceGain = this.audioContext.createGain();
+      silenceGain.gain.value = 0;
+      this.assistantAnalyser.connect(silenceGain);
+      silenceGain.connect(this.audioContext.destination);
     } catch (e) {
       console.warn("Could not connect remote stream to analyser:", e);
     }
@@ -306,6 +323,19 @@ export class WebRTCVoiceSession {
         let sum = 0;
         for (let i = 0; i < assistantData.length; i++) sum += assistantData[i];
         assistantLevel = Math.min(1, (sum / assistantData.length) / 100);
+
+        // Primary Audio-Driven Speaking Detection:
+        // Physical audio output is the primary source of truth for speaking.
+        const now = Date.now();
+        if (assistantLevel >= 0.035) {
+          this.lastAssistantAudioTime = now;
+          if (this.status === "listening") {
+            this.setStatus("speaking");
+          }
+        } else if (this.status === "speaking" && now - this.lastAssistantAudioTime > 450) {
+          // If no assistant audio for > 450ms, return to listening
+          this.setStatus("listening");
+        }
       }
 
       this.callbacks.onAudioLevels?.({ micLevel, assistantLevel });
@@ -325,8 +355,9 @@ export class WebRTCVoiceSession {
       const type = event.type as string;
 
       switch (type) {
-        // Interruption & Speech Detection
+        // Interruption & Speech Detection (GPT-Live & Realtime)
         case "input_audio_buffer.speech_started":
+        case "session.input_transcript.started":
           // User started speaking — IMMEDIATELY cancel assistant speech and stop playback
           if (this.audioEl) {
             this.audioEl.pause();
@@ -338,13 +369,21 @@ export class WebRTCVoiceSession {
           break;
 
         case "input_audio_buffer.speech_stopped":
+        case "session.input_transcript.stopped":
           // User stopped speaking
           break;
 
-        case "conversation.item.input_audio_transcription.completed":
-          // User speech transcription complete
-          if (event.transcript) {
-            this.lastUserText = event.transcript.trim();
+        case "session.input_transcript.delta":
+          if (event.delta) {
+            this.callbacks.onInterimTranscript?.(event.delta, "user");
+          }
+          break;
+
+        case "session.input_transcript.done":
+        case "conversation.item.input_audio_transcription.completed": {
+          const userText = (event.transcript || event.text || "").trim();
+          if (userText) {
+            this.lastUserText = userText;
             this.callbacks.onTurnConfirmed?.({
               id: event.item_id || String(Date.now()),
               role: "user",
@@ -353,20 +392,40 @@ export class WebRTCVoiceSession {
             });
           }
           break;
+        }
 
-        // Assistant Audio Streaming & Transcripts
+        // Assistant Audio Streaming & Transcripts (GPT-Live & Realtime fallback)
         case "response.created":
+        case "session.output_item.added":
           this.currentAssistantText = "";
           break;
 
-        case "response.audio_transcript.delta":
+        case "session.output_transcript.delta":
+        case "response.audio_transcript.delta": {
           this.setStatus("speaking");
-          if (event.delta) {
-            this.currentAssistantText += event.delta;
+          this.lastAssistantAudioTime = Date.now();
+          const delta = event.delta || event.transcript || "";
+          if (delta) {
+            this.currentAssistantText += delta;
             this.callbacks.onInterimTranscript?.(this.currentAssistantText, "assistant");
           }
           break;
+        }
 
+        case "output_audio_buffer.started":
+        case "response.audio.started":
+          this.setStatus("speaking");
+          this.lastAssistantAudioTime = Date.now();
+          break;
+
+        case "output_audio_buffer.stopped":
+        case "response.audio.done":
+          if (this.status === "speaking") {
+            this.setStatus("listening");
+          }
+          break;
+
+        case "session.output_transcript.done":
         case "response.audio_transcript.done":
           if (this.currentAssistantText.trim()) {
             this.callbacks.onTurnConfirmed?.({

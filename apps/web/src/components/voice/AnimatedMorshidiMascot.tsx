@@ -23,10 +23,11 @@ export type MascotMouthState = "closed" | "half" | "open";
  * AnimatedMorshidiMascot
  *
  * Renders the official Morshidi academic advisor mascot with:
- * 1. Gentle continuous idle breathing (alive while listening or resting).
- * 2. Speech-synchronized mouth animation (closed, half, open) driven strictly by assistant audio levels.
- * 3. Natural, subtle explanatory hand gestures while explaining concepts.
+ * 1. Gentle, clearly visible continuous idle breathing (alive while listening or resting).
+ * 2. Speech-synchronized mouth animation (closed, half, open) driven directly by real assistant audio playback energy.
+ * 3. Natural, clearly visible explanatory hand gestures while explaining concepts.
  * 4. Reactive aura indicating listening, speaking, and academic verification states.
+ * 5. Full prefers-reduced-motion accessibility compliance.
  */
 export function AnimatedMorshidiMascot({
   status,
@@ -35,9 +36,18 @@ export function AnimatedMorshidiMascot({
   className = "",
   sizePreset = "standard",
 }: AnimatedMorshidiMascotProps) {
-  const isSpeaking = status === "speaking";
+  // Real assistant audio energy presence
+  const isAudioActive = assistantAudioLevel >= 0.035;
+
+  // Assistant is actively speaking if status is explicitly "speaking" OR if speech audio energy is playing
+  const isActuallySpeaking =
+    (status === "speaking" || isAudioActive) &&
+    status !== "delegating" &&
+    status !== "ended" &&
+    status !== "error";
+
   const isDelegating = status === "delegating";
-  const isListening = status === "listening";
+  const isListening = status === "listening" && !isAudioActive;
 
   // Speech-synchronized mouth state tracking with jitter-prevention hold
   const [mouthState, setMouthState] = useState<MascotMouthState>("closed");
@@ -46,7 +56,7 @@ export function AnimatedMorshidiMascot({
 
   useEffect(() => {
     // When assistant is not speaking, mouth immediately returns to closed resting state
-    if (!isSpeaking) {
+    if (!isActuallySpeaking) {
       if (currentMouthRef.current !== "closed") {
         currentMouthRef.current = "closed";
         setMouthState("closed");
@@ -57,24 +67,26 @@ export function AnimatedMorshidiMascot({
     const now = Date.now();
     let targetMouth: MascotMouthState = "closed";
 
-    if (assistantAudioLevel >= 0.18) {
+    // Dynamic threshold: peaks/emphasis switch to full open; intermediate syllables to half
+    if (assistantAudioLevel >= 0.14) {
       targetMouth = "open";
-    } else if (assistantAudioLevel >= 0.04) {
+    } else if (assistantAudioLevel >= 0.035) {
       targetMouth = "half";
     } else {
+      // Quiet pause between syllables in an active speech turn
       targetMouth = "closed";
     }
 
-    // Immediate open on speech attack; 75ms minimum frame hold on closing to prevent 60Hz flicker
+    // Immediate open on speech attack; 70ms minimum frame hold on closing to prevent 60Hz flicker
     const timeSinceChange = now - lastStateChangeRef.current;
     if (targetMouth !== currentMouthRef.current) {
-      if (targetMouth === "open" || timeSinceChange >= 75) {
+      if (targetMouth === "open" || timeSinceChange >= 70) {
         currentMouthRef.current = targetMouth;
         lastStateChangeRef.current = now;
         setMouthState(targetMouth);
       }
     }
-  }, [isSpeaking, assistantAudioLevel]);
+  }, [isActuallySpeaking, assistantAudioLevel]);
 
   // Size styling: Desktop 220–260px, Mobile 170–200px (standard modal)
   const sizeClasses =
@@ -83,12 +95,12 @@ export function AnimatedMorshidiMascot({
       : "w-[185px] h-[180px] sm:w-[245px] sm:h-[239px]";
 
   // Reactive glow color based on operational state
-  const auraGlowColor = isSpeaking
-    ? "rgba(255, 194, 26, 0.22)" // Rich Gold when explaining
+  const auraGlowColor = isActuallySpeaking
+    ? "rgba(255, 194, 26, 0.25)" // Rich Gold when explaining
     : isDelegating
-    ? "rgba(56, 189, 248, 0.25)" // Bright Cyan when verifying academic rules
+    ? "rgba(56, 189, 248, 0.28)" // Bright Cyan when verifying academic rules
     : isListening && micAudioLevel > 0.05
-    ? "rgba(168, 85, 247, 0.22)" // Purple when actively listening to student
+    ? "rgba(168, 85, 247, 0.25)" // Purple when actively listening to student
     : "rgba(255, 255, 255, 0.05)"; // Gentle ambient
 
   const auraScale = 1 + Math.max(assistantAudioLevel, micAudioLevel) * 0.45;
@@ -100,6 +112,7 @@ export function AnimatedMorshidiMascot({
       aria-label="مرشدي — المرشد الأكاديمي الذكي"
       data-testid="animated-morshidi-mascot"
       data-status={status}
+      data-speaking={isActuallySpeaking}
       data-mouth-state={mouthState}
     >
       {/* Dynamic Atmospheric Aura behind Mascot */}
@@ -124,24 +137,7 @@ export function AnimatedMorshidiMascot({
             "linear-gradient(to bottom, black 0%, black 86%, transparent 100%)",
         }}
       >
-        {/* Layer 1: Left Arm (Viewer's Left / Character's Right) */}
-        <div
-          className={`absolute inset-0 w-full h-full pointer-events-none transition-transform duration-500 ${
-            isSpeaking ? "animate-mascot-gesture-left" : ""
-          }`}
-          data-testid="arm-left-container"
-        >
-          <Image
-            src="/brand/mascot/arm-left.png"
-            alt=""
-            width={777}
-            height={759}
-            className="w-full h-full object-contain pointer-events-none"
-            aria-hidden="true"
-          />
-        </div>
-
-        {/* Layer 2: Torso with Synchronized Mouth Variations */}
+        {/* Layer 1: Torso Base with Synchronized Mouth Variations (Behind Arms) */}
         {/* Closed Mouth (Default / Resting / Listening) */}
         <div
           className="absolute inset-0 w-full h-full pointer-events-none transition-opacity duration-75"
@@ -173,7 +169,7 @@ export function AnimatedMorshidiMascot({
           />
         </div>
 
-        {/* Full Open Mouth (Emphasis / Vowels / Peaks) */}
+        {/* Full Open Mouth (Emphasis / Vowels / Speech Peaks) */}
         <div
           className="absolute inset-0 w-full h-full pointer-events-none transition-opacity duration-75"
           style={{ opacity: mouthState === "open" ? 1 : 0 }}
@@ -189,10 +185,27 @@ export function AnimatedMorshidiMascot({
           />
         </div>
 
-        {/* Layer 3: Right Arm (Viewer's Right / Character's Left) */}
+        {/* Layer 2: Left Arm (Viewer's Left) — Positioned ON TOP of Torso for Unobscured Gesture */}
         <div
           className={`absolute inset-0 w-full h-full pointer-events-none transition-transform duration-500 ${
-            isSpeaking ? "animate-mascot-gesture-right" : ""
+            isActuallySpeaking ? "animate-mascot-gesture-left" : ""
+          }`}
+          data-testid="arm-left-container"
+        >
+          <Image
+            src="/brand/mascot/arm-left.png"
+            alt=""
+            width={777}
+            height={759}
+            className="w-full h-full object-contain pointer-events-none"
+            aria-hidden="true"
+          />
+        </div>
+
+        {/* Layer 3: Right Arm (Viewer's Right) — Positioned ON TOP of Torso for Unobscured Gesture */}
+        <div
+          className={`absolute inset-0 w-full h-full pointer-events-none transition-transform duration-500 ${
+            isActuallySpeaking ? "animate-mascot-gesture-right" : ""
           }`}
           data-testid="arm-right-container"
         >

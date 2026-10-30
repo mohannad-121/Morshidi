@@ -160,6 +160,72 @@ describe("WebRTCVoiceSession", () => {
     });
   });
 
+  it("handles GPT-Live output_transcript delta and done events transitioning to speaking and confirmed turn", async () => {
+    const onStatusChange = vi.fn();
+    const onInterimTranscript = vi.fn();
+    const onTurnConfirmed = vi.fn();
+
+    const session = new WebRTCVoiceSession(mockVoiceApi as unknown as VoiceApiService, {
+      onStatusChange,
+      onInterimTranscript,
+      onTurnConfirmed,
+    });
+
+    await session.start("thread-abc");
+
+    // Receive official GPT-Live transcript delta event
+    mockDataChannel.onmessage?.({
+      data: JSON.stringify({
+        type: "session.output_transcript.delta",
+        delta: "مرحباً بك يا أحمد في مرشدي.",
+      }),
+    });
+
+    expect(session.getStatus()).toBe("speaking");
+    expect(onStatusChange).toHaveBeenCalledWith("speaking");
+    expect(onInterimTranscript).toHaveBeenCalledWith("مرحباً بك يا أحمد في مرشدي.", "assistant");
+
+    // Receive official GPT-Live transcript done event
+    mockDataChannel.onmessage?.({
+      data: JSON.stringify({
+        type: "session.output_transcript.done",
+      }),
+    });
+
+    expect(session.getStatus()).toBe("listening");
+    expect(onTurnConfirmed).toHaveBeenCalledWith(
+      expect.objectContaining({
+        role: "assistant",
+        text: "مرحباً بك يا أحمد في مرشدي.",
+      })
+    );
+  });
+
+  it("handles output_audio_buffer started and stopped events for instant speaking reactivity", async () => {
+    const onStatusChange = vi.fn();
+    const session = new WebRTCVoiceSession(mockVoiceApi as unknown as VoiceApiService, {
+      onStatusChange,
+    });
+
+    await session.start();
+
+    mockDataChannel.onmessage?.({
+      data: JSON.stringify({
+        type: "output_audio_buffer.started",
+      }),
+    });
+
+    expect(session.getStatus()).toBe("speaking");
+
+    mockDataChannel.onmessage?.({
+      data: JSON.stringify({
+        type: "output_audio_buffer.stopped",
+      }),
+    });
+
+    expect(session.getStatus()).toBe("listening");
+  });
+
   it("handles GPT-Live client delegation with session.delegation.created and replies with session.commentary.append", async () => {
     const onDelegationProgress = vi.fn();
     const session = new WebRTCVoiceSession(mockVoiceApi as unknown as VoiceApiService, {
