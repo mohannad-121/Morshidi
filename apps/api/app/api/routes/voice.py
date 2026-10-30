@@ -91,6 +91,7 @@ class VoiceTurnSyncResponse(BaseModel):
 class VoiceStatusResponse(BaseModel):
     enabled: bool
     configured: bool
+    is_authorized: bool = True
     model: str
     voice: str
     max_duration_seconds: int
@@ -180,6 +181,11 @@ async def end_session(
     voice_service: VoiceServiceDep,
 ) -> dict[str, bool]:
     """Gracefully terminate an active voice session and reconcile consumed quota minutes."""
+    if not voice_service.is_user_authorized(str(user.user_id)):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="المحادثة الصوتية غير مصرح بها لهذا الحساب.",
+        )
     voice_service.end_session(
         student_user_id=str(user.user_id),
         session_id=body.session_id,

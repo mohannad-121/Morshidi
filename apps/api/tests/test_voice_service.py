@@ -142,6 +142,8 @@ def _build_test_voice_service(
     enabled: bool = True,
     transport_handler=None,
     max_daily: int = 5,
+    allowed_user_ids: str = "",
+    app_env: str = "development",
 ) -> tuple[VoiceService, FakeAdvisorService, FakeConversationStore]:
     async def default_handler(request: httpx.Request) -> httpx.Response:
         auth_header = request.headers.get("Authorization", "")
@@ -193,6 +195,8 @@ def _build_test_voice_service(
         conversation_store=store,
         api_key=api_key,
         enabled=enabled,
+        allowed_user_ids=allowed_user_ids,
+        app_env=app_env,
     )
     return voice_svc, advisor_svc, store
 
@@ -708,5 +712,130 @@ async def test_cleanup_expired_and_inactivity_abandonment():
     assert cleaned == 1
     assert manager.get_active_session(OWNER_A) is None
     assert manager.get_daily_duration_seconds(OWNER_A) == pytest.approx(10.0, abs=1.0)
+
+
+# ══════════════════════════════════════════════════════════════════════════
+# Owner-Only Production Access Allowlist Tests
+# ══════════════════════════════════════════════════════════════════════════
+
+@pytest.mark.anyio
+async def test_owner_allowlist_permits_authorized_user():
+    """Verify that when allowed_user_ids is set, authorized user can access voice."""
+    voice_svc, _, _ = _build_test_voice_service(
+        allowed_user_ids=f"{OWNER_A}, 22222222-2222-2222-2222-222222222222",
+        app_env="production",
+    )
+    assert voice_svc.is_user_authorized(OWNER_A) is True
+    status = voice_svc.get_status(OWNER_A)
+    assert status["is_authorized"] is True
+    assert status["enabled"] is True
+
+    session = await voice_svc.create_realtime_session(OWNER_A, sdp_offer="v=0\r\no=Browser ...")
+    assert session["session_id"] == "sess_live_test_123"
+
+
+@pytest.mark.anyio
+async def test_owner_allowlist_rejects_unauthorized_user_with_403():
+    """Verify that unauthorized user is blocked with 403 on all voice operations."""
+    unauthorized_id = "99999999-9999-9999-9999-999999999999"
+    voice_svc, _, _ = _build_test_voice_service(
+        allowed_user_ids=OWNER_A,
+        app_env="production",
+    )
+    assert voice_svc.is_user_authorized(unauthorized_id) is False
+
+    status = voice_svc.get_status(unauthorized_id)
+    assert status["is_authorized"] is False
+
+    with pytest.raises(HTTPException) as exc_sess:
+        await voice_svc.create_realtime_session(unauthorized_id, sdp_offer="v=0\r\no=Browser ...")
+    assert exc_sess.value.status_code == 403
+
+    res_del = await voice_svc.execute_delegated_tool(
+        student_user_id=unauthorized_id,
+        call_id="call-unauth-1",
+        tool_name="get_remaining_requirements",
+        arguments="{}",
+    )
+    assert res_del["ok"] is False
+    assert res_del["output"]["error"] == "FORBIDDEN"
+
+    with pytest.raises(HTTPException) as exc_sync:
+        await voice_svc.sync_completed_turn(
+            student_user_id=unauthorized_id,
+            thread_id="test-thread-id",
+            user_transcript="سؤال غير مصرح به",
+            assistant_transcript="رد غير مصرح به",
+            client_turn_id=uuid4(),
+        )
+    assert exc_sync.value.status_code == 403
+
+
+@pytest.mark.anyio
+async def test_production_fails_closed_when_allowlist_empty():
+    """In production, empty allowlist must deny all users safely."""
+    voice_svc, _, _ = _build_test_voice_service(
+        allowed_user_ids="",
+        app_env="production",
+    )
+    assert voice_svc.is_user_authorized(OWNER_A) is False
+    status = voice_svc.get_status(OWNER_A)
+    assert status["is_authorized"] is False
+
+    with pytest.raises(HTTPException) as exc:
+        await voice_svc.create_realtime_session(OWNER_A, sdp_offer="v=0\r\no=Browser ...")
+    assert exc.value.status_code == 403
+
+
+def test_api_route_rejects_unauthorized_user():
+    """Verify HTTP route behavior for unauthorized student."""
+    unauthorized_id = "88888888-8888-8888-8888-888888888888"
+    voice_svc, _, _ = _build_test_voice_service(
+        allowed_user_ids=OWNER_A,
+        app_env="production",
+    )
+    app.dependency_overrides[get_current_user] = lambda: CurrentUser(user_id=unauthorized_id)
+    app.dependency_overrides[get_voice_service] = lambda: voice_svc
+
+    try:
+        client = TestClient(app)
+
+        # Status returns 200 with is_authorized=False so UI can hide button
+        res_status = client.get("/api/v1/me/voice/status")
+        assert res_status.status_code == 200
+        assert res_status.json()["is_authorized"] is False
+
+        # Session creation returns 403
+        res_sess = client.post("/api/v1/me/voice/session", json={"sdp_offer": "v=0\r\n..."})
+        assert res_sess.status_code == 403
+
+        # Delegation returns structured rejection so WebRTC does not break
+        res_del = client.post("/api/v1/me/voice/delegate", json={
+            "call_id": "c1",
+            "tool_name": "get_remaining_requirements",
+            "arguments": "{}",
+        })
+        assert res_del.status_code == 200
+        assert res_del.json()["ok"] is False
+        assert res_del.json()["output"]["error"] == "FORBIDDEN"
+
+        # Turn sync returns 403
+        res_sync = client.post("/api/v1/me/voice/sync-turn", json={
+            "thread_id": str(uuid4()),
+            "user_transcript": "test",
+            "assistant_transcript": "test",
+            "client_turn_id": str(uuid4()),
+        })
+        assert res_sync.status_code == 403
+
+        # End session returns 403
+        res_end = client.post("/api/v1/me/voice/end-session", json={
+            "session_id": "sess_1",
+            "actual_duration_seconds": 10.0,
+        })
+        assert res_end.status_code == 403
+    finally:
+        app.dependency_overrides.clear()
+
 
 

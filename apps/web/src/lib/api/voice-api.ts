@@ -54,6 +54,7 @@ export interface VoiceTurnSyncResponse {
 export interface VoiceStatusResponse {
   enabled: boolean;
   configured: boolean;
+  is_authorized?: boolean;
   model: string;
   voice: string;
   max_duration_seconds: number;

@@ -301,6 +301,16 @@ export default function ProfilePage() {
 
             {showTechnicalDetails ? (
               <div id="profile-technical-details" className="mt-4 space-y-3 border-t border-border/60 pt-4 text-xs font-mono">
+                {auth.user?.id ? (
+                  <div>
+                    <span className="block text-[10px] font-sans font-bold text-slate-400">
+                      معرّف الحساب المعتمد (User Auth UUID):
+                    </span>
+                    <span className="text-foreground break-all select-all font-bold text-amber-400" dir="ltr">
+                      {auth.user.id}
+                    </span>
+                  </div>
+                ) : null}
                 <div>
                   <span className="block text-[10px] font-sans font-bold text-slate-400">
                     معرّف الملف الأكاديمي (Profile UUID):

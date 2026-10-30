@@ -540,6 +540,8 @@ async def lifespan(application: FastAPI):
             voice_name=settings.morshidi_voice_name,
             max_duration_seconds=settings.morshidi_voice_max_duration_seconds,
             enabled=settings.morshidi_live_voice_enabled,
+            allowed_user_ids=settings.morshidi_voice_allowed_user_ids,
+            app_env=settings.app_env,
         )
     try:
         yield

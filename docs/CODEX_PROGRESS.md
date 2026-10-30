@@ -1,5 +1,46 @@
 # Morshidi — Codex Progress Record
 
+## Morshidi Realtime Live Voice Agent — Production Owner-Only Allowlist & Deployment Readiness (2026-10-30; completed and verified)
+
+**Phase/slice, objective, and starting state:** Prepared Live Voice for controlled production deployment to Vercel (`https://morshidi.vercel.app`) and Render (`https://morshidi.onrender.com`) on branch `release/university-ready-20261024` at starting HEAD `98bafc020c72aea6672c612c3173ac6f174f86d9`. The objective was to enforce strict server-side owner-only access gating via authenticated Supabase User UUID (`MORSHIDI_VOICE_ALLOWED_USER_IDS`), completely conceal voice buttons from unauthorized students, preserve existing text chat (`ADVISOR_LLM_MODEL=gpt-5.6-luna`), and verify complete test suite integrity.
+
+**Root cause analysis & architectural implementation details:**
+1. *Server-Authoritative Owner Allowlist (`apps/api/app/core/config.py`, `apps/api/app/voice/service.py`, `apps/api/app/api/routes/voice.py`):*
+   - Added `morshidi_voice_allowed_user_ids` (`MORSHIDI_VOICE_ALLOWED_USER_IDS`) configuration setting.
+   - Implemented `is_user_authorized(student_user_id)` checking against verified Supabase User UUID (`user.user_id`).
+   - Strict fail-closed policy: In production (`app_env == "production"`), if the allowlist is empty or unconfigured, access is denied to all accounts.
+   - Enforced across all endpoints: `GET /api/v1/me/voice/status` returns `is_authorized: false` for unlisted accounts, while `POST /session`, `POST /sync-turn`, and `POST /end-session` reject unauthorized invocations with HTTP 403. Delegation (`POST /delegate`) returns structured `FORBIDDEN` error safely preserving WebRTC connection.
+   - Privacy protection: Warnings log user rejection events without printing student UUIDs or PII.
+2. *Frontend Visibility & UI Guard (`apps/web/src/app/(student)/student/advisor/page.tsx`, `apps/web/src/lib/api/voice-api.ts`):*
+   - Updated `VoiceStatusResponse` with `is_authorized?: boolean`.
+   - In `AdvisorPage`, fetched status asynchronously only after conversation history is ready (`historyStatus === "ready"`), setting `voiceAvailable`.
+   - Both mobile header and desktop composer `LiveVoiceButton` components are conditionally rendered only when `voiceAvailable === true`, completely hiding voice affordances from unauthorized accounts.
+   - In `apps/web/src/app/(student)/student/profile/page.tsx`, added copyable User Auth UUID under Technical Details so the owner can effortlessly copy their Supabase User UUID for allowlist configuration.
+3. *Zero-Impact Preservation of Text Chat:*
+   - Existing text chat models and configurations (`ADVISOR_LLM_MODEL=gpt-5.6-luna`) remain untouched. The existing OpenAI secret key is reused server-side without generating new keys or committing secrets.
+
+**Test results and verification metrics:**
+- *Voice Backend Tests:* 23 passed in 2.56s (`apps/api/.venv311/Scripts/python.exe -m pytest apps/api/tests/test_voice_service.py -v`).
+  - Added unit test `test_owner_allowlist_permits_authorized_user`.
+  - Added unit test `test_owner_allowlist_rejects_unauthorized_user_with_403`.
+  - Added unit test `test_production_fails_closed_when_allowlist_empty`.
+  - Added integration test `test_api_route_rejects_unauthorized_user`.
+- *Advisor Backend Regression:* 59 passed in 0.75s (`apps/api/.venv311/Scripts/python.exe -m pytest apps/api/tests/test_advisor_service.py -q`).
+- *Full Web Test Suite:* 48 test files / 317 tests passed in 24.86s (`npm --prefix apps/web test`).
+- *Web Typecheck:* `npm --prefix apps/web run typecheck` passed with 0 errors.
+- *Next.js Production Build:* `npm --prefix apps/web run build` passed with Turbopack, compiling all 41 routes with 0 errors.
+
+**Files changed and verified from disk:**
+- `apps/api/app/core/config.py` (4,072 bytes)
+- `apps/api/app/main.py` (41,491 bytes)
+- `apps/api/app/api/routes/voice.py` (6,158 bytes)
+- `apps/api/app/voice/service.py` (27,760 bytes)
+- `apps/api/tests/test_voice_service.py` (33,567 bytes)
+- `apps/web/src/lib/api/voice-api.ts` (3,818 bytes)
+- `apps/web/src/app/(student)/student/advisor/page.tsx` (17,991 bytes)
+- `apps/web/src/app/(student)/student/profile/page.tsx` (15,240 bytes)
+- `docs/CODEX_PROGRESS.md` (updated)
+
 ## Morshidi Realtime Live Voice Agent — Single Duration Accounting & Session Expiration Hardening (2026-10-29; completed and verified)
 
 **Phase/slice, objective, and starting state:** Hardened the Live Voice Agent on branch `release/university-ready-20261024` at starting HEAD `1edab5f76a5b846d2c194684697f517b7882fa7b`. The objective was to eliminate duration double-counting between turn synchronization and session termination, enforce hard client and server session expiration deadlines (15 minutes), reject academic delegation on expired sessions, and ensure idempotent session termination and stale-session cleanup.

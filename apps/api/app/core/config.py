@@ -91,6 +91,13 @@ class Settings(BaseSettings):
             "MORSHIDI_VOICE_MAX_DAILY_MINUTES_PER_STUDENT",
         ),
     )
+    morshidi_voice_allowed_user_ids: str = Field(
+        default="",
+        validation_alias=AliasChoices(
+            "morshidi_voice_allowed_user_ids",
+            "MORSHIDI_VOICE_ALLOWED_USER_IDS",
+        ),
+    )
 
     policy_embedding_api_key: SecretStr | None = None
     policy_embedding_model: str = "text-embedding-3-large"

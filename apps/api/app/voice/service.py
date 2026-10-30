@@ -53,6 +53,8 @@ class VoiceService:
         voice_name: str = "alloy",
         max_duration_seconds: int = 900,
         enabled: bool = False,
+        allowed_user_ids: str | None = None,
+        app_env: str = "development",
     ) -> None:
         self._client = http_client
         self._advisor_service = advisor_service
@@ -65,6 +67,10 @@ class VoiceService:
         self._voice_name = voice_name.strip() if voice_name and voice_name.strip() else "alloy"
         self._max_duration_seconds = max_duration_seconds
         self._enabled = enabled
+        self._allowed_user_ids: set[str] = {
+            u.strip().lower() for u in (allowed_user_ids or "").split(",") if u.strip()
+        }
+        self._app_env = app_env
 
     @property
     def is_enabled(self) -> bool:
@@ -74,13 +80,37 @@ class VoiceService:
     def is_configured(self) -> bool:
         return self._api_key is not None
 
+    def is_user_authorized(self, student_user_id: str) -> bool:
+        """Enforces server-authoritative owner/student allowlist using authenticated Supabase UUID."""
+        if not self._enabled:
+            return False
+        if self._allowed_user_ids:
+            return student_user_id.lower() in self._allowed_user_ids
+        # In production, if no allowlist is configured, fail closed!
+        if self._app_env == "production":
+            return False
+        return True
+
     def get_status(self, student_user_id: str) -> dict[str, Any]:
         """Check voice feature availability, remaining quota, and model information."""
+        if not self.is_user_authorized(student_user_id):
+            return {
+                "enabled": False,
+                "configured": False,
+                "is_authorized": False,
+                "model": self._model,
+                "voice": self._voice_name,
+                "max_duration_seconds": self._max_duration_seconds,
+                "remaining_daily_quota": 0,
+                "daily_usage": 0,
+                "quota_details": {},
+            }
         self._session_manager.cleanup_expired()
         quota = self._session_manager.get_quota_details(student_user_id)
         return {
             "enabled": self._enabled,
             "configured": self.is_configured,
+            "is_authorized": True,
             "model": self._model,
             "voice": self._voice_name,
             "max_duration_seconds": self._max_duration_seconds,
@@ -105,6 +135,13 @@ class VoiceService:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="المحادثة الصوتية المباشرة معطلة حالياً.",
+            )
+
+        if not self.is_user_authorized(student_user_id):
+            logger.warning("voice_session_creation_rejected_unauthorized_user")
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="المحادثة الصوتية المباشرة غير مفعلة لهذا الحساب حالياً.",
             )
 
         if not self._api_key:
@@ -401,6 +438,16 @@ class VoiceService:
 
         Deterministic academic engines decide — the model only explains the verified output.
         """
+        if not self.is_user_authorized(student_user_id):
+            logger.warning("voice_delegation_rejected_unauthorized_user")
+            return {
+                "call_id": call_id,
+                "tool_name": tool_name or "unknown",
+                "output": {"ok": False, "error": "FORBIDDEN", "detail": "المحادثة الصوتية غير مصرح بها لهذا الحساب."},
+                "summary_text": "المحادثة الصوتية غير مصرح بها لهذا الحساب.",
+                "ok": False,
+            }
+
         # Enforce server-authoritative session validity: expired sessions cannot execute academic delegation
         active_session = self._session_manager.get_active_session(student_user_id)
         if active_session is None:
@@ -479,6 +526,12 @@ class VoiceService:
         Prevents duplicate entries via deterministic UUID generation and keeps text and
         voice histories aligned without saving partial or interim speech fragments.
         """
+        if not self.is_user_authorized(student_user_id):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="المحادثة الصوتية غير مصرح بها لهذا الحساب.",
+            )
+
         user_text = user_transcript.strip()
         assistant_text = assistant_transcript.strip()
         if not user_text or not assistant_text:

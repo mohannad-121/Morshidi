@@ -18,6 +18,7 @@ import { useCourseIdentities } from "@/lib/api/use-course-identities";
 import { CourseIdentity } from "@/components/academic/CourseIdentity";
 import { AdvisorResultCard } from "@/components/academic/AdvisorResultCard";
 import type { AdvisorResponse, ConversationThread, ConversationMessage } from "@/lib/api/student-types";
+import { VoiceApiService } from "@/lib/api/voice-api";
 import { LiveVoiceButton } from "@/components/voice/LiveVoiceButton";
 import { LiveVoiceSession } from "@/components/voice/LiveVoiceSession";
 
@@ -82,6 +83,7 @@ export default function AdvisorPage() {
     Boolean(message.advisorData?.clarification?.candidate_course_codes?.length)));
   const [threads, setThreads] = useState<ConversationThread[]>([]);
   const [voiceOpen, setVoiceOpen] = useState(false);
+  const [voiceAvailable, setVoiceAvailable] = useState(false);
   const [olderThreadsAvailable, setOlderThreadsAvailable] = useState(false);
   const [threadId, setThreadId] = useState<string | null>(null);
   const [historyStatus, setHistoryStatus] = useState<HistoryStatus>("initializing");
@@ -102,6 +104,24 @@ export default function AdvisorPage() {
   useEffect(() => {
     scrollToBottom();
   }, [messages, loading]);
+
+  useEffect(() => {
+    if (historyStatus !== "ready") return;
+    let isMounted = true;
+    const voiceApi = new VoiceApiService(client);
+    voiceApi.getStatus().then((status) => {
+      if (isMounted) {
+        setVoiceAvailable(Boolean(status.enabled && status.is_authorized !== false));
+      }
+    }).catch(() => {
+      if (isMounted) {
+        setVoiceAvailable(false);
+      }
+    });
+    return () => {
+      isMounted = false;
+    };
+  }, [historyStatus, client]);
 
   const showHistory = (rows: ConversationMessage[]): ChatMessage[] => rows.map((row) => ({
     id: row.id, sender: row.role === "USER" ? "student" : "advisor",
@@ -271,7 +291,7 @@ export default function AdvisorPage() {
 
   const archived=Boolean(threadId&&threads.find(t=>t.id===threadId)?.status==='ARCHIVED');
   return <div className="chat-workspace">
-    <div className="chat-mobile-heading"><h1>مرشدي AI</h1><div className="flex items-center gap-2"><LiveVoiceButton variant="compact" onClick={() => setVoiceOpen(true)} disabled={loading || historyStatus === "auth-error"} /><button className="icon-button" aria-label="سجل محادثات مرشدي AI" aria-expanded={historyOpen} onClick={()=>setHistoryOpen(!historyOpen)}><PanelRight size={20}/></button></div></div>
+    <div className="chat-mobile-heading"><h1>مرشدي AI</h1><div className="flex items-center gap-2">{voiceAvailable && <LiveVoiceButton variant="compact" onClick={() => setVoiceOpen(true)} disabled={loading || historyStatus === "auth-error"} />}<button className="icon-button" aria-label="سجل محادثات مرشدي AI" aria-expanded={historyOpen} onClick={()=>setHistoryOpen(!historyOpen)}><PanelRight size={20}/></button></div></div>
     <aside className={`chat-sidebar ${historyOpen?'is-open':''}`}>
       <ChatHistory threads={threads.map(t=>({...t,title:conversationTitle(t.title,t.id===threadId?messages.find(m=>m.sender==='student')?.text:undefined)}))} activeId={threadId} disabled={loading||historyStatus==='loading'||historyStatus==='auth-error'}
         onNew={()=>{setThreadId(null);setMessages(INITIAL_MESSAGES);setLoadedCount(0);setOlderAvailable(false);setHistoryOpen(false);}}
@@ -302,7 +322,9 @@ export default function AdvisorPage() {
       </div>
       <div className="chat-composer-wrap">
         <div className="flex items-center justify-between gap-3 mb-2 px-1">
-          <LiveVoiceButton onClick={() => setVoiceOpen(true)} disabled={loading || historyStatus === 'auth-error'} />
+          {voiceAvailable ? (
+            <LiveVoiceButton onClick={() => setVoiceOpen(true)} disabled={loading || historyStatus === 'auth-error'} />
+          ) : <div />}
           {messages.length > 4 && <button className="latest-message" onClick={scrollToBottom}><ArrowDown size={13}/>آخر الرسائل</button>}
         </div>
         {archived && <p className="text-xs text-muted">محادثة مؤرشفة</p>}
